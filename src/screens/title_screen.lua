@@ -105,6 +105,9 @@ end
 function TitleScreen.update(dt)
     dt = math.max(0, tonumber(dt) or 0)
     Motion.update(dt)
+    if TitleScreen.mode=='town-setup' and TitleScreen.townSetup then
+        TownSetup.update(TitleScreen.townSetup)
+    end
     if TitleScreen.bakeJob then
         local done,reason=pcall(TitleScreen.bakeJob.step,TitleScreen.bakeJob,.008)
         if not done then print('Terrain cache bake skipped: '..tostring(reason)) end
@@ -171,7 +174,7 @@ local function beginSetup()
     TitleScreen.message="Choose the clock pace before creating this shop."
 end
 local function beginTownSetup()
-    TitleScreen.townSetup=TitleScreen.townSetup or TownSetup.new(TitleScreen.setup)
+    TitleScreen.townSetup=TitleScreen.townSetup or TownSetup.new(TitleScreen.setup,true)
     TitleScreen.mode="town-setup"
 end
 local function handleTownAction(result)

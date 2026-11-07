@@ -80,13 +80,13 @@ function Test.run(context, check)
         commitControlLayout = function() layoutCommits = layoutCommits + 1 end,
     })
     OptionsScreen.mousepressed(475, 114, 1)
-    OptionsScreen.mousepressed(263, 472, 1)
+    OptionsScreen.mousepressed(263, 377, 1)
     OptionsScreen.mousemoved(410, 350)
     OptionsScreen.mousereleased(410, 350, 1)
     check("options_controls_preview_drags_and_commits_layout",
         OptionsScreen.isControlsTab() and layoutCommits == 1
         and math.abs(previewLayout.joystick.x - ((410 - 205) / 550)) < 0.001
-        and math.abs(previewLayout.joystick.y - ((350 - 176) / 350)) < 0.001)
+        and math.abs(previewLayout.joystick.y - ((350 - 176) / 238)) < 0.001)
 
     local state = context.State.new()
     state.activeSlot = 1

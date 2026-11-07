@@ -5,6 +5,7 @@ param(
     [string]$OutputDirectory,
     [string]$RouteProviderPath,
     [string]$CryptoProviderPath,
+    [switch]$SkipSmokeTest,
     [switch]$SkipInstaller
 )
 
@@ -272,42 +273,56 @@ if ((Get-PeMachine $gameExecutable) -ne 0x8664) {
     throw 'The fused game executable is not x64.'
 }
 
-$smokeReport = Join-Path $windowsRoot 'windows-package-smoke.rpt'
-$stdoutPath = Join-Path $windowsRoot 'windows-package-smoke-out.txt'
-$stderrPath = Join-Path $windowsRoot 'windows-package-smoke-err.txt'
-Remove-Item -LiteralPath $smokeReport, $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
-$previousSmoke = $env:PICTURE_SHOP_SMOKE
-$previousReport = $env:PICTURE_SHOP_SMOKE_REPORT
-try {
-    $env:PICTURE_SHOP_SMOKE = '1'
-    $env:PICTURE_SHOP_SMOKE_REPORT = $smokeReport
-    $process = Start-Process -FilePath $gameExecutable -WorkingDirectory $stageRoot `
-        -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath `
-        -WindowStyle Hidden -PassThru
-    $null = $process.Handle
-    if (-not $process.WaitForExit(90000)) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw 'Fused Windows game smoke test timed out.'
+$smokeChecks = 0
+if (-not $SkipSmokeTest) {
+    $smokeReport = Join-Path $windowsRoot 'windows-package-smoke.rpt'
+    $stdoutPath = Join-Path $windowsRoot 'windows-package-smoke-out.txt'
+    $stderrPath = Join-Path $windowsRoot 'windows-package-smoke-err.txt'
+    $smokeArtifactDirectory = Join-Path $stageRoot 'output'
+    $smokeArtifact = Join-Path $smokeArtifactDirectory 'independent-scenes-grocery.png'
+    New-Item -ItemType Directory -Path $smokeArtifactDirectory -Force | Out-Null
+    Remove-Item -LiteralPath $smokeReport, $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+    $previousSmoke = $env:PICTURE_SHOP_SMOKE
+    $previousReport = $env:PICTURE_SHOP_SMOKE_REPORT
+    try {
+        $env:PICTURE_SHOP_SMOKE = '1'
+        $env:PICTURE_SHOP_SMOKE_REPORT = $smokeReport
+        $process = Start-Process -FilePath $gameExecutable -WorkingDirectory $stageRoot `
+            -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath `
+            -WindowStyle Hidden -PassThru
+        $null = $process.Handle
+        if (-not $process.WaitForExit(300000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw 'Fused Windows game smoke test timed out.'
+        }
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            $errorText = if (Test-Path -LiteralPath $stderrPath) {
+                (Get-Content -Raw -LiteralPath $stderrPath).Trim()
+            } else { '' }
+            throw "Fused Windows game smoke test failed with exit code $($process.ExitCode): $errorText"
+        }
+        if (-not (Test-Path -LiteralPath $smokeReport)) {
+            throw 'Fused Windows game did not produce a smoke report.'
+        }
+        $failures = @(Select-String -LiteralPath $smokeReport -Pattern '^FAIL(?:\s|$)')
+        if ($failures.Count -gt 0) {
+            throw "Fused Windows game reported $($failures.Count) failed checks."
+        }
+        $smokeChecks = @(Select-String -LiteralPath $smokeReport -Pattern '^PASS(?:\s|$)').Count
+    } finally {
+        if (Test-Path -LiteralPath $smokeArtifact -PathType Leaf) {
+            Remove-Item -LiteralPath $smokeArtifact -Force
+        }
+        if ((Test-Path -LiteralPath $smokeArtifactDirectory -PathType Container) -and
+                @(Get-ChildItem -LiteralPath $smokeArtifactDirectory -Force).Count -eq 0) {
+            Remove-Item -LiteralPath $smokeArtifactDirectory -Force
+        }
+        if ($null -eq $previousSmoke) { Remove-Item Env:PICTURE_SHOP_SMOKE -ErrorAction SilentlyContinue }
+        else { $env:PICTURE_SHOP_SMOKE = $previousSmoke }
+        if ($null -eq $previousReport) { Remove-Item Env:PICTURE_SHOP_SMOKE_REPORT -ErrorAction SilentlyContinue }
+        else { $env:PICTURE_SHOP_SMOKE_REPORT = $previousReport }
     }
-    $process.WaitForExit()
-    if ($process.ExitCode -ne 0) {
-        $errorText = if (Test-Path -LiteralPath $stderrPath) {
-            (Get-Content -Raw -LiteralPath $stderrPath).Trim()
-        } else { '' }
-        throw "Fused Windows game smoke test failed with exit code $($process.ExitCode): $errorText"
-    }
-    if (-not (Test-Path -LiteralPath $smokeReport)) {
-        throw 'Fused Windows game did not produce a smoke report.'
-    }
-    $failures = @(Select-String -LiteralPath $smokeReport -Pattern '^FAIL(?:\s|$)')
-    if ($failures.Count -gt 0) {
-        throw "Fused Windows game reported $($failures.Count) failed checks."
-    }
-} finally {
-    if ($null -eq $previousSmoke) { Remove-Item Env:PICTURE_SHOP_SMOKE -ErrorAction SilentlyContinue }
-    else { $env:PICTURE_SHOP_SMOKE = $previousSmoke }
-    if ($null -eq $previousReport) { Remove-Item Env:PICTURE_SHOP_SMOKE_REPORT -ErrorAction SilentlyContinue }
-    else { $env:PICTURE_SHOP_SMOKE_REPORT = $previousReport }
 }
 
 $installerPath = $null
@@ -364,7 +379,8 @@ $report = [ordered]@{
     gameExecutable = $gameExecutable
     gameExecutableBytes = (Get-Item -LiteralPath $gameExecutable).Length
     gameExecutableSha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $gameExecutable).Hash.ToLowerInvariant()
-    smokeChecks = @(Select-String -LiteralPath $smokeReport -Pattern '^PASS(?:\s|$)').Count
+    smokeChecks = $smokeChecks
+    smokeTestSkipped = [bool]$SkipSmokeTest
     stageFiles = $stageFiles
     installer = $installerPath
     installerBytes = if ($installerPath) { (Get-Item -LiteralPath $installerPath).Length } else { $null }

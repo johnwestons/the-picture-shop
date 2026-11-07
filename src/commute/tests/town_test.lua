@@ -3,7 +3,7 @@ local Sites=require('src.commute.sites')
 local Codec=require('src.net.codec')
 local Schema=require('src.save_schema')
 local Test={}
-local limits={maxBytes=512*1024,maxDepth=32,maxEntries=32768,maxStringBytes=128*1024,maxNumberBytes=32}
+local limits={maxBytes=1024*1024,maxDepth=32,maxEntries=65536,maxStringBytes=128*1024,maxNumberBytes=32}
 Test.codecLimits=limits
 function Test.fixture(town,crowded)
     local state=Schema.defaultState()
@@ -67,7 +67,7 @@ function Test.run(check)
     local world=Town.world(town)
     -- Town.world attaches a generated fuel station to legacy and current
     -- saved towns without mutating their frozen placement records.
-    local coverage=#world.sites.all==17
+    local coverage=#world.sites.all==18 and world.sites.byId.farm~=nil and world.town.destinations.farm==nil
     for _,id in ipairs({'warehouse','brick-walkup','garden','courtyard','corner','mechanic','grocery',
         'post-office','police','fire-station','diner','coffee-shop','general-store',
         'residential-1','residential-2','residential-3'}) do
@@ -76,7 +76,7 @@ function Test.run(check)
         coverage=coverage and site and pad and math.abs(pad.x-site.parking.x)<1e-6
             and math.abs(pad.z-site.parking.z)<1e-6 and not site:blocked(site.door.x,site.door.z)
     end
-    check('town_has_all_sixteen_registered_buildings_and_clear_entrances',coverage)
+    check('town_includes_static_farm_and_all_registered_buildings',coverage)
     check('town_world_construction_does_not_rewrite_saved_specification',assert(Codec.encode(town,limits))==encoded)
     local originalWidth=Sites.designs.warehouse.width
     Sites.designs.warehouse.width=originalWidth+100

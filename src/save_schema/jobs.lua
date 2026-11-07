@@ -144,6 +144,18 @@ function Component.install(Runtime)
             and Runtime.optionalNonnegativeInteger(value.deliveredSheets)
     end
 
+    local function driverDelivery(value)
+        if value == nil then return true end
+        return type(value) == "table" and value.version == 1
+            and Runtime.text(value.driverEmployeeId) and #value.driverEmployeeId <= 64
+            and value.driverEmployeeId:match("^[%w_.%-]+$") ~= nil
+            and Runtime.integer(value.driverSkill) and value.driverSkill >= 0 and value.driverSkill <= 100
+            and Runtime.nonnegative(value.standardArrivalAtHours)
+            and Runtime.nonnegative(value.arrivedAtHours)
+            and Runtime.nonnegative(value.lateHours)
+            and Runtime.integer(value.serviceRating) and value.serviceRating >= 1 and value.serviceRating <= 5
+    end
+
     local function jobInspection(value)
         if value == nil then return true end
         return type(value) == "table"
@@ -203,6 +215,7 @@ function Component.install(Runtime)
             and Runtime.optionalBoolean(value.housePaperReserved)
             and Runtime.optionalNonnegativeInteger(value.housePaperReservedSheets)
             and jobFeedback(value.feedback)
+            and driverDelivery(value.driverDelivery)
             and jobInspection(value.inspection)
             and customerCase(value.customerCase)
             and Runtime.employeeSkillAwards(value.employeeSkillAwards)

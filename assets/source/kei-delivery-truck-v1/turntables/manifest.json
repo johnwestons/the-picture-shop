@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "status": "art_candidate_contact_sheets_not_runtime_wired",
+  "vehicle": {
+    "class": "Japanese kei-class cab-over utility truck",
+    "body": "single cab, empty drop-side flatbed",
+    "targetRelativeSize": {
+      "lengthVsBoxTruck": 0.64,
+      "widthVsBoxTruck": 0.70
+    }
+  },
+  "angles": {
+    "direction": "clockwise",
+    "frameOne": "rear",
+    "stepDegrees": 5.625,
+    "mirrored": false
+  },
+  "views": [
+    {
+      "kind": "isometric",
+      "cameraElevationDegrees": 32,
+      "frameCount": 64,
+      "framesPerPage": 16,
+      "pages": [
+        { "file": "isometric-64-1.png", "firstFrame": 1, "lastFrame": 16, "canvas": [1254, 1254] },
+        { "file": "isometric-64-2.png", "firstFrame": 17, "lastFrame": 32, "canvas": [1254, 1254] },
+        { "file": "isometric-64-3.png", "firstFrame": 33, "lastFrame": 48, "canvas": [1254, 1254] },
+        { "file": "isometric-64-4.png", "firstFrame": 49, "lastFrame": 64, "canvas": [1254, 1254] }
+      ]
+    },
+    {
+      "kind": "chase",
+      "cameraElevationDegrees": 8,
+      "frameCount": 64,
+      "framesPerPage": 16,
+      "pages": [
+        { "file": "chase-64-1.png", "firstFrame": 1, "lastFrame": 16, "canvas": [1619, 971] },
+        { "file": "chase-64-2.png", "firstFrame": 17, "lastFrame": 32, "canvas": [1619, 971] },
+        { "file": "chase-64-3.png", "firstFrame": 33, "lastFrame": 48, "canvas": [1620, 971] },
+        { "file": "chase-64-4.png", "firstFrame": 49, "lastFrame": 64, "canvas": [1619, 971] }
+      ]
+    }
+  ],
+  "generation": {
+    "tool": "built-in ImageGen",
+    "styleReference": "assets/commute/truck/turntables/isometric-64-1.png and chase-64-1.png",
+    "alphaRequested": true,
+    "atlasLayout": "4 columns by 4 rows per page; contact sheets require crop and size normalization before runtime use"
+  },
+  "validation": {
+    "viewCountsMatch": true,
+    "eachViewContainsFourPagesOfSixteenFrames": true,
+    "runtimeReady": false,
+    "remainingArtWork": [
+      "normalize page and cell dimensions to the runtime truck atlas contract",
+      "inspect and clean edge fringing",
+      "verify orientation continuity and all 64 frame crops"
+    ]
+  }
+}

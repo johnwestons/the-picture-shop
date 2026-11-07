@@ -281,7 +281,19 @@ end
 
 local function customerReview(job)
     local rating = qualityRating(job)
-    local text = reviewTextFor(job.id or job.company or "job", rating)
+    local driverDelivery=job.driverDelivery
+    local deliveryNote
+    if type(driverDelivery)=='table' and integer(driverDelivery.serviceRating,1,5) then
+        -- A standard driver is neutral; poor service can lower the review and
+        -- exceptional service can lift borderline quality results.
+        rating=clamp(math.floor((rating*4+driverDelivery.serviceRating)/5+.5),1,5)
+        if driverDelivery.serviceRating<=2 then
+            deliveryNote=' Delivery service needs improvement.'
+        elseif driverDelivery.serviceRating>=4 then
+            deliveryNote=' Delivery was prompt and handled with care.'
+        end
+    end
+    local text = reviewTextFor(job.id or job.company or "job", rating)..(deliveryNote or '')
     return rating, text
 end
 

@@ -101,14 +101,17 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     end
     Hud.drawExit(assets,pointerX,pointerY,{right=right})
     if state.message then
-        shadowedPrintf(state.message, left + 24, 62, right - left - 320, { 0.88, 0.92, 0.94 })
+        local reserved=sceneId=="warehouse" and 442 or 320
+        shadowedPrintf(state.message, left + 24, 62, right - left - reserved, { 0.88, 0.92, 0.94 })
     end
     local week=state.home and state.home.weekend
     if week and week.phase~="working" then
         local status=require("src.weekend_flow").isOuting(state) and "TOWN OUTING: use either entrance to return. The shop keeps its normal schedule."
             or week.phase=="closing" and "FRIDAY CLOSING: finish work and pickups, then go home from the front entrance."
             or week.phase=="ready" and "SHOP CLOSED: use the exterior front entrance to go home. Time is held."
-            or "AT HOME: return becomes available Monday at 07:30, before the 08:00 employee shift. Shop opens at 09:00."
+            or ("AT HOME: return becomes available Monday at "..BusinessCalendar.formatTime(7,30,twelveHourTime)
+                ..", before the "..BusinessCalendar.formatTime(8,0,twelveHourTime)
+                .." employee shift. Shop opens at "..BusinessCalendar.formatTime(9,0,twelveHourTime)..".")
         shadowedPrintf(status,left+24,92,right-left-48,{.96,.85,.40})
     end
     if prompt then

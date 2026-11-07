@@ -220,7 +220,8 @@ function Controls.draw(R)
     elseif week and (week.phase=='ready' or week.phase=='home') then
         lines[#lines+1]='The shop is closed for the weekend. Town outings remain available.'
     end
-    lines[#lines+1]='Current time: '..require('src.business_calendar').dateTimeTextAtHours(require('src.business_calendar').absoluteHours(R.state))
+    local twelveHourTime=not (R.App.settings and R.App.settings.twelveHourTime==false)
+    lines[#lines+1]='Current time: '..require('src.business_calendar').dateTimeTextAtHours(require('src.business_calendar').absoluteHours(R.state),twelveHourTime)
     if week and week.travelToken then
         lines={'Everyone travels together, including guests in other shop rooms.',
             'The host may wait for readiness or choose Bring everyone.'}

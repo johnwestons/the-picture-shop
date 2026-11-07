@@ -4,7 +4,7 @@ local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
-local Town={VERSION=1,GENERATOR_VERSION=9,MIN_SEED=1,MAX_SEED=2147483646}
+local Town={VERSION=1,GENERATOR_VERSION=11,MIN_SEED=1,MAX_SEED=2147483646}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated labels are part of the saved seed fingerprint. Current signage
 -- is applied to the runtime destinations without mutating a town or preset.
@@ -16,7 +16,7 @@ local names={warehouse='The Picture Shop',['brick-walkup']='Brick walk-up',garde
 local function plain(value)
     local active,count={},0
     local function visit(v,depth)
-        count=count+1;if count>30000 or depth>14 then return false end
+        count=count+1;if count>150000 or depth>14 then return false end
         if type(v)=='number' then return M.finite(v) end
         if type(v)=='string' then return #v<=160 end
         if type(v)=='boolean' or v==nil then return true end
@@ -88,6 +88,7 @@ function Town.valid(t)
         if type(p)~='table' or type(p.id)~='string' or #p.id>48 or not p.id:match('^[%w%-]+$')
             or ids[p.id] or not t.designs[p.design] or not point(p.origin,40,472)
             or not M.finite(p.yaw or 0) or math.abs(p.yaw or 0)>math.pi*2 then return false end
+        if p.id=='farm' and p.design~='farm' then return false end
         if p.size then
             if type(p.size)~='table' then return false end
             for _,key in ipairs({'width','depth','height'}) do
@@ -104,6 +105,8 @@ function Town.valid(t)
     for _,id in ipairs(required) do
         if not ids[id] or not townPoint(t.destinations[id],56,458) then return false end
     end
+    if t.generatorVersion>=11 and (not ids.farm or not t.designs.farm or t.designs.farm.style~='farm'
+        or t.destinations.farm~=nil) then return false end
     local destinations=0
     for id,p in pairs(t.destinations) do
         destinations=destinations+1
@@ -170,9 +173,12 @@ function Town.valid(t)
             local frontage=roadIds[p.frontageRoadId]
             local residential=p.design=='residential' or p.id=='garden' or p.id=='corner'
                 or p.id=='brick-walkup' or p.id=='courtyard'
-            local district=p.id=='warehouse' and 'industrial' or residential and 'residential' or 'center'
+            local rural=p.id=='farm' and p.design=='farm'
+            local district=p.id=='warehouse' and 'industrial' or rural and 'rural'
+                or residential and 'residential' or 'center'
             local country=t.terrain.settings and t.terrain.settings.roads==1
             if p.district~=district or not frontage or frontage.role~=((country or district=='center') and 'main' or 'local') then return false end
+            if rural and M.length(p.origin.x-main.x,p.origin.z-main.z)<100 then return false end
         end
         -- Safe recreation clearings are optional when a valid layout has no
         -- terrain corridor that can hold them.
@@ -187,6 +193,7 @@ function Town.valid(t)
             seen[site.id]=true
         end
     end
+    if t.generatorVersion>=10 and not require('src.commute.driving_map').valid(t,t.drivingMap) then return false end
     return true
 end
 function Town.fingerprint(t)
@@ -251,8 +258,138 @@ local function stationLayout(t,world)
     end
     return t
 end
-function Town.world(t)
-    t=t or Town.legacy();assert(Town.valid(t),'Invalid saved town definition')
+local function pointDistance(a,b)
+    return M.length(a[1]-b[1],a[2]-b[2])
+end
+local function roadStation(road,anchor,offset)
+    local points=road and road.points
+    if type(points)~='table' or #points<2 then return nil end
+    local chain={0};local anchorStation,best= nil,math.huge
+    for i=1,#points-1 do
+        local a,b=points[i],points[i+1]
+        local length=pointDistance(a,b)
+        chain[i+1]=chain[i]+length
+        local dx,dz=b[1]-a[1],b[2]-a[2]
+        local length2=dx*dx+dz*dz
+        local t=length2>1e-8 and math.max(0,math.min(1,((anchor[1]-a[1])*dx+(anchor[2]-a[2])*dz)/length2)) or 0
+        local x,z=a[1]+dx*t,a[2]+dz*t
+        local distance=M.length(anchor[1]-x,anchor[2]-z)
+        if distance<best then best=distance;anchorStation=chain[i]+length*t end
+    end
+    if not anchorStation or best>.05 then return nil end
+    local station=anchorStation+offset
+    if station<.25 or station>chain[#points]-.25 then return nil end
+    for i=1,#points-1 do
+        if station<=chain[i+1]+1e-8 then
+            local segmentLength=chain[i+1]-chain[i]
+            local t=segmentLength>1e-8 and (station-chain[i])/segmentLength or 0
+            if road.bridgeEdges and road.bridgeEdges[i] then return nil end
+            local a,b=points[i],points[i+1]
+            return {segment=i,station=station,point={a[1]+(b[1]-a[1])*t,
+                a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t}}
+        end
+    end
+end
+local function insertRoadStations(road,stations)
+    local grouped={}
+    for _,station in ipairs(stations) do
+        local exists=false
+        for _,point in ipairs(road.points) do
+            if (point[1]-station.point[1])^2+(point[2]-station.point[2])^2<.0001 then
+                exists=true;break
+            end
+        end
+        if not exists then
+            grouped[station.segment]=grouped[station.segment] or {}
+            grouped[station.segment][#grouped[station.segment]+1]=station
+        end
+    end
+    if not next(grouped) then return end
+    local points,flags={},{ }
+    local oldPoints,oldFlags=road.points,road.bridgeEdges or {}
+    points[1]=oldPoints[1]
+    for segment=1,#oldPoints-1 do
+        local insertions=grouped[segment] or {}
+        table.sort(insertions,function(a,b)return a.station<b.station end)
+        local length=pointDistance(oldPoints[segment],oldPoints[segment+1])
+        local start=0
+        for _,station in ipairs(insertions) do
+            -- Keep the authored stations in route order; their positions were
+            -- sampled before any points were inserted into the road.
+            local source=station.point
+            local ax,az=oldPoints[segment][1],oldPoints[segment][2]
+            local dx,dz=oldPoints[segment+1][1]-ax,oldPoints[segment+1][2]-az
+            local projection=length>1e-8 and ((source[1]-ax)*dx+(source[2]-az)*dz)/(length*length) or 0
+            local t=math.max(start,math.min(1,projection));start=t
+            flags[#flags+1]=oldFlags[segment]==true
+            points[#points+1]=source
+        end
+        flags[#flags+1]=oldFlags[segment]==true
+        points[#points+1]=oldPoints[segment+1]
+    end
+    road.points,road.bridgeEdges=points,flags
+end
+local function truckRoad(id,points)
+    local values={}
+    for _,point in ipairs(points) do values[#values+1]={point.x,point.z,point.h} end
+    return {id=id,width=4.4,role='local',surface='paved',lanes=1,oneWay=true,
+        turnLane=false,sidewalks=false,interpolation='linear',truckOnly=true,
+        points=values,bridgeEdges={}}
+end
+local function attachWarehouseTruckAccess(t,sites)
+    if t.generatorVersion<3 then return t,nil end
+    local site=sites.byId.warehouse
+    local entry,exit
+    for _,road in ipairs(t.roads) do
+        if road.id=='warehouse-truck-entry' then entry=road
+        elseif road.id=='warehouse-truck-exit' then exit=road end
+    end
+    if entry and exit then
+        return t,{entryRoad=entry,exitRoad=exit}
+    end
+    local placement
+    for _,item in ipairs(t.placements or {}) do if item.id=='warehouse' then placement=item;break end end
+    local frontageId=placement and placement.frontageRoadId
+    local frontage,drive
+    for _,road in ipairs(t.roads) do
+        if road.id==frontageId then frontage=road end
+        if road.id=='warehouse-drive' then drive=road end
+    end
+    if not site or not frontage or not drive or not drive.points[1] then
+        return t,nil
+    end
+    if #frontage.points>62 then return t,nil end
+    local anchor=drive.points[1]
+    local before,after=roadStation(frontage,anchor,-7.5),roadStation(frontage,anchor,7.5)
+    if not before or not after then return t,nil end
+    local bx,bz=site:toLocal(before.point[1],before.point[2])
+    local ax,az=site:toLocal(after.point[1],after.point[2])
+    if math.abs(bx-ax)<8 then return t,nil end
+    local entryGate,exitGate=bx<ax and before or after,bx<ax and after or before
+    local points={{x=entryGate.point[1],z=entryGate.point[2],h=entryGate.point[3]}}
+    local layout=require('src.commute.sites').warehouseTruckLayout
+    for _,localPoint in ipairs(layout.truckEntryWaypoints) do
+        local x,z,h=site:toWorld(localPoint.x,localPoint.z,0)
+        points[#points+1]={x=x,z=z,h=h}
+    end
+    local entryDefinition=truckRoad('warehouse-truck-entry',points)
+    local exitPoints={}
+    for _,localPoint in ipairs(layout.truckExitWaypoints) do
+        local x,z,h=site:toWorld(localPoint.x,localPoint.z,0)
+        exitPoints[#exitPoints+1]={x=x,z=z,h=h}
+    end
+    exitPoints[#exitPoints+1]={x=exitGate.point[1],z=exitGate.point[2],h=exitGate.point[3]}
+    local exitDefinition=truckRoad('warehouse-truck-exit',exitPoints)
+    -- The gate stations become real shared nodes so the GPS graph joins the
+    -- private one-way driveways to the public frontage without near-misses.
+    insertRoadStations(frontage,{before,after})
+    t.roads[#t.roads+1]=entryDefinition
+    t.roads[#t.roads+1]=exitDefinition
+    return t,{entryRoad=entryDefinition,exitRoad=exitDefinition}
+end
+local function constructWorld(t,validate)
+    t=t or Town.legacy()
+    if validate then assert(Town.valid(t),'Invalid saved town definition') end
     local world=require('src.commute.terrain').new(t.terrain)
     t=stationLayout(t,world)
     local runtimeTown=t
@@ -263,6 +400,9 @@ function Town.world(t)
         local exit,reason=planner.attachMainlandExit(runtimeTown,world.plan,sites)
         assert(exit,reason)
     end
+    runtimeTown=copy(runtimeTown)
+    local truckAccess
+    runtimeTown,truckAccess=attachWarehouseTruckAccess(runtimeTown,sites)
     local destinations=copy(runtimeTown.destinations)
     if destinations.mechanic then destinations.mechanic.label=Sites.MECHANIC_NAME end
     if runtimeTown.mainlandExit then
@@ -271,12 +411,36 @@ function Town.world(t)
     end
     local roadVersion=require('src.commute.roads').VERSION
     local roads=require('src.commute.roads').new({definitions=runtimeTown.roads,destinations=destinations,
-        bounds=runtimeTown.bounds,sites=sites,layoutId=runtimeTown.id,version=roadVersion,recreation=runtimeTown.recreation})
+        bounds=runtimeTown.bounds,sites=sites,layoutId=runtimeTown.id,version=roadVersion,
+        recreation=runtimeTown.recreation,drivingMap=runtimeTown.drivingMap})
     roads:attach(world);world.townId=runtimeTown.id;world.town=runtimeTown
     world.mainlandExit=runtimeTown.mainlandExit;world.neighboringCity='Millhaven'
+    if truckAccess then
+        local site=sites.byId.warehouse
+        local function worldPoint(value)
+            local x,z,h
+            if value.x then x,z,h=value.x,value.z,value.h
+            else x,z,h=value[1],value[2],value[3] end
+            return {x=x,z=z,h=h or site.h}
+        end
+        local entryRoad,exitRoad=truckAccess.entryRoad,truckAccess.exitRoad
+        local entryGate=worldPoint(entryRoad.points[1])
+        local exitGate=worldPoint(exitRoad.points[#exitRoad.points])
+        local access={entryGate=entryGate,exitGate=exitGate,entryPath={},exitPath={}}
+        for _,p in ipairs(entryRoad.points) do access.entryPath[#access.entryPath+1]=worldPoint(p) end
+        for _,p in ipairs(exitRoad.points) do access.exitPath[#access.exitPath+1]=worldPoint(p) end
+        world.truckAccess=access
+        world.truckDestinations={warehouse_truck_entry=entryGate,warehouse_truck_exit=exitGate,
+            warehouse_truck_dock=site.truckParking}
+        for index,anchor in ipairs(site.truckQueueWorldAnchors or {}) do
+            world.truckDestinations['warehouse_truck_queue_'..index]=anchor
+        end
+    end
     if runtimeTown.generatorVersion>=3 then require('src.commute.infrastructure').ensure(world) end
     return world
 end
+
+function Town.world(t)return constructWorld(t,true)end
 local function random(seed)
     local state=seed
     return function(lo,hi)
@@ -323,6 +487,7 @@ local function generate(seed)
     local terrain=require('src.commute.terrain').new({seed=seed,size=512})
     local result={version=1,generatorVersion=1,seed=seed,size=512,bounds=copy(Default.bounds),
         terrain={mode='inland-town-v1',seed=seed,size=512,heights={}},roads={},destinations={},placements={},designs=copy(Sites.designs)}
+    result.designs.farm=nil
     for x=0,64 do for z=0,64 do result.terrain.heights[#result.terrain.heights+1]=terrain.plan.grid[x][z] end end
     local nodes={}
     local function node(id,x,z,h,jitter)
@@ -420,19 +585,74 @@ local function generate(seed)
     return result
 end
 function Town.generate(seed,options)
+    options=options or {}
     seed=tonumber(seed)
     if not integer(seed,1,Town.MAX_SEED) then return nil,'Enter a whole-number seed from 1 to 2147483646.' end
+    if options.isCancelled and options.isCancelled() then return nil,'Town generation cancelled.' end
+    if options.progress then options.progress(.01,'Preparing island generator') end
     local okay,result=pcall(function()
-        local version=options and options.generatorVersion or Town.GENERATOR_VERSION
+        local version=options.generatorVersion or Town.GENERATOR_VERSION
         if version==0 then return Town.legacy() end
         if version==1 then return generate(seed) end
         assert(version>=2 and version<=Town.GENERATOR_VERSION,'Unknown town generator version')
         local bounds=version>=4 and islandBounds or Default.bounds
         -- V4 and V5 share the island terrain. Only V5 surveys curved streets.
-        local settings=version>=6 and Options.copy(options and options.island) or nil
+        local settings=version>=6 and Options.copy(options.island) or nil
         local plannerVersion=version>=4 and 4 or version
-        local result=require('src.commute.town_generator_v'..plannerVersion).generate(seed,
-            {bounds=bounds,names=names,generatorVersion=version,settings=settings})
+        local plannerOptions={bounds=bounds,names=names,generatorVersion=version,settings=settings}
+        plannerOptions.isCancelled=options.isCancelled
+        plannerOptions.progress=function(value,label)
+            if options.progress then options.progress(.03+.94*math.max(0,math.min(1,value or 0)),label) end
+        end
+        if version>=10 then
+            local lastRouteFailure
+            plannerOptions.validateCandidate=function(candidate)
+                local function traceCandidate(message)
+                    if os.getenv('PICTURE_SHOP_DELIVERY_ROUTE_GENERATION_TRACE')=='1' then
+                        io.stderr:write('DRIVING_MAP_CANDIDATE '..message..'\n');io.stderr:flush()
+                    end
+                end
+                if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+                if options.progress then options.progress(.96,'Checking roads and delivery routes') end
+                local worldOkay,world=pcall(constructWorld,candidate,false)
+                if not worldOkay then
+                    lastRouteFailure=tostring(world);traceCandidate(lastRouteFailure);return false,lastRouteFailure
+                end
+                if not world.truckAccess then
+                    lastRouteFailure='warehouse frontage could not fit separate truck entry and exit lanes'
+                    traceCandidate(lastRouteFailure);return false,lastRouteFailure
+                end
+                -- Freeze runtime additions (notably the fuel station driveway)
+                -- into the generated town before compiling its navigation graph.
+                local runtimeTown=world.town
+                for _,field in ipairs({'placements','designs','destinations','mainlandExit','recreation'}) do
+                    candidate[field]=runtimeTown[field]
+                end
+                -- Truck-only loops are reconstructed from the frontage when a
+                -- world loads. Keep their detailed lanes out of the serialized
+                -- town snapshot while retaining the public road gate nodes.
+                candidate.roads={}
+                for _,road in ipairs(runtimeTown.roads or {}) do
+                    if road.truckOnly~=true then candidate.roads[#candidate.roads+1]=road end
+                end
+                local mapModule=require('src.commute.driving_map')
+                local compileOkay,drivingMap,reason=pcall(mapModule.compile,candidate,world)
+                if not compileOkay then reason=drivingMap;drivingMap=nil end
+                if not drivingMap then lastRouteFailure=reason;traceCandidate(tostring(reason));return false,reason end
+                candidate.drivingMap=drivingMap
+                local validOkay,valid=pcall(mapModule.valid,candidate,drivingMap)
+                if not validOkay or not valid then
+                    lastRouteFailure='compiled route map failed town validation'
+                    traceCandidate(lastRouteFailure)
+                    return false,lastRouteFailure
+                end
+                traceCandidate(('accepted seed=%d routes=%d points=%d'):format(
+                    candidate.seed,#drivingMap.routes,#drivingMap.points/3))
+                return true
+            end
+            plannerOptions.lastRouteFailure=function()return lastRouteFailure end
+        end
+        local result=require('src.commute.town_generator_v'..plannerVersion).generate(seed,plannerOptions)
         result.id='town-v'..version..'-'..seed..'-'..Town.fingerprint(result)
         assert(Town.valid(result),'Generated town failed its data contract')
         return result

@@ -17,14 +17,32 @@ end
 
 local function distribution(check)
     local onTime,late,calledOut=0,0,0
-    for day=1,100 do
-        local state,cutter=fixture(day)
-        assert(Maintenance.updateTechnician(state))
-        if state.technicianVisit then onTime=onTime+1
-        elseif cutter.nextTechnicianDay==day+1 then late=late+1
-        elseif cutter.nextTechnicianDay==day+7 then calledOut=calledOut+1 end
+    local state=State.new()
+    assert(Maintenance.prepareBladeForTechnician(state))
+    local item,cutter=Maintenance.cutterStatus(state)
+    local day,samples=0,0
+    while samples<1000 do
+        day=day+1
+        state.calendar=Calendar.dateFromTotalDay(day)
+        if not Calendar.isWeekend(state) then
+            samples=samples+1
+            state.technicianVisit=nil
+            cutter.nextTechnicianDay=day
+            cutter.appointmentType="requested"
+            cutter.technicianRescheduled=false
+            cutter.technicianSequence=0
+            cutter.bladeRemoved=false
+            cutter.bladeInSleeve=true
+            cutter.weeklyTechnician=false
+            cutter.technicianStatus=nil
+            assert(Maintenance.updateTechnician(state))
+            if state.technicianVisit then onTime=onTime+1
+            elseif cutter.nextTechnicianDay==day+1 then late=late+1
+            elseif cutter.nextTechnicianDay==day+7 then calledOut=calledOut+1 end
+        end
     end
-    check("service_reliability_most_bookings_arrive_as_scheduled",onTime==93 and late==5 and calledOut==2,
+    check("service_reliability_weekday_bookings_follow_expected_distribution",
+        onTime==930 and late==50 and calledOut==20,
         string.format("on time=%d late=%d called out=%d",onTime,late,calledOut))
 end
 
@@ -44,7 +62,7 @@ end
 
 local function rescheduled(context,check)
     for _,case in ipairs({{name="late",day=26,delay=1,sequence=9},
-        {name="call_out",day=80,delay=7,sequence=29}}) do
+        {name="call_out",day=53,delay=7,sequence=29}}) do
         local state,cutter=fixture(case.day)
         local updated=Maintenance.updateTechnician(state)
         check("service_reliability_"..case.name.."_sends_one_notice",updated and not state.technicianVisit

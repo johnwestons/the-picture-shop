@@ -72,6 +72,17 @@ local function run(context,check)
     local door=Travel.target(host,state);host.x,host.y=door.x,door.y
     check("weekend_runtime_inbound_truck_waits_at_dock",R.World.truck.mode=="delivery"
         and R.World.truck.state=="parked_closed",R.World.truck.state)
+    local inboundDriverService=require("src.warehouse_delivery_driver")
+    local signature=assert(inboundDriverService.interaction(state))
+    host.x,host.y=signature.x,signature.y
+    check("weekend_runtime_player_signs_inbound_delivery",R.World.signDelivery(state,host))
+    for _=1,200 do
+        local visit=inboundDriverService.matching(state,job.id)
+        if visit and visit.driverReturned then break end
+        R.App.update(.1)
+    end
+    check("weekend_runtime_driver_returns_to_truck",inboundDriverService.matching(state,job.id).driverReturned)
+    host.x,host.y=door.x,door.y
     assert(R.World.toggleTruckCargoDoor(state))
     for _=1,15 do R.App.update(.1) end
     check("weekend_runtime_can_unload_after_shift",R.World.unloadTruckPallet(state,job.pallets[1].id))
@@ -81,7 +92,10 @@ local function run(context,check)
         R.App.update(.1)
     end
     check("weekend_runtime_inbound_truck_departs_and_dock_closes",R.World.truck.state=="absent"
-        and R.World.bayDoor.state=="closed" and job.delivery.status=="received")
+        and R.World.bayDoor.state=="closed" and job.delivery.status=="received",
+        table.concat({tostring(R.World.truck.state),tostring(R.World.truck.x),tostring(R.World.truck.y),
+            tostring(R.World.truck.speed),tostring(R.World.bayDoor.state),tostring(job.delivery.status),
+            tostring(state.home.weekend.phase),tostring(state.message)}," / "))
     check("weekend_runtime_can_call_friday_pickup",R.JobService.requestPickup(state,readyJob,os.time()))
     R.App.update(.1)
     check("weekend_runtime_schedules_pickup_while_closing",R.World.truck.mode=="pickup"

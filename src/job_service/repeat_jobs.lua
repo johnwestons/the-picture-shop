@@ -24,8 +24,10 @@ function Component.install(Runtime)
         if not service then return "Not assigned" end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local clientReplyHours = Runtime.emailDelay(job, 1, 3)
+        local settings = Runtime.App and Runtime.App.settings
         return Runtime.BusinessCalendar.dateTimeTextAtHours(now + clientReplyHours
-            + (tonumber(service.delayHours) or 0))
+            + (tonumber(service.delayHours) or 0),
+            not (settings and settings.twelveHourTime==false))
     end
 
     function Runtime.estimateRequestEmail(state, job)

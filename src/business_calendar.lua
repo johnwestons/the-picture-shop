@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local GroceryInventory = require("src.commute.grocery_inventory")
 
 local Calendar = {}
 local WEEKDAYS = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }
@@ -166,6 +167,7 @@ local function advanceDay(state)
         invoice = createInvoice(state)
     end
     require("src.credit").onDay(state)
+    GroceryInventory.arriveFromOutsideConnection(state)
     return invoice
 end
 
@@ -345,10 +347,17 @@ function Calendar.shiftMonth(year, month, amount)
     return math.floor(absolute / 12), absolute % 12 + 1
 end
 
-function Calendar.events(state,twelveHour)
+function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
     Calendar.ensure(state)
+    local scheduleStartDay,scheduleEndDay=(state.calendar.totalDays or 0)-1,(state.calendar.totalDays or 0)+7
+    if type(requestedYear)=="number" and requestedYear==math.floor(requestedYear)
+        and requestedYear>=2026 and type(requestedMonth)=="number"
+        and requestedMonth==math.floor(requestedMonth) and requestedMonth>=1 and requestedMonth<=12 then
+        scheduleStartDay=totalDayForDate(requestedYear,requestedMonth,1)
+        scheduleEndDay=scheduleStartDay+daysInMonth(requestedYear,requestedMonth)-1
+    end
     local result, seen = {}, {}
-    local function add(totalDay, title, kind, detail, id)
+    local function add(totalDay, title, kind, detail, id, atHours)
         totalDay = tonumber(totalDay)
         if not totalDay then return end
         totalDay = math.max(0, math.floor(totalDay))
@@ -358,11 +367,13 @@ function Calendar.events(state,twelveHour)
         local date = dateFromTotalDay(totalDay)
         result[#result + 1] = {
             id = key, totalDay = totalDay, year = date.year, month = date.month, day = date.day,
-            title = title, kind = kind or "general", detail = detail,
+            title = title, kind = kind or "general", detail = detail, atHours=atHours,
+            hour=atHours and math.floor(atHours)%24 or nil,
+            minute=atHours and math.floor((atHours%1)*60+.5)%60 or nil,
         }
     end
     local function addHours(hours, title, kind, detail, id)
-        if type(hours) == "number" then add(math.floor(hours / 24), title, kind, detail, id) end
+        if type(hours) == "number" then add(math.floor(hours / 24), title, kind, detail, id, hours) end
     end
 
     for _, job in ipairs((state.jobs and state.jobs.active) or {}) do
@@ -437,6 +448,34 @@ function Calendar.events(state,twelveHour)
         addHours(promotion.sentAtHours, "10% offer sent: " .. promotion.recipient, "email",
             promotion.customMessage, promotion.id .. ":sent")
     end
+    -- Town systems can publish date-based activities through this shared list.
+    -- Entries accept totalDay or startHours plus title, detail, location and id.
+    local townEvents=type(state.townCalendarEvents)=="table" and state.townCalendarEvents or nil
+    if not townEvents and type(state.town)=="table"
+        and type(state.town.calendarEvents)=="table" then townEvents=state.town.calendarEvents end
+    if not townEvents and type(state.home)=="table" and type(state.home.town)=="table"
+        and type(state.home.town.calendarEvents)=="table" then townEvents=state.home.town.calendarEvents end
+    townEvents=townEvents or {}
+    for index,event in ipairs(townEvents) do
+        if type(event)=="table" and type(event.title)=="string" and event.title~="" then
+            local id=event.id or ("town:"..index..":"..event.title)
+            local detail=event.detail or event.location
+            local startHours=tonumber(event.startHours or event.atHours)
+            if startHours then
+                addHours(startHours,event.title,"town",detail,id)
+            else
+                local totalDay=tonumber(event.totalDay)
+                if not totalDay and type(event.year)=="number" and event.year==math.floor(event.year)
+                    and type(event.month)=="number" and event.month==math.floor(event.month)
+                    and type(event.day)=="number" and event.day==math.floor(event.day)
+                    and event.month>=1 and event.month<=12
+                    and event.day>=1 and event.day<=daysInMonth(event.year,event.month) then
+                    totalDay=totalDayForDate(event.year,event.month,event.day)
+                end
+                if totalDay then add(totalDay,event.title,"town",detail,id) end
+            end
+        end
+    end
     for _, invoice in ipairs((state.bills and state.bills.ledger) or {}) do
         add(invoice.dueOnDay or invoice.issuedOnDay,
             invoice.kind == "spoil_claim" and "Customer stock claim due"
@@ -449,14 +488,37 @@ function Calendar.events(state,twelveHour)
     local Payroll=require("src.payroll")
     local now=Calendar.absoluteHours(state)
     for _,worker in ipairs(state.employment and state.employment.staff or {}) do
-        local payday=Payroll.nextPayday(worker,now)
-        if worker.status=="employed" or Payroll.balance(worker,now,true)>0 then
+        local eligible=worker.status=="employed" or Payroll.balance(worker,now,true)>0
+        if eligible and requestedYear and requestedMonth then
+            local contract=worker.contract
+            local anchor=contract.startDay-(Contracts.weekday(contract.startDay)-1)
+            local cycle=7*contract.payWeeks
+            local dueDay=anchor+cycle
+            while dueDay<scheduleStartDay do dueDay=dueDay+cycle end
+            while dueDay<=scheduleEndDay do
+                local dueHours=dueDay*24+9
+                if dueHours>=now then
+                    addHours(dueHours,"Wages due: "..worker.name,"payroll",
+                        string.format("Every %d week(s), Monday %s",contract.payWeeks,
+                            Calendar.formatTime(9,0,twelveHour)),worker.id..":pay:"..dueHours)
+                end
+                dueDay=dueDay+cycle
+            end
+            local unpaidPayday=Payroll.nextPayday(worker,now)
+            if Payroll.balance(worker,now,true)>0 and math.floor(unpaidPayday/24)<scheduleStartDay then
+                addHours(unpaidPayday,"Overdue wages: "..worker.name,"payroll",
+                    string.format("Earned unpaid $%.2f",Payroll.balance(worker,now,true)/100),
+                    worker.id..":overdue-pay:"..unpaidPayday)
+            end
+        elseif eligible then
+            local payday=Payroll.nextPayday(worker,now)
             addHours(payday,"Wages due: "..worker.name,"payroll",
-                string.format("Every %d week(s), 09:00 | Earned unpaid $%.2f",worker.contract.payWeeks,
+                string.format("Every %d week(s), %s | Earned unpaid $%.2f",worker.contract.payWeeks,
+                    Calendar.formatTime(9,0,twelveHour),
                     Payroll.balance(worker,now,true)/100),worker.id..":pay:"..payday)
         end
         if worker.status=="employed" and not worker.terminationRequested then
-            for day=math.max(worker.contract.startDay,state.calendar.totalDays-1),state.calendar.totalDays+7 do
+            for day=math.max(worker.contract.startDay,scheduleStartDay),scheduleEndDay do
                 if Contracts.hasDay(worker.contract.days,Contracts.weekday(day)) then
                     local start=day*24+worker.contract.startHour
                     addHours(start,"Shift starts: "..worker.name,"shift",
@@ -497,7 +559,12 @@ function Calendar.events(state,twelveHour)
         "Warehouse rent and monthly utilities", string.format("projected:%04d-%02d", nextYear, nextMonth))
 
     table.sort(result, function(a, b)
-        if a.totalDay == b.totalDay then return a.title < b.title end
+        if a.totalDay == b.totalDay then
+            local aTime=a.atHours or a.totalDay*24
+            local bTime=b.atHours or b.totalDay*24
+            if aTime==bTime then return a.title < b.title end
+            return aTime<bTime
+        end
         return a.totalDay < b.totalDay
     end)
     return result

@@ -115,6 +115,7 @@ function Component.install(Runtime)
             },
             employees = Runtime.World._state and require("src.employee_pose").capture(Runtime.Employees.actors(Runtime.World._state)),
             technician = require("src.technician_pose").capture(Runtime.World._state and Runtime.Technician.ensure(Runtime.World._state)),
+            deliveryDriver = require("src.warehouse_delivery_driver").pose(Runtime.World._state),
             truck = {
                 state = truck.state,
                 jobId = truck.jobId,
@@ -133,7 +134,7 @@ function Component.install(Runtime)
         state._employeePoses=poses
         return true
     end
-    function Runtime.World.applyEnvironmentSnapshot(bayDoor, truck, employees, state, technician,roomDoors)
+    function Runtime.World.applyEnvironmentSnapshot(bayDoor, truck, employees, state, technician,roomDoors,deliveryDriver)
         if type(bayDoor) ~= "table" or type(truck) ~= "table" then return false end
         local poses
         if employees~=nil then
@@ -161,6 +162,7 @@ function Component.install(Runtime)
             state=state or Runtime.World._state
             if poses and state then state._employeePoses=poses end
             if technician~=nil and state then require("src.technician_replica").accept(state,technicianActor) end
+            if state then require("src.warehouse_delivery_driver").applyPose(state,deliveryDriver) end
             return true
         end
         Runtime.World.bayDoor:applySnapshot(previousDoor)

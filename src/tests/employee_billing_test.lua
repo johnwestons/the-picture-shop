@@ -52,9 +52,16 @@ function Test.run(context,check)
     local printing=offer("JOB-LABOR-PRINT",true);local pressAllowance=printing.quote.pressBudget.laborCost
     local printTerms=Service.quoteTerms(state,printing)
     check("employee_billing_press_quote_covers_employee_time_without_mutating_press_allowance",
-        printTerms.recommendedPrice>=high.recommendedPrice+printing.quote.pressBudget.recommendedCharge
+        printTerms.recommendedPrice>=printTerms.employeeBudget.minimumCuttingCharge
+                +printing.quote.pressBudget.recommendedCharge
             and printTerms.employeeBudget.minimumCuttingCharge>high.employeeBudget.minimumCuttingCharge
-            and printing.quote.pressBudget.laborCost==pressAllowance)
+            and printing.quote.pressBudget.laborCost==pressAllowance,
+        string.format("press=%s high=%s charge=%s pressFloor=%s highFloor=%s allowance=%s/%s",
+            tostring(printTerms.recommendedPrice),tostring(high.recommendedPrice),
+            tostring(printing.quote.pressBudget.recommendedCharge),
+            tostring(printTerms.employeeBudget.minimumCuttingCharge),
+            tostring(high.employeeBudget.minimumCuttingCharge),
+            tostring(printing.quote.pressBudget.laborCost),tostring(pressAllowance)))
     local wallet=state.money
     local accepted,result=Service.submitQuote(state,job,high.recommendedPrice,1)
     local agreed=job.quote.totalPrice
@@ -90,7 +97,7 @@ function Test.run(context,check)
     legacy.state.employment.version=2
     for _,old in ipairs(legacy.state.employment.staff) do old.laborTotals=nil end
     local migrated=Schema.migrate(legacy)
-    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==7
+    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==9
         and near(migrated.state.employment.staff[1].laborTotals.shopCents,4400) and migrated.state.jobs.active[1].quote.totalPrice==agreed
         and legacy.state.employment.staff[1].laborTotals==nil)
     -- The Bills page and Payroll settle the same obligations exactly once.

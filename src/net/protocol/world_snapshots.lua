@@ -407,7 +407,8 @@ function Component.install(Runtime)
 
     function Runtime.normalizeEnvironmentSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "environment_snapshot payload",
-            { "sessionId", "serverTick", "bayDoor", "truck" }, { "employees", "technician", "roomDoors" })
+            { "sessionId", "serverTick", "bayDoor", "truck" },
+            { "employees", "technician", "roomDoors", "deliveryDriver" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "environment_snapshot.sessionId")
@@ -432,6 +433,11 @@ function Component.install(Runtime)
             technician=Runtime.TechnicianPose.normalize(payload.technician)
             if not technician then return nil,"environment_snapshot.technician is inconsistent" end
         end
+        local deliveryDriver
+        if payload.deliveryDriver~=nil then
+            deliveryDriver=Runtime.DeliveryDriverPose.normalize(payload.deliveryDriver)
+            if not deliveryDriver then return nil,"environment_snapshot.deliveryDriver is inconsistent" end
+        end
         local roomDoors
         if payload.roomDoors~=nil then
             local okay,errorMessage=Runtime.shape(payload.roomDoors,"roomDoors",{"front_left","front_right"})
@@ -443,7 +449,8 @@ function Component.install(Runtime)
             end
         end
         return {sessionId=sessionId,serverTick=serverTick,bayDoor=bayDoor,
-            truck=truck,employees=employees,technician=technician,roomDoors=roomDoors}
+            truck=truck,employees=employees,technician=technician,roomDoors=roomDoors,
+            deliveryDriver=deliveryDriver}
     end
 
     function Runtime.normalizeEmployeeSnapshot(payload)

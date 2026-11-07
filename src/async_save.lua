@@ -1,6 +1,34 @@
 local Schema=require("src.save_schema")
 local Writer={}
 Writer.__index=Writer
+
+-- Check whether the live state can be sent through a Channel as-is. Channel
+-- serialization detaches its message before push returns, so building a second
+-- Lua table tree here would copy every saved field twice on the gameplay thread.
+-- Keep schema normalization in the worker; normalize on the main thread only
+-- when transient values make the state unsuitable for a channel.
+local function channelSafe(value,active)
+    local kind=type(value)
+    if kind=="boolean" or kind=="number" or kind=="string" then return true end
+    if kind~="table" then return false end
+    active=active or {}
+    if active[value] then return false end
+    active[value]=true
+    for key,item in pairs(value) do
+        local keyType=type(key)
+        if keyType~="boolean" and keyType~="number" and keyType~="string" then
+            active[value]=nil
+            return false
+        end
+        if not channelSafe(item,active) then
+            active[value]=nil
+            return false
+        end
+    end
+    active[value]=nil
+    return true
+end
+
 function Writer.new(store)
     return setmetatable({store=store,waiting={},notices={},threads=setmetatable({}, {__mode="k"})},Writer)
 end
@@ -16,7 +44,9 @@ function Writer:dispatch()
     if self.active or #self.waiting==0 then return end
     if not self.flushing and self.retryAfter and love.timer.getTime()<self.retryAfter then return end
     local job=table.remove(self.waiting,1)
-    local snapshot,reason=Schema.snapshot(job.state)
+    local snapshot=channelSafe(job.state) and job.state or nil
+    local reason
+    if not snapshot then snapshot,reason=Schema.snapshot(job.state) end
     if not snapshot then
         self.retryAfter=love.timer.getTime()+5
         self.notices[#self.notices+1]={directory=job.directory,slot=job.slot,okay=false,reason=reason or "invalid_snapshot"}

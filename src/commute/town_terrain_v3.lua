@@ -14,7 +14,7 @@ local function array(value,count)
 end
 local function q(value)return math.floor(value*1000+.5)/1000 end
 
-function V3.shoreline(seed)
+function V3.shoreline(seed,progress,isCancelled)
     local source=Island.new(seed,{size=512,center=256,radius=V3.ISLAND_RADIUS})
     local sourceSamples=source.coastSamples
     local mean=0
@@ -22,16 +22,20 @@ function V3.shoreline(seed)
     mean=mean/math.max(1,#sourceSamples)
     local radii={}
     for i=1,V3.COAST_SAMPLES do
+        if i%32==1 and isCancelled and isCancelled() then error('Town generation cancelled.',0) end
         local sample=sourceSamples[(i-1)*2+1] or 1
         local shaped=V3.ISLAND_RADIUS+M.clamp((sample/math.max(.001,mean)-1)*42,-24,4)
         radii[i]=q(M.clamp(shaped,V3.MIN_SHORE_RADIUS,V3.MAX_SHORE_RADIUS))
+        if progress and i%32==0 then progress(i/V3.COAST_SAMPLES,'Shaping island shoreline') end
     end
     return radii
 end
 
-function V3.generate(seed,frame,shoreline,settings,generatorVersion)
+function V3.generate(seed,frame,shoreline,settings,generatorVersion,progress,isCancelled)
     local naturalRivers=(generatorVersion or 0)>=7
-    local terrain=Inland.generate(seed,frame,naturalRivers)
+    local terrain=Inland.generate(seed,frame,naturalRivers,function(value,label)
+        if progress then progress(.04+.24*(value or 0),label or 'Shaping island terrain') end
+    end,isCancelled)
     if settings then
         terrain.settings=settings
         local scale=({.25,1,1.85})[settings.elevation]
@@ -58,7 +62,11 @@ function V3.generate(seed,frame,shoreline,settings,generatorVersion)
         end
     end
     terrain.mode=V3.MODE
-    terrain.shoreline=shoreline or V3.shoreline(seed)
+    if isCancelled and isCancelled() then error('Town generation cancelled.',0) end
+    if progress then progress(.30,'Finishing island terrain') end
+    terrain.shoreline=shoreline or V3.shoreline(seed,function(value,label)
+        if progress then progress(.30+.10*(value or 0),label) end
+    end,isCancelled)
     return terrain
 end
 
@@ -82,7 +90,7 @@ local function segmentDistance2(segment,x,z)
 end
 
 local COAST_CELL=16
-local function shorelineBins(shoreline,config)
+local function shorelineBins(shoreline,config,progress,isCancelled)
     local points,bins={},{}
     local c=config.center
     for i,radius in ipairs(shoreline) do
@@ -91,6 +99,7 @@ local function shorelineBins(shoreline,config)
     end
     local binWidth=math.ceil(config.size/64)+2
     for i,a in ipairs(points) do
+        if i%16==1 and isCancelled and isCancelled() then error('Town generation cancelled.',0) end
         local b=points[i%#points+1]
         local segment={x=a.x,z=a.z,dx=b.x-a.x,dz=b.z-a.z,
             length2=(b.x-a.x)^2+(b.z-a.z)^2}
@@ -109,6 +118,10 @@ local function shorelineBins(shoreline,config)
     local refined={}
     local stride=math.ceil(config.size/COAST_CELL)+2
     for bx=0,math.floor(config.size/COAST_CELL) do
+        if bx%4==0 then
+            if isCancelled and isCancelled() then error('Town generation cancelled.',0) end
+            if progress then progress(.5+.5*bx/math.floor(config.size/COAST_CELL),'Preparing shoreline checks') end
+        end
         for bz=0,math.floor(config.size/COAST_CELL) do
             local x,z=(bx+.5)*COAST_CELL,(bz+.5)*COAST_CELL
             local original=bins[math.floor(z/64)*binWidth+math.floor(x/64)+1]
@@ -137,13 +150,15 @@ local function insideRadius(shoreline,config,x,z)
     return distance<radius
 end
 
-function V3.new(terrain,config)
+function V3.new(terrain,config,progress,isCancelled)
     assert(V3.valid(terrain),'Invalid frozen v3 island-town terrain')
     config=config or {size=512,center=256,radius=V3.ISLAND_RADIUS}
     local inland={}
     for key,value in pairs(terrain) do if key~='shoreline' then inland[key]=value end end
     inland.mode=Inland.MODE
-    local plan=Inland.new(inland,config)
+    local plan=Inland.new(inland,config,function(value,label)
+        if progress then progress(.45*(value or 0),label or 'Preparing terrain grid') end
+    end,isCancelled)
     local original=getmetatable(plan).__index
     local originalRawHeight=original.rawHeight
     local originalLandHeight=original.landHeight
@@ -151,7 +166,8 @@ function V3.new(terrain,config)
     local originalWaterId=original.waterIdAt
     plan.settings=terrain.settings
     plan.townPreset=V3.MODE;plan.island=true;plan.shoreline=terrain.shoreline
-    plan.shorePoints,plan.shoreBins,plan.shoreBinWidth=shorelineBins(terrain.shoreline,config)
+    plan.shorePoints,plan.shoreBins,plan.shoreBinWidth=shorelineBins(terrain.shoreline,config,
+        function(value,label) if progress then progress(.45+.55*(value or 0),label) end end,isCancelled)
     -- Call the captured raw-height implementation directly. The v2 height
     -- wrapper dispatches through self:rawHeight(), which would resolve back to
     -- this v3 plan and recurse after the island methods replace its metatable.

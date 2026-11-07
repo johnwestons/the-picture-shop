@@ -33,6 +33,22 @@ function Component.install(Runtime)
         end
         local scene=require("src.shop_rooms").scene(player)
         local door=Runtime.World.doorForScene(scene)
+        if requestedKind=="deliverySignature" then
+            if type(player)~="table" or scene~="warehouse" or desiredState~="sign" then
+                return false,"not_allowed","A delivery signature can only be given from the warehouse.",requestedKind
+            end
+            Runtime.World._state=state or Runtime.World._state
+            local target=require("src.warehouse_delivery_driver").interaction(state)
+            if not target then return false,"unavailable","The driver is not waiting for a signature.",requestedKind end
+            local dx,dy=(tonumber(player.x) or 0)-target.x,(tonumber(player.y) or 0)-target.y
+            local radius=math.max(0,tonumber(target.radius) or 0)+10
+            if dx*dx+dy*dy>radius*radius then
+                return false,"out_of_range","Move closer to the driver to sign for the delivery.",requestedKind
+            end
+            local accepted=Runtime.World.signDelivery(state,player)
+            return accepted,accepted and "accepted" or "state_changed",
+                state and state.message or "The delivery signature could not be completed.",requestedKind
+        end
         if scene~="warehouse" and not require("src.room_loading_bays").owns(state,scene) then
             return false,"wrong_scene","This room has no loading bay.",requestedKind
         end
@@ -114,6 +130,12 @@ function Component.install(Runtime)
         local code = door.state == "opening" or door.state == "closing"
             and "busy" or "blocked"
         return false, code, state and state.message or "The loading-bay door cannot move right now.", requestedKind
+    end
+
+    function Runtime.World.signDelivery(state,player)
+        local accepted,message=require("src.warehouse_delivery_driver").sign(state,player)
+        if state then state.message=message or state.message end
+        return accepted
     end
 
     function Runtime.World.toggleTruckCargoDoor(state)
@@ -223,6 +245,11 @@ function Component.install(Runtime)
             if Runtime.World.truck.state ~= "parked_closed" then return false end
             if Runtime.MachineFleet.remainingOnTruck(state, Runtime.World.truck.jobId) > 0 then
                 if state then state.message = "Unload the machine before releasing the flatbed truck." end
+                return false
+            end
+            local visit=require("src.warehouse_delivery_driver").matching(state,Runtime.World.truck.jobId)
+            if visit and (visit.status~="signed" or not visit.driverReturned) then
+                if state then state.message="The machine is unloaded. Wait for the driver to sign and return to the truck." end
                 return false
             end
             local departing = Runtime.World.truck:depart()

@@ -48,7 +48,7 @@ function Test.run(check)
         if throughCenter then bypass=true else perimeter=true end
         check('island_country_roads_fill_land_and_keep_every_address_'..seed,
             town.generatorVersion==Town.GENERATOR_VERSION and width>300 and depth>300
-            and #town.placements==17 and Town.valid(town))
+            and #town.placements==18 and Town.valid(town))
         if seed==3 then
             local repeated=assert(Town.generate(seed,{island=Options.copy({roads=1})}))
             check('island_country_seed_repeats_exact_saved_layout',Town.fingerprint(town)==Town.fingerprint(repeated))

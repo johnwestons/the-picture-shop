@@ -10,6 +10,9 @@ local HomeInteractions=require("src.home_interactions")
 local Controls={target="floor",page=1,mode="routines",appliance=nil,appliancePage=1,alarmHour=nil,alarmMinute=nil}
 local font,small,hudRect,alarmLabelFont,hudNeedFont,hudValueFont,hudActionFont
 local applianceSmall
+local function useTwelveHourTime(R)
+    return not (R.App.settings and R.App.settings.twelveHourTime==false)
+end
 local function applianceNow()
     return love.timer and love.timer.getTime and love.timer.getTime() or os.clock()
 end
@@ -34,7 +37,7 @@ end
 function Controls.command(R,player,command)
     local now=Calendar.absoluteHours(R.state)
     Residents.advance(R.state,require("src.weekend_runtime").players(R),now,now)
-    local okay,code,message=Residents.command(R.state,player,command)
+    local okay,code,message=Residents.command(R.state,player,command,nil,useTwelveHourTime(R))
     if okay then
         R.state.message=message;R.saveCurrent()
         if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
@@ -232,10 +235,11 @@ function Controls.mousepressed(x,y,button,R)
         Controls.prepareAlarmSelection(R.state,player,false)
         if x>=140 and x<=195 then Controls.alarmHour=(Controls.alarmHour+23)%24
         elseif x>=237 and x<=282 then Controls.alarmHour=(Controls.alarmHour+1)%24
-        elseif x>=315 and x<=357 then adjustAlarmMinutes(-15)
-        elseif x>=359 and x<=401 then adjustAlarmMinutes(-1)
-        elseif x>=453 and x<=495 then adjustAlarmMinutes(1)
-        elseif x>=497 and x<=549 then adjustAlarmMinutes(15)
+        elseif x>=284 and x<=322 and useTwelveHourTime(R) then Controls.alarmHour=(Controls.alarmHour+12)%24
+        elseif x>=338 and x<=380 then adjustAlarmMinutes(-15)
+        elseif x>=382 and x<=424 then adjustAlarmMinutes(-1)
+        elseif x>=476 and x<=518 then adjustAlarmMinutes(1)
+        elseif x>=520 and x<=572 then adjustAlarmMinutes(15)
         elseif x>=580 and x<=690 then
             send(R,string.format("alarm:time:%02d:%02d",Controls.alarmHour,Controls.alarmMinute));return true
         elseif x>=700 and x<=820 then send(R,"alarm:off");return true end
@@ -604,8 +608,13 @@ function Controls.draw(R)
     local title=item and require("src.home_furniture_catalog").ITEMS[item.kind].name or Controls.target
     love.graphics.print(Controls.mode=="sleep" and "SLEEP & PERSONAL ALARMS" or Controls.mode=="readiness" and "HOUSEHOLD READINESS" or Controls.mode=="dining" and "SERVED MEALS / "..title:upper() or "HOME ROUTINES / "..title:upper(),140,110)
     love.graphics.setFont(small);love.graphics.printf("BACK [Esc]",750,112,88,"center")
-    love.graphics.print(Calendar.dateTimeTextAtHours(Calendar.absoluteHours(R.state)),140,139)
-    needs(p,140,165,680)
+    local twelveHourTime=useTwelveHourTime(R)
+    love.graphics.print(Calendar.dateTimeTextAtHours(Calendar.absoluteHours(R.state),twelveHourTime),140,139)
+    needs(p,140,165,Controls.mode=="sleep" and 470 or 680)
+    if Controls.mode=="sleep" then
+        require("src.home_alarm_clock_art").draw(630,116,200,
+            Calendar.timeText(R.state,twelveHourTime),p and p.alarmAt~=nil)
+    end
     local description="Choose an activity. Time continues while this menu is open."
     if Controls.target=="laundry" and R.state.home.chores.laundry.phase=="washing" then description="The washer runs on its own. You can leave and do other things." end
     if p and p.activity then
@@ -618,28 +627,34 @@ function Controls.draw(R)
     end
     if Controls.mode=="sleep" then
         local all,asleep,total=Sleep.status(R.state,require("src.weekend_runtime").players(R),true)
-        description=asleep.." / "..total.." connected residents sleeping. "..(all and "Shared time: 32x." or "Time stays normal until everyone chooses sleep.")
-        if Calendar.absoluteHours(R.state)>=R.state.home.weekend.opensAtHours-2 then description="Monday morning: get ready for work. Short naps are available through Routines." end
+        description=string.format("Residents asleep: %d/%d. ",asleep,total)
+            ..(all and "Shared time: 32x." or "Faster time starts when everyone sleeps.")
+        if Calendar.absoluteHours(R.state)>=R.state.home.weekend.opensAtHours-2 then description="Monday morning: get ready for work; short naps remain." end
     elseif Controls.mode=="readiness" then description="Aim for at least 35 in each need before work. Eat, drink, wash or rest if a need is low."
     elseif Controls.mode=="dining" and not (p and p.activity) then description="Serve a real portion onto a clear surface slot, then eat here or from an aligned nearby seat." end
-    love.graphics.setColor(.88,.93,.92,1);love.graphics.printf(description,140,220,p and p.activity and 530 or 680,"left")
+    love.graphics.setColor(.88,.93,.92,1)
+    love.graphics.printf(description,140,220,Controls.mode=="sleep" and 470 or p and p.activity and 530 or 680,"left")
     if p and p.activity then
-        love.graphics.setColor(.40,.19,.14,1);love.graphics.rectangle("fill",690,207,130,44,5)
-        love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("STOP",690,221,130,"center")
+        local stopX=Controls.mode=="sleep" and 470 or 690
+        love.graphics.setColor(.40,.19,.14,1);love.graphics.rectangle("fill",stopX,207,130,44,5)
+        love.graphics.setColor(.96,.96,.88,1)
+        love.graphics.printf("STOP",stopX,221,130,"center")
     end
     if Controls.mode=="sleep" then Controls.prepareAlarmSelection(R.state,Controls.localPlayer(R),false) end
-    local paneDescription=Controls.mode=="sleep" and (p and p.alarmAt and "Alarm set for "..Calendar.dateTimeTextAtHours(p.alarmAt)..". Choose a custom time below."
-        or "No alarm set. Choose any time below; the alarm rings once.")
-        or Controls.mode=="readiness" and "Monday wake: 07:00. Shop opens: 09:00. Use the apartment entrance to return."
+    local paneDescription=Controls.mode=="sleep" and (p and p.alarmAt and "Alarm "..Calendar.dateTimeTextAtHours(p.alarmAt,twelveHourTime)..". Edit below."
+        or "No alarm set. Choose a time below; it rings once.")
+        or Controls.mode=="readiness" and ("Monday wake: "..Calendar.formatTime(7,0,twelveHourTime)
+            ..". Shop opens: "..Calendar.formatTime(9,0,twelveHourTime)..". Use the apartment entrance to return.")
         or Controls.mode=="dining" and "Use a table/counter or the kitchen sink's dry counter. For seated meals, place a chair/couch close to and facing the surface. Take food out of storage first."
     love.graphics.printf(paneDescription or Cooking.description(R.state,Controls.localPlayer(R),Controls.target) or Objects.description(R.state,Controls.localPlayer(R),Controls.target) or Chores.description(R.state,Controls.target)
-        or "Order groceries or takeout on the laptop; collect them by the entrance. Floor rest is always available.",140,253,680,"left")
+        or "Order groceries or takeout on the laptop; collect them by the entrance. Floor rest is always available.",
+        140,253,Controls.mode=="sleep" and 470 or 680,"left")
     if Controls.mode=="sleep" then
         alarmLabelFont=alarmLabelFont or love.graphics.newFont(11)
         love.graphics.setFont(alarmLabelFont)
         love.graphics.setColor(.67,.79,.78,1)
-        love.graphics.printf("HOUR",140,273,142,"center")
-        love.graphics.printf("MINUTE",315,273,234,"center")
+        love.graphics.printf("HOUR",140,273,182,"center")
+        love.graphics.printf("MINUTE",338,273,234,"center")
         love.graphics.printf("ALARM",580,273,240,"center")
         local function alarmButton(x,width,text,filled)
             love.graphics.setColor(filled and {.13,.32,.35,1} or {.07,.12,.14,1})
@@ -651,21 +666,28 @@ function Controls.draw(R)
             love.graphics.printf(text,x,300,width,"center")
         end
         alarmButton(140,45,"−H",true)
-        alarmButton(187,48,string.format("%02d",Controls.alarmHour),false)
+        local shownHour=twelveHourTime and tostring((Controls.alarmHour+11)%12+1)
+            or string.format("%02d",Controls.alarmHour)
+        alarmButton(187,48,shownHour,false)
         alarmButton(237,45,"+H",true)
-        alarmButton(315,42,"−15",true)
-        alarmButton(359,42,"−1",true)
-        alarmButton(403,48,string.format("%02d",Controls.alarmMinute),false)
-        alarmButton(453,42,"+1",true)
-        alarmButton(497,52,"+15",true)
+        alarmButton(284,38,twelveHourTime and (Controls.alarmHour<12 and "AM" or "PM") or "24H",twelveHourTime)
+        alarmButton(338,42,"−15",true)
+        alarmButton(382,42,"−1",true)
+        alarmButton(426,48,string.format("%02d",Controls.alarmMinute),false)
+        alarmButton(476,42,"+1",true)
+        alarmButton(520,52,"+15",true)
         alarmButton(580,110,"SET ALARM",true)
         alarmButton(700,120,"OFF",false)
     end
     local visible,pages=visibleRows(R.state,Controls.localPlayer(R))
     for i,row in ipairs(visible) do
         local y=(Controls.mode=="sleep" and 332 or 300)+(i-1)*52
+        local label=row.label
+        if Controls.mode=="sleep" then
+            label=label:gsub("Monday 07:00","Monday "..Calendar.formatTime(7,0,twelveHourTime))
+        end
         love.graphics.setColor(.13,.32,.35,1);love.graphics.rectangle("fill",140,y,680,44,5)
-        love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("["..i.."]  "..row.label,148,y+13,664,"center")
+        love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("["..i.."]  "..label,148,y+13,664,"center")
     end
     if Controls.mode=="readiness" then
         for i,row in ipairs(Sleep.readiness(R.state,require("src.weekend_runtime").players(R))) do

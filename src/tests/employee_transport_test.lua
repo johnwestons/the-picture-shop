@@ -171,6 +171,7 @@ function Test.run(context,check)
         worker.character=profile.character
         capture(context,state,profile.character.."-working-in-game")
     end
+    worker.character="cat-worker"
     context.world.player.x,context.world.player.y=oldX,oldY
     -- The jack has parked away from the cutter; position it at this skid for
     -- the independent loaded-jack network snapshot fixture below.
@@ -211,9 +212,10 @@ function Test.run(context,check)
         truck={state="absent",backingProgress=0,cargoProgress=0},employees=maximum} end})
     check("host_sends_large_staff_roster_separately_from_truck_and_door",packets.employee_snapshot
         and #packets.employee_snapshot.employees==11 and packets.environment_snapshot and not packets.environment_snapshot.employees)
-    local saved=Schema.snapshot(state)
+    local saved,saveReason=Schema.snapshot(state)
     check("save_parks_employee_jack_without_losing_pallet",saved and saved.palletJack.carriedPalletId==pallet.id
-        and not saved.palletJack.operating and not saved.palletJack.operatorEmployeeId and not saved.palletJack.operatorPlayerId)
+        and not saved.palletJack.operating and not saved.palletJack.operatorEmployeeId and not saved.palletJack.operatorPlayerId,
+        saveReason)
     local previousScene=context.world.player.sceneId
     state.screen="world"
     for _,profile in ipairs(Catalog.profiles) do

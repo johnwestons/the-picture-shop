@@ -32,6 +32,24 @@ function Test.run(context, check)
         context.title.update(0.2)
         return consumed
     end
+    local function generateTitleTownPreview(seed, throughKeyboard)
+        local townSetup = context.title.townSetup
+        townSetup.seedText = tostring(seed)
+        if throughKeyboard then
+            pressTitleKey("tab")
+            assert(pressTitleKey("return"), "Town preview keyboard action was not accepted")
+        else
+            local generateX, generateY = require("src.screens.town_setup_screen").buttonCenter("generate")
+            assert(pressTitleMouse(generateX, generateY), "Town preview button was not accepted")
+        end
+        local deadline = love.timer.getTime() + 90
+        while townSetup.previewJob and love.timer.getTime() < deadline do
+            context.title.update(1 / 60)
+            love.timer.sleep(0.001)
+        end
+        assert(townSetup.town and not townSetup.previewJob and not townSetup.dirty,
+            "Town preview did not finish: " .. tostring(townSetup.message))
+    end
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
     check("title_screen_exposes_the_embedded_running_build_version",
@@ -108,6 +126,7 @@ function Test.run(context, check)
     check("title_shop_setup_opens_town_preview_without_overwriting",
         context.title.mode=="town-setup" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    generateTitleTownPreview(4242)
     local previewTown=context.title.townSetup.town
     pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("start"))
     finishTownBake()
@@ -127,6 +146,7 @@ function Test.run(context, check)
     pressTitleKey("n")
     pressTitleKey("y")
     pressTitleKey("return")
+    generateTitleTownPreview(4243, true)
     pressTitleKey("return")
     finishTownBake()
     check("title_keyboard_overwrite_confirmation_starts",
@@ -141,6 +161,7 @@ function Test.run(context, check)
     pressTitleKey("n")
     check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
     pressTitleKey("return")
+    generateTitleTownPreview(4244, true)
     pressTitleKey("return")
     finishTownBake()
     check("title_empty_slot_setup_creates_shop",
@@ -372,6 +393,27 @@ function Test.run(context, check)
         and context.state.screen == "world"
         and context.world.truckSnapshot().state == "cargo_closing")
     context.world.update(context.config.truck.cargoDuration + 0.1, 0, 0, context.assets, context.state)
+    local deliveryDriver=require("src.warehouse_delivery_driver")
+    local driverVisit=deliveryDriver.visit(context.state)
+    for _=1,120 do
+        if not driverVisit or driverVisit.status=="waiting" then break end
+        context.world.update(0.1,0,0,context.assets,context.state)
+    end
+    check("delivery_driver_waits_for_signature", driverVisit
+        and driverVisit.status=="waiting")
+    local driverActor=deliveryDriver.actor(context.state)
+    if driverActor then
+        context.world.player.x,context.world.player.y=driverActor.x,driverActor.y
+    end
+    check("delivery_driver_signature_accepted",
+        context.world.signDelivery(context.state,context.world.player)
+        and driverVisit.status=="signed" and not driverVisit.driverReturned)
+    for _=1,180 do
+        if driverVisit.driverReturned then break end
+        context.world.update(0.1,0,0,context.assets,context.state)
+    end
+    check("delivery_driver_returns_before_departure",driverVisit.driverReturned
+        and context.world.truckSnapshot().state=="departing")
     check("empty_truck_departs", context.world.truckSnapshot().state == "departing")
     context.world.update(context.config.truck.backingDuration + 0.1, 0, 0, context.assets, context.state)
     check("truck_departed_and_bay_closing", context.world.truckSnapshot().state == "absent"

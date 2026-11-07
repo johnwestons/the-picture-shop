@@ -1,5 +1,5 @@
 -- Fuel in litres. Service intervals are shortened for town-scale rides.
-local S={tank=4,oilLife=18,chainLife=42,tires={},tireOrder={},orders={'fuel','oil','chain'}}
+local S={tank=4,oilLife=18,chainLife=42,tires={},tireOrder={},orders={'fuel','oil'}}
 local function tire(id,name,cents,road,dirt,life,roadAcceleration,dirtAcceleration,description)
     S.tires[id]={name=name,price=cents,road=road,dirt=dirt,life=life,
         roadAcceleration=roadAcceleration,dirtAcceleration=dirtAcceleration,description=description}

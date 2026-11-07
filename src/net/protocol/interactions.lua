@@ -6,6 +6,7 @@ function Component.install(Runtime)
     Runtime.NETWORK_INTERACTION_KINDS = {
         loadingBayDoor = true,
         truckCargoDoor = true,
+        deliverySignature = true,
         homeTravel = true,
         commute = true,
         homeActivity = true,
@@ -83,6 +84,7 @@ function Component.install(Runtime)
         if type(payload.desiredState) ~= "string"
             or not roomCommand and not ((targetKind=="loadingBayDoor" or targetKind=="truckCargoDoor")
                 and Runtime.INTERACTION_DOOR_STATES[payload.desiredState])
+                and not (targetKind=="deliverySignature" and payload.desiredState=="sign")
         then
             return nil, "interaction_request.desiredState is invalid"
         end

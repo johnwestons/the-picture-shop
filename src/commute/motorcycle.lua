@@ -430,7 +430,7 @@ local function step(p,input,dt,world)
         end
         if world.sweepTrafficObstacles then
             local t,fx,fz,trafficKind,trafficId=world.sweepTrafficObstacles(
-                p.x,p.z,nx,nz,Bike.RADIUS,bottom,top)
+                p.x,p.z,nx,nz,Bike.RADIUS,bottom,top,p)
             if t and (not hit or t<hit) then hit,nxHit,nzHit,kind,id=t,fx,fz,trafficKind,trafficId end
         end
         if world.infrastructure then

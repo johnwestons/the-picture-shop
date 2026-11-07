@@ -5,7 +5,10 @@ local R=require("src.home_cooking_registration")
 local Colorways=require("src.rabbit_colorways")
 local Art={};local cache={};local props;local bodyShader,propShader;local use=0
 local root="assets/generated/home-cooking-v2/"
-local PAN_SCALE=.095
+-- Keep the cookware readable against the burner art. The pan's bowl remains
+-- aligned to the burner because its cooking anchor is derived from this scale.
+local PAN_SCALE=.13
+Art.PAN_SCALE=PAN_SCALE
 function Art.frame(seconds)return R.sequence[math.floor(math.max(0,seconds)*R.fps)%#R.sequence+1] end
 function Art.contact(direction,frame,bowlX,bowlY)
  local v=assert(R.views[direction]);local r=assert(v.grips[frame]);local spoon=R.spoons[v.index]

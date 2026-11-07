@@ -103,7 +103,7 @@ function Component.install(Runtime)
                     Runtime.copyMotion(player,record,true)
                 end
                 player._rideVX,player._rideVY=0,0
-                player._rideAge=record.sceneId=='commute' and 0 or nil
+                player._snapshotAge=0
                 local previous=player._targetRecord
                 if previous and previous.sceneId=='commute' and record.sceneId=='commute'
                     and record.moving and payload.serverTick-previousTick<=3 then
@@ -292,6 +292,7 @@ function Component.install(Runtime)
                     truck = payload.truck,
                     employees = employees,
                     technician = payload.technician,
+                    deliveryDriver = payload.deliveryDriver,
                 })
             end
         elseif envelope.type == "employee_snapshot" then

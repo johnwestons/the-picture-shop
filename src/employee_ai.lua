@@ -137,11 +137,21 @@ local function trainingStep(state,w,dt,hours,context)
         w.phase="idle";w.activity="Training paused - the required machine is unavailable"
         return false
     end
-    local machine,goal
+    local machine,goal,moveContext,moveObstacles
+    local function movementSnapshot()
+        if not moveContext then
+            if context.forActor then
+                moveContext=context.forActor(w)
+                moveObstacles=moveContext.obstacles and moveContext.obstacles()
+            else moveContext=context end
+        end
+        return moveContext,moveObstacles
+    end
     for _,candidate in ipairs(units) do
         if not Employees.reservation(state,candidate.id,nil,w.id)
             and (not context.canClaim or context.canClaim(candidate.id)) then
-            local point=context.operatorPoint and context.operatorPoint(candidate.id,w)
+            local _,obstacles=movementSnapshot()
+            local point=context.operatorPoint and context.operatorPoint(candidate.id,w,nil,obstacles)
             if point then machine,goal=candidate,point;break end
         end
     end
@@ -151,7 +161,7 @@ local function trainingStep(state,w,dt,hours,context)
         return false
     end
     w._trainingMachineId=machine.id
-    local reached,blocked=AI.move(w,goal,dt,context)
+    local reached,blocked=AI.move(w,goal,dt,moveContext or context)
     if not reached then
         w.phase="walking";w.activity=blocked and "Training access is blocked" or "Walking to training machine"
         return false
@@ -337,7 +347,22 @@ function AI.worker(state,w,dt,now,context)
             end
             local scheduleChanged=Schedule.advance(state,w,now,context.canClaim)
             if w.assignment then
-                local workContext={canClaim=context.canClaim,operatorPoint=context.operatorPoint,machinePose=context.machinePose,
+                local moveContext,moveObstacles
+                local function movementSnapshot(actor)
+                    if not moveContext then
+                        if context.forActor then
+                            moveContext=context.forActor(actor)
+                            moveObstacles=moveContext.obstacles and moveContext.obstacles()
+                        else moveContext=context end
+                    end
+                    return moveContext,moveObstacles
+                end
+                local workContext={canClaim=context.canClaim,
+                    operatorPoint=context.operatorPoint and function(machineId,worker,avoidPoint)
+                        local _,obstacles=movementSnapshot(worker)
+                        return context.operatorPoint(machineId,worker,avoidPoint,obstacles)
+                    end or nil,
+                    machinePose=context.machinePose,
                     travelScene=context.travelScene,
                     motionScale=context.motionScale,jackNavigation=context.jackNavigation,
                     jackApproachPoint=context.jackApproachPoint,jackPickupPoint=context.jackPickupPoint,
@@ -348,7 +373,10 @@ function AI.worker(state,w,dt,now,context)
                     palletApproachPoint=context.palletApproachPoint,palletDropPoint=context.palletDropPoint,
                     machinePalletDropPoint=context.machinePalletDropPoint,
                     palletEmergencyDropPoint=context.palletEmergencyDropPoint,
-                    move=function(actor,goal,seconds) return AI.move(actor,goal,seconds,context) end}
+                    move=function(actor,goal,seconds)
+                        local scoped=movementSnapshot(actor)
+                        return AI.move(actor,goal,seconds,scoped)
+                    end}
                 local changed,blockedReason=Work.update(state,w,dt,workContext)
                 if finishingFriday and blockedReason and Work.safe(w,state) then
                     Work.release(state,w,context)
@@ -385,12 +413,14 @@ function AI.worker(state,w,dt,now,context)
             else
                     local stocking,stockChanged=Transport.storeSupplies(state,w,dt,context)
                     if stocking then return scheduleChanged or stockChanged end
+                local moveContext=context.forActor and context.forActor(w) or context
+                local moveObstacles=moveContext~=context and moveContext.obstacles and moveContext.obstacles()
                 local point=context.idlePoint(w)
                 local q=Schedule.ensure(w)
                 if q.enabled and #q.items>0 and w._waitingMachineId and context.operatorPoint then
-                    point=context.operatorPoint(w._waitingMachineId,w) or point
+                    point=context.operatorPoint(w._waitingMachineId,w,nil,moveObstacles) or point
                 end
-                if AI.move(w,point,dt,context) then
+                if AI.move(w,point,dt,moveContext) then
                     w.phase="idle";w.idleClock=w.idleClock+dt
                     w.activity=Schedule.idleActivity(state,w)
                 end

@@ -9,10 +9,13 @@ local Town=require('src.commute.town')
 local Trip=require('src.commute.trip')
 local Bike=require('src.commute.motorcycle')
 local Residents=require('src.home_residents')
+local Calendar=require('src.business_calendar')
 local Test={}
 local function fixture()
     local state=State.new();state.screen='world';state.home.balanceCents=1000000
     state.home.town=assert(Town.generate(712345))
+    state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
+    state.calendar.elapsed=9/24*Calendar.secondsPerDay(state)
     local world=Town.world(state.home.town)
     local host={id=1,sceneId='commute',homeResidentId='owner'}
     local guest={id=2,sceneId='commute'}

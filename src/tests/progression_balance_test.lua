@@ -20,7 +20,8 @@ end
 
 function Test.run(context,check)
     local starter=receptionOffer(context,0,1)
-    local beginner,intermediate,expert=Workers.profiles[1],Workers.profiles[2],Workers.profiles[3]
+    local beginner,intermediate=Workers.profiles[1],Workers.profiles[2]
+    local expert={cutterSkill=100,pressSkill=100,wrappingSkill=100}
     check("progression_starter_job_fits_first_applicant",
         starter and starter.difficulty=="easy" and starter.quote.totalLifts==1
         and Schedule.skillAllows(beginner,starter,"cutter")

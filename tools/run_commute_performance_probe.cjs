@@ -19,7 +19,9 @@ for (let index = 0; index < args.length; index += 1) {
 const stamp = new Date().toISOString().replace(/[^a-z0-9]/gi, '-');
 const token = stamp + '-' + Math.random().toString(16).slice(2, 10);
 const output = path.resolve(options['--output'] || path.join(root, 'output', 'performance', 'motorcycle-' + token));
-const appdata = path.join(output, 'appdata-' + token);
+const appdataRoot = process.env.PICTURE_SHOP_PERFORMANCE_APPDATA_ROOT || output;
+const appdata = path.join(appdataRoot, 'appdata-' + token);
+fs.mkdirSync(output, { recursive: true });
 fs.mkdirSync(appdata, { recursive: true });
 const executable = process.env.LOVE_EXE || (process.platform === 'win32'
   ? path.join(process.env.ProgramFiles || 'C:/Program Files', 'LOVE', 'lovec.exe') : 'love');
@@ -27,7 +29,7 @@ const env = { ...process.env, APPDATA: appdata, PICTURE_SHOP_COMMUTE_RESET: '',
   PICTURE_SHOP_COMMUTE_PERFORMANCE_PROBE: '1',
   PICTURE_SHOP_BIKE_PAINT: options['--paint'] || '',
   PICTURE_SHOP_TOWN_SEED: options['--seed'] || process.env.PICTURE_SHOP_TOWN_SEED || '',
-  PICTURE_SHOP_TEST_IDENTITY: 'the-picture-shop-test-motorcycle-' + token,
+  PICTURE_SHOP_TEST_IDENTITY: process.env.PICTURE_SHOP_PERFORMANCE_TEST_IDENTITY || 'the-picture-shop-test-motorcycle-' + token,
   PICTURE_SHOP_PERFORMANCE_OUTPUT: output,
   PICTURE_SHOP_COMMUTE_BASELINE_SOURCE: options['--baseline-source'] ? path.resolve(options['--baseline-source']) : '',
   PICTURE_SHOP_PERFORMANCE_PROFILE: options['--profile'] ? '1' : '',

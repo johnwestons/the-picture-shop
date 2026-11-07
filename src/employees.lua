@@ -9,7 +9,7 @@ local WorkerCatalog=require("src.worker_catalog")
 local Speech=require("src.employee_speech")
 local CompanyTruck=require("src.company_delivery_driver")
 local Employees={}
-Employees.MAX_STAFF=10
+Employees.MAX_STAFF=#WorkerCatalog.profiles
 local trainingSkills={
     cutter={field="cutterSkill",label="paper cutter",model="polar_115",minimum=0},
     press={field="pressSkill",label="printing press",model="heidelberg_10x15",minimum=40},
@@ -54,12 +54,10 @@ local function refreshLegacyNames(employment)
             if type(application.employeeId)=="string" then applicationByWorker[application.employeeId]=application end
             if WorkerCatalog.isLegacyName(application.name) then
                 local worker=application.employeeId and workerById[application.employeeId]
-                if worker and not WorkerCatalog.isLegacyName(worker.name) then
-                    application.name=worker.name
-                else
-                    application.name=WorkerCatalog.generatedName(application.id,used)
-                    used[application.name:lower()]=true
-                end
+                local profile=WorkerCatalog.profile(application.character)
+                application.name=worker and not WorkerCatalog.isLegacyName(worker.name) and worker.name
+                    or profile and profile.name or WorkerCatalog.generatedName(application.id,used)
+                used[application.name:lower()]=true
             end
         end
     end
@@ -69,7 +67,8 @@ local function refreshLegacyNames(employment)
             if application then
                 worker.name=application.name
             else
-                worker.name=WorkerCatalog.generatedName(worker.id,used)
+                local profile=WorkerCatalog.profile(worker.character)
+                worker.name=profile and profile.name or WorkerCatalog.generatedName(worker.id,used)
                 used[worker.name:lower()]=true
             end
         end
@@ -99,7 +98,7 @@ local function validActor(a)
         and (a.awayForDelivery==nil or type(a.awayForDelivery)=="boolean")
 end
 function Employees.defaultState(now)
-    return {version=7,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
+    return {version=9,nextApplicantId=1,nextEmployeeId=1,recruiting=true,
         teamSchedule=Schedule.defaultState(true),
         nextApplicantAtHours=now or 0,lastAtHours=now or 0,applications={},staff={},
         companyTruck=CompanyTruck.defaultState()}
@@ -129,14 +128,16 @@ function Employees.trainingPlan(worker,skill)
             *(worker.contract and worker.contract.wageCents or 0))}
 end
 function Employees.valid(e)
-    if type(e)~="table" or e.version~=7 or not CompanyTruck.valid(e.companyTruck) or not int(e.nextApplicantId,1,1000000)
+    if type(e)~="table" or e.version~=9 or not CompanyTruck.valid(e.companyTruck) or not int(e.nextApplicantId,1,1000000)
         or not int(e.nextEmployeeId,1,1000000) or type(e.recruiting)~="boolean"
         or not number(e.nextApplicantAtHours,0,1e12) or not number(e.lastAtHours,0,1e12)
         or (e.teamSchedule~=nil and not Schedule.valid(e.teamSchedule,true)) then return false end
     local ids={}
     local function profile(p)
         return type(p)=="table" and text(p.name) and #p.name>0 and WorkerCatalog.valid(p.character)
+            and WorkerCatalog.validCommuteProfile(p.character,p.commuteProfile)
             and int(p.cutterSkill,1,100) and int(p.pressSkill,0,100) and int(p.wrappingSkill,0,100)
+            and int(p.drivingSkill,0,100)
             and int(p.attention,1,100) and int(p.reliability,1,100)
             and int(p.requestedWage,1000,10000) and int(p.minimumWage,1000,10000)
             and (p.shiftPreference==nil or Contracts.validShiftPreference(p.shiftPreference))
@@ -179,6 +180,7 @@ function Employees.valid(e)
                     and w.assignment.machineModel~="heidelberg_10x15" and w.assignment.machineModel~="skid_wrapper")
                 or (w.assignment.scheduleItemId~=nil and not token(w.assignment.scheduleItemId))))
             or not Schedule.valid(w.schedule)
+            or not require("src.commute.employee_commute").validState(w.commuteState,w.commuteProfile)
             or not Labor.validTotals(w.laborTotals)
             or not array(w.weeks,1000,function(r)
                 return type(r)=="table" and int(r.week,-3,10000000) and number(r.dueAtHours,0,1e12)
@@ -194,7 +196,9 @@ function Employees.valid(e)
         if w.status=="employed" then employedCount=employedCount+1 end
         ids[w.id]=true return true
     end)
-    return staffValid and employedCount<=Employees.MAX_STAFF
+    -- Older saves can still contain employees from the previous generic roster.
+    -- New hiring is capped at the unique character roster size below.
+    return staffValid and employedCount<=10
 end
 local function migrateSchedulesToTeam(employment)
     local team=employment.teamSchedule
@@ -335,6 +339,31 @@ function Employees.normalize(e,now)
         result.companyTruck=result.companyTruck or CompanyTruck.defaultState()
         result.version=7
     end
+    if result.version==7 then
+        -- Existing staff keep the former standard delivery pace when they
+        -- first take a driver contract; new applicants receive varied skill.
+        if type(result.applications)~="table" or type(result.staff)~="table" then return nil end
+        for _,people in ipairs({result.applications,result.staff}) do
+            for _,person in ipairs(people) do
+                if type(person)~="table" then return nil end
+                if person.drivingSkill==nil then person.drivingSkill=55 end
+            end
+        end
+        result.version=8
+    end
+    if result.version==8 then
+        if type(result.applications)~="table" or type(result.staff)~="table" then return nil end
+        for _,people in ipairs({result.applications,result.staff}) do
+            for _,person in ipairs(people) do
+                if type(person)~="table" or not WorkerCatalog.profile(person.character) then return nil end
+                local profile=WorkerCatalog.profile(person.character)
+                person.commuteProfile=WorkerCatalog.commuteProfile(profile)
+                person.name=profile.name
+            end
+        end
+        for _,worker in ipairs(result.staff) do worker.commuteState=worker.commuteState or {phase="home"} end
+        result.version=9
+    end
     if not Employees.valid(result) then return nil end
     for _,w in ipairs(result.staff) do
         w._operatorPoint,w._operatorKey,w._workClock,w._trainingClock,w._trainingMachineId=nil,nil,nil,nil,nil
@@ -372,13 +401,17 @@ function Employees.createApplicant(state,now)
     local active=0
     for _,a in ipairs(e.applications) do if a.status~="hired" and a.status~="declined" and a.status~="expired" and a.status~="withdrawn" then active=active+1 end end
     if active>=3 then return nil end
+    local available=WorkerCatalog.availableProfiles(e)
+    if #available==0 then return nil end
     local n=e.nextApplicantId
     e.nextApplicantId=n+1
-    local profile=WorkerCatalog.profiles[(n-1)%#WorkerCatalog.profiles+1]
+    local profile=available[1]
     local id=string.format("APP-%04d",n)
-    local a={id=id,name=WorkerCatalog.generatedName(id,usedNames(e)),character=profile.character,
+    local a={id=id,name=profile.name,character=profile.character,
+        commuteProfile=WorkerCatalog.commuteProfile(profile),
         cutterSkill=profile.cutterSkill,attention=profile.attention,
         pressSkill=profile.pressSkill,wrappingSkill=profile.wrappingSkill,
+        drivingSkill=profile.drivingSkill or 55,
         reliability=profile.reliability,shiftPreference=profile.shiftPreference or "flexible",
         requestedWage=profile.requestedWage,
         minimumWage=profile.minimumWage,revision=1,counters=0,status="visiting",
@@ -402,13 +435,16 @@ end
 function Employees.advance(state,now)
     local e=Employees.ensure(state)
     local changed=false
-    if e.recruiting and now>=e.nextApplicantAtHours then changed=Employees.createApplicant(state,now)~=nil end
+    if e.recruiting and now>=e.nextApplicantAtHours then
+        changed=Employees.createApplicant(state,now)~=nil
+        if not changed then e.nextApplicantAtHours=now+24;changed=true end
+    end
     for _,a in ipairs(e.applications) do
         if a.status=="resume_requested" and a.replyAtHours<=now then
             a.status="resume_received";a.replyAtHours=nil;a.revision=a.revision+1
             notice(state,a,"RESUME","Employee resume attached",
-                string.format("Thanks for considering me. My resume is attached. I am available for production or delivery-driver work. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, attention %d/100, reliability %d/100. I prefer %s and ask $%.2f/hr. Open my resume to discuss role, days, hours and pay cycle.",
-                    a.cutterSkill,a.pressSkill,a.wrappingSkill,a.attention,a.reliability,
+                string.format("Thanks for considering me. My resume is attached. I am available for production or delivery-driver work. Cutter skill %d/100, press skill %d/100, pallet-wrapping skill %d/100, driving skill %d/100, attention %d/100, reliability %d/100. I prefer %s and ask $%.2f/hr. Open my resume to discuss role, days, hours and pay cycle.",
+                    a.cutterSkill,a.pressSkill,a.wrappingSkill,a.drivingSkill,a.attention,a.reliability,
                     Contracts.shiftPreferenceDescription(a.shiftPreference),a.requestedWage/100))
             changed=true
         elseif a.status=="negotiating" and a.replyAtHours<=now then
@@ -471,8 +507,14 @@ function Employees.command(state,intent,now)
         if not a or a.status~="offer_accepted" or a.revision~=intent.expectedRevision
             or (a.expiresAtHours and now>=a.expiresAtHours) then return false,"Review the current accepted offer before signing." end
         if not Contracts.hasOpenHours(a.offer) then return false,"This older offer has no hours while the shop is open. Send revised hours before hiring." end
+        for _,worker in ipairs(e.staff) do
+            if worker.status=="employed" and worker.character==a.character then
+                return false,a.name.." is already on the employee roster."
+            end
+        end
         if Employees.employedCount(state)>=Employees.MAX_STAFF then
-            return false,"The payroll is full (10/10 employees). Dismiss an employee before hiring another."
+            return false,("The unique character roster is full (%d/%d employees). Dismiss an employee before hiring another.")
+                :format(Employees.employedCount(state),Employees.MAX_STAFF)
         end
         if #e.staff>=24 then
             for i,old in ipairs(e.staff) do
@@ -488,6 +530,7 @@ function Employees.command(state,intent,now)
         w.contract.signedAtHours=now;w.contract.startDay=Contracts.nextDay(w.contract,now)
         w.fatigue=0;w.focus=100;w.weeks={};w.shiftDay=-1;w.breaksTaken=0;w.breakRemaining=0
         w.sentHomeShiftDay=-1
+        w.commuteState={phase="home"}
         w.clockedIn=false;w.terminationRequested=false;w.stopRequested=false;w.activity="Starts next agreed shift"
         w.schedule=Schedule.defaultState()
         w.laborTotals=Labor.defaultTotals()

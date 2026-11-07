@@ -159,21 +159,41 @@ function Logistics.physicalPallets(state)
     return result
 end
 
-function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sceneId)
-    local result = {}
-    for _, item in ipairs(Logistics.physicalPallets(state)) do
-        local world=item.pallet.world
-        if item.pallet.id ~= excludedPalletId and world
-            and (world.sceneId or "warehouse")== (sceneId or "warehouse") then
+function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sceneId, result)
+    result = result or {}
+    local targetScene=sceneId or "warehouse"
+    local collisionHalfWidth,collisionHalfHeight=halfWidth or 33,halfHeight or 11
+    local function append(pallet,x,y)
+        local world=pallet.world
+        if pallet.id ~= excludedPalletId and world
+            and (world.sceneId or "warehouse")==targetScene then
             result[#result + 1] = {
-                x = item.x,
-                y = item.y - 8,
-                halfWidth = halfWidth or 33,
-                halfHeight = halfHeight or 11,
+                x = x,
+                y = y - 8,
+                halfWidth = collisionHalfWidth,
+                halfHeight = collisionHalfHeight,
                 shape = "diamond",
                 palletSceneId=world.sceneId or "warehouse",
             }
         end
+    end
+    for _,job in ipairs(state and state.jobs and state.jobs.active or {}) do
+        for _,pallet in ipairs(job.pallets or {}) do
+            local world=pallet.world
+            if world and (pallet.location=="warehouse" or pallet.location=="cutter_output"
+                or pallet.location=="press_output") then
+                local progress=world.spawnProgress or 1
+                if progress==1 then
+                    append(pallet,world.x,world.y)
+                else
+                    local fromX,fromY=world.fromX or world.x,world.fromY or world.y
+                    append(pallet,fromX+(world.x-fromX)*progress,fromY+(world.y-fromY)*progress)
+                end
+            end
+        end
+    end
+    for _,item in ipairs(Procurement.physicalPallets(state)) do
+        append(item.pallet,item.x,item.y)
     end
     return result
 end

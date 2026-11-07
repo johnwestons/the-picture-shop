@@ -63,11 +63,17 @@ function Test.run(context,check)
             and outside.sceneId=='commute' and R._commute.world and not R._commute.renderer)
         exit=require('src.home_travel').target(hp,R.state);hp.x,hp.y=exit.x,exit.y
         assert(Weekend.command(R,hp,'explore'))
+        local calendar=require('src.business_calendar')
+        calendar.update(R.state,calendar.secondsPerDay(R.state)/3)
         owner=R.state.home.commute.participants.owner
         local grocery=C.world(R).sites.byId.grocery
         owner.rider.ped.x,owner.rider.ped.z,owner.rider.ped.speed=grocery.door.x,grocery.door.z,0
         owner.rider.bike.x,owner.rider.bike.z=grocery.parking.x,grocery.parking.z
-        assert(C.command(R,hp,'grocery:'..token));R.App.update(.05)
+        assert(C.command(R,hp,'grocery:'..token))
+        for _=1,20 do
+            if R._commute.mechanicOffer then break end
+            R.App.update(.05)
+        end
         check('independent_runtime_local_grocery_opens_without_outdoor_renderer',hp.sceneId=='grocery'
             and R._commute.mechanicOffer.interiorKind=='grocery' and not R._commute.renderer)
         x=hp.x;R.Input.movement=function()return 1,0 end

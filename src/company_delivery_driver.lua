@@ -8,6 +8,8 @@ local Calendar=require('src.business_calendar')
 local Payroll=require('src.payroll')
 local CompanyTruck={TANK_LITERS=60,FUEL_PRICE_CENTS_PER_LITER=160,
     FUEL_PER_METER=.0003,LOW_FUEL_LITERS=12,VERSION=1}
+local BASELINE_DRIVER_SKILL=55
+local routeLookupCache=setmetatable({},{__mode='k'})
 
 local function finite(n) return type(n)=='number' and n==n and math.abs(n)<1e12 end
 local function integer(n,lo,hi) return finite(n) and n%1==0 and n>=lo and n<=hi end
@@ -18,7 +20,7 @@ end
 
 function CompanyTruck.defaultState()
     return {version=CompanyTruck.VERSION,fuelLiters=CompanyTruck.TANK_LITERS,
-        odometerMeters=0,lastPlayerDistance=0,revision=1,status='parked'}
+        odometerMeters=0,lastPlayerDistance=0,revision=1,status='parked',vehicleModel='box'}
 end
 
 function CompanyTruck.valid(value)
@@ -27,6 +29,7 @@ function CompanyTruck.valid(value)
         or not finite(value.odometerMeters) or value.odometerMeters<0
         or (value.lastPlayerDistance~=nil and (not finite(value.lastPlayerDistance) or value.lastPlayerDistance<0))
         or not integer(value.revision,1,1000000000)
+        or value.vehicleModel~=nil and value.vehicleModel~='box' and value.vehicleModel~='kei'
         or (value.status~='parked' and value.status~='refueling'
             and value.status~='delivering' and value.status~='returning')
         or (value.deliveryRun~=nil and not Run.valid(value.deliveryRun))
@@ -88,37 +91,95 @@ end
 function CompanyTruck.syncTripVehicle(state)
     local trip=state and state.home and state.home.commute
     local truck=state and state.employment and state.employment.companyTruck
-    if trip and trip.truck and truck and not trip.truck.owner and not trip.truck.driver then
-        trip.truck.fuel=truck.fuelLiters
+    local busy=false
+    for _,vehicle in ipairs(require('src.commute.trip').trucks(trip)) do
+        if vehicle.owner or vehicle.driver then busy=true end
+    end
+    if trip and truck and not busy then
+        for _,vehicle in ipairs(require('src.commute.trip').trucks(trip)) do
+            vehicle.fuel=truck.fuelLiters
+        end
     end
 end
 
-local function point(id)
-    local p=Roads.destinations[id]
+local function point(id,town)
+    local p=town and town.destinations and town.destinations[id] or Roads.destinations[id]
     if not p then return nil end
     return p.x or p[1],p.z or p[2]
 end
 
-local function leg(previous,stop)
+local function clamp(value,minimum,maximum)
+    return math.max(minimum,math.min(maximum,value))
+end
+
+function CompanyTruck.speedMultiplier(skill)
+    skill=clamp(tonumber(skill) or BASELINE_DRIVER_SKILL,0,100)
+    return .70+skill*.006
+end
+
+function CompanyTruck.vehicleSpeedMultiplier(model)
+    return model=='kei' and 1.088 or 1
+end
+
+local function savedRoutes(town)
+    local map=town and town.drivingMap
+    if type(map)~='table' then return nil end
+    local cached=routeLookupCache[map]
+    if cached then return cached end
+    cached={}
+    for index,id in ipairs(map.destinations or {}) do cached[id]=index end
+    local routes={}
+    for _,route in ipairs(map.routes or {}) do
+        local from,to=map.destinations[route.from],map.destinations[route.to]
+        if from and to then
+            local turns=type(route.turns)=='table' and #route.turns/2 or 0
+            routes[from..'\0'..to]={length=route.length,turns=turns}
+            if route.bidirectional then routes[to..'\0'..from]={length=route.length,turns=turns} end
+        end
+    end
+    cached.routes=routes
+    routeLookupCache[map]=cached
+    return cached
+end
+
+local function leg(previous,stop,town,skill,model)
+    local speed=CompanyTruck.speedMultiplier(skill)*CompanyTruck.vehicleSpeedMultiplier(model)
     local previousKind=previous and previous.kind
     if previousKind=='city' or stop.kind=='city' then
         local meters=previousKind=='city' and stop.kind=='city' and 4000 or 10000
-        return meters,.42
+        return meters,.42/speed,0
     end
-    local ax,az=point(previous and previous.id or 'warehouse')
-    local bx,bz=point(stop.id)
-    local meters=ax and bx and math.sqrt((ax-bx)^2+(az-bz)^2)*1.4+350 or 2200
-    return math.max(1200,meters),.10+meters/10000
+    local from,to=previous and previous.id or 'warehouse',stop.id
+    local lookup=savedRoutes(town)
+    local route=lookup and lookup.routes[from..'\0'..to]
+    local meters,turns
+    if route then
+        meters,turns=route.length,route.turns
+    elseif lookup and lookup[from] and lookup[to] then
+        return nil,nil,'No precomputed GPS route from '..from..' to '..to
+    else
+        local ax,az=point(from,town)
+        local bx,bz=point(to,town)
+        meters=ax and bx and math.sqrt((ax-bx)^2+(az-bz)^2)*1.4+350 or 2200
+        meters=math.max(1200,meters)
+        turns=0
+    end
+    return meters,(.10+meters/10000+turns*.004)/speed,turns
 end
 
-local function routeMetrics(run)
-    local meters,hours,previous=0,0,{kind='town',id='warehouse'}
+local function routeMetrics(run,town,skill,dispatchAt)
+    local meters,hours,standardHours,previous=0,0,0,{kind='town',id='warehouse'}
     for _,stop in ipairs(run.stops) do
-        local distance,duration=leg(previous,stop)
+        local distance,duration=leg(previous,stop,town,skill,run.vehicleModel)
+        local _,standardDuration,reason=leg(previous,stop,town,BASELINE_DRIVER_SKILL,run.vehicleModel)
+        if not distance or not standardDuration then return nil,nil,nil,nil,reason end
         meters=meters+distance;hours=hours+duration+.08
+        standardHours=standardHours+standardDuration+.08
+        if dispatchAt then stop.standardArrivalAtHours=dispatchAt+standardHours end
         previous=stop
     end
-    local backDistance,backHours=leg(previous,{kind='town',id='warehouse'})
+    local backDistance,backHours=leg(previous,{kind='town',id='warehouse'},town,skill,run.vehicleModel)
+    if not backDistance or not backHours then return nil,nil,nil,nil,'No precomputed return route to warehouse' end
     meters=meters+backDistance;hours=hours+backHours
     return meters*CompanyTruck.FUEL_PER_METER,hours,backDistance*CompanyTruck.FUEL_PER_METER,backHours
 end
@@ -137,30 +198,40 @@ end
 local function playerHasTruck(state)
     local trip=state.home and state.home.commute
     if not trip then return false end
-    return trip.deliveryRun~=nil or trip.truck and (trip.truck.owner~=nil or trip.truck.driver~=nil) or false
+    return trip.deliveryRun~=nil or trip.truck and (trip.truck.owner~=nil or trip.truck.driver~=nil)
+        or trip.keiTruck and (trip.keiTruck.owner~=nil or trip.keiTruck.driver~=nil) or false
 end
 
 local function makeRun(state,worker,now)
-    local available=Run.availableJobs(state,{roads={destinations=Roads.destinations}})
+    local town=state.home and state.home.town
+    local world={roads={destinations=town and town.destinations or Roads.destinations}}
+    local available=Run.availableJobs(state,world)
     if #available==0 then return nil end
     local ids,chosen,total={},{},0
+    local routeError
     local _,shiftEnd=Contracts.shiftBounds(worker.contract,Contracts.shiftDay(worker.contract,now))
     for _,item in ipairs(available) do
         if total+item.palletCount<=Run.CAPACITY then
             local candidate={}
             for _,id in ipairs(ids) do candidate[#candidate+1]=id end
             candidate[#candidate+1]=item.id
-            local run=Run.build(state,candidate,{roads={destinations=Roads.destinations}})
+            local run=Run.build(state,candidate,world)
             if run then
-                local fuel,hours=routeMetrics(run)
-                if fuel+1<=CompanyTruck.TANK_LITERS and now+hours<=shiftEnd then
+                run.driverSkill=worker.drivingSkill or BASELINE_DRIVER_SKILL
+                run.driverEmployeeId=worker.id
+                run.vehicleModel=run.palletCount<=4 and 'kei' or 'box'
+                local fuel,hours,_,_,reason=routeMetrics(run,town,run.driverSkill,now)
+                if not fuel then routeError=reason end
+                if fuel and hours and fuel+1<=CompanyTruck.TANK_LITERS and now+hours<=shiftEnd then
                     ids=candidate;chosen=run;total=total+item.palletCount
                 end
             end
         end
     end
-    if #ids==0 then return nil end
-    return chosen,routeMetrics(chosen)
+    if #ids==0 then return nil,nil,nil,nil,nil,routeError end
+    local fuel,hours,returnFuel,returnHours,reason=routeMetrics(chosen,town,chosen.driverSkill,now)
+    if not fuel then return nil,nil,nil,nil,nil,reason end
+    return chosen,fuel,hours,returnFuel,returnHours
 end
 
 local function setActivity(state,employeeId,activity,away)
@@ -186,6 +257,19 @@ local function returnDriver(state,truck,message)
     truck.currentLegFuelLiters=nil;truck.status='parked'
     truck.revision=truck.revision+1
     if id then setActivity(state,id,message or 'Delivery route complete',false) end
+end
+
+local function deliveryPerformance(run,stop,now,driverEmployeeId)
+    local skill=clamp(tonumber(run.driverSkill) or BASELINE_DRIVER_SKILL,0,100)
+    local standard=tonumber(stop.standardArrivalAtHours) or now
+    local lateHours=math.max(0,now-standard)
+    local rating=clamp(math.floor(skill/25)+1,1,5)
+    if lateHours>=.10 then rating=rating-1 end
+    if lateHours>=.50 then rating=rating-1 end
+    if standard-now>=.15 and skill>=75 then rating=rating+1 end
+    return {version=1,driverEmployeeId=run.driverEmployeeId or driverEmployeeId or 'unknown-driver',driverSkill=skill,
+        standardArrivalAtHours=standard,arrivedAtHours=now,lateHours=lateHours,
+        serviceRating=clamp(rating,1,5)}
 end
 
 local function refuel(state,truck,worker,required,now)
@@ -239,14 +323,16 @@ function CompanyTruck.update(state,now)
         local run=truck.deliveryRun
         local stop=run.stops[run.stopIndex]
         if not stop then
-            local returnDistance,returnHours=leg(run.stops[#run.stops],{kind='town',id='warehouse'})
+            local returnDistance,returnHours=leg(run.stops[#run.stops],{kind='town',id='warehouse'},
+                state.home and state.home.town,run.driverSkill,run.vehicleModel)
             truck.currentLegFuelLiters=returnDistance*CompanyTruck.FUEL_PER_METER
             truck.status='returning';run.status='returning'
             truck.nextActionAtHours=now+returnHours
             truck.revision=truck.revision+1
             return true
         end
-        local completed,reason=Run.completeStop(state,stop)
+        local performance=deliveryPerformance(run,stop,now,truck.driverEmployeeId)
+        local completed,reason=Run.completeStop(state,stop,performance)
         if not completed then
             state.message='The scheduled driver could not complete a delivery: '..tostring(reason)
             return false
@@ -256,13 +342,14 @@ function CompanyTruck.update(state,now)
         truck.odometerMeters=truck.odometerMeters+fuel/CompanyTruck.FUEL_PER_METER
         run.stopIndex=run.stopIndex+1
         if run.stopIndex>#run.stops then
-            local distance,duration=leg(stop,{kind='town',id='warehouse'})
+            local distance,duration=leg(stop,{kind='town',id='warehouse'},
+                state.home and state.home.town,run.driverSkill,run.vehicleModel)
             truck.currentLegFuelLiters=distance*CompanyTruck.FUEL_PER_METER
             truck.status='returning';run.status='returning'
             truck.nextActionAtHours=now+duration
         else
             local nextStop=run.stops[run.stopIndex]
-            local distance,duration=leg(stop,nextStop)
+            local distance,duration=leg(stop,nextStop,state.home and state.home.town,run.driverSkill,run.vehicleModel)
             truck.currentLegFuelLiters=distance*CompanyTruck.FUEL_PER_METER
             truck.nextActionAtHours=now+duration+.08
         end
@@ -277,8 +364,13 @@ function CompanyTruck.update(state,now)
         if didRefuel then return true end
         if not okay then return false end
     end
-    local run,fuel,hours,returnFuel,returnHours=makeRun(state,worker,now)
+    local run,fuel,hours,returnFuel,returnHours,routeError=makeRun(state,worker,now)
     if not run then
+        if routeError then
+            worker.activity='Waiting for a usable GPS route'
+            state.message='The scheduled driver could not plan a delivery: '..tostring(routeError)..'.'
+            return true
+        end
         if worker.activity~='Awaiting delivery orders' then worker.activity='Awaiting delivery orders';return true end
         return false
     end
@@ -291,7 +383,9 @@ function CompanyTruck.update(state,now)
     if not loaded then state.message=message;return false end
     run.status='driving';run.stopIndex=1
     local firstStop=run.stops[1]
-    local firstDistance,firstHours=leg({kind='town',id='warehouse'},firstStop)
+    local firstDistance,firstHours=leg({kind='town',id='warehouse'},firstStop,
+        state.home and state.home.town,run.driverSkill,run.vehicleModel)
+    truck.vehicleModel=run.vehicleModel or 'box'
     truck.deliveryRun=run;truck.status='delivering';truck.driverEmployeeId=worker.id
     truck.currentLegFuelLiters=firstDistance*CompanyTruck.FUEL_PER_METER
     truck.nextActionAtHours=now+firstHours+.08

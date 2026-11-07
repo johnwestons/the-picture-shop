@@ -6,6 +6,7 @@ local Town=require('src.commute.town')
 local Trip=require('src.commute.trip')
 local Rider=require('src.commute.rider')
 local Bike=require('src.commute.motorcycle')
+local Calendar=require('src.business_calendar')
 local C=require('src.commute.runtime')
 local Test={}
 function Test.run(check)
@@ -20,6 +21,8 @@ function Test.run(check)
         and Paint.DEFAULT=='bronze' and Paint.get(nil).id=='bronze' and not Paint.valid(nil) and not Paint.valid('pink')
         and Paint.validRevision(Paint.MAX_REVISION) and not Paint.validRevision('0') and Paint.get(false)==nil)
     local state=State.new();state.home.town=assert(Town.generate(712345));state.home.balanceCents=1000000
+    state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
+    state.calendar.elapsed=9/24*Calendar.secondsPerDay(state)
     local host={id=1,sceneId='commute'};local guest={id=2,sceneId='commute',homeResidentId='guest-1'}
     state.home.residents['guest-1']=Schema.copy(state.home.residents.owner)
     state.home.residents['guest-1'].name='Guest';state.home.residents['guest-1'].credentialHash=string.rep('b',64)

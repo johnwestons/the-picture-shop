@@ -10,6 +10,7 @@ local function mobileActionLabel(Runtime, selected)
     if kind=="homeActivity" then return target.actionLabel or "USE" end
     if kind=="homeDelivery" then return "RECEIVE" end
     if kind == "applicant" or kind == "employeeHighFive" then return target.actionLabel or "TALK" end
+    if kind=="deliverySignature" then return "SIGN" end
     if kind == "workPhone" then
         return target.actionLabel or (Runtime.state.workPhone and Runtime.state.workPhone.incoming
             and "ANSWER" or "PHONE")
@@ -107,7 +108,6 @@ function Component.install(Runtime)
 
     function Runtime.dispatchKeyPressed(key)
         if require('src.commute.runtime').keypressed(Runtime,key) then return true end
-        if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:keypressed(Runtime,key) then return true end
         if Runtime.state.screen=="title" then
             local result=Runtime.TitleScreen.keypressed(key)
             Runtime.syncMobileKeyboard()
@@ -155,6 +155,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.primaryMobileAction()
+        if require('src.commute.runtime').indoorControlsActive(Runtime) then return 'e','INTERACT' end
         if Runtime.World.player.sceneId=='commute' then return 'e','BIKE / DOOR' end
         if Runtime.state.screen=="world" and require("src.basketball").heldBy(
             Runtime.state,tonumber(Runtime.World.player.id) or 1) then
@@ -181,6 +182,7 @@ function Component.install(Runtime)
         if not selected then return "e", "" end
         if Runtime.multiplayer:isClient() and selected.kind ~= "loadingBayDoor"
             and selected.kind ~= "truckCargoDoor"
+            and selected.kind ~= "deliverySignature"
             and selected.kind ~= "palletWorkOrder"
             and selected.kind ~= "shopClock"
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
@@ -196,6 +198,9 @@ function Component.install(Runtime)
 
     function Runtime.extraMobileActions()
         local actions = {}
+        if require('src.commute.runtime').indoorControlsActive(Runtime) then
+            return {{key='escape',label='EXIT'}}
+        end
         if Runtime.World.player.sceneId=='commute' then
             local part=require('src.commute.runtime').localPart(Runtime)
             if part and part.rider.gear.mounted then

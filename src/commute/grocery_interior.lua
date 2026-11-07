@@ -31,12 +31,12 @@ local obstacles={
     {left=570,top=570,right=912,bottom=642},
 }
 Grocery.hotspots={
-    {id='produce',x=315,y=458,radius=38,label='Produce'},
-    {id='aisle_one',x=464,y=274,radius=34,label='Pantry aisle'},
-    {id='aisle_two',x=270,y=276,radius=34,label='Chilled goods'},
-    {id='aisle_three',x=726,y=276,radius=34,label='Household shelf'},
-    {id='specials',x=480,y=527,radius=38,label='Daily specials'},
-    {id='checkout',x=636,y=420,radius=42,label='Checkout'},
+    {id='produce',x=220,y=462,radius=38,label='Produce'},
+    {id='pantry',x=464,y=274,radius=34,label='Pantry aisle'},
+    {id='chilled',x=270,y=276,radius=34,label='Chilled goods'},
+    {id='household',x=726,y=276,radius=34,label='Household shelf'},
+    {id='specials',x=570,y=418,radius=34,label='Daily specials'},
+    {id='checkout',x=690,y=420,radius=42,label='Checkout'},
 }
 local controls={browse={x=24,y=610,w=300,h=44},exit={x=730,y=610,w=206,h=44}}
 local colors={cream={.95,.91,.77,1}}
@@ -174,14 +174,14 @@ function Grocery.update(view,R,dt)
         for _,hotspot in ipairs(Grocery.hotspots) do if hotspot.id==view.pathAction then target=hotspot;break end end
         view.pathAction=nil
         if target and (view.pose.x-target.x)^2+(view.pose.y-target.y)^2<=(target.radius+22)^2 then
-            view.pose.moving=false;return 'catalog'
+            view.pose.moving=false;return target.id
         end
     end
     return nil
 end
 local function inside(b,x,y)return x>=b.x and y>=b.y and x<=b.x+b.w and y<=b.y+b.h end
 local function openOrWalk(view,hotspot)
-    if (view.pose.x-hotspot.x)^2+(view.pose.y-hotspot.y)^2<=(hotspot.radius+22)^2 then return 'catalog' end
+    if (view.pose.x-hotspot.x)^2+(view.pose.y-hotspot.y)^2<=(hotspot.radius+22)^2 then return hotspot.id end
     setPath(view,hotspot.x,hotspot.y,hotspot);return nil
 end
 function Grocery.pointer(view,R,x,y)
@@ -191,7 +191,7 @@ function Grocery.pointer(view,R,x,y)
     local p=view.pose
     if inside(controls.browse,x,y) then
         local nearby=nearestHotspot(p)
-        if nearby then return 'catalog' end
+        if nearby then return nearby.id end
         local best,distance
         for _,hotspot in ipairs(Grocery.hotspots) do
             local d=(p.x-hotspot.x)^2+(p.y-hotspot.y)^2
@@ -208,7 +208,7 @@ function Grocery.keypressed(view,key)
     if key=='escape' or key=='back' then return 'exit' end
     if key=='e' or key=='return' or key=='kpenter' then
         local hotspot=nearestHotspot(view.pose)
-        if hotspot then return 'catalog' end
+        if hotspot then return hotspot.id end
     end
     return nil
 end
@@ -226,8 +226,8 @@ local function drawCashier(R,view)
     local image,quad=assets.get(character,action,frame)
     if not image or not quad then return end
     local ax,ay=assets.getAnchor(character,action,frame)
-    local scale=Config.player.drawScale*assets.getNormalization(character,action)
-    love.graphics.setColor(1,1,1);love.graphics.draw(image,quad,714,302,0,scale,scale,ax,ay)
+    local scale=Config.player.drawScale*.90*assets.getNormalization(character,action)
+    love.graphics.setColor(1,1,1);love.graphics.draw(image,quad,650,340,0,scale,scale,ax,ay)
 end
 local function drawPlayer(R,view)
     local p=view.pose;local assets=R.CharacterAssets
@@ -276,6 +276,12 @@ local function drawMapImage(g,image,x,y,sx,sy)
     if not image then return end
     g.setColor(1,1,1,1);g.draw(image,x,y,0,sx,sy)
 end
+local function drawMapImageAnchored(g,image,x,y,sx,sy,factor,anchorX,anchorY)
+    if not image then return end
+    local px,py=x+anchorX*sx,y+anchorY*sy
+    g.setColor(1,1,1,1)
+    g.draw(image,px-anchorX*sx*factor,py-anchorY*sy*factor,0,sx*factor,sy*factor)
+end
 local function drawCenteredSprite(g,image,cx,cy,scaleX,scaleY)
     if not image then return end
     g.setColor(1,1,1,1)
@@ -284,10 +290,10 @@ end
 local function drawSceneFixtures(g,view,playerY,front,lowerY)
     local sx,sy=960/1536,678/1024
     local fixtures={
-        {key='produce',x=0,y=-110,sx=sx,sy=sy,depth=534},
+        {key='produce',x=0,y=-110,sx=sx,sy=sy,shrink=.72,anchorX=355,anchorY=975,depth=534},
         {key='counter',x=0,y=0,sx=sx,sy=sy,depth=507},
     }
-    local shrink=.42
+    local shrink=.32
     fixtures[#fixtures+1]={key='specials',centered=true,cx=480,cy=420,
         sx=sx*shrink,sy=sy*shrink,depth=519}
     table.sort(fixtures,function(a,b)return a.depth<b.depth end)
@@ -295,6 +301,8 @@ local function drawSceneFixtures(g,view,playerY,front,lowerY)
         if (fixture.depth>=playerY)==front and (not lowerY or fixture.depth>=lowerY) then
             local image=view.images[fixture.key]
             if fixture.centered then drawCenteredSprite(g,image,fixture.cx,fixture.cy,fixture.sx,fixture.sy)
+            elseif fixture.shrink then drawMapImageAnchored(g,image,fixture.x,fixture.y,fixture.sx,fixture.sy,
+                fixture.shrink,fixture.anchorX,fixture.anchorY)
             else drawMapImage(g,image,fixture.x,fixture.y,fixture.sx,fixture.sy) end
         end
     end
@@ -307,9 +315,7 @@ function Grocery.draw(view,R)
     drawMapImage(g,view.images.floor,0,0,sx,sy)
     drawMapImage(g,view.images.walls,0,0,sx,sy)
     if view.ready then
-        -- The cashier stands behind the separate checkout counter sprite.
-        drawCashier(R,view)
-        local people={view.pose}
+        local people={view.pose,{cashier=true,y=340}}
         if R.multiplayer and R.multiplayer.remotePlayers then
             for _,p in ipairs(R.multiplayer:remotePlayers()) do
                 if p.sceneId=='grocery' then people[#people+1]=p end
@@ -319,7 +325,8 @@ function Grocery.draw(view,R)
         local previousY=-math.huge
         for _,p in ipairs(people) do
             drawSceneFixtures(g,view,p.y,false,previousY)
-            drawPlayer(R,{pose=p});previousY=p.y
+            if p.cashier then drawCashier(R,view) else drawPlayer(R,{pose=p}) end
+            previousY=p.y
         end
         drawSceneFixtures(g,view,previousY,true)
         for _,hotspot in ipairs(Grocery.hotspots) do
@@ -338,14 +345,24 @@ function Grocery.draw(view,R)
     end
     g.setColor(.025,.045,.05,.92);g.rectangle('fill',0,0,960,67)
     label('TOWN GROCERY',24,10,560,25,{1,.85,.49,1})
-    label('Neighborhood market  /  Walk to a display or the register and press E to browse',24,41,900,15,{.80,.87,.81,1})
+    local mobile=R.mobileControls and R.mobileControls:isEnabled()
+    local interactHint=require('src.commute.bindings').hint(
+        require('src.commute.runtime').bindings(R),'interact')
+    label(mobile and 'Move with the thumbstick. Use INTERACT at a shelf or checkout.'
+        or ('Move with WASD / arrows. Press %s at a shelf or checkout to interact.'):format(interactHint),
+        24,41,900,15,{.80,.87,.81,1})
+    if view.cartCount then
+        label(('CART %d  /  $%.2f'):format(view.cartCount,(view.cartTotalCents or 0)/100),650,11,286,18,{1,.85,.49,1},'right')
+    end
     local nearby=nearestHotspot(view.pose)
     local browseText=nearby and ('[E] BROWSE '..nearby.label:upper()) or 'WALK TO A DISPLAY OR CHECKOUT'
-    for _,entry in ipairs({{controls.browse,browseText,true},{controls.exit,'RETURN OUTSIDE',true}}) do
-        local b,text,enabled=entry[1],entry[2],entry[3]
-        g.setColor(.035,.09,.08,.97);g.rectangle('fill',b.x,b.y,b.w,b.h,5)
-        g.setColor(enabled and .91 or .43,enabled and .76 or .48,enabled and .38 or .42,1);g.rectangle('line',b.x,b.y,b.w,b.h,5)
-        label(text,b.x+8,b.y+13,b.w-16,16,enabled and {1,.91,.65,1} or {.57,.62,.56,1},'center')
+    if not mobile then
+        for _,entry in ipairs({{controls.browse,browseText,true},{controls.exit,'RETURN OUTSIDE',true}}) do
+            local b,text,enabled=entry[1],entry[2],entry[3]
+            g.setColor(.035,.09,.08,.97);g.rectangle('fill',b.x,b.y,b.w,b.h,5)
+            g.setColor(enabled and .91 or .43,enabled and .76 or .48,enabled and .38 or .42,1);g.rectangle('line',b.x,b.y,b.w,b.h,5)
+            label(text,b.x+8,b.y+13,b.w-16,16,enabled and {1,.91,.65,1} or {.57,.62,.56,1},'center')
+        end
     end
     g.pop();return true
 end

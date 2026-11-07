@@ -5,6 +5,7 @@ local Procurement = require("src.procurement")
 local Maintenance = {}
 local CALL_OUT_PERCENT, LATE_PERCENT = 2, 5
 local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local Machine = require("src.machine")
 
 local function clamp(value)
     return math.max(0, math.min(1, tonumber(value) or 0))
@@ -460,6 +461,7 @@ function Maintenance.setWeeklyTechnician(state, enabled)
     elseif cutter.appointmentType == "weekly" then
         cutter.nextTechnicianDay, cutter.appointmentType = nil, nil
         cutter.technicianRescheduled = false
+        if cutter.technicianStatus=="waiting_for_skid" then cutter.technicianStatus=nil end
     end
     return true, cutter
 end
@@ -470,6 +472,22 @@ local function technicianOutcome(item, day)
     return (day * 37 + sequence * 29 + tonumber(item.id:match("(%d+)$")) * 11) % 100
 end
 
+local function cutterIsFinishingSkid(state,item)
+    local busy=false
+    MachineFleet.withUnit(state,item.id,function()
+        local runtime=Machine.forId(item.id)
+        busy=runtime and runtime.step~="idle" and runtime.step~="finished"
+        if not busy and runtime and runtime.step=="idle" then
+            for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+                local assignment=worker.assignment
+                if worker.status=="employed" and assignment and assignment.machineId==item.id
+                    and assignment.palletId then busy=true;break end
+            end
+        end
+    end)
+    return busy
+end
+
 local function updateCutterTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item or not cutter.nextTechnicianDay or state.calendar.totalDays < cutter.nextTechnicianDay then
@@ -478,14 +496,24 @@ local function updateCutterTechnician(state)
     -- Another visit can occupy the shared technician actor for many updates.
     -- Waiting for it must not repeatedly roll until this booking gets delayed.
     if state.technicianVisit then return false end
+    if cutter.weeklyTechnician and not cutter.bladeInSleeve and cutterIsFinishingSkid(state,item) then
+        if cutter.technicianStatus~="waiting_for_skid" then
+            cutter.technicianStatus="waiting_for_skid"
+            state.message="Mara Mouse will arrive after the cutter finishes the current skid. No new skid can start."
+            return true
+        end
+        return false
+    end
     local appointmentDay = cutter.nextTechnicianDay
+    local arrivalDay = math.max(appointmentDay,state.calendar.totalDays)
     local outcome = cutter.technicianRescheduled and 100 or technicianOutcome(item, appointmentDay)
     if outcome < CALL_OUT_PERCENT then
         MachineFleet.addServiceNotice(state, "Technician unable to attend",
             "Mara Mouse cannot make today's blade exchange. The visit is moved to next week.",
             "Mara Mouse — Blade Exchange")
-        cutter.nextTechnicianDay = appointmentDay + 7
+        cutter.nextTechnicianDay = arrivalDay + 7
         cutter.technicianRescheduled = true
+        cutter.technicianStatus="scheduled"
         state.message = "Mara Mouse emailed: this week's blade exchange was cancelled."
     elseif outcome < CALL_OUT_PERCENT + LATE_PERCENT then
         local delayDescription = cutter.spareBladeInstalled
@@ -494,15 +522,14 @@ local function updateCutterTechnician(state)
         MachineFleet.addServiceNotice(state, "Blade exchange courier running late",
             delayDescription,
             "Mara Mouse — Blade Exchange")
-        cutter.nextTechnicianDay = appointmentDay + 1
+        cutter.nextTechnicianDay = arrivalDay + 1
         cutter.technicianRescheduled = true
         state.message = "Mara Mouse emailed that the blade exchange is running late."
     elseif cutter.weeklyTechnician and not cutter.bladeInSleeve then
-        -- Weekly service is a hands-off maintenance cycle: Mara removes the
-        -- installed blade and sleeves it before bringing the machine offline.
-        cutter.bladeRemoved, cutter.bladeInSleeve = true, true
         local Technician = require("src.technician")
-        if not Technician.schedule(state, "cutter", appointmentDay, cutter.weeklyTechnician) then return false end
+        if not Technician.schedule(state, "cutter", arrivalDay, cutter.weeklyTechnician, {
+            removeInstalledBlade=true, spareBladeGrade=cutter.orderedBladeGrade or cutter.bladeGrade,
+        }) then return false end
         cutter.nextTechnicianDay = nil
         cutter.technicianStatus = "traveling"
     elseif not cutter.bladeInSleeve then
@@ -515,7 +542,9 @@ local function updateCutterTechnician(state)
         state.message = "Mara Mouse could not exchange the cutter blade because the dull blade was not in its wooden sleeve."
     else
         local Technician = require("src.technician")
-        if not Technician.schedule(state, "cutter", appointmentDay, cutter.weeklyTechnician) then return false end
+        if not Technician.schedule(state, "cutter", arrivalDay, cutter.weeklyTechnician, {
+            removeInstalledBlade=false, spareBladeGrade=cutter.orderedBladeGrade or cutter.bladeGrade,
+        }) then return false end
         cutter.nextTechnicianDay = nil
         cutter.technicianStatus = "traveling"
     end
@@ -597,6 +626,7 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
 end
 
 function Maintenance.updateTechnician(state)
+    if BusinessCalendar.isWeekend(state) then return false end
     local cutterChanged = updateCutterTechnician(state)
     local pressChanged = Maintenance.updateWindmillTechnician(state)
     return cutterChanged or pressChanged

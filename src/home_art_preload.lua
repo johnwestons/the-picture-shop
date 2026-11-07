@@ -6,7 +6,8 @@ local Preload={BUDGET_BYTES=96*1024*1024,IDLE_SECONDS=20}
 local modules={washing="home_washing_art",laundry="home_laundry_art",
     wipe="home_wipe_art",trash="home_trash_art",sweep="home_sweep_art",
     cooking="home_cooking_art",pose="home_activity_pose",held="home_held_art",
-    props="home_routine_props",privacy="home_privacy_art",food="home_food_art"}
+    props="home_routine_props",privacy="home_privacy_art",food="home_food_art",
+    alarm_clock="home_alarm_clock_art"}
 local active,lastUsed={},{}
 local allReady=true
 function Preload.beginFrame() active={};allReady=true;Images.beginFrame() end

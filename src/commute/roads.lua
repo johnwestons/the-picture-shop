@@ -111,7 +111,9 @@ local function indexGround(roads)
         local anchor=site and site.parking or p
         local reach=9
         if site then
-            for _,rect in ipairs({site.localParking,site.localTruckParkingArea,site.localTruckApproach}) do
+            local surfaces={site.localParking,site.localTruckParkingArea,site.localTruckApproach}
+            for _,rect in ipairs(site.localTruckAprons or {}) do surfaces[#surfaces+1]=rect end
+            for _,rect in ipairs(surfaces) do
                 if rect then
                     local parking=site.design.parking
                     local dx=math.max(math.abs(rect.minX-parking.x),math.abs(rect.maxX-parking.x))*site.scale.x
@@ -135,11 +137,12 @@ function Roads.new(options)
     local self=setmetatable({segments={},paths={},bins={},junctions={},junctionBins={},binSize=16,
         destinations=options.destinations or DefaultLayout.destinations,recreation=options.recreation or {},
         sites=options.sites or Sites.create(),bounds=options.bounds or DefaultLayout.bounds,
-        layoutId=options.layoutId or DefaultLayout.id,version=options.version or Roads.VERSION},Roads)
+        layoutId=options.layoutId or DefaultLayout.id,version=options.version or Roads.VERSION,
+        drivingMap=options.drivingMap},Roads)
     for _,def in ipairs(definitions) do
         local path={id=def.id,width=def.width,points={},length=0,role=def.role,
             surface=def.surface or 'paved',lanes=def.lanes,oneWay=def.oneWay,
-            turnLane=def.turnLane,sidewalks=def.sidewalks}
+            turnLane=def.turnLane,sidewalks=def.sidewalks,truckOnly=def.truckOnly==true}
         self.paths[#self.paths+1]=path
         for i=1,#def.points-1 do
             local a,b,c,d=def.points[math.max(1,i-1)],def.points[i],def.points[i+1],def.points[math.min(#def.points,i+2)]
@@ -165,7 +168,7 @@ function Roads.new(options)
             local s={a=a,b=b,dx=dx,dz=dz,len=len,length2=len*len,width=def.width,id=def.id,distance=path.length}
             s.path=path;s.role,s.surface,s.lanes=path.role,path.surface,path.lanes
             s.priority=path.surface=='dirt' and 1 or path.role=='drive' and 2 or 3
-            s.oneWay,s.turnLane,s.sidewalks=path.oneWay,path.turnLane,path.sidewalks
+            s.oneWay,s.turnLane,s.sidewalks,s.truckOnly=path.oneWay,path.turnLane,path.sidewalks,path.truckOnly
             s.bridge=def.bridgeEdges and a.bridge==true
                 or not def.bridgeEdges and def.id=='east-bank' and (a.x+b.x)*.5>=302 and (a.x+b.x)*.5<=360
             s.nx,s.nz=-dz/len,dx/len;path.length=path.length+len
@@ -278,13 +281,20 @@ function Roads:blocked(world,x,z,skipFixtureCollision)
                 local dx=x-segment.a.x-t*segment.dx
                 local dz=z-segment.a.z-t*segment.dz
                 local distance=M.length(dx,dz)
-                if distance<=segment.width*.5-.18 then bridgeDeck=true;break end
+                if distance<=segment.width*.5+.5 then bridgeDeck=true;break end
                 if distance<segment.width*.5+1.2 then bridgeRail=true end
             end
         end
     end
     if bridgeDeck then return false end
-    if bridgeRail then return true,'bridgeRail' end
+    if bridgeRail then
+        -- A bridge parapet can overlap the swept edge of an adjoining road at
+        -- its landing. Keep that shared road connection open when the sampled
+        -- vehicle point is still supported by an ordinary paved lane.
+        local distance,segment=self:sample(x,z)
+        if segment and not segment.bridge and distance<=segment.width*.5+.5 then return false end
+        return true,'bridgeRail'
+    end
     local h,kind=self:supportHeight(world,x,z)
     if kind=='bridge' then return false end
     local d,s=self:sample(x,z)
@@ -300,7 +310,7 @@ function Roads:blocked(world,x,z,skipFixtureCollision)
     end
     return false
 end
-function Roads:vegetationAllowed(x,z)
+function Roads:vegetationAllowed(x,z,obstacleRadius)
     if not self.sites:vegetationAllowed(x,z) then return false end
     local _,padDistance=self:padAt(x,z)
     if padDistance and padDistance<.8 then return false end
@@ -309,9 +319,18 @@ function Roads:vegetationAllowed(x,z)
     end
     if self.infrastructure and self.infrastructure:occupied(x,z,1) then return false end
     local d,s=self:nearest(x,z)
-    if s and s.junction then return d>1.2 end
+    local truckClearance=0
+    if obstacleRadius and obstacleRadius>0 then
+        local footprint=require('src.commute.truck_footprint')
+        -- Include room for the rear corner's off-tracking during a turn, not
+        -- only the truck's footprint on a perfectly straight road sample.
+        truckClearance=footprint.radius+obstacleRadius+2.5
+    end
+    if s and s.junction then return d>math.max(1.2,truckClearance) end
     -- Keep even the largest roadside rock outside the narrow trail's usable width.
-    return not s or d>s.width*.5+(s.surface=='dirt' and 4.9 or 2.2)
+    local roadsideClearance=s and s.surface=='dirt' and 4.9 or 2.2
+    roadsideClearance=math.max(roadsideClearance,truckClearance)
+    return not s or d>s.width*.5+roadsideClearance
 end
 function Roads:attach(world)
     local terrainHeight=world.height

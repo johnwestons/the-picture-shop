@@ -15,7 +15,11 @@ local Renderer = {}
 local ImageLoader=require("src.image_loader")
 local meshes, rackImage = {}, nil
 local sourceImages, sourceQuads = {}, {}
-local sourceCache = require("src.texture_cache").new(64 * 1024 * 1024, 20)
+-- Active warehouse art stays pinned; trim inactive sprites on mobile so the
+-- outdoor ride does not carry the full indoor source-art cache with it.
+local mobile=love and love.system and love.system.getOS and love.system.getOS()=="Android"
+    or os.getenv("PICTURE_SHOP_MOBILE")=="1"
+local sourceCache = require("src.texture_cache").new((mobile and 48 or 64) * 1024 * 1024, 20)
 local sourceUse, sourceSequence, touched, frameDepth = {}, 0, {}, 0
 local forkliftPoses=setmetatable({}, {__mode="k"})
 local constructionIssues={}
@@ -368,6 +372,19 @@ function Renderer.drawConstructionWorker(worker,state)
         love.graphics.setColor(1,0.8,0.3,1)
         love.graphics.printf(label,worker.x-35,worker.y+7,70,"center")
     end
+end
+function Renderer.drawDeliveryDriver(actor)
+    return require("src.warehouse_delivery_driver").draw(actor,sourceImage,sourceQuad)
+end
+
+function Renderer.drawDeliverySignatureHint(actor)
+    if not actor then return end
+    love.graphics.push("all")
+    love.graphics.setColor(.035,.075,.07,.92)
+    love.graphics.rectangle("fill",actor.x-42,actor.y-103,84,18,4,4)
+    love.graphics.setColor(.72,1,.77,1)
+    love.graphics.printf("SIGN DELIVERY",actor.x-40,actor.y-100,80,"center")
+    love.graphics.pop()
 end
 
 function Renderer.forkliftScales()

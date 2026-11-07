@@ -104,23 +104,31 @@ function Paint.build(world)
     for id in pairs(roads.destinations) do
         local site=sites[id]
         if site then
-            local function at(side,forward)
-                local x,z=Bays.point(site,side,forward)
+            local count=Bays.count(site)
+            local halfWidth=Bays.halfWidth(site)
+            local rows=site.employeeParking and site.employeeParking.rows or 1
+            local rear=site.employeeParking and site.employeeParking.rowRear or Bays.REAR
+            local open=site.employeeParking and site.employeeParking.rowOpen or Bays.OPEN
+            local function at(side,forward,row)
+                local x,z=Bays.point(site,side,forward,row)
                 return {x,z,world:supportHeight(x,z)+.09}
             end
-            local function stroke(ax,az,bx,bz,width)
+            local function stroke(ax,az,bx,bz,width,row)
                 local dx,dz=bx-ax,bz-az
                 local length=math.sqrt(dx*dx+dz*dz)
                 local nx,nz=-dz/length*width*.5,dx/length*width*.5
-                quad(out,at(ax+nx,az+nz),at(bx+nx,bz+nz),
-                    at(bx-nx,bz-nz),at(ax-nx,az-nz),white)
+                quad(out,at(ax+nx,az+nz,row),at(bx+nx,bz+nz,row),
+                    at(bx-nx,bz-nz,row),at(ax-nx,az-nz,row),white)
             end
-            stroke(-Bays.HALF_WIDTH,Bays.REAR,Bays.HALF_WIDTH,Bays.REAR,.10)
-            for boundary=0,Bays.COUNT do
-                local side=-Bays.HALF_WIDTH+boundary*Bays.WIDTH
-                stroke(side,Bays.REAR,side,Bays.OPEN,.10)
+            for row=1,rows do
+                stroke(-halfWidth,rear,halfWidth,rear,.10,row)
+                for boundary=0,(site.employeeParking and site.employeeParking.columns or count) do
+                    local side=-halfWidth+boundary*Bays.WIDTH
+                    stroke(side,rear,side,open,.10,row)
+                end
+                stroke(-halfWidth,open,halfWidth,open,.10,row)
             end
-            stats.parkingStalls=stats.parkingStalls+Bays.COUNT
+            stats.parkingStalls=stats.parkingStalls+count
         end
     end
     return out,stats

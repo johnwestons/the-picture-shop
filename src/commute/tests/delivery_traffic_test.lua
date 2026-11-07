@@ -1,6 +1,10 @@
 local Network=require('src.commute.delivery_traffic')
 local Town=require('src.commute.town')
+local Routes=require('src.commute.routes')
+local DrivingPath=require('src.commute.driving_path')
 local TruckArt=require('src.commute.truck_art')
+local Camera=require('src.commute.camera')
+local StopControl=require('src.commute.tests.stop_control_test')
 local Test={}
 
 local function byCompany(actors)
@@ -12,7 +16,44 @@ local function byCompany(actors)
 end
 
 function Test.run(check)
+    local actor={x=0,z=0,h=0}
+    check('truck_free_camera_keeps_isometric_art_above_lowest_tilt',
+        TruckArt.viewKind({tilt=30},actor,0)=='isometric'
+            and TruckArt.viewKind({tilt=Camera.TILT_MIN},actor,0)=='chase')
+    check('truck_free_camera_uses_chase_art_when_player_is_close_to_a_parked_truck',
+        TruckArt.viewKind({tilt=55,centerX=0,centerZ=0,lastActor={x=0,z=0}},
+            {x=3,z=0,h=0},0)=='chase')
+    check('truck_first_person_and_shoulder_keep_chase_art',
+        TruckArt.viewKind({localTruckChase=true},actor,0)=='chase'
+            and TruckArt.viewKind({projectionCamera={includeLocalRider=true,shoulderPerspective=true}},actor,0)=='chase')
+    check('truck_perspective_close_angle_keeps_chase_art',
+        TruckArt.viewKind({projectionCamera={includeLocalRider=true,centerX=0,centerZ=0,eyeHeight=2}},actor,0)=='isometric'
+            and TruckArt.viewKind({projectionCamera={includeLocalRider=true,centerX=0,centerZ=3,eyeHeight=2}},actor,0)=='chase')
+    local aligned=true
+    local outside={firstPerson=false,yaw=0}
+    local firstPerson={firstPerson=true,viewHeading=.73}
+    for index=0,63 do
+        local step=index*math.pi*2/64
+        aligned=aligned and TruckArt.frame(outside,-math.pi/2+step,'box')==index+1
+            and TruckArt.frame(outside,-math.pi/2+step,'kei')==index+1
+            and TruckArt.frame(firstPerson,.73+step,'box')==index+1
+            and TruckArt.frame(firstPerson,.73+step,'kei')==index+1
+    end
+    check('kei_and_box_truck_turntables_stay_aligned_across_all_64_views',aligned)
+
     local town=assert(Town.generate(712345))
+    local world=Town.world(town)
+    local planner=Routes.new(world.roads,{includeTruckOnly=world.truckDestinations~=nil,
+        pavedOnly=true,destinations=world.truckDestinations})
+    local liveRoute=planner:findFromPoint(world.mainlandExit.x,world.mainlandExit.z,
+        world.truckDestinations and 'warehouse_truck_dock' or 'warehouse')
+    local speedLimits=liveRoute and DrivingPath.speedLimits(liveRoute.points) or {}
+    local validSpeedProfile=#speedLimits>0
+    for _,marker in ipairs(speedLimits) do
+        validSpeedProfile=validSpeedProfile and marker.speed>=2.7 and marker.speed<=8.6
+    end
+    check('delivery_traffic_live_routes_derive_turn_speed_limits',validSpeedProfile,
+        ('markers=%d'):format(#speedLimits))
     local state={calendar={secondsPerDay=300},inventory={stock={}},procurement={
         orders={{id='PO-TRAFFIC-1',shipmentId='SHIP-TRAFFIC-1',category='paper',
             company='CritterNet Paper Depot',pallets={{id='PO-TRAFFIC-1-PALLET',location='awaiting_delivery'}}}},
@@ -103,6 +144,7 @@ function Test.run(check)
     end
     previewData:release();preview:release();art:release()
     check('delivery_company_decal_draws_over_the_existing_64_angle_truck',rendered>100)
+    StopControl.run(check,town)
 end
 
 return Test

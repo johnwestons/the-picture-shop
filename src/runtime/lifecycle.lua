@@ -4,7 +4,6 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.focus(focused)
-        if Runtime.WarehouseFirstPerson then Runtime.WarehouseFirstPerson:focus(Runtime,focused) end
         if not focused then require('src.commute.runtime').cancelCameraDrag(Runtime) end
         if Runtime.state.screen=="air_hockey" then
             require("src.screens.air_hockey_screen").cancelInputs(not focused)

@@ -4,7 +4,8 @@ local M=require('src.commute.vendor.mathx')
 local Terrain=require('src.commute.vendor.terrain')
 local Placement=require('src.commute.grass_placement')
 local Fields={PATCH_SIZE=8,FAR_VIEW_RADIUS=20,MAX_CACHE_ENTRIES=80,MAX_MESH_BYTES=4*1024*1024,
-    BUILDS_PER_FRAME=2,BUILD_SECONDS=.0025,STEPS_PER_FRAME=128,GRID=7}
+    BUILDS_PER_FRAME=2,BUILD_SECONDS=.002,STEPS_PER_FRAME=128,
+    MOBILE_BUILD_SECONDS=.00045,MOBILE_STEPS_PER_FRAME=96,GRID=7,MOBILE_GRID=4}
 Fields.__index=Fields
 
 local FORMAT={
@@ -67,7 +68,8 @@ local function anchorInfluence(x,z,anchors)
     return best
 end
 
-local function buildPatch(world,tx,tz,key)
+local function buildPatch(world,tx,tz,key,grid)
+    grid=grid or Fields.GRID
     local seed=world.seed or 1
     local x0,z0=tx*Fields.PATCH_SIZE,tz*Fields.PATCH_SIZE
     local centerX,centerZ=x0+Fields.PATCH_SIZE*.5,z0+Fields.PATCH_SIZE*.5
@@ -90,9 +92,12 @@ local function buildPatch(world,tx,tz,key)
     if centerGrassWeight<.06 and #anchors==0 then return nil end
 
     local vertices,indices,sections={},{},{}
-    local spacing=Fields.PATCH_SIZE/Fields.GRID
+    local spacing=Fields.PATCH_SIZE/grid
+    -- Mobile samples fewer cells per patch; compensate selection probability so
+    -- expected tuft coverage stays close, subject to the existing density cap.
+    local densityScale=Fields.GRID*Fields.GRID/(grid*grid)
     local tuftCount=0
-    for gx=0,Fields.GRID-1 do for gz=0,Fields.GRID-1 do
+    for gx=0,grid-1 do for gz=0,grid-1 do
         coroutine.yield()
         local roll=M.hash(seed+2053,key+gx*37,gz*53+7)
         local offsetX=.03+M.hash(seed+2063,key+gx*67,gz*79+11)*.94
@@ -129,7 +134,7 @@ local function buildPatch(world,tx,tz,key)
                     or localCommunity=='river-margin' and .66
                     or localCommunity=='shrub-edge' and .90 or 1
                 local density=M.clamp(fieldCoverage*openness*groundFactor
-                    *2.4*fineFactor*communityFactor,0,.65)
+                    *2.4*fineFactor*communityFactor*densityScale,0,.65)
                 if roll<density then
                     local areaDirection=M.noise(seed+2111,x*.065,z*.065)
                     local tuftVariation=(M.hash(seed+2159,key+gx*103,gz*107+17)-.5)*.08
@@ -162,12 +167,22 @@ local function buildPatch(world,tx,tz,key)
         sections=sections,vertices=#vertices,indices=#indices}
 end
 
-function Fields.new(world)
+function Fields.new(world,options)
+    options=options or {}
     local columns=math.ceil(world.size/Fields.PATCH_SIZE)
-    return setmetatable({world=world,columns=columns,cache={},cacheCount=0,
+    local self=setmetatable({world=world,columns=columns,cache={},cacheCount=0,
         meshBytes=0,frame=0,buildsThisFrame=0,generated=0,
         shader=love.graphics.newShader(love.filesystem.read('src/commute/perspective.glsl')..'\n'
             ..love.filesystem.read('src/commute/grass_fields.glsl'))},Fields)
+    self:setMobileMode(options.mobile==true)
+    return self
+end
+
+function Fields:setMobileMode(mobile)
+    self.mobile=mobile==true
+    self.buildBudgetSeconds=self.mobile and Fields.MOBILE_BUILD_SECONDS or Fields.BUILD_SECONDS
+    self.stepsBudget=self.mobile and Fields.MOBILE_STEPS_PER_FRAME or Fields.STEPS_PER_FRAME
+    self.grid=self.mobile and Fields.MOBILE_GRID or Fields.GRID
 end
 
 local function cacheKey(self,tx,tz)
@@ -182,16 +197,19 @@ function Fields:_entry(tx,tz)
         entry.used=self.frame
         return entry
     end
-    if self.buildsThisFrame>=Fields.BUILDS_PER_FRAME or self.stepsThisFrame>=Fields.STEPS_PER_FRAME then return nil end
-    if love.timer.getTime()-self.buildStarted>=Fields.BUILD_SECONDS then return nil end
+    if self.buildsThisFrame>=Fields.BUILDS_PER_FRAME or self.stepsThisFrame>=self.stepsBudget then return nil end
+    if love.timer.getTime()-self.buildStarted>=self.buildBudgetSeconds then return nil end
     if self.job and self.job.key~=key then return nil end
     if not self.job then
-        self.job={key=key,tx=tx,tz=tz,thread=coroutine.create(function()return buildPatch(self.world,tx,tz,key)end)}
+        local grid=self.grid or Fields.GRID
+        self.job={key=key,tx=tx,tz=tz,thread=coroutine.create(function()
+            return buildPatch(self.world,tx,tz,key,grid)
+        end)}
     end
     -- Yield between anchor cells and individual tufts. A dense tile
     -- cannot monopolize an interactive frame; upload only its completed mesh.
-    while self.stepsThisFrame<Fields.STEPS_PER_FRAME
-        and love.timer.getTime()-self.buildStarted<Fields.BUILD_SECONDS do
+    while self.stepsThisFrame<self.stepsBudget
+        and love.timer.getTime()-self.buildStarted<self.buildBudgetSeconds do
         self.stepsThisFrame=self.stepsThisFrame+1
         local okay,patch=coroutine.resume(self.job.thread);assert(okay,patch)
         if coroutine.status(self.job.thread)=='dead' then
@@ -284,7 +302,8 @@ end
 function Fields:stats()
     return {patches=self.cacheCount,meshBytes=self.meshBytes,generated=self.generated,
         built=self.buildsThisFrame,steps=self.stepsThisFrame or 0,pending=self.job~=nil,
-        buildMs=self.buildMs or 0,visible=self.visibleCount or 0}
+        buildMs=self.buildMs or 0,visible=self.visibleCount or 0,
+        buildBudgetMs=self.buildBudgetSeconds*1000,stepsBudget=self.stepsBudget}
 end
 
 function Fields:drawPatch(patch)

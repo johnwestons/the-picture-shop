@@ -6,7 +6,7 @@ local Truck=require('src.commute.delivery_truck')
 local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
 local Service=require('src.commute.bike_service')
-local Rider={WALK_SPEED=1.7,RADIUS=.32,FRAME_DISTANCE=.13}
+local Rider={WALK_SPEED=2.3,SPRINT_MULTIPLIER=1.5,RADIUS=.32,FRAME_DISTANCE=.13}
 local speedCurve={.96,.94,1.04,1.06,.96,.94,1.04,1.06}
 local accelerationCurve={.92,.90,1.08,1.10,.92,.90,1.08,1.10}
 local function gait(values,distance)
@@ -93,13 +93,14 @@ function Rider.update(r,input,dt,world)
     local previousMounted=r.gear.mounted
     local finished=Gear.update(r.gear,dt)
     local transition=r.gear.transition
+    local _,transitionProgress=Gear.pose(r.gear)
     if transition and transition.kind=='mount' and r.mountPoint then
-        local progress=math.min(1,transition.elapsed/Gear.duration('mount'))
+        local progress=transitionProgress
         r.ped.x=M.lerp(r.mountPoint.x,r.bike.x,progress)
         r.ped.z=M.lerp(r.mountPoint.z,r.bike.z,progress)
         r.ped.heading=r.bike.heading
     elseif transition and transition.kind=='dismount' and r.dismountPoint then
-        local progress=math.min(1,transition.elapsed/Gear.duration('dismount'))
+        local progress=transitionProgress
         r.ped.x=M.lerp(r.bike.x,r.dismountPoint.x,progress)
         r.ped.z=M.lerp(r.bike.z,r.dismountPoint.z,progress)
         r.ped.heading=r.bike.heading
@@ -145,6 +146,7 @@ function Rider.update(r,input,dt,world)
         local magnitude=M.length(dx,dz)
         if magnitude>1 then dx,dz=dx/magnitude,dz/magnitude end
         local speed=Rider.WALK_SPEED*gait(speedCurve,p.distance)
+            *(input.sprint==true and Rider.SPRINT_MULTIPLIER or 1)
         local tx,tz=dx*speed,dz*speed
         local reversal=p.vx*tx+p.vz*tz<0
         local acceleration=(magnitude<.001 or reversal) and 12 or 8*gait(accelerationCurve,p.distance)

@@ -50,7 +50,6 @@ function Component.install(Runtime)
         end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,button) then return true end
-        if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:mousepressed(Runtime,button) then return true end
         if not isTouch and require('src.commute.runtime').cameraPointerPressed(Runtime,button) then return true end
         if not isTouch and button~=1 and require('src.commute.runtime').deviceInput(Runtime,'mouse','mouse'..button) then return true end
         if button==1 and require('src.commute.runtime').pointer(Runtime,px,py,'mouse') then return true end
@@ -59,7 +58,6 @@ function Component.install(Runtime)
 
     function Runtime.App.mousereleased(x, y, button, isTouch)
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
-        if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:mousereleased(Runtime,button) then return true end
         if not isTouch and require('src.commute.runtime').cameraPointerReleased(Runtime,button) then return true end
         if button==1 then require('src.commute.runtime').pointerReleased(Runtime,'mouse') end
         return Runtime.dispatchMouseReleased(x, y, button)
@@ -70,7 +68,6 @@ function Component.install(Runtime)
         if not isTouch then
             local px,py=Runtime.toPointerCoordinates(x,y)
             local oldX,oldY=Runtime.toPointerCoordinates(x-(dx or 0),y-(dy or 0))
-            if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:mousemoved(Runtime,px-oldX,py-oldY) then return true end
             if require('src.commute.runtime').cameraPointerMoved(Runtime,px-oldX,py-oldY) then return true end
         end
         return Runtime.dispatchMouseMoved(x, y)

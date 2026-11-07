@@ -5,16 +5,64 @@ local Transport=require("src.employee_pallet_jack")
 local Shipping={}
 local function reserved(state,worker,palletId)
     for _,w in ipairs(state.employment.staff) do
-        if w~=worker and w.visible and w.clockedIn and w._shippingPalletId==palletId then return true end
+        if w~=worker and w.visible and w.clockedIn
+            and (w._shippingPalletId==palletId or w._inboundDeliveryPalletId==palletId) then return true end
     end
     for _,jack in ipairs(Fleet.all(state)) do
         if jack.carriedPalletId==palletId and jack.operating and jack.operatorEmployeeId~=worker.id then return true end
     end
     return false
 end
+
+local function unloadInbound(state,worker,dt,context,truck)
+    local visit=state.deliveryDriver
+    if truck.mode=="machine_delivery" or truck.mode=="pickup"
+        or not visit or visit.status=="idle" or visit.status=="done" or visit.status=="missed"
+        or tostring(visit.deliveryId)~=tostring(truck.jobId) then return false,false end
+    if context.canLoadTruck and not context.canLoadTruck() then
+        worker.activity="Waiting for the delivery manifest"
+        return true,false
+    end
+    if truck.state=="parked_closed" then
+        worker.activity="Opening the delivery truck"
+        return true,context.openInboundDelivery()==true
+    end
+    if truck.state~="cargo_open" then
+        worker.activity="Waiting for the delivery truck"
+        return true,false
+    end
+    local selected
+    for _,item in ipairs(context.inboundDeliveryItems and context.inboundDeliveryItems() or {}) do
+        if item.location=="awaiting_delivery" and not reserved(state,worker,item.id) then
+            if not selected or item.id==worker._inboundDeliveryPalletId then selected=item end
+            if item.id==worker._inboundDeliveryPalletId then break end
+        end
+    end
+    if not selected then
+        worker._inboundDeliveryPalletId=nil
+        if context.inboundDeliveryRemaining and context.inboundDeliveryRemaining()==0 then
+            worker.activity="Closing the empty delivery truck"
+            return true,context.closeInboundDelivery()==true
+        end
+        worker.activity="Waiting for an available delivery pallet"
+        return true,false
+    end
+    worker._inboundDeliveryPalletId=selected.id
+    local goal=context.inboundApproachPoint and context.inboundApproachPoint(worker)
+    if not goal then worker.activity="Delivery truck access is blocked";return true,false end
+    local reached,blocked=context.move(worker,goal,dt)
+    worker.phase="walking"
+    worker.activity=blocked and "Delivery truck access is blocked" or "Unloading inbound delivery"
+    if not reached then return true,false end
+    local okay=context.unloadInboundDelivery(worker,selected.id)
+    if okay then worker._inboundDeliveryPalletId=nil end
+    return true,okay==true
+end
+
 function Shipping.update(state,worker,dt,context)
     if not context.pickupTruck then return false,false end
     local truck=context.pickupTruck()
+    if truck.mode~="pickup" then return unloadInbound(state,worker,dt,context,truck) end
     local job
     if truck.mode=="pickup" then
         for _,candidate in ipairs(state.jobs.active) do if candidate.id==truck.jobId then job=candidate;break end end

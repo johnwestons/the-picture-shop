@@ -680,6 +680,15 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         local worker=state.constructionWorker
         actors[#actors+1]={y=worker.y,draw=function() WarehouseRenderer.drawConstructionWorker(worker,state) end}
     end
+    local deliveryDriver=require("src.warehouse_delivery_driver").presentation(state)
+    if deliveryDriver and deliveryDriver.visible then
+        actors[#actors+1]={y=deliveryDriver.y,draw=function()
+            WarehouseRenderer.drawDeliveryDriver(deliveryDriver)
+            if state.deliveryDriver and state.deliveryDriver.status=="waiting" then
+                WarehouseRenderer.drawDeliverySignatureHint(deliveryDriver)
+            end
+        end}
+    end
     for _,vehicle in ipairs(JackFleet.all(state)) do
       if (vehicle.sceneId or "warehouse")=="warehouse" then
         local vehicleState=JackFleet.view(state,vehicle)

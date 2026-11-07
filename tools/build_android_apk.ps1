@@ -2,6 +2,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
     [switch]$Install,
+    [switch]$ReuseVerifiedNativeCryptoArtifacts,
     [string]$DeviceSerial,
     [switch]$EngineeringNativeCryptoProbe,
     [switch]$EngineeringDirectTransportProbe,
@@ -316,13 +317,17 @@ if (@($requiredAndroidTools | Where-Object { -not (Test-Path -LiteralPath $_ -Pa
 }
 
 $nativeCryptoNdkPath = Join-Path $androidRoot 'ndk\25.2.9519653'
-$nativeCryptoBuildScript = Join-Path $PSScriptRoot 'build_native_crypto_android.ps1'
-if (-not (Test-Path -LiteralPath $nativeCryptoBuildScript -PathType Leaf)) {
-    throw "Android native crypto build script is missing: $nativeCryptoBuildScript"
+if (-not $ReuseVerifiedNativeCryptoArtifacts) {
+    $nativeCryptoBuildScript = Join-Path $PSScriptRoot 'build_native_crypto_android.ps1'
+    if (-not (Test-Path -LiteralPath $nativeCryptoBuildScript -PathType Leaf)) {
+        throw "Android native crypto build script is missing: $nativeCryptoBuildScript"
+    }
+    Write-Output 'Building the non-production Android native crypto candidate...'
+    & $nativeCryptoBuildScript -NdkPath $nativeCryptoNdkPath
+    if (-not $?) { throw 'Android native crypto candidate build failed.' }
+} else {
+    Write-Output 'Reusing previously built Android native crypto artifacts after report and hash verification...'
 }
-Write-Output 'Building the non-production Android native crypto candidate...'
-& $nativeCryptoBuildScript -NdkPath $nativeCryptoNdkPath
-if (-not $?) { throw 'Android native crypto candidate build failed.' }
 
 $nativeCryptoReportPath = Join-Path $projectRoot 'output\native-crypto\build\android\native_crypto_android_report.json'
 if (-not (Test-Path -LiteralPath $nativeCryptoReportPath -PathType Leaf)) {
@@ -338,6 +343,22 @@ if ($nativeCryptoReport.status -cne 'engineering-candidate-non-production' -or
         $nativeCryptoReport.productionReady -ne $false -or
         [int]$nativeCryptoReport.abiVersion -ne 3) {
     throw 'Android native crypto report must remain a non-production engineering candidate.'
+}
+$nativeCryptoInputs = [ordered]@{
+    providerSourceSha256 = (Join-Path $projectRoot 'native\crypto\src\tps_crypto.c')
+    dependencyManifestSha256 = (Join-Path $projectRoot 'native\crypto\dependencies.json')
+    noiseCPatchSha256 = (Join-Path $projectRoot 'native\crypto\patches\noise-c-rev32-tps.patch')
+    buildScriptSha256 = (Join-Path $PSScriptRoot 'build_native_crypto_android.ps1')
+}
+foreach ($inputName in $nativeCryptoInputs.Keys) {
+    $inputPath = [string]$nativeCryptoInputs[$inputName]
+    if (-not (Test-Path -LiteralPath $inputPath -PathType Leaf)) {
+        throw "Android native crypto input is missing: $inputPath"
+    }
+    $inputHash = Get-LowerSha256 -Path $inputPath
+    if ($inputHash -cne ([string]$nativeCryptoReport.inputs.$inputName).ToLowerInvariant()) {
+        throw "Android native crypto report is stale for input $inputName."
+    }
 }
 foreach ($checkName in @('cleanPinnedSourcePreparation','allRequiredAbisBuilt','elf16KiBLoadAlignment','hiddenDependencySymbols','exactAbiExportSurface','bindNow')) {
     if ($nativeCryptoReport.checks.$checkName -cne 'pass') {

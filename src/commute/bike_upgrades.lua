@@ -128,6 +128,10 @@ function Upgrades.next(value)
 end
 function Upgrades.canVisit(state,player,trip,world)
     if not (state and state.home and trip and trip==state.home.commute) then return false,'That ride has ended.' end
+    if not require('src.commute.town_characters').isOpen(state.home,'mechanic',
+        require('src.business_calendar').absoluteHours(state)) then
+        return false,'WrenchWorks is closed for the night. It is open 08:00–18:00.'
+    end
     if type(player)~='table' or player.sceneId~='commute' then return false,'Visit the mechanic during your ride.' end
     local Residents=require('src.home_residents')
     local id=Residents.key(player);local resident=Residents.get(state,player)

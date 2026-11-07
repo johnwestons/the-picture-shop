@@ -12,8 +12,9 @@ local function closest(x,z,ax,az,bx,bz)
     local ox,oz=x-ax-u*dx,z-az-u*dz
     return ox*ox+oz*oz,ox,oz,u
 end
-local function addCollider(plan,kind,ax,az,bx,bz,ha,hb,radius,height)
-    local shape={kind=kind,ax=ax,az=az,bx=bx,bz=bz,ha=ha,hb=hb,radius=radius,height=height,id=#plan.solids+1}
+local function addCollider(plan,kind,ax,az,bx,bz,ha,hb,radius,height,roadId)
+    local shape={kind=kind,ax=ax,az=az,bx=bx,bz=bz,ha=ha,hb=hb,radius=radius,height=height,
+        roadId=roadId,id=#plan.solids+1}
     plan.solids[#plan.solids+1]=shape
     for ix=math.floor((math.min(ax,bx)-radius)/CELL),math.floor((math.max(ax,bx)+radius)/CELL) do
         for iz=math.floor((math.min(az,bz)-radius)/CELL),math.floor((math.max(az,bz)+radius)/CELL) do
@@ -44,13 +45,21 @@ function Infrastructure:occupied(x,z,margin)
     return false
 end
 
-function Infrastructure:blocksTruck(x,z,c,s)
+function Infrastructure:blocksTruck(x,z,c,s,dims,drivableRoadId)
     local f=require('src.commute.truck_footprint')
-    for ix=math.floor((x-f.radius)/CELL),math.floor((x+f.radius)/CELL) do
-        for iz=math.floor((z-f.radius)/CELL),math.floor((z+f.radius)/CELL) do
+    dims=dims or f.dimensions('box')
+    local radius=dims.radius or f.radius
+    for ix=math.floor((x-radius)/CELL),math.floor((x+radius)/CELL) do
+        for iz=math.floor((z-radius)/CELL),math.floor((z+radius)/CELL) do
             local bin=self.bins[key(ix*CELL,iz*CELL)]
             if bin then for _,shape in ipairs(bin) do
-                if f.overlaps(x,z,c,s,shape.ax,shape.az,shape.bx,shape.bz,shape.radius) then return true end
+                -- Stop signs are enforced by the truck's stop-line traffic
+                -- rule. Their roadside posts must not trap a long footprint
+                -- while the vehicle waits or turns through the junction.
+                local sameRoadRoadside=(shape.kind=='guardrail' or shape.kind=='lamp') and drivableRoadId
+                    and shape.roadId==drivableRoadId
+                if shape.kind~='stop' and shape.kind~='lamp' and not sameRoadRoadside
+                    and f.overlaps(x,z,c,s,shape.ax,shape.az,shape.bx,shape.bz,shape.radius,dims) then return true end
             end end
         end
     end
@@ -311,7 +320,7 @@ local function fixture(plan,kind,x,z,fx,fz,roadId)
     local f={kind=kind,x=x,z=z,h=h,fx=fx,fz=fz,roadId=roadId}
     plan.fixtures[#plan.fixtures+1]=f
     plan.counts[kind]=(plan.counts[kind] or 0)+1
-    addCollider(plan,kind,x,z,x,z,h,h,size[1],size[2])
+    addCollider(plan,kind,x,z,x,z,h,h,size[1],size[2],roadId)
     return f
 end
 local function offset(path,d,side,lateral)
@@ -322,6 +331,17 @@ local function walksAndRails(plan,path)
     local world=plan.world
     local width=path.role=='main' and 1.8 or 1.35
     local curb=path.width*.5+.15
+    local truckTurnClearance=8.5
+    local function nearTruckTurn(start,finish)
+        for index=2,#path.edges do
+            local before,after=path.edges[index-1],path.edges[index]
+            local dot=M.clamp(before.dx*after.dx+before.dz*after.dz,-1,1)
+            local angle=math.acos(dot)
+            if angle>math.rad(12) and start<=after.start+truckTurnClearance
+                and finish>=after.start-truckTurnClearance then return true end
+        end
+        return false
+    end
     local count=math.max(1,math.ceil(path.length/3))
     for _,side in ipairs({1,-1}) do
         for i=1,count do
@@ -346,32 +366,56 @@ local function walksAndRails(plan,path)
                     corners[2][3]=math.max(corners[2][3],corners[3][3]);corners[3][3]=corners[2][3]
                     plan.walks[#plan.walks+1]={kind='sidewalk',roadId=path.id,corners=corners,side=side}
                 end
-                local railOffset=curb+(path.sidewalks and width+.35 or .65)
+                -- Keep a generous shoulder beyond the sidewalk so the long
+                -- rear corners of a box truck can track around road bends.
+                local railOffset=curb+(path.sidewalks and width+2.6 or 2.9)
                 local rx,rz=offset(path,mid,side,railOffset)
                 local outerX,outerZ=offset(path,mid,side,railOffset+7)
                 local h=world:height(rx,rz)
                 local drop=h-world:height(outerX,outerZ)
                 local ax,az=offset(path,start,side,railOffset)
                 local bx,bz=offset(path,finish,side,railOffset)
-                if drop>1.55 and h>.45 and available(world,path,ax,az,.45)
-                    and available(world,path,bx,bz,.45) and available(world,path,rx,rz,.45) then
+                -- A long truck swings its rear corners wide through turns.
+                -- Leave the rail open around bends and junctions instead of
+                -- generating a barrier across the vehicle's swept path.
+                local truckClearance=require('src.commute.truck_footprint').radius+.25
+                if drop>1.55 and h>.45 and not nearTruckTurn(start,finish)
+                    and available(world,path,ax,az,truckClearance)
+                    and available(world,path,bx,bz,truckClearance)
+                    and available(world,path,rx,rz,truckClearance) then
                     local ha,hb=world:height(ax,az),world:height(bx,bz)
                     local rail={kind='guardrail',roadId=path.id,x=rx,z=rz,ax=ax,az=az,bx=bx,bz=bz,ha=ha,hb=hb,drop=drop}
                     plan.rails[#plan.rails+1]=rail
-                    addCollider(plan,'guardrail',ax,az,bx,bz,ha,hb,.16,.85)
+                    addCollider(plan,'guardrail',ax,az,bx,bz,ha,hb,.16,.85,path.id)
                 end
             end
         end
     end
 end
-local function addLamps(plan,path,seed)
-    if not path.sidewalks then return end
+local function addLamps(plan,path,seed,turnClearancePoints)
+    -- Local streets can have tight bends and private driveway entrances. Keep
+    -- lamps on the broad main streets so box trucks do not swing into them.
+    if not path.sidewalks or path.role~='main' then return end
     local spacing=path.role=='main' and 19 or 42
     for _,side in ipairs({1,-1}) do
         local start=7+(seed+#path.id*5+(side==1 and 11 or 0))%math.floor(spacing*.55)
         for d=start,path.length-5,spacing do
             local x,z,e=offset(path,d,side,path.width*.5+1.4)
-            if not e.bridge and available(plan.world,path,x,z,.7) then
+            local clearOfTurns=d>=11 and path.length-d>=11
+            for index=2,#path.edges do
+                local before,after=path.edges[index-1],path.edges[index]
+                local angle=math.atan2(before.dx*after.dz-before.dz*after.dx,
+                    before.dx*after.dx+before.dz*after.dz)
+                if math.abs(angle)>.28 and math.abs(d-after.start)<11 then
+                    clearOfTurns=false;break
+                end
+            end
+            for _,point in ipairs(turnClearancePoints or {}) do
+                if point.roadId==path.id and (x-point.x)^2+(z-point.z)^2<11^2 then
+                    clearOfTurns=false;break
+                end
+            end
+            if clearOfTurns and not e.bridge and available(plan.world,path,x,z,.7) then
                 fixture(plan,'lamp',x,z,e.dz*side,-e.dx*side,path.id)
             end
         end
@@ -390,17 +434,19 @@ local function mailboxes(plan,paths,town)
             end
             local _,_,edge=along(frontage,nearest)
             local side=(p.origin.x-anchorX)*(-edge.dz)+(p.origin.z-anchorZ)*edge.dx>=0 and 1 or -1
-            for _,shift in ipairs({3.2,-3.2,4.5,-4.5,6,-6}) do
+            -- Keep mailboxes well beyond driveway turn envelopes. A box truck
+            -- swings its rear corners across the verge when turning into a lot.
+            for _,shift in ipairs({9,-9,12,-12,15,-15,18,-18}) do
                 local x,z,e=offset(frontage,nearest+shift,side,frontage.width*.5+1.25)
                 if available(plan.world,frontage,x,z,.5) and fixture(plan,'mailbox',x,z,e.dz*side,-e.dx*side,frontage.id) then break end
             end
         end
     end
 end
-local function approachSign(plan,path,atStart,kind,turn)
+local function approachSign(plan,path,atStart,kind,turn,junctionX,junctionZ)
     local direction=atStart and -1 or 1
     if path.oneWay and atStart then return end
-    for _,setback in ipairs(kind=='stop' and {7,9,11,13} or {15,18,20}) do
+    for _,setback in ipairs(kind=='stop' and {10,12,14,16} or {15,18,20}) do
         if setback>path.length*.45 then break end
         local d=atStart and setback or path.length-setback
         local px,pz,e=along(path,d)
@@ -413,6 +459,7 @@ local function approachSign(plan,path,atStart,kind,turn)
                 sign.roadWidth=path.width
                 sign.oneWay=path.oneWay==true
                 sign.stopX,sign.stopZ=px,pz
+                sign.junctionX,sign.junctionZ=junctionX,junctionZ
                 return sign
             end
         end
@@ -426,7 +473,8 @@ local function signs(plan,junctions)
         if #branches>=3 then
             for _,b in ipairs(branches) do
                 if mainCount==0 or mainCount>=3 or b.path.role~='main' then
-                    approachSign(plan,b.path,b.atStart,'stop')
+                    local junctionX,junctionZ=along(b.path,b.atStart and 0 or b.path.length)
+                    approachSign(plan,b.path,b.atStart,'stop',nil,junctionX,junctionZ)
                 end
             end
         elseif #branches==2 then
@@ -484,7 +532,33 @@ function Infrastructure.new(world,options)
     indexWalks(plan)
     signs(plan,junctions)
     mailboxes(plan,lookup,town)
-    for _,path in ipairs(streets) do addLamps(plan,path,town.seed) end
+    local turnClearancePoints={}
+    for _,node in ipairs(junctions) do
+        if #node.branches>1 then
+            for _,branch in ipairs(node.branches) do
+                local x,z=along(branch.path,branch.atStart and 0 or branch.path.length)
+                turnClearancePoints[#turnClearancePoints+1]={roadId=branch.path.id,x=x,z=z}
+            end
+        end
+    end
+    for _,path in ipairs(streets) do
+        for index=2,#path.edges do
+            local before,after=path.edges[index-1],path.edges[index]
+            local angle=math.atan2(before.dx*after.dz-before.dz*after.dx,
+                before.dx*after.dx+before.dz*after.dz)
+            if math.abs(angle)>.28 then
+                turnClearancePoints[#turnClearancePoints+1]={roadId=path.id,x=after.x,z=after.z}
+            end
+        end
+    end
+    for _,placement in ipairs(town.placements or {}) do
+        local driveway=lookup[placement.id..'-drive']
+        if driveway then
+            local x,z=along(driveway,0)
+            turnClearancePoints[#turnClearancePoints+1]={roadId=placement.frontageRoadId,x=x,z=z}
+        end
+    end
+    for _,path in ipairs(streets) do addLamps(plan,path,town.seed,turnClearancePoints) end
     recreation(plan,town)
     plan.counts.sidewalk=#plan.walks
     plan.counts.guardrail=#plan.rails

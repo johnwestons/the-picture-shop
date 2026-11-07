@@ -30,7 +30,6 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.cameraTransformsWorld()
-        if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then return false end
         if Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery' then return false end
         return Runtime.state.screen == "world" and Runtime.App.mobileCamera
             and (Runtime.App.mobileCamera:isEnabled() or Runtime.App.settings and Runtime.App.settings.followPlayerCamera)

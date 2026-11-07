@@ -501,7 +501,8 @@ function Sound:syncCommuteAudio(dt)
         local speed=truck.speed or 0
         local throttle=truck.throttle or math.min(1,speed/8)
         self.commuteAudio:update(dt,{speed=speed,throttle=throttle,brake=truck.brake,
-            rpm=1400+speed*135+throttle*650},truck.engine~=false,{truck=true})
+            rpm=1400+speed*135+throttle*650},truck.engine~=false,
+            {truck=true,truckSoundSet=require('src.commute.delivery_truck').audioProfile(truck)})
         return
     end
     self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine,

@@ -157,6 +157,9 @@ function Component.install(Runtime)
         addTarget("loadingBayDoor", Runtime.World.bayDoor:getInteraction())
         local truckInteraction = Runtime.World.truck.sceneId=="warehouse" and Runtime.World.truck:getInteraction()
         addTarget("truckCargoDoor", truckInteraction)
+        if Rooms.scene(player)=="warehouse" then
+            addTarget("deliverySignature",require("src.warehouse_delivery_driver").interaction(Runtime.World._state))
+        end
         if Runtime.World._state then
             local networkMachineView = Runtime.World._state._networkMachinePoses ~= nil
             local nearestPallet

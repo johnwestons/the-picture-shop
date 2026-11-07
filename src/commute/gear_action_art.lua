@@ -3,6 +3,7 @@
 -- registration explicitly when reviewing new artwork.
 local Registration = require('assets.generated.commute-gear-actions-v1.registration')
 local Colorways = require('src.rabbit_colorways')
+local SilhouetteStyle = require('src.commute.silhouette_style')
 
 local Art = {registration = Registration, REFERENCE_HEIGHT = Registration.referenceHeight or 256}
 Art.__index = Art
@@ -17,6 +18,7 @@ extern vec3 overallsTint;
 extern float furEnabled;
 extern float overallsEnabled;
 extern Image actionMask;
+]]..SilhouetteStyle.shaderFunctions..[[
 
 vec3 rgbToHsv(vec3 c) {
     vec4 k = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
@@ -35,7 +37,10 @@ vec3 hsvToRgb(vec3 c) {
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
     vec4 pixel = Texel(texture, texture_coords) * color;
     if(pixel.a<0.02) discard;
-    if(silhouetteMode) return vec4(silhouetteColor,pixel.a);
+    if(silhouetteMode) {
+        if(silhouetteOutlineOnly && !silhouetteOutlinePixel(texture,texture_coords)) discard;
+        return vec4(silhouetteColor,silhouetteOutputAlpha(pixel.a));
+    }
     vec2 masks = Texel(actionMask, texture_coords).rg;
     vec3 hsv = rgbToHsv(pixel.rgb);
     if (furEnabled > 0.5 && masks.r > 0.0) {
@@ -144,7 +149,7 @@ function Art:has(action)
     return self.actions[action] ~= nil
 end
 
-function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, spriteDepth,silhouetteMode)
+function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, spriteDepth,silhouetteMode,mirror,highlightStyle)
     if not Art.supportsAppearance(appearance, self.registration) then return false, 'unsupported_character' end
     local entry = self.actions[action]
     if not entry then return false, 'missing_staged_action' end
@@ -178,13 +183,10 @@ function Art:draw(action, frame, x, baseline, scale, appearance, depthShader, sp
         end
     end
     if spriteDepth~=nil and target==self.depthShader then target:send('spriteDepth',spriteDepth) end
-    if target:hasUniform('silhouetteMode') then
-        target:send('silhouetteMode',silhouetteMode==true)
-        target:send('silhouetteColor',{1,.72,.08})
-    end
+    SilhouetteStyle.send(target,silhouetteMode,highlightStyle)
     love.graphics.setShader(target)
     love.graphics.draw(self.images[action], self.quads[action][frame], x, baseline, 0,
-        scale, scale, anchor[1], anchor[2])
+        scale*(mirror and -1 or 1), scale, anchor[1], anchor[2])
     love.graphics.pop()
     return true
 end

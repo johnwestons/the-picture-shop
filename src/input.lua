@@ -3,6 +3,29 @@ local mobileMovementProvider = nil
 local ShopClock = require("src.screens.shop_clock")
 local PalletPickup = require("src.pallet_pickup")
 
+local function submitDeliverySignature(context)
+    local state=context.state
+    local screen=context.deliverySignatureScreen
+    local deliveryId=screen and screen.deliveryId and screen.deliveryId()
+    if not deliveryId then
+        state.message="The delivery receipt is no longer available."
+        return true
+    end
+    if context.isNetworkClient and context.isNetworkClient() then
+        local requested=context.requestDeliverySignature and context.requestDeliverySignature()
+        if requested and screen.setPending then screen.setPending(true) end
+        return true
+    end
+    local accepted=context.world.signDelivery
+        and context.world.signDelivery(state,context.world.player)
+    if accepted then
+        screen.clear()
+        state.screen="world"
+        context.saveCurrent()
+    end
+    return true
+end
+
 local function radialDeadzone(x, y, deadzone)
     local magnitude = math.sqrt(x * x + y * y)
     if magnitude <= deadzone then return 0, 0 end
@@ -46,6 +69,7 @@ function Input.closeScreen(context)
     local state = context.state
     if state.screen == "world" or state.screen == "title" then return false end
     local readOnlyScreen = state.screen == "pallet_work_order" or state.screen == "shop_clock"
+        or state.screen == "delivery_signature"
     if state.screen == "workshop_remote" then
         if context.workshopRemoteScreen and not context.workshopRemoteScreen.canClose() then
             state.message = "Wait for the host device to finish the current workshop action."
@@ -74,6 +98,9 @@ function Input.closeScreen(context)
         context.world.cancelVendorReview(state)
     elseif state.screen == "truck_inventory" then
         state.message = "Truck inventory closed. The cargo door remains open."
+    elseif state.screen == "delivery_signature" then
+        if context.deliverySignatureScreen then context.deliverySignatureScreen.clear() end
+        state.message = "Delivery receipt left unsigned."
     elseif state.screen == "machine" then
         state.message = "Exited the machine console."
     elseif state.screen == "computer" then
@@ -106,6 +133,14 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if state.screen=="delivery_signature" then
+        if key=="escape" then return Input.closeScreen(context) end
+        local result=context.deliverySignatureScreen.keypressed(key)
+        if type(result)=="table" and result.action=="sign" then
+            return submitDeliverySignature(context)
+        end
+        return true
+    end
     if context.roomControl and context.roomControl(key) then return true end
     if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
         and context.workshopRemoteScreen.hasMachineModal() then
@@ -347,6 +382,18 @@ function Input.keypressed(key, context)
             if networkClient then state.message="The shop owner handles employee high fives."
             elseif context.world.highFiveEmployee
                 and context.world.highFiveEmployee(state,selected.target.employeeId) then context.saveCurrent() end
+            return true
+        end
+        if selected and selected.kind=="deliverySignature" then
+            local target=selected.target or {}
+            local receipt=require("src.warehouse_delivery_driver").receipt(state,target.deliveryId)
+            if receipt and context.deliverySignatureScreen then
+                context.deliverySignatureScreen.enter(receipt)
+                state.screen="delivery_signature"
+                state.message="Review the delivery receipt and sign to accept the shipment."
+            else
+                state.message="The delivery receipt is no longer available."
+            end
             return true
         end
         if context.networkInteraction and context.networkInteraction(selected) then return true end
@@ -670,6 +717,12 @@ function Input.mousepressed(x, y, button, context)
         local result = context.palletWorkOrderScreen.mousepressed(x, y, button)
         if result and result.action == "close" then return Input.closeScreen(context) end
         return result or false
+    end
+    if state.screen == "delivery_signature" then
+        local result=context.deliverySignatureScreen.mousepressed(x,y,button)
+        if result and result.action=="cancel" then return Input.closeScreen(context) end
+        if result and result.action=="sign" then return submitDeliverySignature(context) end
+        return true
     end
     if state.screen ~= "job_offer" or button ~= 1 then return false end
     local action = context.jobOfferScreen.hitTest(x, y)

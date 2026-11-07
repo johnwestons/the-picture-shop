@@ -67,6 +67,13 @@ function Component.run(Context)
             issuedOnDay = index - 1, dueOnDay = index - 1,
         }
     end
+    Context.calendarUiState.townCalendarEvents={}
+    for index=1,8 do
+        Context.calendarUiState.townCalendarEvents[index]={
+            id='TOWN-CALENDAR-'..index,title='Community gathering '..index,
+            detail='Town square',startHours=4*24+10+index,
+        }
+    end
     Context.privateReplySchedule = Context.context.businessCalendar.events(Context.calendarUiState)
     Context.leakedClientReply = false
     for _, event in ipairs(Context.privateReplySchedule) do
@@ -80,17 +87,30 @@ function Component.run(Context)
         Context.calendarUiState, Context.calendarDayX, Context.calendarDayY, 1)
     Context.check("computer_calendar_days_are_clickable", Context.selectedCalendarDay
         and Context.selectedCalendarDay.action == "calendar_day" and Context.selectedCalendarDay.day == 5
-        and Context.context.computerScreen.calendarSelectedDay == 5)
-    Context.context.computerScreen.calendarScroll = 0
-    Context.check("computer_calendar_event_list_mouse_wheel_scrolls",
+        and Context.context.computerScreen.calendarSelectedDay == 5
+        and Context.context.computerScreen.calendarDayOpen==true)
+    local shopDayEvents,townDayEvents=Context.context.computerScreen.calendarDayEvents(
+        Context.calendarUiState,Context.calendarUiState.calendar.year,
+        Context.calendarUiState.calendar.month,5)
+    Context.check('computer_calendar_daily_agenda_separates_shop_and_town_events',
+        #shopDayEvents>=1 and #townDayEvents==8 and townDayEvents[1].hour~=nil)
+    Context.context.computerScreen.calendarDayScroll = 0
+    Context.check("computer_calendar_day_agenda_mouse_wheel_scrolls",
         Context.context.computerScreen.wheelmoved(Context.calendarUiState, 0, -1)
-        and Context.context.computerScreen.calendarScroll == 1)
-    Context.calendarDownX, Context.calendarDownY = Context.context.computerScreen.calendarScrollCenter("down")
+        and Context.context.computerScreen.calendarDayScroll == 1)
+    Context.calendarDownX, Context.calendarDownY = Context.context.computerScreen.calendarDayScrollCenter("down")
     Context.calendarScrollResult = Context.context.computerScreen.mousepressed(
         Context.calendarUiState, Context.calendarDownX, Context.calendarDownY, 1)
-    Context.check("computer_calendar_event_list_buttons_scroll", Context.calendarScrollResult
-        and Context.calendarScrollResult.action == "calendar_scroll"
-        and Context.context.computerScreen.calendarScroll == 2)
+    Context.check("computer_calendar_day_agenda_buttons_scroll", Context.calendarScrollResult
+        and Context.calendarScrollResult.action == "calendar_day_scroll"
+        and Context.context.computerScreen.calendarDayScroll == 2)
+    Context.calendarCloseX,Context.calendarCloseY=
+        Context.context.computerScreen.calendarDayCloseCenter()
+    Context.calendarClose=Context.context.computerScreen.mousepressed(
+        Context.calendarUiState,Context.calendarCloseX,Context.calendarCloseY,1)
+    Context.check('computer_calendar_day_agenda_closes_from_popup_button',
+        Context.calendarClose and Context.calendarClose.action=='calendar_day_closed'
+            and not Context.context.computerScreen.calendarDayOpen)
 
     Context.JobLoopIntegration.run(Context.context, Context.check, Context.jobs)
 

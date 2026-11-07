@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "styleReference": "assets/generated/grocery-interior-v1/grocery-store-concept.png",
+  "conceptPreview": {
+    "path": "interior-concept.png",
+    "runtimeAsset": false
+  },
+  "layers": [
+    {
+      "key": "floor",
+      "path": "floor.png",
+      "width": 1536,
+      "height": 1024,
+      "order": 1
+    },
+    {
+      "key": "walls",
+      "path": "walls.png",
+      "width": 1536,
+      "height": 1024,
+      "order": 2
+    },
+    {
+      "key": "wallShelf",
+      "path": "wall-shelf.png",
+      "width": 1536,
+      "height": 1024,
+      "order": 3
+    },
+    {
+      "key": "aisleGondola",
+      "path": "aisle-gondola.png",
+      "width": 1536,
+      "height": 1024,
+      "order": 4,
+      "repeatable": true
+    },
+    {
+      "key": "serviceCounter",
+      "path": "service-counter.png",
+      "width": 1536,
+      "height": 1024,
+      "order": 5
+    }
+  ],
+  "attendant": {
+    "path": "assets/generated/characters/green-blazer-cat/use.png",
+    "frameWidth": 512,
+    "frameHeight": 512,
+    "frameCount": 3,
+    "frames": ["attentive", "speaking", "handingReceipt"],
+    "sharedWithGroceryStore": true
+  },
+  "products": [
+    {
+      "id": "candy_bar",
+      "path": "candy-bar.png",
+      "transparent": true
+    },
+    {
+      "id": "chewing_gum",
+      "path": "chewing-gum.png",
+      "transparent": true
+    }
+  ],
+  "compositionNotes": [
+    "Build the playable room from separate floor, wall and fixture sprites, following the grocery interior layering approach.",
+    "Arrange two or more aisle gondolas with a clear route from the front entrance to the service counter.",
+    "Depth-sort the player, attendant and fixtures by their feet or walk-area depth."
+  ]
+}

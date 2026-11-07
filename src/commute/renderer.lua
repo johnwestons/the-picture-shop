@@ -15,9 +15,14 @@ local TireTracks=require('src.commute.tire_tracks')
 local BikeParticles=require('src.commute.bike_particles')
 local GrassFields=require('src.commute.grass_fields')
 local Colorways=require('src.rabbit_colorways')
+local SilhouetteStyle=require('src.commute.silhouette_style')
 local BikePaintArt=require('src.commute.bike_paint_art')
+local Bays=require('src.commute.parking_bays')
 local Renderer={BUILD_BUDGET_SECONDS=.004,LOAD_BUDGET_SECONDS=.012,
-    MOBILE_FOLIAGE_RADIUS=72,DESKTOP_FOLIAGE_RADIUS=96,
+    MOBILE_LOAD_BUDGET_SECONDS=.006,
+    -- Preserve distant tree silhouettes while shortening low brush on phones.
+    MOBILE_FOLIAGE_RADIUS=48,MOBILE_BRUSH_RADIUS=40,DESKTOP_FOLIAGE_RADIUS=96,
+    MOBILE_VEGETATION_BUDGET_SECONDS=.0012,DESKTOP_VEGETATION_BUDGET_SECONDS=.002,
     PROPS_REFRESH_SECONDS=.20,PROPS_REFRESH_DISTANCE=1.5,PROPS_REFRESH_TURN=4};Renderer.__index=Renderer
 local outsideDepthVertex=[[
 #ifdef VERTEX
@@ -34,10 +39,14 @@ local function outsideSpriteShader()
 #ifdef PIXEL
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;
+]]..SilhouetteStyle.shaderFunctions..[[
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     vec4 surface=Texel(tex,uv)*color;
     if(surface.a<.02) discard;
-    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
+    if(silhouetteMode) {
+        if(silhouetteOutlineOnly && !silhouetteOutlinePixel(tex,uv)) discard;
+        return vec4(silhouetteColor,silhouetteOutputAlpha(surface.a));
+    }
     return surface;
 }
 #endif
@@ -50,19 +59,33 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) { return color; }
 #endif
 ]]
 end
-local function setSilhouetteMode(shader,enabled)
-    if shader:hasUniform('silhouetteMode') then shader:send('silhouetteMode',enabled) end
-    if shader:hasUniform('silhouetteColor') then shader:send('silhouetteColor',{1,.72,.08}) end
+local function setSilhouetteMode(shader,enabled,settings)
+    SilhouetteStyle.send(shader,enabled,settings)
 end
 local function tileDistance(tile,x,z)
     local dx=math.max(tile.x0-x,0,x-tile.x1)
     local dz=math.max(tile.z0-z,0,z-tile.z1)
     return dx*dx+dz*dz
 end
+local function depthBefore(a,b)return a.depth<b.depth end
+local function normalizedVector(x,y,z)
+    local inverse=1/math.sqrt(x*x+y*y+z*z)
+    return {x*inverse,y*inverse,z*inverse}
+end
+local SUN_DIRECTION=normalizedVector(-.4,.8,-.3)
+local MOON_DIRECTION={0,1,0}
+local WATER_VIEW={0,.8,.6}
+local WATER_SUN_DIRECTION=normalizedVector(SUN_DIRECTION[1]+WATER_VIEW[1],
+    SUN_DIRECTION[2]+WATER_VIEW[2],SUN_DIRECTION[3]+WATER_VIEW[3])
+local WATER_MOON_DIRECTION=normalizedVector(MOON_DIRECTION[1]+WATER_VIEW[1],
+    MOON_DIRECTION[2]+WATER_VIEW[2],MOON_DIRECTION[3]+WATER_VIEW[3])
 
-function Renderer.new(world,spawn)
-    local self=setmetatable({world=world,ground=Ground.new(),chunks={},radius=64,clock=0,serial=0,
-        mobile=love.system.getOS()=='Android',
+function Renderer.new(world,spawn,options)
+    options=options or {}
+    local mobile=options.mobile==true or love.system.getOS()=='Android'
+    local terrainSpacing=mobile and TerrainMesh.MOBILE_SPACING or 1
+    local self=setmetatable({world=world,ground=Ground.new({mobile=mobile}),chunks={},radius=64,clock=0,serial=0,
+        mobile=mobile,terrainSpacing=terrainSpacing,
         calendar=world.calendar or {month=5,totalDays=0},viewportWidth=1280,viewportHeight=880,
         tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),
         outsideSpriteShader=love.graphics.newShader(outsideSpriteShader()),
@@ -71,10 +94,14 @@ function Renderer.new(world,spawn)
 #ifdef PIXEL
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;
+]]..SilhouetteStyle.shaderFunctions..[[
 vec4 effect(vec4 color,Image texture,vec2 texture_coords,vec2 screen_coords) {
     vec4 pixel=Texel(texture,texture_coords)*color;
     if(pixel.a<.02) discard;
-    if(silhouetteMode) return vec4(silhouetteColor,pixel.a);
+    if(silhouetteMode) {
+        if(silhouetteOutlineOnly && !silhouetteOutlinePixel(texture,texture_coords)) discard;
+        return vec4(silhouetteColor,silhouetteOutputAlpha(pixel.a));
+    }
     return applyRabbitColorways(pixel);
 }
 #endif
@@ -83,10 +110,14 @@ vec4 effect(vec4 color,Image texture,vec2 texture_coords,vec2 screen_coords) {
 #ifdef PIXEL
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;
+]]..SilhouetteStyle.shaderFunctions..[[
 vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
     vec4 surface=bikePaintSurface(Texel(texture,uv),uv)*color;
     if(surface.a<.02) discard;
-    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
+    if(silhouetteMode) {
+        if(silhouetteOutlineOnly && !silhouetteOutlinePixel(texture,uv)) discard;
+        return vec4(silhouetteColor,silhouetteOutputAlpha(surface.a));
+    }
     return surface;
 }
 #endif
@@ -94,15 +125,15 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
     self.ground:prepare()
     self.vegetation=world.vegetation or Vegetation.new(world)
     world.vegetation=self.vegetation
-    self.grassFields=GrassFields.new(world)
-    self.plantSprites=PlantSprites.new();self.plantMotion=PlantMotion.new(world)
+    self.grassFields=GrassFields.new(world,{mobile=self.mobile})
+    self.plantSprites=PlantSprites.new({mobile=mobile});self.plantMotion=PlantMotion.new(world)
     self.bikeArt=BikeArt.new()
     self.truckArt=TruckArt.new()
     self.structures=Structures.new(world)
     self.bridgeArt={piers=self.structures.piers} -- Review tools consume layout metadata only.
     self:buildRoadMeshes()
-    self.terrain=TerrainMesh.new(world,{tileSize=24,spacing=1})
-    self.visible={};self.terrainVertices=0;self.terrainIndices=0
+    self.terrain=TerrainMesh.new(world,{tileSize=24,spacing=terrainSpacing})
+    self.visible={};self.drawTiles={};self.terrainVertices=0;self.terrainIndices=0
     local origin=spawn or world.spawn or {x=world.size*.5,z=world.size*.5}
     self.starter={x=origin.x,z=origin.z,radius=30}
     self.starterRemaining=0
@@ -116,7 +147,7 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
         if a.x0~=b.x0 then return a.x0<b.x0 end
         return a.z0<b.z0
     end)
-    self.terrainStore=TerrainCache.store(world)
+    self.terrainStore=TerrainCache.store(world,terrainSpacing)
     self.terrainCacheReady=TerrainCache.available(self.terrainStore)
     self.terrainCacheWritable=self.terrainStore~=nil and not self.terrainCacheReady
     return self
@@ -190,19 +221,25 @@ function Renderer:buildRoadMeshes()
     end
     for id,p in pairs(self.world.roads.destinations) do
         local site=self.world.roads.sites and self.world.roads.sites.byId and self.world.roads.sites.byId[id]
-        local center=site and site.parking or p
+        local centerX,centerZ
+        if site then centerX,centerZ=Bays.anchor(site) else centerX,centerZ=p.x,p.z end
         local yaw=site and site.yaw or 0
+        local halfWidth=site and Bays.halfWidth(site) or Bays.HALF_WIDTH
         local nx,nz=math.cos(yaw),math.sin(yaw)
         local zx,zz=-math.sin(yaw),math.cos(yaw)
-        local segment={a={x=center.x-zx*4,z=center.z-zz*4,h=center.h or p.h,nx=nx,nz=nz},
-            b={x=center.x+zx*4,z=center.z+zz*4,h=center.h or p.h,nx=nx,nz=nz}}
-        quad(segment,8.4,.02,layers.shoulder,{.41,.39,.30},1)
-        quad(segment,8,.04,layers.asphalt,{.23,.25,.24},1)
+        local segment={a={x=centerX-zx*halfWidth,z=centerZ-zz*halfWidth,h=site and site.parking.h or p.h,nx=nx,nz=nz},
+            b={x=centerX+zx*halfWidth,z=centerZ+zz*halfWidth,h=site and site.parking.h or p.h,nx=nx,nz=nz}}
+        quad(segment,halfWidth*2+.4,.02,layers.shoulder,{.41,.39,.30},1)
+        quad(segment,halfWidth*2,.04,layers.asphalt,{.23,.25,.24},1)
     end
     local sites=self.world.roads.sites and self.world.roads.sites.byId or {}
     for id,site in pairs(sites) do
         if site.localTruckParkingArea and site.localTruckApproach then
             for _,rect in ipairs({site.localTruckParkingArea,site.localTruckApproach}) do
+                siteRect(site,rect,.34,.02,layers.shoulder,{.41,.39,.30})
+                siteRect(site,rect,0,.04,layers.asphalt,{.23,.25,.24})
+            end
+            for _,rect in ipairs(site.localTruckAprons or {}) do
                 siteRect(site,rect,.34,.02,layers.shoulder,{.41,.39,.30})
                 siteRect(site,rect,0,.04,layers.asphalt,{.23,.25,.24})
             end
@@ -214,6 +251,10 @@ function Renderer:buildRoadMeshes()
             siteLine(site,{x0,z1},{x1,z1},.075,.065,layers.approach,mark)
             siteLine(site,{x0,z0},{x0,z1},.11,.065,layers.approach,mark)
             siteLine(site,{x1,z0},{x1,z1},.075,.065,layers.approach,mark)
+            for _,anchor in ipairs(site.truckQueueAnchors or {}) do
+                local separator=anchor.z+3.1
+                siteLine(site,{10.3,separator},{13.9,separator},.085,.07,layers.approach,mark)
+            end
         end
         if self.world.roads.destinations[id] then
             local a,b=site.threshold,site.parking
@@ -268,14 +309,28 @@ function Renderer:terrainStats()
     local t=self.terrain
     return {ready=self:terrainReady(),completed=t and t.completed or 0,total=t and t.total or 0,
         vertices=self.terrainVertices or 0,meshBytes=(self.terrainVertices or 0)*96+(self.terrainIndices or 0)*4,
-        uncovered=t and t.total-t.completed or 0,submitted=#(self.visible or {}),
+        uncovered=t and t.total-t.completed or 0,resident=#(self.visible or {}),
+        submitted=#(self.drawTiles or self.visible or {}),
+        culled=math.max(0,#(self.visible or {})-#(self.drawTiles or self.visible or {})),
         starterReady=self:starterReady(),starterRemaining=self.starterRemaining or 0}
 end
 function Renderer:terrainCoverage(x,z)
     if not self.terrain or x<0 or z<0 or x>self.world.size or z>self.world.size then return false end
-    -- Every resident tile is submitted in both views. This intentionally avoids
-    -- horizontal-cone/radius tests, which miss steep/downward camera footprints.
+    -- Report resident ground independently of draw-list culling. Resident tiles
+    -- stay available for complete map coverage and fast camera turns.
     for _,tile in ipairs(self.visible) do
+        if x>=tile.x0 and x<=tile.x1 and z>=tile.z0 and z<=tile.z1 then return true end
+    end
+    return false
+end
+function Renderer:terrainDrawCoverage(x,z)
+    if not self.terrain or x<0 or z<0 or x>self.world.size or z>self.world.size then return false end
+    local dx,dz=x-(self.lastTerrainCameraX or 0),z-(self.lastTerrainCameraZ or 0)
+    local radius=self.effectiveRadius or self.radius
+    -- Beyond viewRadius the terrain shader is fully fogged to the horizon color,
+    -- so the expected visible result is the background rather than a ground mesh.
+    if dx*dx+dz*dz>=radius*radius then return true end
+    for _,tile in ipairs(self.drawTiles or {}) do
         if x>=tile.x0 and x<=tile.x1 and z>=tile.z0 and z<=tile.z1 then return true end
     end
     return false
@@ -289,6 +344,25 @@ function Renderer:coverageRadius(camera)
         end
     end
     return math.max(1,math.min(self.effectiveRadius,math.sqrt(nearest)))
+end
+function Renderer:updateTerrainDrawList(camera)
+    local drawTiles=self.drawTiles or {}
+    for i=#drawTiles,1,-1 do drawTiles[i]=nil end
+    local centerX,centerZ=camera.centerX,camera.centerZ
+    self.lastTerrainCameraX,self.lastTerrainCameraZ=centerX,centerZ
+    local radius=math.max(0,self.effectiveRadius or self.radius)
+    local radius2=radius*radius
+    -- The ground shader has fully fogged terrain at viewRadius. A tile is
+    -- omitted only when even its closest point is beyond that radius; resident
+    -- meshes remain available for complete coverage checks and fast camera turns.
+    for _,tile in ipairs(self.visible) do
+        if tileDistance(tile,centerX,centerZ)<radius2 then
+            tile.depth=camera:depth(tile.centerX,tile.centerZ,tile.height)
+            drawTiles[#drawTiles+1]=tile
+        end
+    end
+    table.sort(drawTiles,depthBefore)
+    self.drawTiles=drawTiles
 end
 function Renderer:uploadTerrainTile(tile,vertices,indices,fromCache)
     local mesh
@@ -311,6 +385,8 @@ end
 function Renderer:prepareTerrain()
     if self:terrainReady() then self.buildMs=0;self.pending=0;return end
     local started=love.timer.getTime()
+    local loadBudget=Renderer.LOAD_BUDGET_SECONDS
+    if self.mobile then loadBudget=math.min(loadBudget,Renderer.MOBILE_LOAD_BUDGET_SECONDS) end
     if self.terrainCacheReady then
         repeat
             local tile=self.terrain.tiles[self.terrain.completed+1]
@@ -325,14 +401,17 @@ function Renderer:prepareTerrain()
             self.terrain.indexCount=self.terrain.indexCount+tile.indexCount
             self.terrain.completed=self.terrain.completed+1
             self.terrain.ready=self.terrain.completed==self.terrain.total
-        until self.terrain.ready or love.timer.getTime()-started>=Renderer.LOAD_BUDGET_SECONDS
+        until self.terrain.ready or love.timer.getTime()-started>=loadBudget
     end
     if not self.terrainCacheReady and not self.terrain.ready then
-        local remaining=math.max(0,Renderer.LOAD_BUDGET_SECONDS-(love.timer.getTime()-started))
+        local remaining=math.max(0,loadBudget-(love.timer.getTime()-started))
         self.terrain:step(remaining,function(tile,vertices,indices)
             if self.terrainCacheWritable then
-                local okay=TerrainCache.writeTile(self.terrainStore,tile,vertices,indices)
-                if not okay then self.terrainCacheWritable=false end
+                local okay,reason=TerrainCache.writeTile(self.terrainStore,tile,vertices,indices)
+                if not okay then
+                    self.terrainCacheWritable=false
+                    self.terrainCacheFailure=reason
+                end
             end
             self:uploadTerrainTile(tile,vertices,indices,false)
         end,love.timer.getTime)
@@ -351,6 +430,7 @@ function Renderer:prepare(camera,dt)
     self.effectiveRadius=math.min(radius,96)
     self:prepareTerrain()
     self.effectiveRadius=self:coverageRadius(camera)
+    self:updateTerrainDrawList(camera)
     -- Let the player walk on local ground while the rest of the tiles upload.
     -- Vegetation can appear after terrain finishes; it never gates the reveal.
     if not self:terrainReady() then
@@ -362,12 +442,8 @@ function Renderer:prepare(camera,dt)
         self.visibleGrass=self.grassFields:collect(camera.centerX-r,camera.centerZ-r,
             camera.centerX+r,camera.centerZ+r,camera,r)
     end
-    -- Coarse painter ordering is retained for tool compatibility; ground itself
-    -- uses a depth buffer, including occlusion within each larger static tile.
-    for _,tile in ipairs(self.visible) do
-        tile.depth=camera:depth(tile.centerX,tile.centerZ,tile.height)
-    end
-    table.sort(self.visible,function(a,b)return a.depth<b.depth end)
+    -- Coarse depth ordering is retained for submitted tiles; ground itself uses
+    -- a depth buffer for occlusion within and between the larger static tiles.
     self.plantMotion:update(dt)
     local foliageRadius=Renderer.foliageRadius(self.effectiveRadius,self.mobile)
     local elapsed=(self.visiblePropsClock or Renderer.PROPS_REFRESH_SECONDS)+dt
@@ -395,6 +471,12 @@ function Renderer:prepare(camera,dt)
         self.visiblePropsClock=0
     else
         self.visiblePropsClock=elapsed
+        if self.vegetation.advanceVisible and self.vegetation:advanceVisible(
+            centerX,centerZ,foliageRadius,{seconds=self.mobile and Renderer.MOBILE_VEGETATION_BUDGET_SECONDS
+                or Renderer.DESKTOP_VEGETATION_BUDGET_SECONDS,clock=love.timer.getTime}) then
+            -- Include the completed patch in the cached draw list next frame.
+            self.visiblePropsClock=Renderer.PROPS_REFRESH_SECONDS
+        end
     end
     self.plantSpriteClock=(self.plantSpriteClock or Renderer.PROPS_REFRESH_SECONDS)+dt
     if refreshProps or self.plantSpriteClock>=Renderer.PROPS_REFRESH_SECONDS then
@@ -427,11 +509,16 @@ function Renderer:shader(camera)
     local s=self.ground.shader;local t=self.clock
     camera:send(s)
     s:send('groundDepthSpan',self:depthSpan())
-    s:send('viewRadius',self.effectiveRadius or self.radius);s:send('detailStrength',.82)
+    local viewRadius=self.effectiveRadius or self.radius
+    s:send('viewRadius',viewRadius);s:send('detailStrength',.82)
+    s:send('detailFadeStart',self.mobile and viewRadius*.42 or viewRadius*2)
+    s:send('detailFadeEnd',self.mobile and viewRadius*.70 or viewRadius*3)
     s:send('cloudPhase',{t*.03,t*.023,t*.017});s:send('cloudStrength',.15)
-    s:send('sunDirection',{-.4,.8,-.3});s:send('sunColor',{1,.86,.66});s:send('sunlight',.45);s:send('ambientLight',.65)
+    s:send('sunDirection',SUN_DIRECTION);s:send('sunColor',{1,.86,.66});s:send('sunlight',.45);s:send('ambientLight',.65)
+    s:send('moonDirection',MOON_DIRECTION)
     s:send('waterDetail',.85);s:send('wavePhase',{t*1.1,t*.7,t*.3});s:send('ripplePhase',{t,t*.8})
-    s:send('waterView',{0,.8,.6});s:send('waterRoughness',.5)
+    s:send('waterView',WATER_VIEW);s:send('waterSunDirection',WATER_SUN_DIRECTION)
+    s:send('waterMoonDirection',WATER_MOON_DIRECTION);s:send('waterRoughness',.5)
     local _,tint,litter=Flora.season(self.calendar)
     s:send('seasonTint',tint);s:send('litterSeasonShift',litter)
     return s
@@ -458,11 +545,17 @@ function Renderer:props(camera,radius)
     if camera.firstPerson then
         inView=function(x,z,padding)return FP.inView(camera,x,z,padding) end
     end
-    local props=self.vegetation:visible(camera.centerX,camera.centerZ,radius or self.effectiveRadius,self.calendar,inView,
-        {maxPatches=2,seconds=.002,clock=love.timer.getTime})
-    for _,p in ipairs(props) do
-        p.scale=p.scale*Flora.scale(p);p.depth=camera:depth(p.x,p.z,p.h)
+    local foliageRadius=radius or self.effectiveRadius
+    local brushRadius=math.min(foliageRadius,Renderer.MOBILE_BRUSH_RADIUS)
+    local budget={maxPatches=2,seconds=self.mobile and Renderer.MOBILE_VEGETATION_BUDGET_SECONDS
+        or Renderer.DESKTOP_VEGETATION_BUDGET_SECONDS,clock=love.timer.getTime}
+    if self.mobile then
+        budget.maxPropRadius=function(p)
+            return Flora.canopy[p.kind] and foliageRadius or brushRadius
+        end
     end
+    local props=self.vegetation:visible(camera.centerX,camera.centerZ,foliageRadius,self.calendar,inView,budget)
+    for _,p in ipairs(props) do p.scale=p.scale*Flora.scale(p);p.depth=camera:depth(p.x,p.z,p.h) end
     return props
 end
 function Renderer:headlight(camera,bike)
@@ -500,7 +593,7 @@ function Renderer:prewarmViews()
     if not self.firstPersonView then self.firstPersonView=require('src.commute.first_person_renderer').new(self) end
     return self.firstPersonView
 end
-function Renderer:drawOutsideActor(entry,camera)
+function Renderer:drawOutsideActor(entry,camera,highlightStyle)
     local g=love.graphics
     local p=entry.actor
     local support,kind=self.world:supportHeight(p.x,p.z)
@@ -530,13 +623,13 @@ function Renderer:drawOutsideActor(entry,camera)
         -- geometry, leaving the ordinary sprite fully depth-correct.
         g.push('all');g.setDepthMode(silhouette and 'greater' or 'lequal',not silhouette)
         g.setColor(1,1,1,1)
-        setSilhouetteMode(self.outsideSpriteShader,silhouette)
-        setSilhouetteMode(self.outsideColorwaysShader,silhouette)
-        setSilhouetteMode(self.outsideBikePaintShader,silhouette)
+        setSilhouetteMode(self.outsideSpriteShader,silhouette,highlightStyle)
+        setSilhouetteMode(self.outsideColorwaysShader,silhouette,highlightStyle)
+        setSilhouetteMode(self.outsideBikePaintShader,silhouette,highlightStyle)
         if entry.truck then
             self.outsideSpriteShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideSpriteShader)
-            self.truckArt:draw(p,camera,self.world)
-            self.truckArt:drawSignals(p,camera,self.world,self.clock)
+            self.truckArt:draw(p,camera,self.world,silhouette)
+            if not silhouette then self.truckArt:drawSignals(p,camera,self.world,self.clock) end
         elseif entry.dismounting then
             self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
             self.bikeArt:draw(p,camera,self.world,true,entry.presentation)
@@ -545,7 +638,7 @@ function Renderer:drawOutsideActor(entry,camera)
             self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
             presentation.world(self.characterAssets,rider,camera,self.world,
                 entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
-                self.outsideSpriteShader,spriteDepth,silhouette)
+                self.outsideSpriteShader,spriteDepth,silhouette,highlightStyle)
         elseif entry.gear and not entry.gear.mounted then
             self.outsideColorwaysShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideColorwaysShader)
             local presentation=require('src.commute.presentation')
@@ -555,7 +648,7 @@ function Renderer:drawOutsideActor(entry,camera)
             local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,camera,x,y)
             presentation.world(self.characterAssets,p,camera,self.world,
                 entry.gear,entry.appearance,entry.presentation,self.clock,self.outsideColorwaysShader,
-                self.outsideSpriteShader,spriteDepth,silhouette)
+                self.outsideSpriteShader,spriteDepth,silhouette,highlightStyle)
             if falling then g.pop() end
         else
             self.outsideBikePaintShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideBikePaintShader)
@@ -566,17 +659,23 @@ function Renderer:drawOutsideActor(entry,camera)
     drawPass(false)
     if entry.localPlayer then
         drawPass(true)
-        setSilhouetteMode(self.outsideSpriteShader,false)
-        setSilhouetteMode(self.outsideColorwaysShader,false)
-        setSilhouetteMode(self.outsideBikePaintShader,false)
+        setSilhouetteMode(self.outsideSpriteShader,false,highlightStyle)
+        setSilhouetteMode(self.outsideColorwaysShader,false,highlightStyle)
+        setSilhouetteMode(self.outsideBikePaintShader,false,highlightStyle)
     end
 end
-function Renderer:draw(camera,actor,actors)
+function Renderer:drawTerrain(camera)
+    local g=love.graphics
+    g.setColor(1,1,1);g.setShader(self:shader(camera))
+    for _,tile in ipairs(self.drawTiles or self.visible) do g.draw(tile.mesh) end
+end
+function Renderer:draw(camera,actor,actors,settings)
     camera=camera.shoulderView or camera
     if not self:starterReady() then self:drawLoading();return end
+    local highlightStyle=SilhouetteStyle.resolve(settings)
     if not actors then actors={{actor=actor,localPlayer=true}} end
     if camera.firstPerson then
-        return self:prewarmViews():draw(self,camera,actor,actors)
+        return self:prewarmViews():draw(self,camera,actor,actors,highlightStyle)
     end
     local g=love.graphics
     -- Reuse the prewarmed camera canvas: only one view renders at a time.
@@ -587,8 +686,7 @@ function Renderer:draw(camera,actor,actors)
     g.push('all');g.origin();g.setScissor();g.setShader();g.setBlendMode('alpha')
     g.setCanvas({canvas,depth=true});g.clear(.22,.27,.26,1,0,1)
     g.setDepthMode('lequal',true);g.setMeshCullMode('none')
-    g.setColor(1,1,1);g.setShader(self:shader(camera))
-    for _,tile in ipairs(self.visible) do g.draw(tile.mesh) end
+    self:drawTerrain(camera)
     for _,mesh in ipairs(self.roadMeshes) do g.draw(mesh) end
     self.structures:drawOutsideDepth(camera,actor,self.effectiveRadius)
     self.structures:drawOutsidePropsDepth(camera,actor,self.effectiveRadius)
@@ -596,25 +694,40 @@ function Renderer:draw(camera,actor,actors)
     self.tireTracks:draw(camera,self.tireTrackShader,self:depthSpan())
     local depthSpan=self:depthSpan()
     local actorX,actorY=camera:screen(actor.x,actor.z,actor.h or self.world:supportHeight(actor.x,actor.z))
+    local plantMotion=self.plantMotion
+    local plantMotionActive=not plantMotion.hasSway or plantMotion:hasSway()
+    local viewportWidth,viewportHeight=self.viewportWidth or 1280,self.viewportHeight or 880
     -- Share depth across billboards and solid geometry so plants behind a
     -- building or actor cannot paint over it, and foreground foliage can occlude.
     g.setDepthMode('lequal',true);g.setShader(self.outsideSpriteShader)
     for _,p in ipairs(self.visibleProps or {}) do
         local x,y=camera:screen(p.x,p.z,p.h)
-        local fade=1-M.smooth((M.length(p.x-camera.centerX,p.z-camera.centerZ)-foliageRadius*.8)/(foliageRadius*.2))
-        if Flora.canopy[p.kind] then
-            local size=p.scale*camera.zoom
-            if math.abs(x-actorX)<110*size+12*camera.zoom and y>actorY
-                and y-248*size<actorY then fade=fade*.22 end
+        local size=p.scale*camera.zoom
+        local halfWidth=(128+256*PlantMotion.MAX_SWAY)*size+2
+        -- Props are gathered by world radius, which is much larger than the
+        -- viewport. Reject only when the full billboard (including maximum
+        -- sway shear) lies beyond the scene canvas.
+        if not (x+halfWidth<0 or x-halfWidth>viewportWidth
+            or y+8*size<0 or y-248*size>viewportHeight) then
+            local propRadius=p.foliageRadius or foliageRadius
+            local fade=1-M.smooth((M.length(p.x-camera.centerX,p.z-camera.centerZ)-propRadius*.8)/(propRadius*.2))
+            if Flora.canopy[p.kind] then
+                if math.abs(x-actorX)<110*size+12*camera.zoom and y>actorY
+                    and y-248*size<actorY then fade=fade*.22 end
+            end
+            self.outsideSpriteShader:send('spriteDepth',-camera:depth(p.x,p.z,p.h)/depthSpan)
+            g.setColor(.91,.94,.87,fade)
+            local sway=plantMotionActive and plantMotion:sway(p) or 0
+            self.plantSprites:drawPlant(p,self.calendar,self.clock,x,y,size,sway)
         end
-        self.outsideSpriteShader:send('spriteDepth',-camera:depth(p.x,p.z,p.h)/depthSpan)
-        g.setColor(.91,.94,.87,fade)
-        self.plantSprites:drawPlant(p,self.calendar,self.clock,x,y,p.scale*camera.zoom,self.plantMotion:sway(p))
     end
-    for _,entry in ipairs(actors) do self:drawOutsideActor(entry,camera) end
+    for _,entry in ipairs(actors) do self:drawOutsideActor(entry,camera,highlightStyle) end
     if self.bikeParticles then self.bikeParticles:draw(camera,self.effectiveRadius,depthSpan) end
     g.pop()
-    g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
+    -- The caller's viewport scissor is expressed in screen-space, but this
+    -- canvas is composited beneath the commute view's nested transform. Reset
+    -- it while drawing the full scene image, then restore it with pop('all').
+    g.push('all');g.setScissor();g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
     g.draw(canvas,0,0);g.pop()
     self:drawRoads(camera,true)
     for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
@@ -625,7 +738,7 @@ function Renderer:release()
     self.terrain=nil
     if self.firstPersonView then self.firstPersonView:release() end
     for _,chunk in pairs(self.chunks) do chunk.mesh:release() end
-    self.chunks={};self.visible={}
+    self.chunks={};self.visible={};self.drawTiles={}
     self.plantSprites:release()
     self.bikeArt:release()
     if self.truckArt then self.truckArt:release() end

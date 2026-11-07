@@ -90,6 +90,11 @@ Capabilities.INTERACTIONS = {
             "offline_host_save_reload",
         },
     },
+    deliverySignature = {
+        label = "Inbound delivery signature",
+        mode = "full",
+        supported = { "sign_delivery" },
+    },
     palletWorkOrder = {
         label = "Pallet work order",
         mode = "read_only",

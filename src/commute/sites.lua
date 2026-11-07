@@ -12,6 +12,11 @@ end
 Sites.designs={
     warehouse={style='warehouse',width=12,depth=5.2,height=4.5,floors=1,
         threshold={x=3.6,z=2.6},door={x=3.6,z=3.6},parking={x=3.6,z=6.6}},
+    farm={style='farm',label='Miller Farm',width=42,depth=42,height=8.2,floors=1,
+        foundation=rect(-21,21,-21,21),
+        footprints={rect(-18,-3,-16,-1),rect(6,18,-17,-7),
+            rect(-19,-1,1,18),rect(2,18,1,18)},
+        threshold={x=0,z=21},door={x=0,z=22},parking={x=0,z=25}},
     ['brick-walkup']={style='brick-walkup',width=14,depth=9,height=9.3,floors=3,
         threshold={x=-6,z=4.5},door={x=-6,z=5.5},parking={x=-6,z=8.5}},
     garden={style='garden',width=18,depth=10,height=6,floors=2,
@@ -26,8 +31,26 @@ Sites.designs={
 }
 -- Keep dock routing metadata outside the serialized structure design so old
 -- seeded towns retain their original fingerprints and road layouts.
-Sites.warehouseTruckLayout={truckParking={x=9.3,z=0},truckWaiting={x=9.3,z=3.25},
-    truckParkingArea=rect(6.2,15.4,-5.4,5.4),truckApproach=rect(6.2,15.4,5.4,11.8)}
+Sites.warehouseTruckLayout={
+    truckParking={x=9.3,z=0},
+    truckWaiting={x=12.1,z=6.2},
+    truckQueueAnchors={{x=12.1,z=6.2},{x=12.1,z=12.4},{x=12.1,z=18.6}},
+    truckParkingArea=rect(6.2,15.4,-5.4,22),
+    truckApproach=rect(15.5,23.5,20,31),
+    truckAprons={rect(11.5,30,-10,-3),rect(23.5,30,-3,15),rect(18,29,13,21)},
+    -- Private circulation centre-lines. The public-road gates are placed from
+    -- each generated warehouse's frontage so every town gets its own loop.
+    truckEntryWaypoints={{x=0,z=25},{x=3,z=28},{x=9,z=29},{x=14,z=28},
+        {x=18,z=25},{x=20,z=21},{x=17,z=18.6},{x=12.1,z=18.6},
+        {x=12.1,z=12.4},{x=12.1,z=6.2},{x=12.1,z=3.4},{x=11.1,z=1.2},{x=9.3,z=0}},
+    truckExitWaypoints={{x=9.3,z=0},{x=11.1,z=-1.2},{x=12.1,z=-4},
+        {x=16,z=-6.2},{x=22,z=-6.2},{x=26,z=-3.5},{x=28,z=2},
+        {x=28,z=10},{x=26,z=15},{x=22,z=18},{x=18,z=20}},
+}
+-- Eight motorcycle spaces share the front entrance apron. This runtime
+-- metadata stays outside saved building designs and town fingerprints.
+Sites.warehouseEmployeeParking={count=8,columns=4,rows=2,width=1.75,halfWidth=3.5,
+    center={x=.7,z=6.6},rowOffsets={-1.25,1.25},rowRear=-1.2,rowOpen=1.2}
 local function service(id,label,width,depth,height,floors,entryX)
     entryX=entryX or 0
     Sites.designs[id]={style=id,label=label,width=width,depth=depth,height=height,floors=floors or 1,
@@ -36,6 +59,11 @@ end
 service('mechanic','Mechanic',16,9,4.7,1,-6.1)
 service('gas-station','Gas Station',9,6,3.5,1)
 Sites.designs['gas-station'].obstacles={rect(-3.4,-2.6,4.5,5.1),rect(2.6,3.4,4.5,5.1)}
+-- Runtime forecourt anchors stay outside serialized designs so seeded town
+-- layouts and their compatibility fingerprints remain stable.
+Sites.gasPumpLayout={pumps={{x=-3,z=4.8},{x=3,z=4.8}},
+    motorcycleBays={{x=-2.2,z=6.5},{x=2.2,z=6.5}},truckBay={x=0,z=11.1},
+    forecourt=rect(-5.5,5.5,4,13.5)}
 service('grocery','Town grocery',18,11,5,1)
 service('post-office','Post office',13,9,5.5,1)
 service('police','Police station',16,12,7.2,2)
@@ -197,6 +225,7 @@ function Site:parkingDistance(x,z)
     local distance=rectDistance(self,self.localParking,x,z)
     if self.localTruckParkingArea then distance=math.min(distance,rectDistance(self,self.localTruckParkingArea,x,z)) end
     if self.localTruckApproach then distance=math.min(distance,rectDistance(self,self.localTruckApproach,x,z)) end
+    for _,rect in ipairs(self.localTruckAprons or {}) do distance=math.min(distance,rectDistance(self,rect,x,z)) end
     return distance
 end
 function Site:approachDistance(x,z)
@@ -243,12 +272,24 @@ local function placement(designs,p)
     self.localFootprints=design.footprints or {self.localFoundation}
     self.localObstacles=design.obstacles or {}
     local parking=design.parking
-    self.localParking=rect(parking.x-4,parking.x+4,parking.z-3.75,parking.z+3.75)
+    local employeeParking=self.style=='warehouse' and Sites.warehouseEmployeeParking or nil
+    local parkingCenter=employeeParking and employeeParking.center or parking
+    local parkingHalfWidth=employeeParking and employeeParking.halfWidth or 4
+    local parkingRear=employeeParking and math.abs(employeeParking.rowOffsets[1])+math.abs(employeeParking.rowRear)
+        or 3.75
+    local parkingOpen=employeeParking and math.abs(employeeParking.rowOffsets[#employeeParking.rowOffsets])
+        +employeeParking.rowOpen or 3.75
+    self.localParking=rect(parkingCenter.x-parkingHalfWidth,parkingCenter.x+parkingHalfWidth,
+        parkingCenter.z-parkingRear,parkingCenter.z+parkingOpen)
+    self.employeeParking=employeeParking
     self.localTruckParkingArea=design.truckParkingArea
     self.localTruckApproach=design.truckApproach
     self.localTruckWaiting=design.truckWaiting
-    self.localApproach=rect(math.min(design.threshold.x,parking.x)-2,
-        math.max(design.threshold.x,parking.x)+2,design.threshold.z-.75,parking.z+2)
+    self.localTruckAprons=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckAprons) or {}
+    self.truckQueueAnchors=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckQueueAnchors) or {}
+    self.localApproach=rect(math.min(design.threshold.x,parkingCenter.x-parkingHalfWidth)-1,
+        math.max(design.threshold.x,parkingCenter.x+parkingHalfWidth)+1,design.threshold.z-.75,
+        math.max(parking.z+2,parkingCenter.z+parkingOpen+.35))
     self.foundation=worldRect(self,self.localFoundation)
     self.minX,self.maxX,self.minZ,self.maxZ=self.foundation.minX,self.foundation.maxX,self.foundation.minZ,self.foundation.maxZ
     self.footprints={};for _,r in ipairs(self.localFootprints) do self.footprints[#self.footprints+1]=worldRect(self,r) end
@@ -264,6 +305,27 @@ local function placement(designs,p)
     if design.truckWaiting then
         local x,z,h=self:toWorld(design.truckWaiting.x,design.truckWaiting.z,design.truckWaiting.h or 0)
         self.truckWaiting={x=x,z=z,h=h}
+    end
+    self.truckQueueWorldAnchors={}
+    for _,anchor in ipairs(self.truckQueueAnchors or {}) do
+        local x,z,h=self:toWorld(anchor.x,anchor.z,anchor.h or 0)
+        self.truckQueueWorldAnchors[#self.truckQueueWorldAnchors+1]={x=x,z=z,h=h}
+    end
+    if self.style=='gas-station' then
+        local layout=Sites.gasPumpLayout
+        self.pumps={};self.pumpBays={}
+        for _,anchor in ipairs(layout.pumps) do
+            local x,z,h=self:toWorld(anchor.x,anchor.z,anchor.h or 0)
+            self.pumps[#self.pumps+1]={x=x,z=z,h=h}
+        end
+        for _,anchor in ipairs(layout.motorcycleBays) do
+            local x,z,h=self:toWorld(anchor.x,anchor.z,anchor.h or 0)
+            self.pumpBays[#self.pumpBays+1]={x=x,z=z,h=h}
+        end
+        local bay=layout.truckBay
+        local x,z,h=self:toWorld(bay.x,bay.z,bay.h or 0)
+        self.truckPumpBay={x=x,z=z,h=h}
+        self.localForecourt=layout.forecourt
     end
     self.front={x=-self.sin,z=self.cos}
     return self
@@ -318,6 +380,21 @@ function Sites.create(options)
         local x0,x1,z0,z1=site.minX,site.maxX,site.minZ,site.maxZ
         for _,bound in ipairs(site.obstacles) do
             x0,x1,z0,z1=math.min(x0,bound.minX),math.max(x1,bound.maxX),math.min(z0,bound.minZ),math.max(z1,bound.maxZ)
+        end
+        -- Hardscape can affect grading and vegetation beyond the building's
+        -- foundation apron. Index those surfaces too, including rotated and
+        -- scaled placements, or distant-bin queries diverge from full scans.
+        local hardscape={}
+        local function includeSurface(surface)
+            if surface then hardscape[#hardscape+1]=surface end
+        end
+        includeSurface(site.localParking);includeSurface(site.localApproach)
+        includeSurface(site.localTruckParkingArea);includeSurface(site.localTruckApproach)
+        for _,surface in ipairs(site.localTruckAprons or {}) do includeSurface(surface) end
+        for _,surface in ipairs(hardscape) do
+            local bounds=worldRect(site,surface)
+            x0,x1=math.min(x0,bounds.minX-5),math.max(x1,bounds.maxX+5)
+            z0,z1=math.min(z0,bounds.minZ-5),math.max(z1,bounds.maxZ+5)
         end
         site.collisionBounds={minX=x0,maxX=x1,minZ=z0,maxZ=z1}
         for bx=math.floor((x0-Sites.GRADE_APRON)/result.binSize),math.floor((x1+Sites.GRADE_APRON)/result.binSize) do

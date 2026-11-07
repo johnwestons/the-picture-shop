@@ -59,7 +59,7 @@ function Shopping.setLimit(state,player,intent)
     shop.guestLimitCents=intent.limitCents;state.home.revision=state.home.revision+1
     return true,"Shared guest food budget saved."
 end
-function Shopping.order(state,player,intent)
+function Shopping.order(state,player,intent,twelveHourTime)
     local quote=Shopping.quote(intent.productId,intent.quantity)
     if not quote or type(intent.requestId)~="string" or #intent.requestId<1 or #intent.requestId>64
         or not intent.requestId:match("^[%w_.%-]+$") then return false,"Choose a listed household product and quantity." end
@@ -98,7 +98,7 @@ function Shopping.order(state,player,intent)
         subject="Home order #"..row.id..": "..product.name,total=row.totalCents/100,
         body=string.format("Paid $%.2f from your household account, including $%.2f delivery. %d serving(s)/item(s) "..
             "will arrive at %s, at your apartment. Collect them at the apartment entrance. Orders wait safely if you are away.",
-            row.totalCents/100,row.shippingCents/100,quote.servings,Calendar.dateTimeTextAtHours(row.dueAt))})
+            row.totalCents/100,row.shippingCents/100,quote.servings,Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime))})
     return true,"Home order placed. Delivery in "..product.minutes.." game minutes."
 end
 function Shopping.advance(state)

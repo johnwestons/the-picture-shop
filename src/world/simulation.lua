@@ -4,6 +4,7 @@ local Component = {}
 local CustomerDemand = require("src.customer_demand")
 local JobFeedback = require("src.job_feedback")
 local Background = require("src.background_warehouse")
+local DeliveryDriver=require("src.warehouse_delivery_driver")
 
 function Component.install(Runtime)
     local background=Background.new()
@@ -136,14 +137,15 @@ function Component.install(Runtime)
                 machineOrder.delivery.status = "at_bay"
                 machineOrder.delivery.arrivedAt = os.time()
             end
+            if not pickup then DeliveryDriver.start(state,truckJobId,truckMode) end
             if state then
                 state.message = pickup
                     and "Pickup truck parked. Open its rear cargo door and load the wrapped pallets."
                     or (machineOrder
-                        and "Machine flatbed parked. Open its manifest and unload the machine."
+                        and "Machine flatbed parked. Its driver is coming inside for a delivery signature."
                         or (replacementDelivery
-                            and "Replacement skid parked at the bay. Open the truck and unload it."
-                            or "Truck parked. Open its rear cargo door to unload."))
+                            and "Replacement skid truck parked. The driver is coming inside for a signature; employees can unload while they wait."
+                            or "Delivery truck parked. The driver is coming inside for a signature; employees can unload while they wait."))
             end
             saveNeeded = true
         elseif event == "cargo_opened" then
@@ -156,11 +158,15 @@ function Component.install(Runtime)
             local received = (job and job.delivery and job.delivery.status == "received")
                 or (purchase and purchase.delivery and purchase.delivery.status == "received")
             local pickupLoaded = pickup and Runtime.JobService.remainingPickup(state, pickup.id) == 0
-            if (received or pickupLoaded) and Runtime.World.truck:depart() then
+            local visit=DeliveryDriver.matching(state,truckJobId)
+            local signedReady=not visit or visit.status=="signed" and visit.driverReturned
+            local unsignedReady=visit and visit.status=="missed" and visit.driverReturned
+            if ((received and signedReady) or pickupLoaded or unsignedReady) and Runtime.World.truck:depart() then
                 if pickup then Runtime.JobService.setPickupStatus(pickup, "departing") end
                 if state then state.message = pickup
                     and "Pickup cargo secured. The customer truck is departing."
-                    or "Cargo secured. The empty truck is departing." end
+                    or (unsignedReady and "The driver is leaving without the unsigned delivery."
+                        or "Cargo secured. The truck is departing." ) end
                 saveNeeded = pickup ~= nil or saveNeeded
             elseif state then
                 state.message = "Truck cargo door closed."
@@ -176,8 +182,19 @@ function Component.install(Runtime)
                 else
                     state.message = "Pickup truck left, but the job could not be archived."
                 end
-            elseif state then
-                state.message = "The truck left. Closing the loading bay door..."
+            else
+                local visit=DeliveryDriver.matching(state,truckJobId)
+                if visit and (visit.status=="signed" or visit.status=="missed") then
+                    local missed=visit.status=="missed"
+                    saveNeeded=DeliveryDriver.departed(state,truckJobId) or saveNeeded
+                    if missed and state then
+                        state.message="The unsigned delivery is being rescheduled. Shop reputation decreased by 2."
+                    elseif state then
+                        state.message="The signed delivery truck left. Closing the loading bay door..."
+                    end
+                elseif state then
+                    state.message = "The truck left. Closing the loading bay door..."
+                end
             end
         end
         return saveNeeded
@@ -252,7 +269,9 @@ function Component.install(Runtime)
         end
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
         employeeContext.background = background.background
+        local driverChanged=DeliveryDriver.update(state,dt,employeeContext)
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
+        local driverDeparted=DeliveryDriver.departIfReady(state,Runtime.World.truck)
         local feedbackChanged=JobFeedback.sync(state)
         local truck=Runtime.World.truck
         if truck.mode=="pickup" and Runtime.JobService.remainingPickup(state,truck.jobId)==0
@@ -264,7 +283,7 @@ function Component.install(Runtime)
                 saveNeeded=true
             end
         end
-        return saveNeeded or employeeChanged or feedbackChanged
+        return saveNeeded or employeeChanged or feedbackChanged or driverChanged or driverDeparted
     end
 
     -- Called before advancing the authoritative calendar. Flush old-minute

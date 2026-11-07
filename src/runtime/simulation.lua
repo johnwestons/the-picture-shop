@@ -179,6 +179,14 @@ function Component.install(Runtime)
             gameDt=require("src.weekend_flow").limitCalendarStep(Runtime.state,gameDt)
             local homeBefore=Runtime.BusinessCalendar.absoluteHours(Runtime.state)
             local calendarChanged = Runtime.BusinessCalendar.update(Runtime.state, gameDt)
+            local townCharactersChanged=require("src.commute.town_characters").advance(
+                Runtime.state,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+            local commuterEmployeesChanged=require("src.commute.employee_commute").advance(
+                Runtime.state,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+            if townCharactersChanged or commuterEmployeesChanged then
+                saveNeeded=true
+                if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+            end
             if require("src.home_residents").advance(Runtime.state,require("src.weekend_runtime").players(Runtime),homeBefore,
                 Runtime.BusinessCalendar.absoluteHours(Runtime.state)) then
                 Runtime.homeNeedsSaveClock=(Runtime.homeNeedsSaveClock or 0)+dt
@@ -238,9 +246,6 @@ function Component.install(Runtime)
             else
             local directionX, directionY = 0, 0
             if not headlessServer then directionX, directionY = Runtime.Input.movement() end
-            if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then
-                directionX,directionY=Runtime.WarehouseFirstPerson:movement(Runtime,directionX,directionY)
-            end
             if Runtime.basketballCharge or require("src.basketball").isChargingFor(Runtime.state,
                 tonumber(Runtime.World.player.id) or 1) then
                 directionX,directionY=0,0
@@ -248,9 +253,7 @@ function Component.install(Runtime)
             networkInputX, networkInputY = directionX, directionY
             if Runtime.multiplayer:isClient() then
                 local cursorX, cursorY
-                if not headlessServer
-                    and not (Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime))
-                    and not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)
@@ -272,9 +275,7 @@ function Component.install(Runtime)
                 end
             else
                 local cursorX, cursorY
-                if not headlessServer
-                    and not (Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime))
-                    and not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)

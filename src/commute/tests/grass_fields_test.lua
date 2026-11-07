@@ -81,10 +81,10 @@ function Test.run(check)
         check('grass_fields_native_wind_changes_visible_pixels_with_static_meshes',changed>20 and a.generated==generated)
         check('grass_fields_native_shader_preserves_readable_green_vertex_colors',colored>100)
         first:release();second:release();canvas:release()
-        Fields.BUILD_SECONDS=0;camera.centerX=90;camera.centerZ=90
+        Fields.BUILD_SECONDS=0;a.buildBudgetSeconds=0;camera.centerX=90;camera.centerZ=90
         local previous=a.generated;a:collect(80,80,104,104,camera,16)
         check('grass_fields_zero_time_budget_defers_new_geometry',a.generated==previous and a.buildsThisFrame==0)
-        Fields.BUILD_SECONDS=math.huge
+        Fields.BUILD_SECONDS=math.huge;a.buildBudgetSeconds=Fields.BUILD_SECONDS
         Fields.STEPS_PER_FRAME=1
         a:collect(80,80,104,104,camera,16);local oldJob=a.job
         check('grass_fields_dense_patch_build_can_suspend_between_cells',oldJob and coroutine.status(oldJob.thread)=='suspended')

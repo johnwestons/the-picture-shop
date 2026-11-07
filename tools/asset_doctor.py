@@ -496,8 +496,9 @@ def audit(root: Path) -> list[dict[str, object]]:
             empty = [frame + 1 for frame in range(actual) if alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox() is None]
             checks.append(result(f"{character}_{action}_nonempty", not empty, f"empty_frames={empty}"))
             edge_cropped = []
+            visible_alpha = alpha.point(lambda value: 255 if value > 1 else 0)
             for frame in range(actual):
-                bounds = alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox()
+                bounds = visible_alpha.crop((frame * 512, 0, (frame + 1) * 512, 512)).getbbox()
                 if bounds and (bounds[0] <= 0 or bounds[1] <= 0 or bounds[2] >= 512 or bounds[3] >= 512):
                     edge_cropped.append(frame + 1)
             checks.append(result(

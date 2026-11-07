@@ -280,13 +280,21 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw, branches, cou
         local points,flags
         if scenic then points,flags=Alignment.street(e,nodes,plan,curveRandom)
         else points,flags=Frontage.splitWater(nodes[e.a],nodes[e.b],plan) end
-        for i,flag in ipairs(flags) do if flag and not flags[i-1] then bridges=bridges+1 end end
+        local hasBridge=false
+        for i,flag in ipairs(flags) do
+            if flag and not flags[i-1] then bridges=bridges+1 end
+            hasBridge=hasBridge or flag==true
+        end
         local turnLane = e.main and (e.a==hub or e.b==hub)
         local lanes = turnLane and 3 or e.oneWay and 1 or 2
         local road = {id=(e.main and 'main-' or 'street-')..index,
             role=e.main and 'main' or 'local',surface='paved',lanes=lanes,
             oneWay=e.oneWay==true,turnLane=turnLane,sidewalks=e.main or not e.oneWay,
-            width=e.main and (turnLane and 9.8 or 7.6) or e.oneWay and 4.2 or 5.8,
+            -- Generated bridges need a truck-width deck and a generous
+            -- landing so a long vehicle can cross without clipping rails.
+            width=hasBridge and math.max(12,e.main and (turnLane and 9.8 or 7.6)
+                or e.oneWay and 4.2 or 5.8)
+                or e.main and (turnLane and 9.8 or 7.6) or e.oneWay and 4.2 or 5.8,
             interpolation='linear',points=points,bridgeEdges=flags}
         result.roads[#result.roads+1]=road
         if e.main then main.roadIds[#main.roadIds+1]=road.id end
@@ -365,20 +373,88 @@ local function placeLot(result, id, candidates, rng, plan, placed, pads, names)
     error('No safe '..id..' frontage in its district')
 end
 
+local function placeFarm(result,candidates,plan,placed,pads)
+    local core=result.topology.mainStreet
+    local eligible={}
+    for index,c in ipairs(candidates) do
+        if not c.used and (c.road.role=='local' or c.road.role=='main') then
+            local nx=-(c.b[2]-c.a[2])/c.length*c.side
+            local nz=(c.b[1]-c.a[1])/c.length*c.side
+            local anchor=Frontage.mix(c.a,c.b,c.t)
+            local pad={x=Frontage.round(anchor[1]+nx*15),z=Frontage.round(anchor[2]+nz*15),h=anchor[3]}
+            -- The farm's origin is 25 m beyond its parking anchor. Rank lots by
+            -- that actual location so its fields land at the edge of town.
+            local x,z=pad.x+nx*25,pad.z+nz*25
+            local radius=M.length(x-core.x,z-core.z)
+            if radius>=105 then
+                eligible[#eligible+1]={candidate=c,index=index,nx=nx,nz=nz,anchor=anchor,pad=pad,radius=radius}
+            end
+        end
+    end
+    table.sort(eligible,function(a,b)
+        if math.abs(a.radius-b.radius)>1e-6 then return a.radius>b.radius end
+        return a.index<b.index
+    end)
+    local country=result.terrain.settings and result.terrain.settings.roads==1
+    for _,choice in ipairs(eligible) do
+        local c=choice.candidate
+        if country or c.road.role=='local' then
+            local lot=Frontage.placement('farm','farm',choice.pad,choice.nx,choice.nz,1)
+            local site=Sites.create({placements={lot}}).all[1]
+            if Frontage.clear(site,choice.pad,placed,pads,result.roads,plan,choice.anchor) then
+                lot.frontageRoadId=c.road.id
+                lot.district='rural'
+                result.placements[#result.placements+1]=lot
+                c.used=true
+                placed[#placed+1],pads[#pads+1]=site,choice.pad
+                c.road.inserts=c.road.inserts or {}
+                c.road.inserts[c.edge]=c.road.inserts[c.edge] or {}
+                table.insert(c.road.inserts[c.edge],{t=c.t,point=choice.anchor})
+                result.roads[#result.roads+1]={id='farm-drive',width=3.5,role='drive',surface='paved',lanes=1,
+                    oneWay=false,turnLane=false,sidewalks=false,interpolation='linear',
+                    points={choice.anchor,{choice.pad.x,choice.pad.z,choice.pad.h}},bridgeEdges={false}}
+                return
+            end
+        end
+    end
+    error('No safe rural farm frontage')
+end
+
 local function attempt(seed,options,attemptIndex,pattern)
+    local function checkCancelled()
+        if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+    end
+    local function report(value,label)
+        if options.progress then options.progress(value,label) end
+    end
+    checkCancelled()
+    report(.02,('Surveying terrain · layout %d/%d'):format((options.attemptNumber or attemptIndex)+1,
+        options.attemptCount or 1))
     local rng=Terrain.random(seed,72+attemptIndex)
     local yaw=(options.generatorVersion or 3)>=8 and rng(0,math.pi*2)
         or math.floor(rng(0,4))*math.pi/2+rng(-.12,.12)
     local frame={x=rng(250,262),z=rng(250,262),c=math.cos(yaw),s=math.sin(yaw)}
     local terrainModel=(options.generatorVersion or 3)>=4 and IslandTerrain or Terrain
-    local terrain=terrainModel.generate(seed,frame,options.shoreline,options.settings,options.generatorVersion)
-    local plan=terrainModel.new(terrain,{size=512,center=256,radius=terrainModel.ISLAND_RADIUS or 201})
+    local terrainProgress=function(value,label) report(.04+.24*(value or 0),label or 'Shaping island terrain') end
+    local terrain
+    if terrainModel==Terrain then
+        terrain=terrainModel.generate(seed,frame,options.naturalRivers==true,terrainProgress,options.isCancelled)
+    else
+        terrain=terrainModel.generate(seed,frame,options.shoreline,options.settings,options.generatorVersion,
+            terrainProgress,options.isCancelled)
+    end
+    checkCancelled();report(.31,'Building the terrain map')
+    local plan=terrainModel.new(terrain,{size=512,center=256,radius=terrainModel.ISLAND_RADIUS or 201},
+        function(value,label) report(.31+.14*(value or 0),label or 'Preparing terrain checks') end,options.isCancelled)
+    checkCancelled();report(.47,'Planning connected streets')
     local result={version=1,generatorVersion=options.generatorVersion or 3,seed=seed,size=512,bounds=Frontage.copy(options.bounds),
         terrain=terrain,roads={},placements={},destinations={},designs=Frontage.copy(Sites.designs)}
+    if result.generatorVersion<11 then result.designs.farm=nil end
     local countryBypass=result.generatorVersion>=8 and options.settings and options.settings.roads==1
         and Terrain.random(seed,70)()<.5
     local nodes,branches=createNodes(rng,frame,plan,result.generatorVersion,options.settings,countryBypass)
     planStreets(result,rng,nodes,plan,pattern,yaw,branches,countryBypass)
+    checkCancelled();report(.57,'Placing town buildings')
     if result.generatorVersion>=9 then
         local exit,reason=Planner.attachMainlandExit(result,plan)
         assert(exit,reason)
@@ -387,13 +463,26 @@ local function attempt(seed,options,attemptIndex,pattern)
         result.generatorVersion>=8 and options.settings and options.settings.roads==1)
     if options.settings and options.settings.roads==1 then candidates.localStreet=candidates.main end
     local placed,pads={},{}
-    for _,id in ipairs(services) do placeLot(result,id,candidates.main,rng,plan,placed,pads,options.names) end
-    for _,id in ipairs(sideStreetLots) do placeLot(result,id,candidates.localStreet,rng,plan,placed,pads,options.names) end
+    local lotCount=#services+#sideStreetLots+(result.generatorVersion>=11 and 1 or 0);local lotIndex=0
+    for _,id in ipairs(services) do
+        checkCancelled();placeLot(result,id,candidates.main,rng,plan,placed,pads,options.names)
+        lotIndex=lotIndex+1;report(.57+.27*lotIndex/lotCount,'Placing '..id:gsub('%-',' '))
+    end
+    for _,id in ipairs(sideStreetLots) do
+        checkCancelled();placeLot(result,id,candidates.localStreet,rng,plan,placed,pads,options.names)
+        lotIndex=lotIndex+1;report(.57+.27*lotIndex/lotCount,'Placing '..id:gsub('%-',' '))
+    end
+    if result.generatorVersion>=11 then
+        checkCancelled();placeFarm(result,candidates.localStreet,plan,placed,pads)
+        lotIndex=lotIndex+1;report(.57+.27*lotIndex/lotCount,'Placing rural farm')
+    end
     Frontage.finishDriveways(result.roads)
     -- Trails and recreation are optional town dressing. Keep every route that
     -- passes the safety checks, but don't reject an otherwise valid town when
     -- this terrain and street layout cannot fit two safe shortcuts.
+    checkCancelled();report(.88,'Finishing trails and recreation')
     require('src.commute.town_trails').generate(result,plan)
+    checkCancelled();report(.98,'Checking this town layout')
     return result
 end
 
@@ -401,12 +490,34 @@ function Planner.generate(seed,options)
     local pattern=Terrain.random(seed,71)()<.5 and 'strip' or 'crossroads'
     if options.settings and options.settings.roads==1 then pattern='strip' end
     local reason
-    for attemptIndex=0,23 do
-        local ok,result=pcall(attempt,seed,options,attemptIndex,pattern)
-        if ok then return result end
-        reason=result
+    local attempts=options.validateCandidate and 47 or 23
+    for attemptIndex=0,attempts do
+        if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+        local attemptOptions={}
+        for key,value in pairs(options) do attemptOptions[key]=value end
+        attemptOptions.attemptNumber,attemptOptions.attemptCount=attemptIndex,attempts+1
+        attemptOptions.progress=function(value,label)
+            if options.progress then
+                local prefix=('Layout %d/%d · '):format(attemptIndex+1,attempts+1)
+                options.progress(.04+.91*math.max(0,math.min(1,value or 0)),prefix..tostring(label or 'Planning town'))
+            end
+        end
+        if options.progress then options.progress(.04,('Trying town layout %d/%d'):format(attemptIndex+1,attempts+1)) end
+        local ok,result=pcall(attempt,seed,attemptOptions,attemptIndex,pattern)
+        if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+        if ok then
+            if not options.validateCandidate then return result end
+            if options.progress then options.progress(.97,('Validating layout %d/%d'):format(attemptIndex+1,attempts+1)) end
+            if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+            local validationOkay,accepted,validationError=pcall(options.validateCandidate,result)
+            if not validationOkay then validationError=accepted;accepted=false end
+            if options.isCancelled and options.isCancelled() then error('Town generation cancelled.',0) end
+            if accepted then return result end
+            reason=validationError or 'generated roads failed the driveability check'
+        else reason=result end
     end
-    error('Town planning exhausted safe street layouts: '..tostring(reason))
+    local routeFailure=options.lastRouteFailure and options.lastRouteFailure()
+    error('Town planning exhausted safe street layouts: '..tostring(routeFailure or reason))
 end
 
 Planner.MAINLAND_CITY=MAINLAND_CITY

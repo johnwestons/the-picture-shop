@@ -23,6 +23,16 @@ function Test.run(check)
     local directionalBike={heading=0,reverse=false}
     local steer,drive=B.drive(B.defaults(),{x=0,y=1},freeCamera,directionalBike)
     check('free_camera_directional_input_turns_before_applying_full_throttle',steer>.7 and drive<0 and drive>-.05)
+    local horizontalTouch={x=0,y=0,horizontalX=-.7,gripGas=.6,held={}}
+    local horizontalBike={heading=0,reverse=false}
+    local horizontalTruck={heading=0,reverse=false}
+    local bikeSteer,bikeDrive=B.drive(B.defaults(),horizontalTouch,nil,horizontalBike,true,'horizontal')
+    local truckSteer,truckDrive=B.drive(B.defaults(),horizontalTouch,nil,horizontalTruck,true,'horizontal')
+    check('mobile_horizontal_steering_supports_bikes_and_trucks',
+        bikeSteer==-.7 and truckSteer==-.7 and bikeDrive==-.6 and truckDrive==-.6)
+    check('mobile_steering_settings_keep_legacy_bike_mode_and_add_all_vehicle_mode',
+        Settings.normalize({mobileBikeSteering='horizontal'}).mobileVehicleSteering=='bike-horizontal'
+            and Settings.normalize({mobileVehicleSteering='all-horizontal'}).mobileVehicleSteering=='all-horizontal')
     steer,drive=B.drive(B.defaults(),{x=-1,y=0},freeCamera,directionalBike)
     check('free_camera_opposite_direction_requests_back_without_a_u_turn',steer==0 and drive==1)
     directionalBike.reverse=true

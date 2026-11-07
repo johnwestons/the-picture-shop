@@ -701,7 +701,7 @@ function Test.run(context,check)
     legacy.state.employment.version=1;legacy.state.employment.staff[1].schedule=nil
     legacy.state.employment.teamSchedule=nil
     local migrated=Schema.migrate(legacy)
-    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==7
+    check("schedule_v17_save_migrates_contract_and_payroll_without_invented_work",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==9
         and migrated.state.employment.staff[1].contract.wageCents==2200 and #migrated.state.employment.staff[1].schedule.items==0
         and #migrated.state.employment.teamSchedule.items==0 and legacy.state.employment.staff[1].schedule==nil)
     check("schedule_malformed_employment_rejected_without_migration_crash",Employees.normalize(false,0)==nil and Employees.normalize(17,0)==nil and Employees.normalize("invalid",0)==nil)

@@ -8,7 +8,15 @@ function Planner.generate(seed,options)
     for key,value in pairs(options or {}) do prepared[key]=value end
     prepared.generatorVersion=prepared.generatorVersion or 4
     prepared.bounds=prepared.bounds or Terrain.BOUNDS
-    prepared.shoreline=prepared.shoreline or Terrain.shoreline(seed)
+    if not prepared.shoreline then
+        if prepared.isCancelled and prepared.isCancelled() then error('Town generation cancelled.',0) end
+        if prepared.progress then prepared.progress(.02,'Shaping island shoreline') end
+        prepared.shoreline=Terrain.shoreline(seed,function(value,label)
+            if prepared.progress then prepared.progress(.02+.055*(value or 0),label) end
+        end,prepared.isCancelled)
+        if prepared.isCancelled and prepared.isCancelled() then error('Town generation cancelled.',0) end
+        if prepared.progress then prepared.progress(.08,'Shoreline ready') end
+    end
     return Base.generate(seed,prepared)
 end
 

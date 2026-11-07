@@ -98,6 +98,8 @@ end
 function Art:groundedDepthBias(actor,camera,height,presentation)
     local state=Pose.select(actor,presentation)
     local frame=Art.frame(camera,actor.heading,64)
+    if state~='upright' and self.actionPages and self.actionPages.isResident
+        and not self.actionPages:isResident(state,frame) then state='upright' end
     local rotation=spriteRotation(actor,camera,height,false,presentation)
     local lowest=lowestTireArc(state,frame,rotation)
     local groundScale=math.max(.01,camera:groundScale())
@@ -125,9 +127,13 @@ Art.action=Pose.action
 Art.pose=Pose.select
 function Art:resolve(state,frame)
     if state=='mounted' then state='upright' end
-    if state=='parked' then return self.images.parked,self.quads[frame] end
-    if state=='upright' then return self.images.upright,self.uprightQuads[frame] end
-    return self.actionPages:get(state,frame)
+    if state=='parked' then return self.images.parked,self.quads[frame],'parked' end
+    if state=='upright' then return self.images.upright,self.uprightQuads[frame],'upright' end
+    local image,quad=self.actionPages:get(state,frame)
+    if image then return image,quad,state end
+    -- Action pages may still be decoding or uploading. Keep the rider visible
+    -- with the already resident 64-view atlas until the requested pose is ready.
+    return self.images.upright,self.uprightQuads[frame],'upright'
 end
 function Art:describe(image,quad)
     if image==self.images.parked or image==self.images.upright then
@@ -158,17 +164,18 @@ function Art:draw(actor,camera,world,parked,presentation)
             if warm then self.actionPages:prepare(warm,frame) end
         end
     end
-    local image,quad=self:resolve(state,frame)
+    local image,quad,drawState=self:resolve(state,frame)
+    drawState=drawState or state
     local g=love.graphics;local scale=Art.SCALE*camera.zoom
     if not parked and camera.projectionCamera and camera.projectionCamera.includeLocalRider then
         -- The shared pivot is at the wheelbase midpoint. Align the lowest
         -- rotated tire arc to the surface in the over-the-shoulder view.
-        local lowest=lowestTireArc(state,frame,rotation)
+        local lowest=lowestTireArc(drawState,frame,rotation)
         -- Region coordinates identify pixel centers; include the filtered edge.
         y=y-(lowest+1)*scale
     end
     g.setColor(1,1,1,1)
-    PaintArt.draw(image,quad,actor.paintId,x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y,frame,state,actor,presentation)
+    PaintArt.draw(image,quad,actor.paintId,x,y,rotation,scale,scale,Art.ANCHOR_X,Art.ANCHOR_Y,frame,drawState,actor,presentation)
     g.setColor(1,1,1)
     return y
 end

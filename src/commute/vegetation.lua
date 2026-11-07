@@ -13,6 +13,29 @@ local MAX_PATCHES=256
 local function countKeys(t)
     local n=0;for _ in pairs(t) do n=n+1 end;return n
 end
+local function presentedCopy(self,source,calendar,day)
+    if source._presentationDay~=day then
+        local value=Flora.present({id=source.id,kind=source.kind,x=source.x,z=source.z,
+            h=source.h,scale=source.scale},self.seed,calendar)
+        source._presentationDay=day
+        source._presentationAge=value.age
+        source._presentationPlantAge=value.plantAge
+        source._presentationLifePhase=value.lifePhase
+        source._presentationPhaseAge=value.phaseAge
+        source._presentationAmount=value.amount
+        source._presentationBiteAge=value.biteAge
+        source._presentationEdible=value.edible
+        source._presentationVigor=value.vigor
+        source._presentationDrySite=value.drySite
+        source._presentationVariant=value.visualVariant
+    end
+    return {id=source.id,kind=source.kind,x=source.x,z=source.z,h=source.h,scale=source.scale,
+        age=source._presentationAge,plantAge=source._presentationPlantAge,
+        lifePhase=source._presentationLifePhase,phaseAge=source._presentationPhaseAge,
+        amount=source._presentationAmount,biteAge=source._presentationBiteAge,
+        edible=source._presentationEdible,vigor=source._presentationVigor,
+        drySite=source._presentationDrySite,visualVariant=source._presentationVariant}
+end
 
 local function insideBounds(world,x,z)
     local bounds=world.playableBounds
@@ -20,14 +43,17 @@ local function insideBounds(world,x,z)
     return x>=bounds.x0 and z>=bounds.z0 and x<=bounds.x1 and z<=bounds.z1
 end
 
-local function allowed(self,x,z)
+local function allowed(self,x,z,p)
     local world=self.world
     if not insideBounds(world,x,z) then return nil end
     if world.spawn and M.length(x-world.spawn.x,z-world.spawn.z)<6 then return nil end
     local h=world:height(x,z)
     if not M.finite(h) or h<=.4 then return nil end
-    if world.roads and world.roads.vegetationAllowed
-        and not world.roads:vegetationAllowed(x,z) then return nil end
+    p.h=h
+    if world.roads and world.roads.vegetationAllowed then
+        local obstacleRadius=Obstacles.solidKind(p.kind) and Obstacles.shape(p,self.seed,nil) or nil
+        if not world.roads:vegetationAllowed(x,z,obstacleRadius) then return nil end
+    end
     return h
 end
 
@@ -41,7 +67,7 @@ function Vegetation.new(world)
         _patches={},_tick=0,_generated=0},Vegetation)
 end
 
-function Vegetation:_makePatch(px,pz)
+function Vegetation:_makePatch(px,pz,yieldStep)
     local props={}
     local function add(p)
         if not p then return end
@@ -51,7 +77,7 @@ function Vegetation:_makePatch(px,pz)
             local density=({0,.16,.52,1})[level]
             if s.excluded[p.kind] or M.hash(self.seed,p.id,397)>=density then return end
         end
-        local height=allowed(self,p.x,p.z)
+        local height=allowed(self,p.x,p.z,p)
         if height then p.h=height;props[#props+1]=p end
     end
     local firstX,firstZ=px*(PATCH_SIZE/CELL_SIZE),pz*(PATCH_SIZE/CELL_SIZE)
@@ -64,6 +90,7 @@ function Vegetation:_makePatch(px,pz)
             for slot=1,5 do add(Candidates.extraCandidate2(self,ix,iz,slot)) end
             for slot=1,8 do add(Candidates.extraCandidate3(self,ix,iz,slot)) end
             for slot=1,4 do add(Candidates.extraCandidate4(self,ix,iz,slot)) end
+            if yieldStep then yieldStep() end
         end
     end
     table.sort(props,function(a,b) return a.id<b.id end)
@@ -91,11 +118,55 @@ function Vegetation:_getPatch(px,pz)
         patch.used=self._tick
         return patch
     end
+    if self._visibleJob and self._visibleJob.key==key then self._visibleJob=nil end
     patch={props=self:_makePatch(px,pz),used=self._tick}
     self._patches[key]=patch
     self._generated=self._generated+1
     self:_evictIfNeeded()
     return patch
+end
+function Vegetation:_resumeVisibleJob(maxSteps,clock,deadline)
+    local job=self._visibleJob
+    if not job then return false,0 end
+    local steps=0
+    while steps<(maxSteps or math.huge) and (not deadline or clock()<deadline) do
+        local okay,props=coroutine.resume(job.thread)
+        if not okay then self._visibleJob=nil;error(props) end
+        steps=steps+1
+        if coroutine.status(job.thread)=='dead' then
+            if self._patches[job.key] then
+                self._visibleJob=nil
+                return false,steps
+            end
+            self._tick=self._tick+1
+            self._patches[job.key]={props=props,used=self._tick}
+            self._generated=self._generated+1
+            self._visibleJob=nil
+            self:_evictIfNeeded()
+            return true,steps
+        end
+    end
+    return false,steps
+end
+function Vegetation:advanceVisible(cx,cz,radius,budget)
+    local job=self._visibleJob
+    if not job then return false end
+    local x0,z0=job.px*PATCH_SIZE,job.pz*PATCH_SIZE
+    local x1,z1=math.min(self.size,x0+PATCH_SIZE),math.min(self.size,z0+PATCH_SIZE)
+    local nearestX,nearestZ=M.clamp(cx,x0,x1),M.clamp(cz,z0,z1)
+    if (nearestX-cx)^2+(nearestZ-cz)^2>radius*radius then
+        self._visibleJob=nil
+        return false
+    end
+    local clock=budget and budget.clock
+    local started=clock and clock() or 0
+    local deadline=clock and started+(budget.seconds or math.huge) or nil
+    local completed=self:_resumeVisibleJob(budget and budget.maxSteps or 128,clock,deadline)
+    if completed then
+        self.pending=math.max(0,(self.pending or 0)-1)
+        self.lastBuilt=(self.lastBuilt or 0)+1
+    end
+    return completed
 end
 
 function Vegetation:visible(cx,cz,radius,calendar,visible,budget)
@@ -107,6 +178,7 @@ function Vegetation:visible(cx,cz,radius,calendar,visible,budget)
     local maxX=math.min(self.patchCount-1,math.floor((cx+radius)/PATCH_SIZE))
     local minZ=math.max(0,math.floor((cz-radius)/PATCH_SIZE))
     local maxZ=math.min(self.patchCount-1,math.floor((cz+radius)/PATCH_SIZE))
+    local presentationDay=calendar and calendar.totalDays or 0
     local needed={}
     for pz=minZ,maxZ do
         for px=minX,maxX do
@@ -128,21 +200,62 @@ function Vegetation:visible(cx,cz,radius,calendar,visible,budget)
         if a.pz~=b.pz then return a.pz<b.pz end
         return a.px<b.px
     end)
-    local clock=budget and budget.clock
-    local started=clock and clock() or 0
     local built,pending=0,0
+    if budget then
+        local neededKeys={}
+        for _,entry in ipairs(needed) do neededKeys[entry.px..':'..entry.pz]=true end
+        if self._visibleJob and not neededKeys[self._visibleJob.key] then self._visibleJob=nil end
+        local clock=budget.clock
+        local started=clock and clock() or 0
+        local deadline=clock and started+(budget.seconds or math.huge) or nil
+        local maxPatches=budget.maxPatches or math.huge
+        local steps,maxSteps=0,budget.maxSteps or 128
+        local function withinBudget()
+            return built<maxPatches and steps<maxSteps and (not deadline or clock()<deadline)
+        end
+        while withinBudget() do
+            local job=self._visibleJob
+            if not job then
+                local nextEntry
+                for _,entry in ipairs(needed) do
+                    if not self._patches[entry.px..':'..entry.pz] then nextEntry=entry;break end
+                end
+                if not nextEntry then break end
+                local px,pz=nextEntry.px,nextEntry.pz
+                local key=px..':'..pz
+                job={key=key,px=px,pz=pz,thread=coroutine.create(function()
+                    return self:_makePatch(px,pz,function() coroutine.yield() end)
+                end)}
+                self._visibleJob=job
+            end
+            if self._patches[job.key] then
+                self._visibleJob=nil
+            else
+                local completed,used=self:_resumeVisibleJob(maxSteps-steps,clock,deadline)
+                steps=steps+used
+                if completed then built=built+1 else break end
+            end
+        end
+    end
     for _,entry in ipairs(needed) do
         local key=entry.px..':'..entry.pz
         local patch=self._patches[key]
-        local canBuild=not budget or (built<(budget.maxPatches or math.huge)
-            and (not clock or clock()-started<(budget.seconds or math.huge)))
-        if patch or canBuild then
-            if not patch then built=built+1 end
-            patch=self:_getPatch(entry.px,entry.pz)
+        if patch or not budget then
+            if not patch then patch=self:_getPatch(entry.px,entry.pz)
+            else self._tick=self._tick+1;patch.used=self._tick end
             for _,p in ipairs(patch.props) do
                 local dx,dz=p.x-cx,p.z-cz
-                if dx*dx+dz*dz<=radius2 and (not visible or visible(p.x,p.z,12)) then
-                    result[#result+1]=Flora.present({id=p.id,kind=p.kind,x=p.x,z=p.z,h=p.h,scale=p.scale},self.seed,calendar)
+                local propRadius=radius
+                if budget and budget.maxPropRadius then
+                    propRadius=math.max(0,math.min(radius,budget.maxPropRadius(p) or radius))
+                end
+                if dx*dx+dz*dz<=propRadius*propRadius and (not visible or visible(p.x,p.z,12)) then
+                    -- Renderer props add view depth and scale in place; hand
+                    -- a copy so cached day-state stays immutable. Keep derived
+                    -- fields on the raw candidate to avoid a second plant table.
+                    local copy=presentedCopy(self,p,calendar,presentationDay)
+                    if budget and budget.maxPropRadius then copy.foliageRadius=propRadius end
+                    result[#result+1]=copy
                 end
             end
         else
@@ -164,7 +277,7 @@ end
 function Vegetation:grassAnchors(x0,z0,x1,z1,step)
     local anchors={}
     local function add(p)
-        if p and (Flora.canopy[p.kind] or p.kind=='log') and allowed(self,p.x,p.z) then
+        if p and (Flora.canopy[p.kind] or p.kind=='log') and allowed(self,p.x,p.z,p) then
             anchors[#anchors+1]=p
         end
     end

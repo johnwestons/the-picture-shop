@@ -2,6 +2,15 @@
 local output = assert(os.getenv("PICTURE_SHOP_PERFORMANCE_OUTPUT"))
 local rows, counters = {}, {}
 local profiler = os.getenv("PICTURE_SHOP_PERFORMANCE_PROFILE") == "1" and require("jit.profile")
+local profileFilter = os.getenv("PICTURE_SHOP_PERFORMANCE_PROFILE_FILTER")
+local function profileMeasure(name)
+    if not profiler then return false end
+    if not profileFilter or profileFilter=="" then return true end
+    for selected in profileFilter:gmatch("[^,]+") do
+        if selected==name then return true end
+    end
+    return false
+end
 local function count(target, key, name)
     local original = target[key]
     target[key] = function(...)
@@ -14,7 +23,8 @@ local function measure(name, repetitions, run, afterSample)
     local samples, before = {}, {}
     for key, value in pairs(counters) do before[key] = value end
     local stacks = {}
-    if profiler then profiler.start("i1", function(thread, count)
+    local collectProfile=profileMeasure(name)
+    if collectProfile then profiler.start("i1", function(thread, count)
         local stack = profiler.dumpstack(thread, "pl\n", 10)
         stacks[stack] = (stacks[stack] or 0) + count
     end) end
@@ -24,7 +34,7 @@ local function measure(name, repetitions, run, afterSample)
         samples[index] = (love.timer.getTime() - started) * 1000
         if afterSample then afterSample(index) end
     end
-    if profiler then profiler.stop() end
+    if collectProfile then profiler.stop() end
     local first=samples[1]
     table.sort(samples)
     local total = 0
@@ -33,7 +43,7 @@ local function measure(name, repetitions, run, afterSample)
         max_ms=samples[#samples], repetitions=repetitions,first_ms=first,
         warm_mean_ms=repetitions>1 and (total-first)/(repetitions-1) or total}
     for key, value in pairs(counters) do row[key] = value - (before[key] or 0) end
-    if profiler then
+    if collectProfile then
         row.profile = {}
         for stack, count in pairs(stacks) do row.profile[#row.profile+1] = {stack=stack,samples=count} end
         table.sort(row.profile,function(a,b) return a.samples>b.samples end)
@@ -177,11 +187,62 @@ function love.load()
     measure("host_without_guests",1800,function() host:update(1/60,hostContext) end)
     rows[#rows].shop_snapshots=snapshots
     assert(host:stop("Performance probe complete"))
+    local multiplayerNetwork=require("src.tests.support.network_impairment_harness").new({maxClients=3})
+    local Session=require("src.net.session")
+    local multiplayerHost=Session.new({transportFactory=multiplayerNetwork.factory,clock=function() return 100 end})
+    assert(multiplayerHost:startHost({networkKind="server",name="Performance Host"}))
+    local multiplayerShop={state=runtime.SaveSchema.snapshot(runtime.state),player=runtime.World.snapshot()}
+    local multiplayerContext={localPlayer=runtime.World.player,
+        resolveGuestSpawn=function(hostX,hostY,index) return hostX+index*24,hostY,"warehouse" end,
+        getShopSnapshot=function() return multiplayerShop end,
+        moveRemote=function(player,dt,inputX,inputY)
+            runtime.World.updateRemotePlayer(player,dt,inputX,inputY,runtime.Assets,runtime.state)
+        end,
+        getVisitorSnapshot=function() return {customer=runtime.World.customerSnapshot(),vendor=runtime.World.vendorSnapshot()} end,
+        getGameSnapshot=function() return require("src.air_hockey").snapshot() end,
+        getBasketballSnapshot=function() return require("src.basketball").snapshot(runtime.state) end,
+        getFightSnapshot=function() return require("src.critter_kombat").snapshot() end,
+        getCrisisSnapshot=function() return require("src.critter_crisis").snapshot() end,
+        getCrisisEncounters=function() return require("src.critter_crisis").sessions end,
+        getEnvironmentSnapshot=function() return runtime.World.environmentSnapshot() end,
+        getPalletJackSnapshot=function() return runtime.World.networkPalletJackSnapshot(runtime.state) end,
+        getPalletJackId=function() return runtime.state.palletJack and runtime.state.palletJack.id end,
+        getExtraPalletJackSnapshots=function() return require("src.pallet_jack_fleet").snapshots(runtime.state) end,
+        getForkliftSnapshot=function() return runtime.Forklift.snapshot(runtime.state,runtime.Config.forklift) end,
+        getMachinePoseSnapshot=function() return runtime.World.networkMachinePoseSnapshot(runtime.state) end,
+        getWorkshopSnapshot=function() return {resources=runtime.workshopAuthority and runtime.workshopAuthority:snapshot() or {},
+            wrapper=runtime.wrapperSnapshotView()} end,
+        }
+    local guests,guestContexts={},{}
+    for index=1,3 do
+        guests[index]=Session.new({transportFactory=multiplayerNetwork.factory,clock=function() return 100 end})
+        guestContexts[index]={localPlayer={x=420+index*24,y=500,sceneId="warehouse",
+            character="rabbit-worker",furColorway=1,overallsColorway=1,taskAction="none"},
+            inputX=index*.15,inputY=(index-2)*.1}
+        assert(guests[index]:startClient("127.0.0.1:22122",{networkKind="server",
+            name="Performance Guest "..index,character="rabbit-worker",residentToken=string.rep(tostring(index),64)}))
+    end
+    for index,guest in ipairs(guests) do guest:update(0,guestContexts[index]) end
+    multiplayerHost:update(0,multiplayerContext)
+    for index,guest in ipairs(guests) do guest:update(0,guestContexts[index]) end
+    for _,guest in ipairs(guests) do assert(guest.ready,"performance guest failed to join") end
+    local sentPackets=0
+    local send=multiplayerNetwork.host.send
+    multiplayerNetwork.host.send=function(transport,...)
+        sentPackets=sentPackets+1
+        return send(transport,...)
+    end
+    measure("host_three_guests",600,function()
+        multiplayerHost:update(1/60,multiplayerContext)
+        for index,guest in ipairs(guests) do guest:update(1/60,guestContexts[index]) end
+    end)
+    rows[#rows].sent_packets=sentPackets
+    assert(multiplayerHost:stop("Performance probe complete"))
     local gpuBefore=love.graphics.getStats().texturememory
     local headings={"northwest","north","northeast","east","southeast","south","southwest","west"}
     runtime.state.forklift.owned=true
     runtime.state.warehouse.forkliftOwned=true
-    measure("forklift_all_views",16,function(index)
+    measure("forklift_all_views_sync_loader_disabled",16,function(index)
         local vehicle=runtime.state.forklift
         vehicle.direction=headings[(index-1)%8+1]
         vehicle.operating=index>8

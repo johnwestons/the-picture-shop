@@ -21,6 +21,7 @@ local WarehouseConstruction = require("src.warehouse_construction")
 local StagingAreas = require("src.staging_areas")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
+local GroceryInventory = require("src.commute.grocery_inventory")
 
 local SHARED_FIELDS = {
     "money",
@@ -44,7 +45,9 @@ local SHARED_FIELDS = {
     "nextJobId",
     "accountsReceivable",
     "reputation",
+    "deliveryDriver",
     "procurement",
+    "groceryStore",
     "vendorCategory",
     "calendar",
     "bills",
@@ -170,8 +173,11 @@ function State.applySave(state, payload)
     state.reputation = type(saved.reputation) == "table" and saved.reputation
         or require("src.reputation").defaultState()
     require("src.reputation").ensure(state)
+    state.deliveryDriver=type(saved.deliveryDriver)=="table" and saved.deliveryDriver
+        or {version=1,status="idle",waitSeconds=0,driverReturned=false,penaltyApplied=false}
     state.procurement = type(saved.procurement) == "table" and saved.procurement
         or { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 }
+    state.groceryStore = GroceryInventory.normalize(saved.groceryStore)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
     state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
@@ -179,6 +185,7 @@ function State.applySave(state, payload)
     state.employment = employment
     state._employeePoses = nil
     state._technicianPose = nil
+    require("src.warehouse_delivery_driver").reset(state)
     state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
         or { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} }
@@ -188,6 +195,9 @@ function State.applySave(state, payload)
     state.machines = type(saved.machines) == "table" and saved.machines or MachineFleet.defaultState()
     MachineFleet.ensure(state)
     BusinessCalendar.ensure(state)
+    local nowHours=BusinessCalendar.absoluteHours(state)
+    require("src.commute.town_characters").advance(state,nowHours)
+    require("src.commute.employee_commute").advance(state,nowHours)
     Procurement.ensure(state)
     PalletState.reconcile(state)
     SaveSchema.reconcile(state)
@@ -233,6 +243,7 @@ function State.applySharedSnapshot(state, snapshot)
     state._machinePoseUnits = nil
     state._employeePoses = nil
     state._technicianPose = nil
+    require("src.warehouse_delivery_driver").reset(state)
     state.screen = "world"
     state.message = "Shop opened."
     return true

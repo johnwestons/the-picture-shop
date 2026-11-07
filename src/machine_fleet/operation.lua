@@ -62,6 +62,10 @@ function Component.install(Runtime)
         if modelId == "polar_115" and item.maintenance.cutter.bladeRemoved then
             return false, "The blade is removed for exchange. Wait for the sharpened replacement before production."
         end
+        if modelId == "polar_115" and (item.maintenance.cutter.technicianStatus == "traveling"
+            or item.maintenance.cutter.technicianStatus == "servicing") then
+            return false, "Mara Mouse is exchanging the cutter blade. Wait until the service visit is complete."
+        end
         if modelId == "heidelberg_10x15" and item.variables.safetyCircuit < 20 then
             return false, "The Windmill safety circuit must be serviced before production."
         end
@@ -155,7 +159,9 @@ function Component.install(Runtime)
             local score = type(taskScores) == "table" and tonumber(taskScores[componentId]) or nil
             score = Runtime.clamp(score or 0, 0, 1)
             total, count = total + score, count + 1
-            item.variables[componentId] = Runtime.clamp(item.variables[componentId] + 25 + score * 45, 0, 100)
+            -- Completing the full maintenance-kit service restores the machine,
+            -- rather than merely improving condition based on minigame score.
+            item.variables[componentId] = 100
         end
         local quality = count > 0 and total / count or 0
         stock.maintenance_kit = stock.maintenance_kit - 1

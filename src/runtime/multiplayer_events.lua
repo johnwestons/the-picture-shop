@@ -70,7 +70,8 @@ function Component.install(Runtime)
             elseif event.type == "employee_state" then
                 Runtime.World.applyEmployeeSnapshot(event.employees,Runtime.state)
             elseif event.type == "environment_state" then
-                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, Runtime.state, event.technician,event.roomDoors) then
+                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees,
+                    Runtime.state,event.technician,event.roomDoors,event.deliveryDriver) then
                     Runtime.showConnectionError(
                         "The host sent an environment update this build could not apply.",
                         "Invalid environment update")
@@ -79,6 +80,15 @@ function Component.install(Runtime)
                 Runtime.state.message = tostring(event.message or (event.accepted
                     and "The host accepted the interaction."
                     or "The host rejected the interaction."))
+                if event.targetKind=="deliverySignature"
+                    and Runtime.state.screen=="delivery_signature" then
+                    if event.accepted then
+                        Runtime.RuntimeDependencies.DeliverySignatureScreen.clear()
+                        Runtime.state.screen="world"
+                    else
+                        Runtime.RuntimeDependencies.DeliverySignatureScreen.setPending(false)
+                    end
+                end
             elseif event.type == "workshop_grant" then
                 Runtime.state.message = tostring(event.message or (event.granted
                     and "Workshop control granted." or "Workshop control was not granted."))

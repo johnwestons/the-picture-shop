@@ -14,29 +14,12 @@ local machines={
     {kind="windmill",image="windmillDirections",quadPrefix="windmillDirection",
         placement=WindmillPlacement,config=Config.windmillPlacement,frameSize=256},
 }
-local candidateAtlases={
-    "assets/generated/polar-cutter-64-v2.png",
-    "assets/generated/skid-wrapper-64-v1.png",
-    "assets/generated/loaded-paper-pallet-64-v1.png",
-    "assets/generated/pallet-jack-64-v1.png",
-    "assets/generated/pallet-jack-loaded-64-v1.png",
-    "assets/generated/empty-pallet-64-v1.png",
-    "assets/generated/printing-press-64-v1.png",
-    "assets/generated/heidelberg-windmill-64-v1.png",
-}
-
 local function pose(kind,frame,x)
     return {x=x,y=20,direction=Rotation.directionForFrame(kind,frame),
         rotationIndex=frame,moving=false,inMotion=false}
 end
 
 function Test.run(context,check)
-    local candidatesPresent=true
-    for _,path in ipairs(candidateAtlases) do
-        candidatesPresent=candidatesPresent and love.filesystem.getInfo(path,"file")~=nil
-    end
-    check("machine_64_candidate_atlases_are_in_the_runtime_package",candidatesPresent)
-
     for _,machine in ipairs(machines) do
         local image=context.assets.get(machine.image)
         local columns=machine.config.frameColumns

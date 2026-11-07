@@ -3,10 +3,14 @@
 local Component = {}
 local JackFleet = require("src.pallet_jack_fleet")
 local EmployeeHighFive = require("src.employee_high_five")
+local ObstacleIndex = require("src.obstacle_index")
 
 function Component.install(Runtime)
     local jackFloors=setmetatable({}, {__mode="k"})
     local exitContacts=setmetatable({}, {__mode="k"})
+    -- Employee movement runs sequentially, so navigation can recycle its cell
+    -- tables after each move without changing any actor's collision snapshot.
+    local obstacleIndexScratch={}
     function Runtime.World.configureEmployees(options) Runtime.World._employeeOptions=options or {} end
 
     function Runtime.World.employeeCutterReserved(state,machineId)
@@ -94,7 +98,8 @@ function Component.install(Runtime)
             -- after this actor's position has changed.
             local obstacles=context.obstacles(actor)
             return {assets=require("src.shop_rooms").assets(assets,actor.sceneId or "warehouse",state),
-                motionScale=context.motionScale,obstacles=function() return obstacles end}
+                motionScale=context.motionScale,obstacles=function() return obstacles end,
+                obstacleIndexScratch=obstacleIndexScratch}
         end
         function context.move(actor,goal,dt) return Runtime.EmployeeAI.move(actor,goal,dt,context) end
         function context.travelScene(worker,destination,dt)
@@ -110,6 +115,35 @@ function Component.install(Runtime)
                 require("src.shop_rooms").assets(assets,destination,state),destination,jack,obstacles)
         end
         function context.pickupTruck() return Runtime.World.truck end
+        function context.inboundDeliveryItems()
+            local _,items=Runtime.PalletLogistics.truckInventory(state,Runtime.World.truck.jobId)
+            return items
+        end
+        function context.inboundDeliveryRemaining()
+            return Runtime.PalletLogistics.remainingOnTruck(state,Runtime.World.truck.jobId)
+        end
+        function context.openInboundDelivery()
+            return Runtime.World.toggleTruckCargoDoor(state)
+        end
+        function context.unloadInboundDelivery(worker,palletId)
+            return Runtime.World.unloadTruckPallet(state,palletId)
+        end
+        function context.closeInboundDelivery()
+            return Runtime.World.closeTruckAfterUnload(state)
+        end
+        function context.inboundApproachPoint(worker)
+            local target=Runtime.World.truck:getInteraction()
+            if not target then return nil end
+            local candidates={}
+            for _,distance in ipairs({76,96,116}) do
+                for _,vector in ipairs({{0,1},{1,1},{-1,1},{1,0},{-1,0}}) do
+                    local length=math.sqrt(vector[1]^2+vector[2]^2)
+                    candidates[#candidates+1]={x=target.x+vector[1]/length*distance,
+                        y=target.y+vector[2]/length*distance}
+                end
+            end
+            return Runtime.EmployeeAI.findReachablePoint(worker,candidates,context.forActor(worker))
+        end
         function context.truckLoadingPoint(worker,pallet)
             local target=Runtime.World.truck:getInteraction()
             if not target then return nil end
@@ -359,7 +393,7 @@ function Component.install(Runtime)
             if item.modelId=="skid_wrapper" then return Runtime.WrapperPlacement.ensure(state,Runtime.Config.wrapperPlacement) end
             if item.modelId=="heidelberg_10x15" then return Runtime.WindmillPlacement.ensure(state,Runtime.Config.windmillPlacement) end
         end
-        function context.operatorPoint(machineId,worker,avoidPoint)
+        function context.operatorPoint(machineId,worker,avoidPoint,obstacles)
             local item=Runtime.MachineFleet.byId(state,machineId)
             local pose=item and item.world
             if item and not pose then
@@ -372,7 +406,7 @@ function Component.install(Runtime)
                 elseif item.modelId=="heidelberg_10x15" then pose=Runtime.WindmillPlacement.ensure(state,config) end
             end
             if not pose or pose.moving then return nil end
-            local obstacles=context.obstacles(worker)
+            obstacles=ObstacleIndex.new(obstacles or context.obstacles(worker))
             local key=string.format("%g:%g:%s",pose.x,pose.y,pose.direction)
             if not avoidPoint and worker._operatorKey==key and worker._operatorPoint
                 and Runtime.Navigation.isWalkable(assets,worker._operatorPoint.x,worker._operatorPoint.y,obstacles) then return worker._operatorPoint end

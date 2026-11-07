@@ -21,6 +21,11 @@ local DOMAIN_SUITES = {
         require('src.commute.tests.first_person_test').run(check)
         require('src.commute.tests.truck_cab_test').run(check)
         require('src.commute.tests.delivery_traffic_test').run(check)
+        require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
+        require('src.commute.tests.driving_path_test').run(check)
+        require('src.commute.tests.traffic_actor_index_test').run(check)
+        require('src.commute.tests.delivery_traffic_density_test').run(check)
+        require('src.commute.tests.traffic_rules_test').run(check)
         for _,name in ipairs({'camera','follow_camera','camera_controls','camera_preferences','route_map','town_center','town_trails','infrastructure','road_markings'}) do
             require('src.commute.tests.'..name..'_test').run(check)
         end

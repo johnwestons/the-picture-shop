@@ -6,12 +6,14 @@ local Beacon=require('src.interaction_beacon')
 local Touch={};Touch.__index=Touch
 local DEADZONE=.16
 local RESPONSE_POWER=1.65
-local DEFAULT_TOUCH={accelerate='touch1',brake='touch2',boost='touch3',interact='touch4'}
+local DEFAULT_TOUCH={accelerate='touch1',brake='touch2',boost='touch3',interact='touch4',worldAction='touch6'}
 
 local function clamp(value,lo,hi) return math.max(lo,math.min(hi,value)) end
-local function shape(x,y,deadzone,power)
+local function shape(x,y,deadzone,power,sensitivity)
     local length=math.sqrt(x*x+y*y)
     if length<=deadzone then return 0,0 end
+    sensitivity=clamp(tonumber(sensitivity) or 100,50,150)
+    power=power*(2-sensitivity/100)
     local magnitude=math.min(1,(length-deadzone)/(1-deadzone))^power
     return x/length*magnitude,y/length*magnitude
 end
@@ -70,10 +72,10 @@ local function addGearButtons(buttons,items,width,height,radius,left,right)
 end
 
 function Touch.new()
-    return setmetatable({contacts={},held={},x=0,y=0,cameraX=0,cameraY=0,visible=false},Touch)
+    return setmetatable({contacts={},held={},x=0,y=0,horizontalX=0,cameraX=0,cameraY=0,visible=false},Touch)
 end
 function Touch:cancel()
-    self.contacts={};self.held={};self.x=0;self.y=0;self.cameraX=0;self.cameraY=0
+    self.contacts={};self.held={};self.x=0;self.y=0;self.horizontalX=0;self.cameraX=0;self.cameraY=0
     self.aimX,self.aimY=0,0
     self.gripId,self.gripGas=nil,0
 end
@@ -154,9 +156,23 @@ function Touch.actionButtons(width,height,p,context,options)
         end
     else
         local x,y=touchPoint(p,'interact',width,height)
-        addButton(buttons,'interact',context.arrived and 'FINISH' or context.nearTruck and 'TRUCK' or 'USE',
+        local splitActions=context.nearBike and context.worldActionLabel and not context.arrived
+        local primaryAction=splitActions and 'mountBike' or 'interact'
+        local primaryLabel=splitActions and 'MOUNT' or context.arrived and 'FINISH'
+            or context.worldActionLabel or context.atFuelPump and 'FUEL' or context.nearTruck and 'TRUCK' or 'USE'
+        addButton(buttons,primaryAction,primaryLabel,
             context.nearTruck and 'more' or 'dismount',
-            x,y,actionRadius,false,not context.gearTransition)
+            x,y,actionRadius,false,not context.gearTransition and not context.pedCrash)
+        if splitActions then
+            x,y=touchPoint(p,'worldAction',width,height)
+            addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
+                not context.gearTransition and not context.pedCrash)
+        end
+        if mobile and not context.arrived then
+            x,y=touchPoint(p,'boost',width,height)
+            addButton(buttons,'boost','SPRINT','boost',x,y,actionRadius,false,
+                not context.gearTransition and not context.pedCrash)
+        end
     end
 
     -- Keep these clear of the top-right menus, minimap and throttle controls.
@@ -171,6 +187,14 @@ function Touch.actionButtons(width,height,p,context,options)
     end
     addButton(buttons,'rescue','RESCUE','center',cameraX,cameraY,
         cameraRadius,false,not context.gearTransition and not context.pedCrash and not context.arrived)
+    if mobile and mounted and context.vehicle and not context.arrived then
+        local stick=p.layout.stick or {x=.10,y=.80}
+        local toggleX=clamp(stick.x*width,cameraRadius+pad,width-cameraRadius-pad)
+        local toggleY=clamp((cameraY+stick.y*height)*.5,cameraRadius+pad,height-cameraRadius-pad)
+        addButton(buttons,'steeringMode',context.steeringHorizontal and 'HORIZ' or 'RADIAL',
+            'steer',toggleX,toggleY,cameraRadius,context.steeringHorizontal==true,
+            not context.gearTransition,cameraRadius+pad)
+    end
 
     local utilities={}
     if mounted and context.vehicle~='truck' then
@@ -227,12 +251,14 @@ function Touch.actionAt(x,y,width,height,p,context,options)
     return nearestPhysical
 end
 
-function Touch:move(id,x,y,width,height,p)
+function Touch:move(id,x,y,width,height,p,sensitivity)
     local c=self.contacts[id];if not c then return false end
     if c.stick then
         local point=p.layout.stick;local radius=math.min(width,height)*.09
         local dx,dy=(x-point.x*width)/radius,(y-point.y*height)/radius
-        self.x,self.y=shape(dx,dy,DEADZONE,RESPONSE_POWER)
+        self.x,self.y=shape(dx,dy,DEADZONE,RESPONSE_POWER,sensitivity)
+        -- Horizontal vehicle mode ignores vertical thumb drift when steering.
+        self.horizontalX=select(1,shape(dx,0,DEADZONE,RESPONSE_POWER,sensitivity))
         self.aimX,self.aimY=shape(dx,dy,.10,1)
     elseif c.grip then
         self.gripGas=clamp((y-c.startY-3*c.scale)/(48*c.scale),0,1)
@@ -259,7 +285,7 @@ function Touch:press(id,x,y,width,height,p,perform,context,options)
     local hitRadius=radius*2.2
     if dx*dx+dy*dy<=hitRadius*hitRadius then
         for _,contact in pairs(self.contacts) do if contact.stick then return true end end
-        self.contacts[id]={stick=true};return self:move(id,x,y,width,height,p)
+        self.contacts[id]={stick=true};return self:move(id,x,y,width,height,p,options.stickSensitivity)
     end
     if context.mounted and not context.gearTransition and options.allowGrip~=false
         and options.mobile and options.camera and (not options.hiddenHud or options.camera.firstPerson) then
@@ -277,7 +303,7 @@ end
 function Touch:release(id)
     local c=self.contacts[id];if not c then return false end
     self.contacts[id]=nil
-    if c.stick then self.x,self.y,self.aimX,self.aimY=0,0,0,0 end
+    if c.stick then self.x,self.y,self.horizontalX,self.aimX,self.aimY=0,0,0,0,0 end
     if c.grip then self.gripId,self.gripGas=nil,0 end
     if c.action then
         self.held[c.action]=nil
@@ -327,15 +353,23 @@ function Touch:draw(width,height,p,context,options)
     local minDim=math.min(width,height);local radius=minDim*.045
     if showStick then
         local stick=p.layout.stick;local cx,cy=stick.x*width,stick.y*height
-        local aim=context.mounted and B.freeCameraTouch(mobile,options.camera)
+        local horizontal=options.horizontalSteering==true and context.mounted
+        local aim=not horizontal and context.mounted and B.freeCameraTouch(mobile,options.camera)
         local knobX,knobY=self.x,self.y
         if aim then knobX,knobY=self.aimX or 0,self.aimY or 0 end
+        if horizontal then knobX,knobY=self.horizontalX or self.x,0 end
         g.setColor(.025,.055,.045,.84);g.circle('fill',cx,cy,radius*2)
         g.setColor(.72,.81,.61,.94);g.setLineWidth(2);g.circle('line',cx,cy,radius*2)
+        if horizontal then
+            g.setColor(.72,.81,.61,.72);g.setLineWidth(2)
+            g.line(cx-radius*1.35,cy,cx+radius*1.35,cy)
+            g.circle('fill',cx-radius*1.35,cy,2.5);g.circle('fill',cx+radius*1.35,cy,2.5)
+        end
         g.setColor(.72,.84,.53,.98);g.circle('fill',cx+knobX*radius*1.5,cy+knobY*radius*1.5,radius*.52)
         Icons.draw('steer',cx,cy-radius*1.20,radius*.68)
         g.setColor(.92,.95,.84,.98);g.setFont(fontFor(self,math.max(10,radius*.42)))
-        g.printf('STEER',cx-radius*2,cy+radius*2.15,radius*4,'center')
+        local stickLabel=horizontal and (context.vehicle=='truck' and 'STEER' or 'LEAN') or 'STEER'
+        g.printf(stickLabel,cx-radius*2,cy+radius*2.15,radius*4,'center')
         local gx,gy,scale
         if mobile and context.mounted and options.camera then gx,gy,scale=Cockpit.throttleGrip(width,height,options.camera) end
         if gx then

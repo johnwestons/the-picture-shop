@@ -82,6 +82,24 @@ function Component.install(Runtime)
             and (value.carriedPalletId == nil or Runtime.text(value.carriedPalletId))
     end
 
+    function Runtime.deliveryDriver(value)
+        if value==nil then return true end
+        if type(value)~="table" or value.version~=1
+            or not ({idle=true,approaching=true,waiting=true,signed=true,missed=true,done=true})[value.status]
+            or not Runtime.nonnegative(value.waitSeconds)
+            or value.waitSeconds>120
+            or type(value.driverReturned)~="boolean"
+            or type(value.penaltyApplied)~="boolean"
+            or not Runtime.optionalText(value.deliveryId)
+            or not Runtime.optionalText(value.signedBy)
+            or not Runtime.optionalNumber(value.signedAtHours)
+            or not Runtime.optionalBoolean(value.penaltyApplied)
+        then return false end
+        if value.status=="idle" then return value.deliveryId==nil and value.mode==nil end
+        return Runtime.text(value.deliveryId) and #value.deliveryId<=64
+            and (value.mode=="delivery" or value.mode=="vendor_delivery" or value.mode=="machine_delivery")
+    end
+
     function Runtime.persistentState(value)
         return type(value) == "table"
             and Runtime.Schema.validPhysicalSource(value)
@@ -97,7 +115,9 @@ function Component.install(Runtime)
             and Runtime.positiveInteger(value.nextJobId)
             and Runtime.nonnegative(value.accountsReceivable)
             and Runtime.Reputation.valid(value.reputation)
+            and Runtime.deliveryDriver(value.deliveryDriver)
             and Runtime.cutterMemory(value.cutterMemory)
+            and (value.groceryStore==nil or require("src.commute.grocery_inventory").valid(value.groceryStore))
             and type(value.procurement) == "table"
             and Runtime.positiveInteger(value.procurement.nextOrderId)
             and Runtime.array(value.procurement.orders, Runtime.purchaseOrder)

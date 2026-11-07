@@ -3,7 +3,7 @@ local Mesh=require('src.commute.terrain_mesh')
 local Test={}
 function Test.run(check)
     check('mobile_commute_limits_foliage_distance_and_keeps_nearby_plants',
-        Renderer.foliageRadius(96,true)==72 and Renderer.foliageRadius(48,true)==48
+        Renderer.foliageRadius(96,true)==48 and Renderer.foliageRadius(48,true)==48
             and Renderer.foliageRadius(96,false)==96)
     local oldMesh,oldClock,oldBudget=love.graphics.newMesh,love.timer.getTime,Renderer.LOAD_BUDGET_SECONDS
     local elapsed,created,releases=0,0,0
@@ -45,7 +45,8 @@ function Test.run(check)
         while not renderer:terrainReady() and frames<1000 do renderer:prepare(camera,1/60);frames=frames+1 end
         local stats=renderer:terrainStats()
         check('terrain_renderer_complete_residency_has_bounded_gpu_storage',stats.ready and stats.total==9
-            and stats.completed==9 and stats.uncovered==0 and stats.submitted==9 and created==9
+            and stats.completed==9 and stats.uncovered==0 and stats.resident==9
+            and stats.submitted<stats.resident and stats.culled==stats.resident-stats.submitted and created==9
             and stats.vertices==t.vertexCount and stats.meshBytes==t.vertexCount*96+t.indexCount*4)
         local corners=renderer:terrainCoverage(0,0) and renderer:terrainCoverage(50,50)
             and renderer:terrainCoverage(0,50) and renderer:terrainCoverage(50,0)
@@ -62,14 +63,14 @@ function Test.run(check)
             camera.viewCos=frame%2==0 and -1 or 1;camera.viewSin=0;camera.viewSlope=1
             camera.viewPitch=-math.pi/2;projected=0
             renderer:prepare(camera,1/120)
-            linear=linear and projected==9
+            linear=linear and projected==#renderer.drawTiles
             stable=stable and #renderer.visible==9 and renderer:terrainCoverage(0,0)
                 and renderer:terrainCoverage(50,50) and renderer.pending==0 and renderer.buildMs==0
             for key,tile in pairs(renderer.chunks)do stable=stable and original[key]==tile.mesh end
         end
         check('terrain_renderer_camera_changes_never_rebuild_or_evict_surface',stable and created==9
             and releases==0 and t.sampleCount==samples)
-        check('terrain_renderer_sort_projects_each_resident_tile_once',linear)
+        check('terrain_renderer_sort_projects_each_submitted_tile_once',linear)
         renderer:release();renderer:release()
         local releasedOnce=true
         for _,entry in ipairs(resources)do releasedOnce=releasedOnce and entry.released==1 end

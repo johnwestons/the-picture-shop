@@ -267,12 +267,14 @@ function save.save(slot, state, worldSnapshot)
         previous = read(slot)
         previousSource = nil
     end
+    local snapshot,snapshotReason=Schema.snapshot(state)
+    if not snapshot then return false,snapshotReason or "invalid_snapshot" end
     local payload = {
         version = Schema.VERSION,
         slot = slot,
         createdAt = previous and previous.createdAt or os.time(),
         updatedAt = os.time(),
-        state = Schema.snapshot(state),
+        state = snapshot,
         player = {
             x = worldSnapshot and worldSnapshot.x or Config.player.spawnX,
             y = worldSnapshot and worldSnapshot.y or Config.player.spawnY,

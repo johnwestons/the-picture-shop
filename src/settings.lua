@@ -1,6 +1,7 @@
 local Settings = {}
 local RabbitColorways = require("src.rabbit_colorways")
 local MotorcycleBindings = require('src.commute.bindings')
+local SilhouetteStyle = require('src.commute.silhouette_style')
 
 local PATH = "settings.lua"
 local DEFAULTS = {
@@ -17,6 +18,12 @@ local DEFAULTS = {
     masterVolume = 100,
     sfxVolume = 85,
     ambientVolume = 42,
+    mobileWalkSensitivity = 100,
+    mobileDriveSensitivity = 100,
+    mobileVehicleSteering = "radial",
+    mobileBikeSteering = "radial",
+    occlusionHighlightColor = SilhouetteStyle.DEFAULT_COLOR,
+    occlusionHighlightStyle = SilhouetteStyle.DEFAULT_STYLE,
     controlLayout = {
         joystick = { x = 0.105, y = 0.846 },
         primary = { x = 0.906, y = 0.846 },
@@ -29,6 +36,12 @@ local function clampPercent(value, fallback)
     value = tonumber(value)
     if not value or value ~= value then return fallback end
     return math.max(0, math.min(100, math.floor(value + 0.5)))
+end
+
+local function clampSensitivity(value)
+    value = tonumber(value)
+    if not value or value ~= value then return 100 end
+    return math.max(50, math.min(150, math.floor(value + 0.5)))
 end
 
 local function normalizePoint(value, fallback)
@@ -56,9 +69,17 @@ function Settings.normalize(value)
     value = type(value) == "table" and value or {}
     local furColorway, overallsColorway = RabbitColorways.normalize(
         value.furColorway, value.overallsColorway)
+    local occlusionHighlightColor,occlusionHighlightStyle=SilhouetteStyle.normalize(
+        value.occlusionHighlightColor,value.occlusionHighlightStyle)
     local lanConnectionMode = value.lanConnectionMode
     if lanConnectionMode ~= "wifi" and lanConnectionMode ~= "usb" then
         lanConnectionMode = "auto"
+    end
+    local mobileVehicleSteering=value.mobileVehicleSteering
+    if mobileVehicleSteering=="horizontal" then mobileVehicleSteering="bike-horizontal" end
+    if mobileVehicleSteering~="radial" and mobileVehicleSteering~="bike-horizontal"
+        and mobileVehicleSteering~="all-horizontal" then
+        mobileVehicleSteering=value.mobileBikeSteering=="horizontal" and "bike-horizontal" or "radial"
     end
     return {
         fullscreen = value.fullscreen == true,
@@ -74,6 +95,13 @@ function Settings.normalize(value)
         masterVolume = clampPercent(value.masterVolume, DEFAULTS.masterVolume),
         sfxVolume = clampPercent(value.sfxVolume, DEFAULTS.sfxVolume),
         ambientVolume = clampPercent(value.ambientVolume, DEFAULTS.ambientVolume),
+        mobileWalkSensitivity = clampSensitivity(value.mobileWalkSensitivity),
+        mobileDriveSensitivity = clampSensitivity(value.mobileDriveSensitivity),
+        mobileVehicleSteering=mobileVehicleSteering,
+        -- Keep the legacy key readable by older builds and settings consumers.
+        mobileBikeSteering=mobileVehicleSteering=="radial" and "radial" or "horizontal",
+        occlusionHighlightColor = occlusionHighlightColor,
+        occlusionHighlightStyle = occlusionHighlightStyle,
         controlLayout = normalizeLayout(value.controlLayout),
         motorcycleControls = MotorcycleBindings.normalize(value.motorcycleControls),
     }
@@ -92,12 +120,16 @@ end
 local function encode(value)
     value = Settings.normalize(value)
     local encoded = string.format(
-        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, hudVisible = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
+        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, hudVisible = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, mobileWalkSensitivity = %d, mobileDriveSensitivity = %d, mobileBikeSteering = %q, mobileVehicleSteering = %q, occlusionHighlightColor = %q, occlusionHighlightStyle = %q, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
         tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera),
         tostring(value.twelveHourTime), tostring(value.hudVisible),
         value.furColorway, value.overallsColorway, tostring(value.muted),
         value.lanConnectionMode, tostring(value.lanAutoJoin),
         value.masterVolume, value.sfxVolume, value.ambientVolume,
+        value.mobileWalkSensitivity, value.mobileDriveSensitivity,
+        value.mobileBikeSteering,
+        value.mobileVehicleSteering,
+        value.occlusionHighlightColor,value.occlusionHighlightStyle,
         value.controlLayout.joystick.x, value.controlLayout.joystick.y,
         value.controlLayout.primary.x, value.controlLayout.primary.y,
         value.controlLayout.extra1.x, value.controlLayout.extra1.y,

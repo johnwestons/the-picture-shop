@@ -36,7 +36,8 @@ function Structures.new(world)
     for _,p in ipairs(BridgeGeometry.build(world)) do add(p) end
     local infrastructure=require('src.commute.infrastructure').ensure(world)
     for _,p in ipairs(require('src.commute.infrastructure_geometry').build(infrastructure)) do add(p) end
-    self.canvas=g.newCanvas(1280,880);self.canvas:setFilter('linear','linear')
+    -- Structure crops use the fixed commute viewport's pixel coordinates.
+    self.canvas=g.newCanvas(1280,880,{dpiscale=1});self.canvas:setFilter('linear','linear')
     self.crop=g.newQuad(0,0,1,1,1280,880)
     return self
 end
@@ -83,7 +84,7 @@ function Structures:resizeViewport(width,height)
     if width==self.viewportWidth and height==self.viewportHeight then return false end
     self.canvas:release();self.crop:release()
     self.viewportWidth,self.viewportHeight=width,height
-    self.canvas=love.graphics.newCanvas(width,height);self.canvas:setFilter('linear','linear')
+    self.canvas=love.graphics.newCanvas(width,height,{dpiscale=1});self.canvas:setFilter('linear','linear')
     self.crop=love.graphics.newQuad(0,0,1,1,width,height)
     return true
 end

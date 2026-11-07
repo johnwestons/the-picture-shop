@@ -1,6 +1,12 @@
 local Codec = {}
 
 local ARRAY_METATABLE = {}
+local TAG_TRUE = string.byte("t")
+local TAG_FALSE = string.byte("f")
+local TAG_STRING = string.byte("s")
+local TAG_NUMBER = string.byte("d")
+local TAG_ARRAY = string.byte("a")
+local TAG_MAP = string.byte("m")
 local DEFAULT_LIMITS = {
     maxBytes = 4096,
     maxDepth = 12,
@@ -180,8 +186,9 @@ end
 local function readUnsigned(state, label)
     local startPosition = state.position
     local separator = startPosition
-    while separator <= state.length and state.data:byte(separator) ~= 58 do
+    while separator <= state.length do
         local byte = state.data:byte(separator)
+        if byte == 58 then break end
         if byte < 48 or byte > 57 then return nil, label .. " must be an unsigned integer" end
         separator = separator + 1
     end
@@ -199,12 +206,12 @@ local decodeValue
 
 decodeValue = function(state, depth)
     if state.position > state.length then return nil, "truncated value" end
-    local tag = state.data:sub(state.position, state.position)
+    local tag = state.data:byte(state.position)
     state.position = state.position + 1
-    if tag == "t" then return true end
-    if tag == "f" then return false end
+    if tag == TAG_TRUE then return true end
+    if tag == TAG_FALSE then return false end
 
-    if tag == "s" then
+    if tag == TAG_STRING then
         local length, lengthError = readUnsigned(state, "string length")
         if not length then return nil, lengthError end
         if length > state.limits.maxStringBytes then return nil, "string exceeds maxStringBytes" end
@@ -213,7 +220,7 @@ decodeValue = function(state, depth)
         local value = state.data:sub(state.position, finalPosition)
         state.position = finalPosition + 1
         return value
-    elseif tag == "d" then
+    elseif tag == TAG_NUMBER then
         local length, lengthError = readUnsigned(state, "number length")
         if not length then return nil, lengthError end
         if length > state.limits.maxNumberBytes then return nil, "number exceeds maxNumberBytes" end
@@ -227,7 +234,7 @@ decodeValue = function(state, depth)
         local canonical = canonicalNumber(value)
         if canonical ~= token then return nil, "non-canonical number" end
         return value
-    elseif tag ~= "a" and tag ~= "m" then
+    elseif tag ~= TAG_ARRAY and tag ~= TAG_MAP then
         return nil, "unknown value tag"
     end
 
@@ -239,7 +246,7 @@ decodeValue = function(state, depth)
     end
     state.entries = state.entries + count
 
-    if tag == "a" then
+    if tag == TAG_ARRAY then
         local result = setmetatable({}, ARRAY_METATABLE)
         for index = 1, count do
             local value, valueError = decodeValue(state, depth + 1)

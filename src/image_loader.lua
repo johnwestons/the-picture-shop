@@ -30,6 +30,18 @@ function Loader.request(path)
     queue[#queue+1]=path
     dispatch()
 end
+function Loader.promote(path)
+    if not Loader.enabled or not states[path] or states[path].image
+        or active==path or uploadPath==path then return false end
+    for index=#queue,1,-1 do
+        if queue[index]==path then
+            table.remove(queue,index)
+            table.insert(queue,1,path)
+            return true
+        end
+    end
+    return false
+end
 function Loader.cancel(path)
     if uploadPath==path then uploading:release();uploading,uploadPath=nil,nil end
     local record=states[path]

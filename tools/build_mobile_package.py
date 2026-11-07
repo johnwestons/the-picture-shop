@@ -45,12 +45,13 @@ COMMUTE_RUNTIME_GLOBS = (
     "assets/generated/commute-ride-actions-v1/*.png",
     "assets/generated/commute-ride-actions-v1/registration.lua",
     "assets/commute/bridge/*.png",
+    "assets/commute/truck/*.png",
     "assets/commute/truck/turntables/*.png",
+    "assets/commute/truck/kei-turntables/*.png",
     "assets/commute/truck/decals/*.png",
-    "assets/commute/truck/cockpit-overlay-v1.png",
-    "assets/commute/truck/cockpit-overlay-v2.png",
     "assets/commute/truck/interior-v1/*.png",
     "assets/commute/truck/interior-v2/*.png",
+    "assets/commute/ui/*.png",
     "assets/commute/buildings/warehouse.png",
     "assets/commute/cockpit/handlebars.png",
     "assets/commute/cockpit/first-person-bike-v2.png",
@@ -77,6 +78,7 @@ VIBES_MUSIC_TRACKS = (
     "this_is_not_your_song.wav",
     "time_time.wav",
 )
+WORKSHOP_RUNTIME_FILES = ("assets/workshop/wooden-blade-sleeve-v1.png",)
 # The standalone Frontier arcade is unfinished 2.5D content. Critter Crisis
 # keeps its internal compatibility modules, but Android ships neither its
 # player-facing entry screen nor its art bundle.
@@ -245,6 +247,36 @@ def runtime_music_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
     ]
 
 
+def runtime_workshop_paths(root: Path = ROOT) -> list[Path]:
+    """Resolve the explicit workshop art used by the shared warehouse runtime."""
+    if len(WORKSHOP_RUNTIME_FILES) != len(set(WORKSHOP_RUNTIME_FILES)):
+        raise RuntimeError("Duplicate workshop runtime asset allowlist entry")
+    resolved_root = root.resolve()
+    result = []
+    for relative in WORKSHOP_RUNTIME_FILES:
+        path = root / relative
+        resolved = path.resolve()
+        if (not relative.startswith("assets/workshop/")
+                or resolved_root not in resolved.parents
+                or "source" in path.relative_to(root).parts):
+            raise RuntimeError(f"Workshop runtime asset escapes its package root: {relative}")
+        if not path.is_file():
+            raise RuntimeError(f"Missing required workshop runtime asset: {relative}")
+        result.append(path)
+    return result
+
+
+def runtime_workshop_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
+    return [
+        {
+            "path": source.relative_to(root).as_posix(),
+            "bytes": source.stat().st_size,
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+        for source in runtime_workshop_paths(root)
+    ]
+
+
 def git_value(*arguments: str) -> str | None:
     try:
         return subprocess.check_output(
@@ -309,6 +341,10 @@ def copy_runtime(stage: Path) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
     for source in commute_paths:
+        destination = stage / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    for source in runtime_workshop_paths(ROOT):
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
@@ -462,6 +498,7 @@ def build(
         "runtimeBytes": sum(path.stat().st_size for path in runtime_files),
         "runtimeSourceAssets": runtime_source_manifest(stage),
         "runtimeMusicTracks": runtime_music_manifest(stage),
+        "runtimeWorkshopAssets": runtime_workshop_manifest(stage),
     }
     if route_manifest is not None:
         manifest["windowsRouteProvider"] = route_manifest

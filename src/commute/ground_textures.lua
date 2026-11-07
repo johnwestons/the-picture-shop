@@ -8,8 +8,9 @@ local Ground={TILE_UNITS=4,FORMAT={{'VertexPosition','float',2},{'WorldHeight','
 Ground.__index=Ground
 Ground.MAX_DESKTOP_UPLOAD_BYTES=4*1024*1024
 Ground.MAX_MOBILE_UPLOAD_BYTES=1024*1024
-function Ground.new()
-    local mobile=love.system.getOS()=='Android'
+function Ground.new(options)
+    options=options or {}
+    local mobile=options.mobile==true or love.system.getOS()=='Android'
     for _,v in ipairs(arg or {}) do if v=='--low-ground-memory' then mobile=true end end
     local cell=mobile and 128 or 256;local pad=mobile and 8 or 16
     local size=cell*4
@@ -34,11 +35,13 @@ function Ground.new()
     self.shader:send('atlasInset',(pad+.5)/size);self.shader:send('atlasInner',(inner-1)/size)
     self.shader:send('groundDepthSpan',65536)
     self.shader:send('detailStrength',0);self.shader:send('seasonTint',{1,1,1})
+    self.shader:send('detailFadeStart',65536);self.shader:send('detailFadeEnd',65537)
     self.shader:send('litterSeasonShift',0);self.shader:send('snowCoverage',0)
     self.shader:send('sunDirection',{0,1,0});self.shader:send('sunColor',{1,1,1})
     self.shader:send('sunlight',0);self.shader:send('ambientLight',.52)
     self.shader:send('moonDirection',{0,1,0});self.shader:send('moonColor',{.58,.69,.94})
-    self.shader:send('moonlight',0)
+    self.shader:send('moonlight',0);self.shader:send('waterSunDirection',{0,1,0})
+    self.shader:send('waterMoonDirection',{0,1,0})
     return self
 end
 function Ground:prepare()

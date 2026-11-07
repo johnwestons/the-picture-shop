@@ -349,6 +349,12 @@ local function loadAction(character, action)
     if not image then
         local reason
         image,reason=ImageLoader.load(metadata.path)
+        if not image and reason=="pending" and character=="suited-rider" then
+            -- The player can become suited after a crash while the ordinary
+            -- rabbit walk art is already resident. Let the needed riding
+            -- sprite jump ahead of unrelated queued texture loads.
+            ImageLoader.promote(metadata.path)
+        end
         if not image then
             if reason=="pending" then return nil end
             CharacterAssets.failures[#CharacterAssets.failures+1]=metadata.path..": "..tostring(reason)

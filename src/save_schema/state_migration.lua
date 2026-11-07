@@ -131,6 +131,8 @@ function Component.install(Runtime)
             and source.accountsReceivable or result.accountsReceivable
         result.reputation = type(source.reputation) == "table"
             and Runtime.copy(source.reputation) or result.reputation
+        result.deliveryDriver = type(source.deliveryDriver)=="table"
+            and Runtime.copy(source.deliveryDriver) or result.deliveryDriver
         Runtime.Reputation.ensure(result)
         result.cutterMemory = type(source.cutterMemory) == "table"
             and Runtime.copy(source.cutterMemory) or result.cutterMemory
@@ -140,6 +142,7 @@ function Component.install(Runtime)
         result.procurement.nextOrderId = result.procurement.nextOrderId or 1
         result.procurement.shipments = type(result.procurement.shipments) == "table" and result.procurement.shipments or {}
         result.procurement.nextShipmentId = result.procurement.nextShipmentId or 1
+        result.groceryStore = require("src.commute.grocery_inventory").normalize(source.groceryStore)
         result.vendorCategory = source.vendorCategory ~= nil and source.vendorCategory or result.vendorCategory
         result.calendar = type(source.calendar) == "table" and Runtime.copy(source.calendar) or result.calendar
         result.bills = type(source.bills) == "table" and Runtime.copy(source.bills) or result.bills

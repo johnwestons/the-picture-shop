@@ -8,6 +8,7 @@ local Skin=require('src.screens.title_skin')
 local Fonts=require('src.screens.title_fonts')
 local Preview=require('src.commute.town_preview')
 local Options=require('src.commute.island_options')
+local Codec=require('src.net.codec')
 local Setup={}
 local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,width=175,height=42},random={x=775,y=170,width=125,height=42},
     save={x=590,y=309,width=310,height=40},previous={x=590,y=511,width=52,height=36},
@@ -16,38 +17,149 @@ local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,wi
     cancel={x=215,y=597,width=150,height=43},start={x=700,y=597,width=200,height=43}}
 local fields={seed={x=590,y=118,width=310,height=42},name={x=590,y=259,width=310,height=40}}
 buttons.island={x=215,y=73,width=180,height=28}
+local progressCancel={x=380,y=408,width=200,height=44}
 local pageSize=4
+local generationSerial=0
 function Setup.buttonCenter(name)
     local b=buttons[name] or fields[name];return b.x+b.width/2,b.y+b.height/2
 end
 local function randomSeed()
     return (love and love.math and love.math.random or math.random)(1,2147483646)
 end
-local function show(state,town)
+local function seedNumber(value)
+    value=tostring(value or ''):upper()
+    if value:match('^%d+$') then
+        local seed=tonumber(value)
+        if seed and seed%1==0 and seed>=Town.MIN_SEED and seed<=Town.MAX_SEED then return seed end
+        return nil,'Enter a numeric seed from 1 to '..Town.MAX_SEED..'.'
+    end
+    if not value:match('^[%w]+$') then return nil,'Use letters and numbers for the town seed.' end
+    local hash=0
+    for i=1,#value do
+        local byte=value:byte(i)
+        local digit=byte>=48 and byte<=57 and byte-48 or byte>=65 and byte<=90 and byte-55 or nil
+        if not digit then return nil,'Use letters and numbers for the town seed.' end
+        hash=(hash*36+digit)%Town.MAX_SEED
+    end
+    return math.max(Town.MIN_SEED,hash)
+end
+local function show(state,town,seedText,ownedData)
     if state.terrainImage then state.terrainImage:release() end
     state.terrainImage=nil;state.terrainSamples=nil;state.selectedSite=nil
     state.settings=Options.copy(town.terrain.settings)
-    state.town=Town.copy(town);state.seedText=tostring(town.seed)
+    state.town=ownedData and town or Town.copy(town);state.seedText=seedText or tostring(town.seed)
     state.sites=Sites.create({placements=town.placements,designs=town.designs})
     state.dirty=false;state.focus=nil
 end
-function Setup.generate(state)
+local function generateNow(state)
     state.dirty=true
-    local seed=state.seedText:match('^%d+$') and tonumber(state.seedText)
-    if not seed or seed%1~=0 or seed<1 or seed>2147483646 then
-        state.message='Enter a seed from 1 to 2147483646.';return false
-    end
+    local seed,seedError=seedNumber(state.seedText)
+    if not seed then state.message=seedError;return false end
     local town,err=Town.generate(seed,{island=state.settings})
     if not town then state.message=err or 'Could not generate this town.';return false end
-    show(state,town);state.message='Town ready. Create shop to use this exact layout.';return true
+    show(state,town,state.seedText,true);state.message='Town ready. Create shop to use this exact layout.';return true
 end
-function Setup.new(options)
+
+local function clearJob(job)
+    if not job then return end
+    job.progressChannel:clear();job.resultChannel:clear();job.cancelChannel:clear()
+end
+
+function Setup.beginGeneration(state)
+    if state.previewJob then return false end
+    local seed,seedError=seedNumber(state.seedText)
+    if not seed then state.message=seedError;return false end
+    if not love or not love.thread or not love.thread.newThread then
+        state.message='Background town generation is unavailable on this device.';return false
+    end
+    local limits={maxBytes=65536,maxDepth=8,maxEntries=256,maxStringBytes=512,maxNumberBytes=32}
+    local config,encodeError=Codec.encode({seed=seed,island=state.settings},limits)
+    if not config then state.message='Could not prepare town generation: '..tostring(encodeError);return false end
+    generationSerial=generationSerial+1
+    local prefix=('town-preview-%d-%d'):format(os.time(),generationSerial)
+    local progressChannel=love.thread.getChannel(prefix..'-progress')
+    local resultChannel=love.thread.getChannel(prefix..'-result')
+    local cancelChannel=love.thread.getChannel(prefix..'-cancel')
+    progressChannel:clear();resultChannel:clear();cancelChannel:clear()
+    local okay,thread=pcall(love.thread.newThread,'src/commute/town_setup_worker.lua')
+    if not okay or not thread then
+        progressChannel:clear();resultChannel:clear();cancelChannel:clear()
+        state.message='Could not start town generation: '..tostring(thread);return false
+    end
+    local started,reason=pcall(thread.start,thread,config,prefix)
+    if not started then
+        progressChannel:clear();resultChannel:clear();cancelChannel:clear()
+        state.message='Could not start town generation: '..tostring(reason);return false
+    end
+    state.dirty=true
+    state.previewJob={thread=thread,progressChannel=progressChannel,resultChannel=resultChannel,
+        cancelChannel=cancelChannel,progress=0,label='Starting generator…',cancelRequested=false,
+        seed=seed,seedText=state.seedText}
+    state.message='Generating the town preview…'
+    return true
+end
+
+function Setup.generate(state)
+    if state.asyncGeneration then return Setup.beginGeneration(state) end
+    return generateNow(state)
+end
+
+function Setup.cancelGeneration(state)
+    local job=state and state.previewJob
+    if not job then return false end
+    if not job.cancelRequested then
+        job.cancelRequested=true;job.cancelChannel:push(true)
+        job.label='Cancelling generation…';state.message='Cancelling the town preview…'
+    end
+    return true
+end
+
+function Setup.update(state)
+    local job=state and state.previewJob
+    if not job then return false end
+    while job.progressChannel:getCount()>0 do
+        local message=job.progressChannel:pop()
+        if type(message)=='table' then
+            job.progress=math.max(0,math.min(1,tonumber(message.progress) or job.progress))
+            job.label=type(message.label)=='string' and message.label or job.label
+        end
+    end
+    local result=job.resultChannel:pop()
+    if result then
+        state.previewJob=nil;clearJob(job)
+        if job.cancelRequested or result.status=='cancelled' then
+            state.dirty=true;state.message='Preview generation cancelled. Adjust the seed or settings and try again.'
+        elseif result.status=='complete' then
+            local limits={maxBytes=8*1024*1024,maxDepth=16,maxEntries=500000,maxStringBytes=4096,maxNumberBytes=32}
+            local town,err=Codec.decode(result.town,limits)
+            if type(town)=='table' and town.seed==job.seed then
+                show(state,town,job.seedText,true);state.message='Town ready. Create shop to use this exact layout.'
+            else
+                state.dirty=true;state.message='Generated preview could not be loaded: '..tostring(err or 'invalid town data')
+            end
+        else
+            state.dirty=true;state.message=type(result.error)=='string' and result.error or 'Could not generate this town.'
+        end
+        return true
+    end
+    if not job.thread:isRunning() then
+        local err=job.thread:getError()
+        state.previewJob=nil;clearJob(job);state.dirty=true
+        state.message=job.cancelRequested and 'Preview generation cancelled.'
+            or 'Town generator stopped unexpectedly: '..tostring(err or 'unknown error')
+        return true
+    end
+    return false
+end
+
+function Setup.new(options,asyncGeneration)
     options=options or {}
     local items,err=Presets.load()
     local state={seedText=tostring(options.townSeed or randomSeed()),nameText='',items=items,
-        page=1,selected=nil,focus=nil,message='',dirty=true,terrainVisible=true}
+        page=1,selected=nil,focus=nil,message='Roll or enter a number or word, then generate a preview.',
+        settings=Options.copy(options.island),dirty=true,terrainVisible=true,asyncGeneration=asyncGeneration==true}
     if options.town and Town.valid(options.town) then show(state,options.town)
-    else Setup.generate(state) end
+    end
     if err then state.message=err end
     return state
 end
@@ -55,19 +167,22 @@ function Setup.wantsTextInput(state) return state and state.focus~=nil or false 
 function Setup.textinput(state,value)
     if not state.focus or type(value)~='string' then return false end
     local key=state.focus=='seed' and 'seedText' or 'nameText'
-    value=state.focus=='seed' and value:gsub('%D','') or value:gsub('[^%w %.%-]','')
+    value=state.focus=='seed' and value:gsub('[^%a%d]','') or value:gsub('[^%w %.%-]','')
     if state.replaceText then state[key]='';state.replaceText=false end
-    state[key]=(state[key]..value):sub(1,state.focus=='seed' and 10 or Presets.MAX_NAME)
+    state[key]=(state[key]..value):sub(1,state.focus=='seed' and 32 or Presets.MAX_NAME)
     if state.focus=='seed' then state.dirty=true end
     return true
 end
 local function action(state,name,options)
+    if state.previewJob then return 'changed' end
     state.focus=nil;state.replaceText=false
     if name=='back' or name=='cancel' then return name end
     if name=='island' then state.settings=state.settings or Options.copy();state.optionsPage=1
     elseif name=='terrain' then state.terrainVisible=not state.terrainVisible
     elseif name=='generate' then Setup.generate(state)
-    elseif name=='random' then state.seedText=tostring(randomSeed());Setup.generate(state)
+    elseif name=='random' then
+        state.seedText=tostring(randomSeed());state.dirty=true
+        state.message='Seed rolled. Generate a preview to see this town.'
     elseif name=='start' then
         if state.dirty or not state.town then state.message='Generate a preview before creating your shop.'
         elseif Town.valid(state.town) then options.town=Town.copy(state.town);options.townSeed=state.town.seed;return 'start' end
@@ -94,6 +209,10 @@ local function action(state,name,options)
     return 'changed'
 end
 function Setup.keypressed(state,key,options)
+    if state.previewJob then
+        if key=='escape' or key=='back' then Setup.cancelGeneration(state) end
+        return 'changed'
+    end
     if state.optionsPage then
         if key=='escape' or key=='back' then state.optionsPage=nil end
         return 'changed'
@@ -146,11 +265,15 @@ local function optionRows(state)
         function() state.optionsPage=state.optionsPage%pages+1 end)
     row(490,485,290,'Back to preview',function()
         state.optionsPage=nil
-        if state.dirty then Setup.generate(state) end
+        if state.dirty then state.message='Settings changed. Generate a preview to see them.' end
     end)
     return rows
 end
 function Setup.mousepressed(state,x,y,options)
+    if state.previewJob then
+        if Ui.contains(progressCancel,x,y) then Setup.cancelGeneration(state) end
+        return 'changed'
+    end
     if state.optionsPage then
         for _,row in ipairs(optionRows(state)) do
             if Ui.contains(row,x,y) then row.click();break end
@@ -245,12 +368,13 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
         text(i..'  '..Catalog.APARTMENTS[id].name,55+((i-1)%2)*250,544+math.floor((i-1)/2)*23,245,13,
             id==options.apartmentId and {1,.84,.3,1} or nil)
     end
-    text('TOWN SEED',590,92,310,17,{1,.86,.36,1})
+    text('TOWN SEED · LETTERS OK',590,92,310,17,{1,.86,.36,1})
     text('SAVE A NAMED TOWN',590,233,310,17,{1,.86,.36,1})
     for name,b in pairs(fields) do
         Skin.field(assets,b,state.focus==name and 'selected' or 'normal')
         local value=name=='seed' and state.seedText or state.nameText
-        text(value~='' and value or 'Town name',b.x+12,b.y+10,b.width-24,18)
+        text(value~='' and value or 'Town name',b.x+12,b.y+10,b.width-24,
+            name=='seed' and #value>24 and 15 or 18)
     end
     if #state.items==0 then text('No saved towns yet.',600,394,290,16,nil,'center') end
     for row=1,pageSize do
@@ -273,6 +397,21 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
         local font=Fonts.fit('metal',labels[name],15,b.width-16,b.height-12)
         love.graphics.setFont(font);love.graphics.setColor(disabled and {.5,.55,.52,1} or {.95,.98,.9,1})
         love.graphics.printf(labels[name],b.x+8,b.y+(b.height-font:getHeight())/2,b.width-16,'center')
+    end
+    if state.previewJob then
+        local g=love.graphics;local job=state.previewJob
+        g.setColor(.005,.012,.015,.78);g.rectangle('fill',0,0,960,684)
+        Skin.panel(assets,{x=220,y=244,width=520,height=202})
+        text('GENERATING TOWN PREVIEW',250,265,460,20,{1,.86,.36,1},'center')
+        text(job.label or 'Preparing town…',260,305,440,16,nil,'center')
+        g.setColor(.12,.19,.18,1);g.rectangle('fill',280,342,400,22,4,4)
+        g.setColor(.46,.74,.57,1);g.rectangle('fill',280,342,400*job.progress,22,4,4)
+        text(('%d%%'):format(math.floor(job.progress*100+.5)),280,370,400,14,nil,'center')
+        Skin.button(assets,progressCancel,job.cancelRequested and 'disabled' or 'normal')
+        local cancelFont=Fonts.fit('metal',job.cancelRequested and 'CANCELLING…' or 'CANCEL',15,progressCancel.width-16,progressCancel.height-12)
+        g.setFont(cancelFont);g.setColor(job.cancelRequested and {.58,.63,.59,1} or {.95,.98,.9,1})
+        g.printf(job.cancelRequested and 'CANCELLING…' or 'CANCEL',progressCancel.x+8,
+            progressCancel.y+(progressCancel.height-cancelFont:getHeight())/2,progressCancel.width-16,'center')
     end
 end
 return Setup

@@ -2,6 +2,13 @@
 local Traffic=require('src.commute.delivery_traffic')
 local Run={CAPACITY=10,VERSION=1}
 
+local function copy(value)
+    if type(value)~='table' then return value end
+    local result={}
+    for key,item in pairs(value) do result[key]=copy(item) end
+    return result
+end
+
 local localClients={
     {'wrenchworks','mechanic'},{'majic blue','mechanic'},{'mechanic','mechanic'},
     {'town grocery','grocery'},{'grocery','grocery'},{'town diner','diner'},
@@ -134,12 +141,20 @@ function Run.load(state,run)
     return true
 end
 
-function Run.completeStop(state,stop)
+function Run.completeStop(state,stop,driverDelivery)
     if type(stop)~='table' or type(stop.jobIds)~='table' then return false,'Invalid delivery stop.' end
     local service=require('src.job_service')
     for _,jobId in ipairs(stop.jobIds) do
+        local job=findJob(state,jobId)
+        local previousPerformance=job and job.driverDelivery
+        if type(driverDelivery)=='table' then
+            if job then job.driverDelivery=copy(driverDelivery) end
+        end
         local okay,reason=service.completePickup(state,jobId,os.time())
-        if not okay then return false,reason end
+        if not okay then
+            if job then job.driverDelivery=previousPerformance end
+            return false,reason
+        end
     end
     return true
 end
@@ -156,6 +171,11 @@ function Run.valid(value,home)
             or value.cutsceneStartedAtEpoch<0)
         or value.cutsceneEndsAtEpoch~=nil and (type(value.cutsceneEndsAtEpoch)~='number'
             or value.cutsceneEndsAtEpoch<0) then return false end
+    if (value.driverSkill~=nil and (type(value.driverSkill)~='number'
+            or value.driverSkill%1~=0 or value.driverSkill<0 or value.driverSkill>100))
+        or (value.driverEmployeeId~=nil and (type(value.driverEmployeeId)~='string'
+            or #value.driverEmployeeId>64 or not value.driverEmployeeId:match('^[%w_.%-]+$')))
+        or value.vehicleModel~=nil and value.vehicleModel~='box' and value.vehicleModel~='kei' then return false end
     local town=home and home.town
     local known={}
     for _,jobId in ipairs(value.jobIds) do
@@ -168,7 +188,10 @@ function Run.valid(value,home)
             or type(stop.id)~='string' or #stop.id>80 or type(stop.label)~='string' or #stop.label>120
             or type(stop.jobIds)~='table' or #stop.jobIds<1 or #stop.jobIds>Run.CAPACITY
             or type(stop.palletCount)~='number' or stop.palletCount<1 or stop.palletCount>Run.CAPACITY
-            or stop.palletCount%1~=0 then return false end
+            or stop.palletCount%1~=0
+            or (stop.standardArrivalAtHours~=nil and (type(stop.standardArrivalAtHours)~='number'
+                or stop.standardArrivalAtHours~=stop.standardArrivalAtHours
+                or stop.standardArrivalAtHours<0 or stop.standardArrivalAtHours>=1e12)) then return false end
         if stop.kind=='town' and town and not town.destinations[stop.id] then return false end
         for _,jobId in ipairs(stop.jobIds) do if not known[jobId] then return false end end
         counted=counted+stop.palletCount

@@ -5,6 +5,7 @@ function Test.run(context,check)
  local Animation=require("src.character_animation")
  local Routine=require("src.home_routine_pose");local Art=require("src.home_cooking_art")
  local Registration=require("src.home_cooking_registration");local State=require("src.state");local Schema=require("src.save_schema")
+ check("home_cook_pan_scale_matches_stove_burner",math.abs(Art.PAN_SCALE-.13)<.000001)
  local function install(state)
   state.home.inventory.stove=1;Furniture.materialize(state,false)
   local item=state.home.furniture.items[#state.home.furniture.items]

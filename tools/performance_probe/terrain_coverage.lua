@@ -1,5 +1,5 @@
--- PC acceptance: complete ground on the very first revealed view and after
--- every jump/zoom/ride/orbit. Initial loading is a separate measured phase.
+-- PC acceptance: complete ground residency and visible-radius coverage on the
+-- first reveal and after every jump/zoom/ride/orbit. Loading is separate.
 local Audit=require('tools.performance_probe.ground_coverage_audit')
 local Probe={}
 local function summary(values)
@@ -13,6 +13,10 @@ local function terrainStats(renderer)
     assert(type(result)=='table','Terrain coverage probe requires renderer:terrainStats()')
     return result
 end
+local function residentCount(stats)return stats.resident or stats.submitted or 0 end
+local function culledCount(stats)
+    return stats.culled or math.max(0,residentCount(stats)-(stats.submitted or residentCount(stats)))
+end
 local function saveImage(output,name,pixels)
     local bytes=pixels:encode('png');local file=assert(io.open(output..'/'..name..'.png','wb'))
     file:write(bytes:getString());file:close();bytes:release();pixels:release()
@@ -23,7 +27,11 @@ local function pump()
 end
 function Probe.run(output,identity)
     local timer=love.timer.getTime
+    local asyncPlantImages=os.getenv('PICTURE_SHOP_TERRAIN_ASYNC_IMAGES')=='1'
+    local imageLoader=asyncPlantImages and require('src.image_loader') or nil
+    if imageLoader then imageLoader.setEnabled(true) end
     local report={scenario='immediate-terrain-coverage',identity=identity,width=1280,height=880,vsync=0,
+        async_plant_images=asyncPlantImages,
         rows={},startup={},failures={},samples={},complete=false,
         timing_note='Actual window draw/present; first, early and final captures use GPU readback. PNG encoding and independent world-ray audits excluded from measured frame/adjusted series timings.'}
     local api,version,vendor,device=love.graphics.getRendererInfo()
@@ -76,16 +84,27 @@ function Probe.run(output,identity)
     end
     report.paintId=actor.paintId or 'bronze'
     local camera=Camera.new(actor,world);camera.zoom=.8;camera.targetZoom=.8
-    started=timer();local renderer=Renderer.new(world);report.startup.renderer_ms=(timer()-started)*1000
+    local forceMobile=os.getenv('PICTURE_SHOP_TERRAIN_FORCE_MOBILE')=='1'
+    local rendererOptions={mobile=forceMobile}
+    started=timer();local renderer=Renderer.new(world,nil,rendererOptions);report.startup.renderer_ms=(timer()-started)*1000
+    report.terrain_spacing=renderer.terrain.spacing
+    report.terrain_cache_ready=renderer.terrainCacheReady==true
+    report.terrain_cache_writable=renderer.terrainCacheWritable==true
+    report.mobile_policy=renderer.mobile==true
+    report.mobile_foliage_radius=Renderer.MOBILE_FOLIAGE_RADIUS
+    report.ground_atlas={mobile=renderer.ground.mobile,path=renderer.ground.atlasPath,
+        bytes=renderer.ground.bytes,width=renderer.ground.size}
     assert(type(renderer.terrainReady)=='function' and type(renderer.terrainCoverage)=='function',
-        'Terrain coverage probe requires terrainReady() and terrainCoverage(x,z[,camera])')
+        'Terrain coverage probe requires terrainReady() and terrainCoverage(x,z)')
+    local drawCoverage=renderer.terrainDrawCoverage or renderer.terrainCoverage
     started=timer();renderer:prewarmViews()
     local cockpit=require('src.commute.cockpit').new();if cockpit.prewarmFirstPerson then cockpit:prewarmFirstPerson() end
     report.startup.view_prewarm_ms=(timer()-started)*1000
     local loadFrames,loadSamples,loadAudit=0,{},0;local loadingStart=timer()
     while not renderer:terrainReady() do
         pump();loadFrames=loadFrames+1
-        local before=timer();renderer:prepare(camera,1/60);local stats=terrainStats(renderer)
+        local before=timer();if imageLoader then imageLoader.update() end
+        renderer:prepare(camera,1/60);local stats=terrainStats(renderer)
         loadingText(stats);local pixels
         if loadFrames==1 or renderer:terrainReady() then love.graphics.captureScreenshot(function(data)pixels=data end) end
         love.graphics.present();loadSamples[#loadSamples+1]=(timer()-before)*1000
@@ -100,7 +119,22 @@ function Probe.run(output,identity)
     report.startup.ground_mesh_allocations=initialGroundAllocations
     report.loading={frames=loadFrames,elapsed_ms=(timer()-loadingStart-loadAudit)*1000,
         frame_ms=#loadSamples>0 and summary(loadSamples) or nil,terrain=initial}
+    local TerrainCache=require('src.commute.terrain_cache')
+    local cacheComplete=TerrainCache.available(renderer.terrainStore)
+    local cacheTile=renderer.terrain.tiles[1]
+    local cachedTile,cacheReason
+    if cacheComplete then cachedTile,cacheReason=TerrainCache.readTile(renderer.terrainStore,cacheTile,true)
+    else cacheReason='cache_incomplete' end
+    report.terrain_cache={complete=cacheComplete,writable=renderer.terrainCacheWritable==true,
+        warm_load_used=renderer.terrainCacheReady==true,
+        directory=renderer.terrainStore and renderer.terrainStore.directory,
+        estimated_full_path_length=#love.filesystem.getSaveDirectory()+1+#(renderer.terrainStore and renderer.terrainStore.directory or ''),
+        write_failure=renderer.terrainCacheFailure,
+        sample_tile=cacheTile and cacheTile.key,sample_read=cachedTile~=nil,sample_reason=cacheReason,
+        sample_vertices=cachedTile and cachedTile.vertexCount,sample_indices=cachedTile and cachedTile.indexCount}
+    initial.resident=residentCount(initial);initial.culled=culledCount(initial)
     check('loading_reaches_complete_world',initial.ready~=false and initial.completed==initial.total and initial.total>0
+        and initial.resident==initial.total and initial.submitted<=initial.resident
         and initial.vertices>0 and initial.meshBytes>0 and initial.uncovered==0,initial)
     write()
     local longest,longestId
@@ -139,30 +173,100 @@ function Probe.run(output,identity)
             remaining=remaining-length
         end
     end
+    local componentProfile={stage=nil,samples={},current=nil}
+    local function pack(...) return {n=select('#',...),...} end
+    local function instrument(target,key,name)
+        local original=target and target[key]
+        if type(original)~='function' then return end
+        target[key]=function(...)
+            local started=timer();local values=pack(original(...));local elapsed=(timer()-started)*1000
+            local stageName=componentProfile.stage
+            if stageName then
+                local stage=componentProfile.samples[stageName]
+                local samples=stage[name]
+                if not samples then samples={};stage[name]=samples end
+                samples[#samples+1]=elapsed
+                if componentProfile.current then
+                    componentProfile.current[name]=(componentProfile.current[name] or 0)+elapsed
+                end
+            end
+            return unpack(values,1,values.n)
+        end
+    end
+    instrument(renderer,'prepareTerrain','terrain_prepare')
+    instrument(renderer,'coverageRadius','coverage_radius')
+    instrument(renderer,'updateTerrainDrawList','terrain_draw_list')
+    instrument(renderer,'props','props_total')
+    instrument(renderer.grassFields,'collect','grass_collect')
+    instrument(renderer.plantMotion,'update','plant_motion')
+    instrument(renderer.plantSprites,'prepare','plant_prepare')
+    instrument(renderer.vegetation,'visible','vegetation_visible')
+    instrument(renderer,'drawGrass','draw_grass')
+    instrument(renderer,'drawTerrain','draw_terrain_submit')
+    instrument(renderer,'drawRoads','draw_roads')
+    instrument(renderer,'drawOutsideActor','draw_actor')
+    instrument(renderer,'headlight','draw_headlight')
+    instrument(renderer.structures,'drawOutsideDepth','draw_structures_depth')
+    instrument(renderer.structures,'drawOutsidePropsDepth','draw_structures_props')
+    instrument(renderer.structures,'drawFirstPerson','draw_structures_first_person')
+    instrument(renderer.plantSprites,'drawPlant','draw_plant_sprites')
     local function stage(name,count,update)
         collectgarbage('collect')
         local samples,captures={},{};local auditSeconds=0
+        componentProfile.stage=name;componentProfile.samples[name]={}
         local stageStart=timer()
         for index=1,count do
             pump();local before=timer()
+            if imageLoader then imageLoader.update() end
             Rider.update(rider,{},1/60,world)
             if update then update(index) else actor.speed=0 end
             camera:updateRide(rider,1/60)
             local updateMs=(timer()-before)*1000
+            componentProfile.current={}
             local t=timer();renderer:prepare(camera,1/60);local prepareMs=(timer()-t)*1000
+            local prepareComponents=componentProfile.current;componentProfile.current=nil
             local stats=terrainStats(renderer)
+            local resident=residentCount(stats)
+            local submitted=stats.submitted or resident
+            local culled=culledCount(stats)
+            local plantPrepareRan=prepareComponents.plant_prepare~=nil
             local row={index=index,update_ms=updateMs,prepare_ms=prepareMs,pending=renderer.pending or 0,
-                ready=renderer:terrainReady(),uncovered=stats.uncovered,completed=stats.completed,total=stats.total,submitted=stats.submitted,
+                ready=renderer:terrainReady(),uncovered=stats.uncovered,completed=stats.completed,total=stats.total,
+                resident=resident,submitted=submitted,culled=culled,
                 vertices=stats.vertices,mesh_bytes=stats.meshBytes,terrain_mesh_allocations=groundAllocations-initialGroundAllocations,
                 actor_x=actor.x,actor_z=actor.z,
                 camera_x=camera.centerX,camera_z=camera.centerZ,zoom=camera.zoom,first_person=camera.firstPerson==true}
-            check(name..':ground_ready:'..index,row.ready and row.uncovered==0 and row.completed==row.total and row.submitted==row.total,row)
+            row.prepare_components_ms=prepareComponents
+            row.plant_prepare_internal_ms=plantPrepareRan and (renderer.plantSprites.lastPrepareMs or 0) or 0
+            row.plant_upload_ms=plantPrepareRan and (renderer.plantSprites.lastUploadMs or 0) or 0
+            row.plant_upload_bytes=plantPrepareRan and (renderer.plantSprites.lastPrepareBytes or 0) or 0
+            row.plant_page_bytes=renderer.plantSprites.bytes or 0
+            row.plant_motion_bytes=renderer.plantSprites.motionBytes or 0
+            row.visible_props=#(renderer.visibleProps or {})
+            local grassStats=renderer.grassFields and renderer.grassFields:stats() or {}
+            local vegetationStats=renderer.vegetation and renderer.vegetation:stats() or {}
+            row.grass_visible=grassStats.visible or 0
+            row.grass_build_ms=grassStats.buildMs or 0
+            row.grass_mesh_bytes=grassStats.meshBytes or 0
+            row.grass_pending=grassStats.pending and 1 or 0
+            row.grass_built=grassStats.built or 0
+            row.grass_steps=grassStats.steps or 0
+            row.vegetation_pending=vegetationStats.pending or 0
+            row.vegetation_cached_patches=vegetationStats.patches or 0
+            row.vegetation_generated=vegetationStats.generated or 0
+            row.vegetation_builds=vegetationStats.built or 0
+            row.vegetation_job=renderer.vegetation and renderer.vegetation._visibleJob and 1 or 0
+            check(name..':ground_ready:'..index,row.ready and row.uncovered==0 and row.completed==row.total
+                and row.resident==row.total and row.submitted<=row.resident
+                and row.culled==row.resident-row.submitted,row)
             check(name..':resident_mesh_stable:'..index,stats.total==initial.total and stats.completed==initial.completed
                 and stats.vertices==initial.vertices and stats.meshBytes==initial.meshBytes and row.terrain_mesh_allocations==0,row)
             t=timer();love.graphics.setCanvas();love.graphics.origin()
+            componentProfile.current={}
             renderer:draw(camera,actor,{{actor=actor,bikeOnly=false}})
             cockpit:draw(actor,rider.gear.engine,1280,880,nil,camera)
             love.graphics.flushBatch();row.draw_ms=(timer()-t)*1000
+            row.draw_components_ms=componentProfile.current;componentProfile.current=nil
             local graphics=love.graphics.getStats();row.draw_calls=graphics.drawcalls;row.texture_bytes=graphics.texturememory
             local capture=index==1 or index==8 or index==60 or index==count
             if capture then
@@ -173,7 +277,7 @@ function Probe.run(output,identity)
             if capture then
                 local auditStart=timer();local points=Audit.samples(camera,world);local missing={}
                 for _,p in ipairs(points) do
-                    if renderer:terrainCoverage(p.x,p.z,camera)~=true then missing[#missing+1]=p end
+                    if drawCoverage(renderer,p.x,p.z)~=true then missing[#missing+1]=p end
                 end
                 row.coverage_rays=#points;row.uncovered_rays=#missing
                 row.coverage_audit_ms=(timer()-auditStart)*1000;auditSeconds=auditSeconds+row.coverage_audit_ms/1000
@@ -191,6 +295,20 @@ function Probe.run(output,identity)
             row.metrics[key]=summary(values)
         end
         for _,sample in ipairs(samples) do if sample.frame_ms>1000/60 then row.over_16_67ms=row.over_16_67ms+1 end end
+        row.prepare_components_ms={}
+        for component,values in pairs(componentProfile.samples[name]) do
+            row.prepare_components_ms[component]=summary(values)
+        end
+        local drawComponents={}
+        for _,sample in ipairs(samples) do
+            for component,value in pairs(sample.draw_components_ms or {}) do
+                drawComponents[component]=drawComponents[component] or {}
+                drawComponents[component][#drawComponents[component]+1]=value
+            end
+        end
+        row.draw_components_ms={}
+        for component,values in pairs(drawComponents) do row.draw_components_ms[component]=summary(values) end
+        componentProfile.stage=nil
         row.frame_budget_pass=row.metrics.frame_ms.p95<=1000/60
         report.rows[#report.rows+1]=row;report.samples[name]=samples
         for _,capture in ipairs(captures) do saveImage(output,name..'-frame-'..capture.index,capture.data) end
@@ -214,6 +332,7 @@ function Probe.run(output,identity)
     report.performance_pass=true
     for _,row in ipairs(report.rows) do if not row.frame_budget_pass then report.performance_pass=false end end
     report.final_terrain=terrainStats(renderer);write();renderer:release();love.graphics.newMesh=originalNewMesh
+    if imageLoader then imageLoader.shutdown();imageLoader.setEnabled(false) end
     love.event.quit(report.pass and report.performance_pass and 0 or 1)
 end
 return Probe

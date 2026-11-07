@@ -10,6 +10,7 @@ function Test.run(context,check)
     local Schema=require('src.save_schema')
     local state=context.State.new()
     state.home.town=assert(require('src.commute.town').generate(712345))
+    state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
     local now=0
     local network=Harness.new({maxClients=3,classify=function(bytes)local v=Protocol.decode(bytes);return v and v.type or 'invalid' end})
     local host=Session.new({transportFactory=network.factory,clock=function()return now end})
@@ -66,7 +67,8 @@ function Test.run(context,check)
         local g=Session.new({transportFactory=network.factory,clock=function()return now end})
         guests[i]=g;locals[i]=player(i+1);contexts[i]={localPlayer=locals[i],inputX=0,inputY=0}
         assert(g:startClient('192.168.1.93:22122',{name='Guest '..i,character=hp.character,residentToken=string.rep(tostring(credential or i),64)}))
-        g.clientNonce='independent-'..i..'-'..math.floor(now*10);pump(10);assert(g.ready)
+        g.clientNonce='independent-'..i..'-'..math.floor(now*10);pump(10)
+        assert(g.ready,('Guest %d failed to join: %s'):format(i,tostring(g.status)))
         return g
     end
     for i=1,3 do join(i) end
@@ -165,10 +167,12 @@ function Test.run(context,check)
     check('independent_guest_truck_moves_while_host_is_indoors',driver.rider.vehicle=='truck'
         and math.abs(t.truck.x-truckX)+math.abs(t.truck.z-truckZ)>.05 and hp.sceneId=='warehouse')
     local bystander=t.participants[guests[2].residentId]
-    bystander.rider.ped.x,bystander.rider.ped.z=t.truck.x,t.truck.z
+    bystander.rider.ped.x,bystander.rider.ped.z=t.keiTruck.x,t.keiTruck.z
+    C.syncPlayer(p3,bystander)
     assert(guests[2]:requestInteraction('commute','truck:'..token));pump()
-    check('independent_shared_truck_has_one_driver',not received[2].interaction_result.accepted
-        and t.truck.driver==guests[3].residentId)
+    check('independent_box_and_kei_trucks_have_distinct_drivers',received[2].interaction_result.accepted
+        and t.truck.driver==guests[3].residentId and t.keiTruck.driver==guests[2].residentId
+        and bystander.rider.truck==t.keiTruck and bystander.rider.truck.model=='kei')
     -- Exercise delivery authority at a stop, then the actual warehouse entrance.
     t.truck.speed=0;t.truck.x,t.truck.z=store.parking.x,store.parking.z
     assert(guests[3]:requestInteraction('commute','truck:'..token));pump()

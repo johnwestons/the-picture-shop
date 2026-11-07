@@ -229,11 +229,7 @@ function Transport.storeSupplies(state,worker,dt,context)
     local rackId="warehouse-rack"
     local rack=state.storage and state.storage.racks[rackId]
     if not rack or jack.sceneId~="warehouse" then return finishStocking() end
-    local slots=Storage.slots(state,rackId)
-    local column
-    for index=1,Storage.COLUMNS do
-        if not slots[1][index] then column=index;break end
-    end
+    local column,occupied=Storage.firstOpenBottomSlot(state,rackId)
     if not column then return finishStocking() end
     local pallet
     if jack.carriedPalletId then
@@ -279,7 +275,7 @@ function Transport.storeSupplies(state,worker,dt,context)
     local goal
     if context.jackShelfPoint then
         for candidate=1,Storage.COLUMNS do
-            if not slots[1][candidate] then
+            if not occupied[candidate] then
                 goal=context.jackShelfPoint(worker,rackId,candidate)
                 if goal then column=candidate;break end
             end

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "created": "2026-11-06",
+  "tool": "image_gen.imagegen",
+  "path": "alarm-clock-animated-v1.png",
+  "source": "C:/Users/johnw/.codex/generated_images/01a1a90c-0363-7bf1-b26d-3c6584600b13/exec-b8f815b8-f40a-4b40-9813-437e77db56aa.png",
+  "copiedWithoutPixelEdits": true,
+  "sha256": "e7333ff41d589c2ab47af804d9b3727daac9d8842b0d9e02a5771176a841503e",
+  "width": 1774,
+  "height": 887,
+  "columns": 2,
+  "rows": 1,
+  "cellWidth": 887,
+  "cellHeight": 887,
+  "frames": ["dim", "alarm-active"],
+  "transparentBackground": true,
+  "prompt": "Two aligned transparent sprite frames of one hand-painted dark plastic digital bedside alarm clock. The first frame is dim, the second has a subtle amber display glow and active indicator. Both display windows are blank so the game can draw the current time using its selected 12-hour or 24-hour format."
+}

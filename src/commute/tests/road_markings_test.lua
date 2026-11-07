@@ -68,6 +68,6 @@ function Test.run(check)
             and close(v[3],height(v[1])+.09)
     end
     check('road_markings_four_stalls_are_ground_mesh_for_both_cameras',
-        lotStats.parkingStalls==4 and #painted-#vertices==36 and aligned)
+        lotStats.parkingStalls==4 and #painted-#vertices==42 and aligned)
 end
 return Test

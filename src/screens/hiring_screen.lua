@@ -40,7 +40,7 @@ end
 function Hiring.employeeCountText(state)
     local count=Employees.employedCount(state)
     local text=string.format("%d/%d employees",count,Employees.MAX_STAFF)
-    return count>=Employees.MAX_STAFF and text.." — payroll full" or text
+    return count>=Employees.MAX_STAFF and text.." — unique roster full" or text
 end
 function Hiring.open(ui,id) ui.section="applications";ui.view="detail";ui.selectedId=id;ui.terms=nil end
 function Hiring.buttonCenter(name)
@@ -69,7 +69,7 @@ local function choices(state,ui)
     ui.machineIndex=math.min(math.max(1,ui.machineIndex),math.max(1,#machines))
     return job,pallets[ui.palletIndex],machines[ui.machineIndex],#jobs,#pallets,#machines
 end
-function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
+function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages,twelveHourTime)
     if canPayWages==nil then canPayWages=true end
     local e=Employees.ensure(state)
     local function hit(name) return Ui.contains(buttons[name],x,y) end
@@ -151,7 +151,12 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
         elseif ui.view=="offer" and hit("payMinus") then t.payWeeks=math.max(1,t.payWeeks-1)
         elseif ui.view=="offer" and hit("payPlus") then t.payWeeks=math.min(4,t.payWeeks+1)
         elseif hit("send") then
-            if not Contracts.hasOpenHours(t) then state.message="Choose some hours while the shop is open; closed Fri 20:00 - Mon 09:00.";return {action="blocked"} end
+            if not Contracts.hasOpenHours(t) then
+                state.message="Choose some hours while the shop is open; closed Fri "
+                    ..Calendar.formatTime(20,0,twelveHourTime).." - Mon "
+                    ..Calendar.formatTime(9,0,twelveHourTime).."."
+                return {action="blocked"}
+            end
             local result
             if ui.view=="renegotiate" then
                 result=send({kind="change_employee_hours",employeeId=current.id,
@@ -196,7 +201,7 @@ function Hiring.mousepressed(state,ui,x,y,command,readOnly,canPayWages)
                 return {action="blocked"}
             end
             if Employees.employedCount(state)>=Employees.MAX_STAFF then
-                state.message="Payroll is full. Dismiss an employee before hiring another."
+                state.message="The unique employee roster is full. Dismiss an employee before hiring another."
                 return {action="blocked"}
             end
             return send({kind="hire_employee",applicationId=current.id,expectedRevision=current.revision})
@@ -304,12 +309,12 @@ local function workDays(contract)
     end
     return table.concat(days," ")
 end
-function Hiring.staffScheduleStatus(state,w)
+function Hiring.staffScheduleStatus(state,w,twelveHourTime)
     if not Contracts.hasOpenHours(w.contract) then return "No open shift","Change days/hours: this agreement falls during shop closure." end
     local now=Calendar.absoluteHours(state)
     if require("src.business_hours").nextOpen(now)>now or require("src.weekend_flow").shopClosed(state) then
         local nextAt=Contracts.onShift(w.contract,now) and now or Contracts.nextStart(w.contract,now)
-        return "Shop closed / work waiting",nextAt and "Next open shift: "..Calendar.dateTimeTextAtHours(nextAt).."; shop must reopen." or "No shift falls during open hours."
+        return "Shop closed / work waiting",nextAt and "Next open shift: "..Calendar.dateTimeTextAtHours(nextAt,twelveHourTime).."; shop must reopen." or "No shift falls during open hours."
     end
     local team=Schedule.team(state)
     if w.assignment then return w.activity,nil end
@@ -485,7 +490,8 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         button("nightShift","NIGHT "..Contracts.formatHour(20,twelveHourTime).."-"
             ..Contracts.formatHour(8,twelveHourTime),pointerX,pointerY,
             not Contracts.preferenceAllows(current.shiftPreference,20))
-        line("Shift starts / closed Fri 20:00 - Mon 09:00",412,430,420)
+        line("Shift starts / closed Fri "..Calendar.formatTime(20,0,twelveHourTime)
+            .." - Mon "..Calendar.formatTime(9,0,twelveHourTime),412,430,420)
         for i,name in ipairs({"MON","TUE","WED","THU","FRI","SAT","SUN"}) do
             local r=dayRect(i)
             love.graphics.setColor(.16,Contracts.hasDay(t.days,i) and .43 or .22,.28,1)
@@ -570,8 +576,9 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             love.graphics.setColor(1,1,1,1);love.graphics.draw(image,quad,784,370,0,.39,.39,ax,ay)
         end
         line("RESUME ATTACHED",410,288,300)
-        line(string.format("Cutter %d/100  |  Press %d/100\nPallet wrapping %d/100  |  Attention %d  |  Reliability %d",
-            current.cutterSkill,current.pressSkill,current.wrappingSkill,current.attention,current.reliability),410,316,326)
+        line(string.format("Cutter %d/100  |  Press %d/100\nPallet wrapping %d/100  |  Driving %d/100\nAttention %d  |  Reliability %d",
+            current.cutterSkill,current.pressSkill,current.wrappingSkill,current.drivingSkill or 55,
+            current.attention,current.reliability),410,316,326)
         line(string.format("Requested pay: $%.2f/hr",current.requestedWage/100),410,386,426)
         line("Shift preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),410,412,426)
         line(labels[current.status] or current.status,410,466,426,{1,.85,.45})
@@ -602,13 +609,16 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
             oneLine(w.activity or "Awaiting delivery orders",410,354,426,{1,.85,.45})
             oneLine(string.format("Company truck: %s  |  Fuel %.1f / %.0f L",truckStatus,truck.fuelLiters,
                 require("src.company_delivery_driver").TANK_LITERS),410,382,426,{.61,.78,.67})
+            oneLine(string.format("Driving skill: %d/100  |  Route speed: %d%%",
+                w.drivingSkill or 55,math.floor(require("src.company_delivery_driver").speedMultiplier(w.drivingSkill)*100+.5)),
+                410,398,426,{.61,.78,.67})
             oneLine(truck.deliveryRun and string.format("Current route: %d stop(s) remaining",
                 math.max(0,#truck.deliveryRun.stops-truck.deliveryRun.stopIndex+1))
-                or "The driver dispatches when wrapped orders are ready.",410,408,426)
+                or "The driver dispatches when wrapped orders are ready.",410,424,426)
         else
             oneLine(string.format("Cutter %d/100  |  Press %d/100  |  Wrapping %d/100",
                 w.cutterSkill,w.pressSkill,w.wrappingSkill),410,348,426)
-            local scheduleStatus,scheduleDetail=Hiring.staffScheduleStatus(state,w)
+            local scheduleStatus,scheduleDetail=Hiring.staffScheduleStatus(state,w,twelveHourTime)
             oneLine(w.training and string.format("Training: %s (%.1f paid hours left)",w.training.skill,w.training.remainingHours)
                 or scheduleStatus or w.activity,410,374,426,{1,.85,.45})
             local assignedMachine=w.assignment and Fleet.byId(state,w.assignment.machineId)

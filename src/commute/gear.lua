@@ -32,7 +32,10 @@ end
 function Gear.pose(g)
     if g.transition then
         if g.transition.kind=='mount' then
-            return 'mount',math.min(1,g.transition.elapsed/Gear.duration('mount'))
+            -- The authored mount strip takes .8 seconds. Keep its seated final
+            -- frame visible while the separate ignition step finishes, so the
+            -- rider does not jump from a half-mounted pose onto the bike atlas.
+            return 'mount',math.min(1,g.transition.elapsed/sequences.mount[1][2])
         end
         if g.transition.kind=='dismount' then
             return 'dismount',math.min(1,g.transition.elapsed/Gear.duration('dismount'))

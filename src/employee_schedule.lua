@@ -157,9 +157,15 @@ local function activeOther(state,w,machineId,palletId)
     end
     return false
 end
-local function machineReady(state,machine,model)
+local function machineReady(state,machine,model,w,palletId)
     if not machine or machine.modelId~=model or machine.status~="installed" then
         return false,"Scheduled machine is unavailable"
+    end
+    local existingCutterSkid=w and w.assignment and w.assignment.machineId==machine.id
+        and w.assignment.palletId==palletId
+    if model=="polar_115" and machine.maintenance.cutter.technicianStatus=="waiting_for_skid"
+        and not existingCutterSkid then
+        return false,"Weekly blade service is waiting for the current skid to finish"
     end
     local operable,reason=Fleet.canOperate(state,model,machine.id)
     if not operable then return false,reason or "Scheduled machine needs service" end
@@ -349,7 +355,7 @@ function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
     local playerOccupied=false
     local employeeOccupied=false
     for _,machine in ipairs(machines) do
-        local okay,readinessReason=machineReady(state,machine,model)
+        local okay,readinessReason=machineReady(state,machine,model,w,pallet.id)
         if not okay then failure=readinessReason or failure end
         if okay and activeOther(state,w,machine.id,pallet.id) then employeeOccupied=true end
         if okay and canClaim and not canClaim(machine.id) then playerOccupied=true end

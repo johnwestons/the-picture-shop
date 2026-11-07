@@ -4,6 +4,7 @@ local Settings = require("src.settings")
 local RabbitColorways = require("src.rabbit_colorways")
 local CharacterAssets = require("src.character_assets")
 local Ui = require("src.screens.ui")
+local SilhouetteStyle = require("src.commute.silhouette_style")
 
 local OptionsScreen = {
     tab = "game",
@@ -15,6 +16,7 @@ local OptionsScreen = {
     editField = nil,
     editBuffer = "",
     draggingControl = nil,
+    draggingSensitivity = nil,
     context = nil,
 }
 
@@ -56,6 +58,8 @@ local GAME_ROWS = {
     { id = "vsync", label = "Vertical sync", kind = "toggle" },
     { id = "followPlayerCamera", label = "Follow player camera", kind = "toggle" },
     { id = "twelveHourTime", label = "Time format", kind = "choice" },
+    { id = "occlusionHighlightColor", label = "Hidden-player color", kind = "cycle" },
+    { id = "occlusionHighlightStyle", label = "Hidden-player display", kind = "choice" },
 }
 local AUDIO_ROWS = {
     { id = "masterVolume", label = "Master volume", kind = "level" },
@@ -63,8 +67,16 @@ local AUDIO_ROWS = {
     { id = "ambientVolume", label = "Ambience volume", kind = "level" },
     { id = "muted", label = "Mute all audio", kind = "toggle" },
 }
-local CONTROL_PREVIEW = { x = 205, y = 176, width = 550, height = 350 }
-local RESET_CONTROLS = { x = 370, y = 548, width = 220, height = 42 }
+local CONTROL_PREVIEW = { x = 205, y = 176, width = 550, height = 238 }
+local RESET_CONTROLS = { x = 164, y = 548, width = 210, height = 42 }
+local MOBILE_STEERING_MODE = { x = 382, y = 548, width = 210, height = 42 }
+local MOTORCYCLE_CONTROLS = { x = 604, y = 548, width = 210, height = 42 }
+local SENSITIVITY_MIN, SENSITIVITY_MAX = 50, 150
+local SENSITIVITY_TRACK = { x = 420, width = 308 }
+local SENSITIVITY_ROWS = {
+    { id = "mobileWalkSensitivity", label = "WALKING STICK", y = 420 },
+    { id = "mobileDriveSensitivity", label = "DRIVING STICK", y = 462 },
+}
 local COLORWAY_GROUPS = {
     { id = "furColorway", group = "fur", label = "FUR", y = 230 },
     { id = "overallsColorway", group = "overalls", label = "OVERALLS", y = 390 },
@@ -163,6 +175,7 @@ function OptionsScreen.enter(context)
     OptionsScreen.cheatPage = "resources"
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
+    OptionsScreen.draggingSensitivity = nil
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
         and "Audio and game settings are local. Save cheats are host-only."
         or "Changes are saved immediately."
@@ -191,6 +204,7 @@ function OptionsScreen.returnToMenu()
     if okay then
         OptionsScreen.motorcycleEditor=nil
         OptionsScreen.editField,OptionsScreen.editBuffer,OptionsScreen.draggingControl=nil,'',nil
+        OptionsScreen.draggingSensitivity=nil
     else
         OptionsScreen.message=reason or 'Could not return to the menu. Please try again.'
         if OptionsScreen.motorcycleEditor then OptionsScreen.motorcycleEditor.message=OptionsScreen.message end
@@ -229,6 +243,7 @@ local function selectTab(tab)
     OptionsScreen.tab, OptionsScreen.selectedRow = tab, 1
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
+    OptionsScreen.draggingSensitivity = nil
     OptionsScreen.message = tab == "controls"
         and "Drag each control to a comfortable position."
         or tab == "cheats"
@@ -263,12 +278,46 @@ local function toggleSetting(id)
     return true
 end
 
-local function setTimeFormat(twelveHour)
+local setChoice
+
+local function choiceOptions(id)
+    if id=="twelveHourTime" then
+        return {{value=true,label="12 HOUR"},{value=false,label="24 HOUR"}}
+    elseif id=="occlusionHighlightStyle" then
+        return {{value="filled",label="FILLED"},{value="outline",label="OUTLINE"}}
+    elseif id=="occlusionHighlightColor" then
+        local options={}
+        for _,color in ipairs(SilhouetteStyle.COLOR_ORDER) do
+            options[#options+1]={value=color,label=SilhouetteStyle.LABELS[color]}
+        end
+        return options
+    end
+    return {}
+end
+
+setChoice=function(id,value)
     local context = OptionsScreen.context
     if not context then return false end
-    context.settings.twelveHourTime = twelveHour == true
+    if id=="twelveHourTime" then context.settings.twelveHourTime=value==true
+    else context.settings[id]=value end
     persistSettings()
     return true
+end
+
+local function currentChoiceIndex(id,options)
+    local current=OptionsScreen.context.settings[id]
+    for index,option in ipairs(options) do
+        if option.value==current then return index end
+    end
+    return 1
+end
+
+local function stepChoice(id,delta)
+    local options=choiceOptions(id)
+    if #options==0 or not OptionsScreen.context then return false end
+    local index=currentChoiceIndex(id,options)
+    index=(index-1+delta)%#options+1
+    return setChoice(id,options[index].value)
 end
 
 local function adjustSetting(id, delta)
@@ -409,11 +458,64 @@ local function moveDraggedControl(x, y)
     return true
 end
 
+local function sensitivityRowRect(row)
+    return { x = SENSITIVITY_TRACK.x - 12, y = row.y,
+        width = SENSITIVITY_TRACK.width + 24, height = 34 }
+end
+
+local function sensitivityAt(x, y)
+    for _, row in ipairs(SENSITIVITY_ROWS) do
+        if Ui.contains(sensitivityRowRect(row), x, y) then return row.id end
+    end
+end
+
+local function moveSensitivity(x)
+    local id = OptionsScreen.draggingSensitivity
+    local context = OptionsScreen.context
+    if not id or not context then return false end
+    local fraction = math.max(0, math.min(1,
+        (x - SENSITIVITY_TRACK.x) / SENSITIVITY_TRACK.width))
+    local steps = math.floor(fraction * ((SENSITIVITY_MAX - SENSITIVITY_MIN) / 5) + 0.5)
+    context.settings[id] = SENSITIVITY_MIN + steps * 5
+    return true
+end
+
+local function finishSensitivityDrag()
+    local id = OptionsScreen.draggingSensitivity
+    if not id then return false end
+    OptionsScreen.draggingSensitivity = nil
+    local value = OptionsScreen.context.settings[id]
+    local saved = Settings.save(OptionsScreen.context.settings)
+    local label = id == "mobileWalkSensitivity" and "Walking" or "Driving"
+    OptionsScreen.message = saved
+        and (label .. " stick sensitivity set to " .. value .. "%.")
+        or (label .. " stick sensitivity changed for this session, but could not be saved.")
+    return true
+end
+
 local function resetControls()
     local context = OptionsScreen.context
     if not context or not context.resetControlLayout then return false end
     context.resetControlLayout()
     OptionsScreen.message = "Touch controls reset to their default positions."
+    return true
+end
+
+local function toggleMobileSteeringMode()
+    local context=OptionsScreen.context
+    if not context then return false end
+    local current=context.settings.mobileVehicleSteering or 'radial'
+    local nextMode={radial='bike-horizontal',['bike-horizontal']='all-horizontal',
+        ['all-horizontal']='radial'}
+    context.settings.mobileVehicleSteering=nextMode[current] or 'radial'
+    context.settings.mobileBikeSteering=context.settings.mobileVehicleSteering=='radial'
+        and 'radial' or 'horizontal'
+    local saved=persistSettings()
+    local labels={radial='radial', ['bike-horizontal']='horizontal for bikes',
+        ['all-horizontal']='horizontal for all vehicles'}
+    local mode=labels[context.settings.mobileVehicleSteering] or labels.radial
+    OptionsScreen.message=saved and ('Mobile steering set to '..mode..'.')
+        or ('Mobile steering set to '..mode..' for this session, but could not be saved.')
     return true
 end
 
@@ -442,6 +544,7 @@ function OptionsScreen.keypressed(key)
     if OptionsScreen.tab == "controls" then
         if key=='m' then return OptionsScreen.openMotorcycleControls() end
         if key == "r" then return resetControls() end
+        if key == "h" then return toggleMobileSteeringMode() end
         return false
     end
     if OptionsScreen.tab == "character" then
@@ -488,9 +591,15 @@ function OptionsScreen.keypressed(key)
             return grantCheat(OptionsScreen.selectedRow)
         end
     elseif row.kind == "choice" then
-        if key == "left" or key == "a" then return setTimeFormat(true) end
-        if key == "right" or key == "d" then return setTimeFormat(false) end
-        if key == "return" or key == "kpenter" then return toggleSetting(row.id) end
+        local options=choiceOptions(row.id)
+        if key == "left" or key == "a" then return setChoice(row.id,options[1].value) end
+        if key == "right" or key == "d" then return setChoice(row.id,options[2].value) end
+        if key == "return" or key == "kpenter" then return stepChoice(row.id,1) end
+    elseif row.kind == "cycle" then
+        if key == "left" or key == "a" then return stepChoice(row.id,-1) end
+        if key == "right" or key == "d" or key == "return" or key == "kpenter" then
+            return stepChoice(row.id,1)
+        end
     elseif row.kind == "toggle" and (key == "left" or key == "right"
         or key == "return" or key == "kpenter")
     then
@@ -532,8 +641,14 @@ function OptionsScreen.mousepressed(x, y, button)
             if Ui.contains(cheatPageRect(index),x,y) then return selectCheatPage(page.id) end
         end
     elseif OptionsScreen.tab == "controls" then
-        if x>=604 and x<=814 and y>=548 and y<=590 then return OptionsScreen.openMotorcycleControls() end
+        if Ui.contains(MOTORCYCLE_CONTROLS,x,y) then return OptionsScreen.openMotorcycleControls() end
+        if Ui.contains(MOBILE_STEERING_MODE,x,y) then return toggleMobileSteeringMode() end
         if Ui.contains(RESET_CONTROLS, x, y) then return resetControls() end
+        local sensitivity = sensitivityAt(x, y)
+        if sensitivity then
+            OptionsScreen.draggingSensitivity = sensitivity
+            return moveSensitivity(x)
+        end
         local control = controlAt(x, y)
         if control then
             OptionsScreen.draggingControl = control
@@ -567,16 +682,23 @@ function OptionsScreen.mousepressed(x, y, button)
         end
         if Ui.contains(rects.value, x, y) then
             if OptionsScreen.tab == "cheats" then return beginEdit(index) end
-            if row.kind == "toggle" or row.kind == "choice" then return toggleSetting(row.id) end
+            if row.kind == "toggle" then return toggleSetting(row.id) end
+            if row.kind == "choice" or row.kind == "cycle" then return stepChoice(row.id,1) end
         elseif Ui.contains(rects.minus, x, y) then
             if OptionsScreen.tab == "cheats" then return adjustCheat(index, -1) end
             if row.kind == "level" then return adjustSetting(row.id, -5) end
-            if row.kind == "choice" then return setTimeFormat(true) end
+            if row.kind == "choice" then
+                local options=choiceOptions(row.id);return setChoice(row.id,options[1].value)
+            end
+            if row.kind == "cycle" then return stepChoice(row.id,-1) end
             return toggleSetting(row.id)
         elseif Ui.contains(rects.plus, x, y) then
             if OptionsScreen.tab == "cheats" then return adjustCheat(index, 1) end
             if row.kind == "level" then return adjustSetting(row.id, 5) end
-            if row.kind == "choice" then return setTimeFormat(false) end
+            if row.kind == "choice" then
+                local options=choiceOptions(row.id);return setChoice(row.id,options[2].value)
+            end
+            if row.kind == "cycle" then return stepChoice(row.id,1) end
             return toggleSetting(row.id)
         end
     end
@@ -585,6 +707,7 @@ end
 
 function OptionsScreen.mousereleased(x, y, button)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousereleased(x,y,button) end
+    if button == 1 and OptionsScreen.draggingSensitivity then return finishSensitivityDrag() end
     if button == 1 and OptionsScreen.draggingControl then
         OptionsScreen.draggingControl = nil
         local context = OptionsScreen.context
@@ -598,6 +721,7 @@ end
 function OptionsScreen.mousemoved(x, y)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousemoved(x,y) end
     OptionsScreen.hover = { x = x, y = y }
+    if OptionsScreen.draggingSensitivity then return moveSensitivity(x) end
     if OptionsScreen.draggingControl then return moveDraggedControl(x, y) end
 end
 
@@ -644,12 +768,16 @@ local function drawRows(rows, values, cheats)
         local controls = controlRects(index, cheats)
         local value = values[index]
         local editing = cheats and OptionsScreen.editField == row.id
-        local twelveHour = row.kind == "choice" and OptionsScreen.context.settings.twelveHourTime
         drawButton(controls.value, editing and (OptionsScreen.editBuffer .. "|") or value,
-            editing or twelveHour == true, false)
+            editing or row.kind=="choice" or row.kind=="cycle", false)
         if row.kind == "choice" then
-            drawButton(controls.minus, "12 HOUR", twelveHour == true, false)
-            drawButton(controls.plus, "24 HOUR", twelveHour ~= true, false)
+            local options=choiceOptions(row.id)
+            local current=OptionsScreen.context.settings[row.id]
+            drawButton(controls.minus,options[1].label,current==options[1].value,false)
+            drawButton(controls.plus,options[2].label,current==options[2].value,false)
+        elseif row.kind == "cycle" then
+            drawButton(controls.minus,"PREV",false,false)
+            drawButton(controls.plus,"NEXT",false,false)
         elseif row.kind == "toggle" then
             drawButton(controls.minus, "TOGGLE", false, false)
             drawButton(controls.plus, "TOGGLE", false, false)
@@ -708,6 +836,32 @@ local function drawControlPreview()
             key:find("extra", 1, true) and 0.62 or 0.78)
     end
     love.graphics.setLineWidth(1)
+end
+
+local function drawSensitivitySliders()
+    for _, row in ipairs(SENSITIVITY_ROWS) do
+        local value = tonumber(OptionsScreen.context.settings[row.id]) or 100
+        value = math.max(SENSITIVITY_MIN, math.min(SENSITIVITY_MAX, value))
+        local fraction = (value - SENSITIVITY_MIN) / (SENSITIVITY_MAX - SENSITIVITY_MIN)
+        local y = row.y + 17
+        love.graphics.setColor(0.82, 0.86, 0.79, 1)
+        love.graphics.print(row.label, 164, row.y + 8)
+        love.graphics.setColor(0.12, 0.18, 0.18, 1)
+        love.graphics.rectangle("fill", SENSITIVITY_TRACK.x, y - 3,
+            SENSITIVITY_TRACK.width, 6, 3, 3)
+        love.graphics.setColor(0.82, 0.67, 0.28, 1)
+        love.graphics.rectangle("fill", SENSITIVITY_TRACK.x, y - 3,
+            SENSITIVITY_TRACK.width * fraction, 6, 3, 3)
+        local knobX = SENSITIVITY_TRACK.x + SENSITIVITY_TRACK.width * fraction
+        love.graphics.setColor(0.025, 0.055, 0.06, 1)
+        love.graphics.circle("fill", knobX, y, 9)
+        love.graphics.setColor(0.96, 0.80, 0.34, 1)
+        love.graphics.setLineWidth(2)
+        love.graphics.circle("line", knobX, y, 8)
+        love.graphics.setLineWidth(1)
+        love.graphics.setColor(0.95, 0.94, 0.83, 1)
+        love.graphics.printf(value .. "%", 744, row.y + 8, 52, "center")
+    end
 end
 
 local function drawColorways()
@@ -785,21 +939,24 @@ function OptionsScreen.draw(mouseX, mouseY)
 
     if OptionsScreen.tab == "game" then
         love.graphics.setColor(0.78, 0.81, 0.76)
-        love.graphics.print("DISPLAY, CAMERA & TIME", 164, 166)
+        love.graphics.print("DISPLAY, CAMERA & VISIBILITY", 164, 166)
         local android = love.system and love.system.getOS and love.system.getOS() == "Android"
         local values = {
             android and "SYSTEM" or (OptionsScreen.context.settings.fullscreen and "ON" or "OFF"),
             OptionsScreen.context.settings.vsync and "ON" or "OFF",
             OptionsScreen.context.settings.followPlayerCamera and "ON" or "OFF",
             OptionsScreen.context.settings.twelveHourTime and "12 HOUR" or "24 HOUR",
+            SilhouetteStyle.LABELS[OptionsScreen.context.settings.occlusionHighlightColor] or "YELLOW",
+            SilhouetteStyle.STYLE_LABELS[OptionsScreen.context.settings.occlusionHighlightStyle] or "FILLED",
         }
         drawRows(GAME_ROWS, values, false)
         love.graphics.setColor(0.58, 0.64, 0.61)
         love.graphics.printf(android and "Fullscreen is managed by Android."
-            or "Display and time-format changes apply immediately.", 164, 416, 632, "center")
-        love.graphics.printf("Follow keeps your character centered while walking or zooming.\n"
-            .. "Pinch or use the mouse wheel to zoom. Turn follow off to pan on mobile.",
-            164, 450, 632, "center")
+            or "Display, time format, and hidden-player highlight changes apply immediately.", 164, 522, 632, "center")
+        love.graphics.printf("Hidden-player highlights can be filled or outlined. Use left/right to change color.",
+            164, 548, 632, "center")
+        love.graphics.printf("Follow keeps you centered; turn it off to pan. Pinch or mouse wheel zooms.",
+            164, 574, 632, "center")
     elseif OptionsScreen.tab == "audio" then
         love.graphics.setColor(0.78, 0.81, 0.76)
         love.graphics.print("AUDIO MIX", 164, 166)
@@ -812,8 +969,16 @@ function OptionsScreen.draw(mouseX, mouseY)
         love.graphics.setColor(0.78, 0.81, 0.76)
         love.graphics.printf("DRAG THE CONTROLS IN THE PREVIEW", 164, 150, 632, "center")
         drawControlPreview()
+        drawSensitivitySliders()
+        love.graphics.setColor(0.58, 0.64, 0.61)
+        love.graphics.printf("Higher sensitivity responds sooner; full stick still reaches full speed.",
+            164, 528, 632, "center")
         drawButton(RESET_CONTROLS, "RESET TO DEFAULT", false, false)
-        drawButton({x=604,y=548,width=210,height=42},'MOTORCYCLE CONTROLS',false,false)
+        local steering=OptionsScreen.context.settings.mobileVehicleSteering or 'radial'
+        local steeringLabel=steering=='bike-horizontal' and 'BIKE: HORIZONTAL'
+            or steering=='all-horizontal' and 'ALL: HORIZONTAL' or 'STICK: RADIAL'
+        drawButton(MOBILE_STEERING_MODE,steeringLabel,steering~='radial',false)
+        drawButton(MOTORCYCLE_CONTROLS,'MOTORCYCLE CONTROLS',false,false)
     elseif OptionsScreen.tab == "character" then
         drawColorways()
     else
@@ -861,7 +1026,9 @@ function OptionsScreen.draw(mouseX, mouseY)
     love.graphics.setColor(0.72, 0.76, 0.70)
     love.graphics.printf(OptionsScreen.message, 116, 604, 728, "center")
     love.graphics.setColor(0.47, 0.53, 0.50)
-    love.graphics.printf(OptionsScreen.tab=="cheats"
+    love.graphics.printf(OptionsScreen.tab=="controls"
+        and "Drag sliders for stick sensitivity  |  H: steering mode  |  M: motorcycle controls"
+        or OptionsScreen.tab=="cheats"
         and "Tab: section  |  Q/E: cheat category  |  1-3: slot  |  Enter: edit/grant"
         or (OptionsScreen.menuRect() and "Esc: resume  |  F9 / controller Y: main menu  |  Tab: section"
             or "Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes"),
@@ -870,6 +1037,7 @@ end
 
 function OptionsScreen.openMotorcycleControls()
     OptionsScreen.draggingControl=nil
+    OptionsScreen.draggingSensitivity=nil
     OptionsScreen.motorcycleEditor=require('src.commute.controls_screen').new(OptionsScreen.context.settings,
         function() return Settings.save(OptionsScreen.context.settings) end,
         function() OptionsScreen.motorcycleEditor=nil end)

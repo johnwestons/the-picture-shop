@@ -204,7 +204,7 @@ function Residents.display(state,player)
     if p then return p end
     for _,row in pairs(state.home.residents or {}) do if row.activePlayerId==player.id then return row end end
 end
-function Residents.prepareActivity(state,player,kind,target,served)
+function Residents.prepareActivity(state,player,kind,target,served,twelveHourTime)
     -- Keep the routine menu's availability view aligned with command-time gates.
     local outfitOkay,outfitMessage=Residents.householdAllowed(state,player)
     if not outfitOkay then return false,"riding_gear",outfitMessage end
@@ -260,21 +260,21 @@ function Residents.prepareActivity(state,player,kind,target,served)
     if not choreOkay then return false,"unavailable",choreMessage end
     local cookOkay,cookMessage=Cooking.prepare(state,kind)
     if not cookOkay then return false,"unavailable",cookMessage end
-    local sleepOkay,sleepMessage=Sleep.prepare(state,kind)
+    local sleepOkay,sleepMessage=Sleep.prepare(state,kind,twelveHourTime)
     if not sleepOkay then return false,"unavailable",sleepMessage end
     if definition.item and not servedHere and (state.home.inventory[definition.item] or 0)<1 then
         return false,"no_food","None of that food or drink is stored at home."
     end
     return true,{resident=p,definition=definition,kind=kind,target=target,furnishing=furnishing,fixtureId=fixtureId,tv=tv,servedHere=servedHere}
 end
-function Residents.command(state,player,command,served)
+function Residents.command(state,player,command,served,twelveHourTime)
     if command~='cancel' then
         local allowed,reason=Residents.householdAllowed(state,player)
         if not allowed then return false,'riding_gear',reason end
     end
     if BikeCargo.decode(command) then return BikeCargo.command(state,player,command) end
     if Dining.decode(command) then return Dining.command(state,player,command) end
-    if Sleep.decode(command)~=nil then return Sleep.command(state,player,command) end
+    if Sleep.decode(command)~=nil then return Sleep.command(state,player,command,twelveHourTime) end
     if Objects.decode(command) then return Objects.command(state,player,command) end
     if Cooking.decode(command) then return Cooking.command(state,player,command) end
     if not Residents.validCommand(command) then return false,"invalid_action","Choose an available home activity." end
@@ -286,7 +286,7 @@ function Residents.command(state,player,command,served)
         return true,"cancelled","Home activity stopped."
     end
     local kind,target=command:match("^([a-z]+):([a-z0-9]+)$")
-    local ready,contextOrCode,message=Residents.prepareActivity(state,player,kind,target,served)
+    local ready,contextOrCode,message=Residents.prepareActivity(state,player,kind,target,served,twelveHourTime)
     if not ready then return false,contextOrCode,message end
     local context=contextOrCode
     p=context.resident;local definition=context.definition

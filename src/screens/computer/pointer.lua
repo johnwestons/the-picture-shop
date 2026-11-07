@@ -184,44 +184,42 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.tab == "credit" then return Runtime.creditMousepressed(state, x, y) end
         if Runtime.ComputerScreen.tab == "calendar" then
+            if Runtime.ComputerScreen.calendarDayOpen then
+                if Runtime.contains(Runtime.CAL_DAY_CLOSE,x,y) then
+                    Runtime.ComputerScreen.calendarDayOpen=false
+                    return {action='calendar_day_closed'}
+                elseif Runtime.contains(Runtime.CAL_DAY_SCROLL_UP,x,y) then
+                    Runtime.ComputerScreen.calendarDayScroll=math.max(0,
+                        (Runtime.ComputerScreen.calendarDayScroll or 0)-1)
+                    return {action='calendar_day_scroll'}
+                elseif Runtime.contains(Runtime.CAL_DAY_SCROLL_DOWN,x,y) then
+                    local _,_,maximum=Runtime.clampCalendarDayScroll(state)
+                    Runtime.ComputerScreen.calendarDayScroll=math.min(maximum,
+                        (Runtime.ComputerScreen.calendarDayScroll or 0)+1)
+                    return {action='calendar_day_scroll'}
+                elseif Runtime.contains(Runtime.CAL_DAY_DIALOG,x,y) then
+                    return nil
+                end
+                Runtime.ComputerScreen.calendarDayOpen=false
+                return {action='calendar_day_closed'}
+            end
             if Runtime.contains(Runtime.CAL_PREVIOUS, x, y) then
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, -1)
-                Runtime.ComputerScreen.calendarSelectedDay, Runtime.ComputerScreen.calendarScroll = nil, 0
+                Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
                 return { action = "calendar_month" }
             elseif Runtime.contains(Runtime.CAL_NEXT, x, y) then
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, 1)
-                Runtime.ComputerScreen.calendarSelectedDay, Runtime.ComputerScreen.calendarScroll = nil, 0
+                Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
                 return { action = "calendar_month" }
-            end
-            local events, maximum = Runtime.clampCalendarScroll(state)
-            if Runtime.contains(Runtime.CAL_SCROLL_UP, x, y) then
-                Runtime.ComputerScreen.calendarScroll = math.max(0, Runtime.ComputerScreen.calendarScroll - 1)
-                return { action = "calendar_scroll" }
-            elseif Runtime.contains(Runtime.CAL_SCROLL_DOWN, x, y) then
-                Runtime.ComputerScreen.calendarScroll = math.min(maximum, Runtime.ComputerScreen.calendarScroll + 1)
-                return { action = "calendar_scroll" }
             end
             local day = Runtime.calendarDayAt(Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, x, y)
             if day then
                 Runtime.ComputerScreen.calendarSelectedDay = day
-                for index, event in ipairs(events) do
-                    if event.day == day then
-                        Runtime.ComputerScreen.calendarScroll = math.min(maximum, math.max(0, index - 1))
-                        break
-                    end
-                end
+                Runtime.ComputerScreen.calendarDayOpen=true
+                Runtime.ComputerScreen.calendarDayScroll=0
                 return { action = "calendar_day", day = day }
-            end
-            for row = 1, Runtime.CAL_EVENT_LIST.visibleRows do
-                local index = Runtime.ComputerScreen.calendarScroll + row
-                local rect = { x = Runtime.CAL_EVENT_LIST.x, y = Runtime.CAL_EVENT_LIST.y + (row - 1) * Runtime.CAL_EVENT_LIST.rowHeight,
-                    width = Runtime.CAL_EVENT_LIST.width, height = 31 }
-                if events[index] and Runtime.contains(rect, x, y) then
-                    Runtime.ComputerScreen.calendarSelectedDay = events[index].day
-                    return { action = "calendar_event", event = events[index] }
-                end
             end
             return nil
         end
@@ -490,9 +488,10 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.wheelmoved(state, _, y)
         if Runtime.ComputerScreen.tab ~= "calendar" or y == 0 then return false end
-        local _, maximum = Runtime.clampCalendarScroll(state)
-        Runtime.ComputerScreen.calendarScroll = math.min(maximum,
-            math.max(0, Runtime.ComputerScreen.calendarScroll - (y > 0 and 1 or -1)))
+        if not Runtime.ComputerScreen.calendarDayOpen then return false end
+        local _,_,maximum=Runtime.clampCalendarDayScroll(state)
+        Runtime.ComputerScreen.calendarDayScroll=math.min(maximum,
+            math.max(0,(Runtime.ComputerScreen.calendarDayScroll or 0)-(y>0 and 1 or -1)))
         return true
     end
 

@@ -32,12 +32,19 @@ class CommuteAudioPackageTests(unittest.TestCase):
             shutil.copytree(source, root/'assets/audio/commute')
             for name in ('SOURCES.md', 'source_manifest.json'):
                 (root/'assets/audio'/name).write_text('fixture')
+            for relative in package.WORKSHOP_RUNTIME_FILES:
+                workshop_asset = package.ROOT / relative
+                workshop_copy = root / relative
+                workshop_copy.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(workshop_asset, workshop_copy)
             with patch.object(package, 'ROOT', root), patch.object(package, 'runtime_source_paths', return_value=[]), \
                  patch.object(package, 'runtime_music_paths', return_value=[]), patch.object(package, 'runtime_commute_paths', return_value=[]), \
                  patch.object(package, 'copy_runtime_source_assets'):
                 package.copy_runtime(stage)
             for name in expected:
                 self.assertEqual((stage/'assets/audio/commute'/name).read_bytes(), (source/name).read_bytes())
+            for relative in package.WORKSHOP_RUNTIME_FILES:
+                self.assertEqual((stage/relative).read_bytes(), (root/relative).read_bytes())
             self.assertFalse((stage/'output/motorcycle-audio/motorcycle-audition.wav').exists())
 
 

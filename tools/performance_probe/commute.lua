@@ -57,13 +57,29 @@ function P.install()
         local Rider=require('src.commute.rider')
         local Camera=require('src.commute.camera')
         local Renderer=require('src.commute.renderer')
+        local PlantSprites=require('src.commute.vendor.plant_sprites')
+        local BikeActionPages=require('src.commute.bike_action_pages')
+        local Flora=require('src.commute.flora')
+        local PlantMotion=require('src.commute.vendor.plant_motion')
+        local FirstPersonCamera=require('src.commute.first_person_camera')
+        local ImageLoader=require('src.image_loader')
         report.startup.modules_ms=(timer()-start)*1000
         instrument(Renderer,'build','terrain_build')
         instrument(Renderer,'buildStep','terrain_build')
         instrument(Renderer,'props','props')
         instrument(Renderer,'buildRoadMeshes','road_meshes')
         instrument(require('src.commute.vegetation'),'visible','vegetation_visible')
-        instrument(require('src.commute.vendor.plant_sprites'),'prepare','plant_prepare')
+        instrument(PlantSprites,'prepare','plant_prepare')
+        instrument(PlantSprites,'_visibleKeys','plant_visible_keys')
+        instrument(PlantSprites,'_pageOrder','plant_page_order')
+        instrument(PlantSprites,'_protectedPages','plant_protected_pages')
+        instrument(PlantSprites,'_updateDemand','plant_demand')
+        instrument(PlantSprites,'_trimToBudget','plant_cache_trim')
+        instrument(PlantSprites,'_loadPage','plant_page_load')
+        instrument(PlantSprites,'_loadImage','plant_image_load')
+        instrument(BikeActionPages,'get','bike_action_page')
+        instrument(BikeActionPages,'prepare','bike_action_prepare')
+        instrument(ImageLoader,'update','image_loader_update')
         for _,name in ipairs({'ground_textures','vegetation','bike_art','warehouse_art','bridge_art','structures'}) do
             instrument(require('src.commute.'..name),'new',name..'_new')
         end
@@ -74,14 +90,54 @@ function P.install()
         local townSeedText=os.getenv('PICTURE_SHOP_TOWN_SEED')
         local townSeed=townSeedText and townSeedText~='' and assert(tonumber(townSeedText),'Town seed must be numeric') or nil
         if townSeed then
-            local Town=require('src.commute.town');local generated=assert(Town.generate(townSeed))
+            local Town=require('src.commute.town')
+            local Truck=require('src.commute.delivery_truck')
+            local blocked=Truck.blocked;local clearanceChecks=0
+            Truck.blocked=function(...)
+                clearanceChecks=clearanceChecks+1
+                return blocked(...)
+            end
+            local townProfiler=os.getenv('PICTURE_SHOP_PERFORMANCE_PROFILE')=='1' and require('jit.profile')
+            local townStacks={}
+            if townProfiler then townProfiler.start('i1',function(thread,count)
+                local stack=townProfiler.dumpstack(thread,'pl\n',12)
+                townStacks[stack]=(townStacks[stack] or 0)+count
+            end) end
+            local generationStarted=timer()
+            local generated,reason=Town.generate(townSeed)
+            report.startup.town_generation_ms=(timer()-generationStarted)*1000
+            Truck.blocked=blocked
+            report.startup.truck_clearance_checks=clearanceChecks
+            if townProfiler then
+                townProfiler.stop();report.startup.town_generation_profile={}
+                for stack,count in pairs(townStacks) do
+                    report.startup.town_generation_profile[#report.startup.town_generation_profile+1]={stack=stack,samples=count}
+                end
+                table.sort(report.startup.town_generation_profile,function(a,b)return a.samples>b.samples end)
+            end
+            assert(generated,reason)
             world=Town.world(generated);roads=world.roads
             report.town={seed=townSeed,id=world.townId,generator_version=generated.generatorVersion,
                 buildings=#roads.sites.all,road_segments=#roads.segments}
         else roads=Roads.new();world=roads:attach(Terrain.new()) end
         report.startup.world_ms=(timer()-start)*1000
-        start=timer();local renderer=Renderer.new(world)
+        local forceMobile=os.getenv('PICTURE_SHOP_TERRAIN_FORCE_MOBILE')=='1'
+        local rendererOptions={mobile=forceMobile}
+        local foliageRadius=tonumber(os.getenv('PICTURE_SHOP_MOBILE_FOLIAGE_RADIUS'))
+        if foliageRadius then
+            assert(forceMobile and foliageRadius>0,'Mobile foliage radius override requires the forced-mobile policy')
+            Renderer.MOBILE_FOLIAGE_RADIUS=foliageRadius
+        end
+        ImageLoader.setEnabled(true)
+        start=timer();local renderer=Renderer.new(world,nil,rendererOptions)
         report.startup.renderer_ms=(timer()-start)*1000
+        report.mobile_policy=renderer.mobile==true
+        report.mobile_foliage_radius=Renderer.MOBILE_FOLIAGE_RADIUS
+        report.async_images=true
+        report.async_bike_action_pages=ImageLoader.enabled
+        report.plant_sprite_base_budget_bytes=renderer.plantSprites.baseBudget
+        report.ground_atlas={mobile=renderer.ground.mobile,path=renderer.ground.atlasPath,
+            bytes=renderer.ground.bytes,width=renderer.ground.size}
         if renderer.structures then
             report.structures={pieces=#renderer.structures.pieces,buildings=#renderer.structures.buildings,vertices=0,bridges=0,bridge_pieces=0}
             for _,p in ipairs(renderer.structures.pieces) do
@@ -92,6 +148,10 @@ function P.install()
         end
         start=timer();local cockpit=require('src.commute.cockpit').new()
         report.startup.cockpit_ms=(timer()-start)*1000
+        start=timer();renderer:prewarmViews()
+        report.startup.view_prewarm_ms=(timer()-start)*1000
+        start=timer();cockpit:prewarmFirstPerson();require('src.commute.ui_icons').prewarm()
+        report.startup.first_person_prewarm_ms=(timer()-start)*1000
         local route=assert(require('src.commute.routes').new(roads):find('warehouse','brick-walkup'))
         local spawn=roads.destinations.warehouse
         local heading=townSeed and math.atan2(route.points[2].z-spawn.z,route.points[2].x-spawn.x) or -.7
@@ -151,7 +211,7 @@ function P.install()
                 love.event.pump()
                 for event,a in love.event.poll() do if event=='quit' then error('Probe interrupted: '..tostring(a)) end end
                 frame={index=index};local began=timer()
-                local t=timer();Rider.update(rider,{},1/60,world)
+                local t=timer();ImageLoader.update();Rider.update(rider,{},1/60,world)
                 if not name:find('streaming',1,true) then actor.x,actor.z,actor.speed=heldX,heldZ,0 end
                 if update then update(index) end
                 camera:updateRide(rider,1/60)
@@ -163,31 +223,119 @@ function P.install()
                 love.graphics.flushBatch();frame.draw_ms=(timer()-t)*1000
                 local graphics=love.graphics.getStats()
                 frame.draw_calls=graphics.drawcalls;frame.texture_bytes=graphics.texturememory
-                local finalFrame=index==count
-                if untilReady and index>=60 then
-                    finalFrame=finalFrame or ((renderer.pending or 0)==0 and renderer.vegetation:stats().pending==0
-                        and frame.plant_ready and renderer.plantSprites:readyFor(renderer.visibleProps,renderer.calendar,renderer.clock))
+                local ready=false
+                if untilReady and index>=60 and index%6==0 then
+                    local visiblePagesReady=renderer.plantSprites:readyFor(
+                        renderer.visibleProps,renderer.calendar,renderer.clock)
+                    local imageQueueIdle=not ImageLoader.pending()
+                    ready=(renderer.pending or 0)==0 and renderer.vegetation:stats().pending==0
+                        and visiblePagesReady and imageQueueIdle
                 end
+                local finalFrame=index==count or (untilReady and ready)
                 if gpuFence and finalFrame then
                     love.graphics.captureScreenshot(function(data) fencedPixels=data end)
                 end
                 t=timer();love.graphics.present();frame.present_ms=(timer()-t)*1000
                 frame.frame_ms=(timer()-began)*1000
                 frame.pending=renderer.pending or 0;frame.visible_chunks=#(renderer.visible or {})
+                frame.terrain_resident_tiles=frame.visible_chunks
+                frame.terrain_submitted_tiles=#(renderer.drawTiles or renderer.visible or {})
+                frame.terrain_build_ms=renderer.buildMs or 0
+                local grass=renderer.grassFields
+                frame.grass_collect_ms=grass and grass.buildMs or 0
+                frame.grass_builds=grass and grass.buildsThisFrame or 0
+                frame.grass_steps=grass and grass.stepsThisFrame or 0
+                frame.grass_visible_patches=grass and grass.visibleCount or 0
+                frame.grass_mesh_bytes=grass and grass.meshBytes or 0
                 frame.visible_props=#(renderer.visibleProps or {})
+                frame.visible_canopy_props,frame.visible_brush_props=0,0
+                for _,prop in ipairs(renderer.visibleProps or {}) do
+                    if Flora.canopy[prop.kind] then
+                        frame.visible_canopy_props=frame.visible_canopy_props+1
+                    else
+                        frame.visible_brush_props=frame.visible_brush_props+1
+                    end
+                end
+                frame.outdoor_props_fully_offscreen=0
+                frame.outdoor_plant_page_runs=0
+                frame.first_person_props_fully_offscreen=0
+                local view=camera.shoulderView or camera
+                if not view.firstPerson then
+                    local width,height=renderer.viewportWidth or 1280,renderer.viewportHeight or 880
+                    local previousPage
+                    local sprites=renderer.plantSprites
+                    for _,prop in ipairs(renderer.visibleProps or {}) do
+                        local x,y=view:screen(prop.x,prop.z,prop.h)
+                        local size=prop.scale*view.zoom
+                        local halfWidth=(128+256*PlantMotion.MAX_SWAY)*size+2
+                        local offscreen=x+halfWidth<0 or x-halfWidth>width
+                            or y+8*size<0 or y-248*size>height
+                        if offscreen then
+                            frame.outdoor_props_fully_offscreen=frame.outdoor_props_fully_offscreen+1
+                        end
+                        if not offscreen then
+                            local key=sprites:plantKey(prop,renderer.calendar,renderer.clock)
+                            local entry=key and sprites.layout.entries[key]
+                            local page=entry and entry[1]
+                            if page and sprites.pageImages[page] then
+                                if page~=previousPage then
+                                    frame.outdoor_plant_page_runs=frame.outdoor_plant_page_runs+1
+                                    previousPage=page
+                                end
+                            end
+                        end
+                    end
+                else
+                    local width,height=view.viewportWidth or 1280,view.viewportHeight or 880
+                    local radius=renderer.visiblePropsRadius or renderer.effectiveRadius
+                    local cosine,sine=math.cos(view.roll or 0),math.sin(view.roll or 0)
+                    for _,prop in ipairs(renderer.visibleProps or {}) do
+                        local sx,sy,depth=view:screen(prop.x,prop.z,prop.h)
+                        local dx,dz=prop.x-view.centerX,prop.z-view.centerZ
+                        local distance=math.sqrt(dx*dx+dz*dz)
+                        local cameraScale=view.focal/depth/48
+                        if depth>=FirstPersonCamera.NEAR and depth<=FirstPersonCamera.FAR
+                            and distance<radius
+                            and sx>=-width*.5*cameraScale and sx<=width+width*.5*cameraScale then
+                            local size=prop.scale*cameraScale
+                            local halfX=(128+256*PlantMotion.MAX_SWAY)*size
+                            local halfY=128*size
+                            local centerY=-120*size
+                            local centerX=-sine*centerY
+                            centerY=centerY*cosine
+                            local boundX=math.abs(cosine)*halfX+math.abs(sine)*halfY+2
+                            local boundY=math.abs(sine)*halfX+math.abs(cosine)*halfY+2
+                            if sx+centerX+boundX<0 or sx+centerX-boundX>width
+                                or sy+centerY+boundY<0 or sy+centerY-boundY>height then
+                                frame.first_person_props_fully_offscreen=frame.first_person_props_fully_offscreen+1
+                            end
+                        end
+                    end
+                end
                 frame.radius=renderer.effectiveRadius or 0
                 frame.vegetation_pending=renderer.vegetation:stats().pending or 0
                 frame.plant_upload_bytes=renderer.plantSprites.lastPrepareBytes or 0
                 frame.plant_motion_bytes=renderer.plantSprites.motionBytes or 0
+                frame.plant_pages_wanted=renderer.plantSprites.wantedPageCount or 0
+                frame.plant_pages_pending=renderer.plantSprites.pendingPageCount or 0
+                frame.plant_pages_resident=0
+                for _ in pairs(renderer.plantSprites.pageImages or {}) do frame.plant_pages_resident=frame.plant_pages_resident+1 end
+                frame.plant_sprite_bytes=renderer.plantSprites.bytes or 0
+                frame.plant_sprite_effective_budget_bytes=renderer.plantSprites.effectiveBudget or 0
+                frame.image_loader_pending=ImageLoader.pending() and 1 or 0
+                frame.image_loader_ready_bytes=ImageLoader.readyBytes()
+                frame.bike_action_pages_resident=renderer.bikeArt.actionPages.count or 0
+                frame.bike_action_pages_pending=renderer.bikeArt.actionPages.pendingCount or 0
                 frame.actor_x,frame.actor_z,frame.actor_speed=actor.x,actor.z,actor.speed
                 frame.camera_x,frame.camera_z=camera.centerX,camera.centerZ
                 samples[#samples+1]=frame
-                local ready=frame.pending==0 and frame.vegetation_pending==0 and frame.plant_ready
-                    and renderer.plantSprites:readyFor(renderer.visibleProps,renderer.calendar,renderer.clock)
                 if ready and not readyAt then readyAt=index end
                 if index<=3 or index%60==0 then
-                    print(('%s %d frame=%.2fms prep=%.2fms vegetation=%.2fms terrain=%.2fms draw=%.2fms present=%.2fms pending=%d'):format(
-                        name,index,frame.frame_ms,frame.prepare_ms,frame.vegetation_visible_ms or 0,frame.terrain_build_ms or 0,frame.draw_ms,frame.present_ms,frame.pending));io.flush()
+                    print(('%s %d frame=%.2fms prep=%.2fms vegetation=%.2fms terrain=%.2fms draw=%.2fms present=%.2fms pending=%d plants=%d/%d resident pages (%d pending), bike=%d/%d pages, loader=%d'):format(
+                        name,index,frame.frame_ms,frame.prepare_ms,frame.vegetation_visible_ms or 0,frame.terrain_build_ms or 0,
+                        frame.draw_ms,frame.present_ms,frame.pending,frame.plant_pages_resident,frame.plant_pages_wanted,
+                        frame.plant_pages_pending,frame.bike_action_pages_resident,frame.bike_action_pages_pending,
+                        frame.image_loader_pending));io.flush()
                 end
                 frame=nil
                 if index==1 then capture(name..'-first') end
@@ -196,6 +344,29 @@ function P.install()
             local stageElapsed=timer()-stageStarted
             if profiler then profiler.stop() end
             assert(not gpuFence or fencedPixels,'Stage GPU readback did not complete: '..name)
+            if untilReady and not readyAt then
+                report.failed_stage=name
+                report.plant_settle_debug={visible_props=#(renderer.visibleProps or {}),
+                    wanted_pages=renderer.plantSprites.wantedPageCount or 0,
+                    pending_pages=renderer.plantSprites.pendingPageCount or 0,
+                    resident_pages=0,image_loader_pending=ImageLoader.pending(),
+                    image_loader_ready_bytes=ImageLoader.readyBytes(),
+                    last_prepare_ready=samples[#samples].plant_ready,
+                    wanted_motion=0,missing_motion=0,resident_motion=0}
+                for _ in pairs(renderer.plantSprites.pageImages or {}) do
+                    report.plant_settle_debug.resident_pages=report.plant_settle_debug.resident_pages+1
+                end
+                for key in pairs(renderer.plantSprites.wanted or {}) do
+                    report.plant_settle_debug.wanted_motion=report.plant_settle_debug.wanted_motion+1
+                    if not renderer.plantSprites.motion[key] then
+                        report.plant_settle_debug.missing_motion=report.plant_settle_debug.missing_motion+1
+                    end
+                end
+                for _ in pairs(renderer.plantSprites.motion or {}) do
+                    report.plant_settle_debug.resident_motion=report.plant_settle_debug.resident_motion+1
+                end
+                writeReport()
+            end
             assert(not untilReady or readyAt, 'Scenery did not settle during '..name)
             local row={name=name,frames=#samples,ready_frame=readyAt or -1,first_frame_ms=samples[1].frame_ms,
                 final_pending=samples[#samples].pending,final_vegetation_pending=samples[#samples].vegetation_pending,metrics={},profile={}}
@@ -236,19 +407,24 @@ function P.install()
         end
         writeReport()
         print(('STARTUP world=%.2fms renderer=%.2fms cockpit=%.2fms'):format(report.startup.world_ms,report.startup.renderer_ms,report.startup.cockpit_ms));io.flush()
-        stage('cold_initial_frames',600,nil,true)
+        -- Runtime plant pages decode and upload asynchronously, one requested
+        -- page at a time. Leave enough frames for that queue to settle on both
+        -- the mobile-policy and desktop-policy paths.
+        local mobileSettleFrames=1800
+        local zoomedSettleFrames=900
+        stage('cold_initial_frames',mobileSettleFrames,nil,true)
         if captureOnly then
-            camera:setFirstPerson(true,actor);stage('first_person_initial',600,nil,true)
-            report.complete=true;writeReport();renderer:release();love.event.quit(0);return
+            camera:setFirstPerson(true,actor);stage('first_person_initial',mobileSettleFrames,nil,true)
+            report.complete=true;writeReport();renderer:release();ImageLoader.shutdown();ImageLoader.setEnabled(false);love.event.quit(0);return
         end
         stage('stationary',180)
         stage('ride_streaming',300,function(i) position(i*.3) end)
         stage('camera_rotation',180,function(i) camera.yaw=(20+i*2)%360 end)
         camera.zoom=.55;camera.targetZoom=.55
-        stage('zoomed_out_initial',300,nil,true)
+        stage('zoomed_out_initial',zoomedSettleFrames,nil,true)
         stage('zoomed_out_steady',180)
         camera:setFirstPerson(true,actor)
-        stage('first_person_initial',600,nil,true)
+        stage('first_person_initial',mobileSettleFrames,nil,true)
         stage('first_person_steady',180)
         stage('first_person_streaming',300,function(i) position(90+i*.3) end)
         stage('first_person_rotation',180,function(i) camera:orbit(2,0) end)
@@ -275,7 +451,7 @@ function P.install()
             stage('bridge_first_person_rotation',180,function(i)camera:orbit(2,0) end)
         end
         report.complete=true;writeReport()
-        renderer:release();love.event.quit(0)
+        renderer:release();ImageLoader.shutdown();ImageLoader.setEnabled(false);love.event.quit(0)
     end
 end
 return P

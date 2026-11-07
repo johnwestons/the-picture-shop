@@ -2,6 +2,42 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function smoothCommuteMotion(player,dt)
+    local target=player and player._targetRecord
+    if not target or target.sceneId~='commute' then
+        if player then
+            player._visualVelocityX,player._visualVelocityY=nil,nil
+            player._visualIntentX,player._visualIntentY=nil,nil
+            player._visualWalkDistance=nil
+        end
+        return
+    end
+    local alpha=math.min(1,math.max(0,dt)*20)
+    local vx,vy=target.velocityX or 0,target.velocityY or 0
+    if player._visualVelocityX==nil then
+        player._visualVelocityX,player._visualVelocityY=vx,vy
+    else
+        player._visualVelocityX=player._visualVelocityX+(vx-player._visualVelocityX)*alpha
+        player._visualVelocityY=player._visualVelocityY+(vy-player._visualVelocityY)*alpha
+    end
+    local distance=math.max(0,target.animationDistance or 0)/48
+    if player._visualWalkDistance==nil then player._visualWalkDistance=distance
+    else
+        local speed=math.sqrt(player._visualVelocityX^2+player._visualVelocityY^2)
+        player._visualWalkDistance=player._visualWalkDistance+speed*math.max(0,dt)
+        player._visualWalkDistance=player._visualWalkDistance+(distance-player._visualWalkDistance)*alpha
+    end
+    local ix,iy=target.intentX or 0,target.intentY or 0
+    if ix*ix+iy*iy>.01 then
+        local wanted=math.atan2(iy,ix)
+        local current=player._visualIntentX and player._visualIntentY
+            and math.atan2(player._visualIntentY,player._visualIntentX) or wanted
+        local delta=math.atan2(math.sin(wanted-current),math.cos(wanted-current))
+        current=current+delta*alpha
+        player._visualIntentX,player._visualIntentY=math.cos(current),math.sin(current)
+    end
+end
+
 function Component.install(Runtime)
     function Runtime.Session:_sendClientInput(dt, context)
         if not self.ready or not self.sessionId then return end
@@ -38,18 +74,25 @@ function Component.install(Runtime)
         if not ok then self:_queue("error", { message = errorMessage }) end
     end
 
-    function Runtime.Session:_updateClientVisuals(dt, localPlayer)
+    function Runtime.Session:_updateClientVisuals(dt, context)
         if not self.ready then return end
+        local localPlayer=context and context.localPlayer
         for _,player in pairs(self.players) do
-            if player._rideAge then
-                player._rideAge=player._rideAge+dt
-                if player._rideAge>.3 then player._rideMotion=nil end
+            smoothCommuteMotion(player,dt)
+            if player._snapshotAge then
+                player._snapshotAge=player._snapshotAge+dt
+                if player._snapshotAge>.3 then player._rideMotion=nil end
             end
         end
         local function lead(player)
-            if not player or not player._rideAge then return 0,0 end
-            local age=math.min(.12,player._rideAge)
-            return player._rideVX*age,player._rideVY*age
+            if not player or not player._snapshotAge then return 0,0 end
+            local age=math.min(.12,player._snapshotAge)
+            local vx,vy=player._rideVX,player._rideVY
+            local target=player._targetRecord
+            if target and target.sceneId~='commute' then
+                vx,vy=target.velocityX or 0,target.velocityY or 0
+            end
+            return vx*age,vy*age
         end
         if localPlayer and self.localTarget then
             if (localPlayer.sceneId or "warehouse")~=(self.localTarget.sceneId or "warehouse")
@@ -59,7 +102,12 @@ function Component.install(Runtime)
             localPlayer.resting=self.localTarget.resting==true
             local own=self.players[self.localId]
             localPlayer._rideMotion=own and own._rideMotion
-            local lx,ly=lead(self.players[self.localId])
+            localPlayer._visualVelocityX=own and own._visualVelocityX
+            localPlayer._visualVelocityY=own and own._visualVelocityY
+            localPlayer._visualIntentX=own and own._visualIntentX
+            localPlayer._visualIntentY=own and own._visualIntentY
+            localPlayer._visualWalkDistance=own and own._visualWalkDistance
+            local lx,ly=lead(own)
             local dx = self.localTarget.x + lx - localPlayer.x
             local dy = self.localTarget.y + ly - localPlayer.y
             local distanceSquared = dx * dx + dy * dy
@@ -186,7 +234,7 @@ function Component.install(Runtime)
                 return
             end
             self:_sendClientInput(dt, context)
-            self:_updateClientVisuals(dt, context and context.localPlayer)
+            self:_updateClientVisuals(dt,context)
             self:_updateClientHighFives()
         end
     end

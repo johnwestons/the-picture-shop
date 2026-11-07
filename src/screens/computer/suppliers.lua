@@ -93,10 +93,12 @@ function Component.install(Runtime)
         love.graphics.printf(Runtime.commaNumber(inventory.paper or 0), 314, 414, 110, "right")
         love.graphics.printf(Runtime.commaNumber(inventory.prints or 0), 672, 414, 110, "right")
         local rows = Runtime.Procurement.inventoryRows(state)
+        local rowsPerColumn = math.max(1, math.ceil(#rows / 2))
+        local rowSpacing = 28
         for index, item in ipairs(rows) do
-            local column = math.floor((index - 1) / 5)
-            local row = (index - 1) % 5
-            local x, y = 116 + column * 358, 456 + row * 32
+            local column = math.floor((index - 1) / rowsPerColumn)
+            local row = (index - 1) % rowsPerColumn
+            local x, y = 116 + column * 358, 456 + row * rowSpacing
             love.graphics.setColor(row % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
             love.graphics.rectangle("fill", x - 8, y - 7, 326, 28, 2, 2)
             love.graphics.setColor(0.73, 0.80, 0.81)

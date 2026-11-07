@@ -14,7 +14,9 @@ function Free.enter(state,player,world,run,players)
     local t=state.home.commute
     if t and not t.independent then return false,'Finish the existing household trip first.' end
     if t and t.participants[id] then return false,'You are already outside.' end
-    if run and t and (t.deliveryRun or t.truck.owner) then return false,'The truck is already in use.' end
+    if run and t and (t.deliveryRun or t.truck.owner or t.keiTruck and t.keiTruck.owner) then
+        return false,'The truck is already in use.'
+    end
     local slot=tonumber(player.id) or 1
     local origin=scene=='home' and state.home.apartmentId or 'warehouse'
     local anchor=Trip.parking(world,origin,slot)
@@ -35,16 +37,19 @@ function Free.enter(state,player,world,run,players)
     if not t then
         local truck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state))
         if not truck then return false,'No safe loading area is available.' end
+        local keiTruck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state),'kei',truck)
+        if not keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
+        keiTruck.fuel=truck.fuel
         t={version=Trip.VERSION,mapVersion=require('src.commute.roads').VERSION,mapId=world.townId,
             token=state.home.revision+1,independent=true,purpose='outing',origin='warehouse',
-            destination=state.home.apartmentId,participants={},truck=truck}
+            destination=state.home.apartmentId,participants={},truck=truck,keiTruck=keiTruck}
         for _,other in ipairs(players or {player}) do
             local person=Residents.get(state,other)
             if person then person.sceneId=other.sceneId=='home' and 'home' or 'warehouse' end
         end
     end
     if run then
-        t.deliveryRun=run;t.deliveryDriver=id
+        t.deliveryRun=run;t.deliveryDriver=id;t.deliveryVehicleModel='box'
         t.truck.owner=id
     end
     t.participants[id]={slot=slot,arrived=false,rider=rider,origin=origin,
@@ -75,7 +80,9 @@ function Free.leave(state,player,token,destination,world)
     resident.bikeParkedAtHome=destination==state.home.apartmentId and r.transport~='truck'
     resident.sceneId=destination=='warehouse' and 'warehouse' or 'home'
     resident.revision=resident.revision+1
-    if t.truck.owner==id then t.truck.owner=nil;t.truck.driver=nil end
+    for _,truck in ipairs(Trip.trucks(t)) do
+        if truck.owner==id then truck.owner=nil;truck.driver=nil end
+    end
     if t.deliveryDriver==id then t.deliveryDriver=nil;t.deliveryRun=nil end
     t.participants[id]=nil
     state.home.revision=state.home.revision+1

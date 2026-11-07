@@ -3,11 +3,15 @@
 local Catalog=require('src.home_shop_catalog')
 local Residents=require('src.home_residents')
 local BikeCargo=require('src.home_bike_cargo')
+local GroceryInventory=require('src.commute.grocery_inventory')
+local TownCharacters=require('src.commute.town_characters')
+local Calendar=require('src.business_calendar')
 local Store={}
 local stores={
     grocery={name='TOWN GROCERY',subtitle='Fresh staples and pantry food',group='groceries',items={
-        {id='meal_pack',priceCents=1400},{id='sandwich',priceCents=250},{id='cereal',priceCents=150},
-        {id='drink',priceCents=150},{id='bread',priceCents=300},{id='vegetables',priceCents=400},
+        {id='vegetables',priceCents=400},{id='bread',priceCents=300},{id='cereal',priceCents=150},
+        {id='sandwich',priceCents=250},{id='drink',priceCents=150},{id='meal',priceCents=500},
+        {id='cup',priceCents=250},{id='meal_pack',priceCents=1400},
     }},
     ['general-store']={name='GENERAL STORE',subtitle='Everyday supplies and shelf food',group='groceries',items={
         {id='meal',priceCents=450},{id='meal_pack',priceCents=1850},{id='drink',priceCents=250},
@@ -16,8 +20,20 @@ local stores={
     diner={name='TOWN DINER',subtitle='Takeout pickup counter',group='takeout',items={
         {id='pizza',priceCents=1600},{id='chinese',priceCents=1200},
     }},
+    ['gas-station']={name='GAS STATION',subtitle='Quick snacks and drinks',group='groceries',items={
+        {id='drink',priceCents=250},{id='sandwich',priceCents=450},{id='meal',priceCents=650},
+    }},
 }
-local storeOrder={'grocery','general-store','diner'}
+local storeOrder={'grocery','general-store','diner','gas-station'}
+local groceryCategories={
+    produce={label='PRODUCE',items={'vegetables'}},
+    pantry={label='PANTRY',items={'bread','cereal'}},
+    chilled={label='CHILLED GOODS',items={'sandwich','drink','meal'}},
+    household={label='HOUSEHOLD',items={'cup'}},
+    specials={label='DAILY SPECIALS',items={'meal_pack'}},
+}
+local cartDigits='123456789abcdefghijklmnopqrstuvwxyz0'
+local GROCERY_ROW_HEIGHT=40
 local function integer(n,low,high)
     return type(n)=='number' and n==n and n%1==0 and n>=low and n<=high
 end
@@ -26,6 +42,80 @@ local function near(a,b,radius)
 end
 function Store.products(storeId) return stores[storeId] and stores[storeId].items or {} end
 function Store.title(storeId) return stores[storeId] and stores[storeId].name or 'TOWN STORE' end
+local function productOffer(storeId,productId)
+    for _,offer in ipairs(Store.products(storeId)) do if offer.id==productId then return offer end end
+end
+function Store.productsFor(view)
+    if view.storeId~='grocery' or not view.categoryId or view.categoryId=='checkout' then
+        return Store.products(view.storeId)
+    end
+    local category=groceryCategories[view.categoryId];local result={}
+    for _,id in ipairs(category and category.items or {}) do
+        local offer=productOffer('grocery',id);if offer then result[#result+1]=offer end
+    end
+    return result
+end
+function Store.category(view,categoryId)
+    if view.storeId~='grocery' or categoryId~='checkout' and not groceryCategories[categoryId] then return false end
+    if categoryId~='checkout' then view.lastCategory=categoryId end
+    view.page='store';view.categoryId=categoryId;view.selected=1;view.quantity=1
+    view.review=nil;view.notice=nil
+    return true
+end
+function Store.cartCount(cart)
+    local count=0;for _,quantity in pairs(cart or {}) do count=count+quantity end;return count
+end
+function Store.cartRoom(bikeInventory)
+    return math.max(0,BikeCargo.CAPACITY-BikeCargo.used(bikeInventory))
+end
+function Store.cartTotal(cart)
+    local total=0
+    for id,quantity in pairs(cart or {}) do
+        local quote=Store.quote('grocery',id,quantity)
+        if not quote then return nil end
+        total=total+quote.totalCents
+    end
+    return total
+end
+function Store.stockCount(view,productId)
+    return GroceryInventory.count(view and view.storeStock,productId)
+end
+function Store.cartAvailability(view,cart)
+    for id,quantity in pairs(cart or {}) do
+        local available=Store.stockCount(view,id)
+        if available<quantity then return false,id,available,quantity end
+    end
+    return true
+end
+function Store.encodeCart(cart)
+    if type(cart)~='table' or Store.cartCount(cart)>12 then return nil end
+    local parts={}
+    for index,offer in ipairs(Store.products('grocery')) do
+        local quantity=cart and cart[offer.id]
+        if quantity and quantity>0 then
+            if not integer(quantity,1,10) then return nil end
+            parts[#parts+1]=cartDigits:sub(index,index)..cartDigits:sub(quantity,quantity)
+        end
+    end
+    for id,quantity in pairs(cart) do
+        if not productOffer('grocery',id) or not integer(quantity,1,10) then return nil end
+    end
+    if #parts==0 then return nil end
+    return table.concat(parts)
+end
+function Store.decodeCart(payload)
+    if type(payload)~='string' or #payload<2 or #payload%2~=0 or #payload>32 then return nil end
+    local cart={}
+    for offset=1,#payload,2 do
+        local index=cartDigits:find(payload:sub(offset,offset),1,true)
+        local quantity=cartDigits:find(payload:sub(offset+1,offset+1),1,true)
+        local offer=index and Store.products('grocery')[index]
+        if not offer or not integer(quantity,1,10) or cart[offer.id] then return nil end
+        cart[offer.id]=quantity
+    end
+    if Store.cartCount(cart)>12 then return nil end
+    return cart
+end
 function Store.counter(rider,world,storeId)
     local store=stores[storeId]
     local site=world and world.sites and world.sites.byId[storeId]
@@ -56,9 +146,20 @@ function Store.quote(storeId,productId,quantity)
     end
 end
 function Store.purchase(state,player,rider,world,storeId,intent)
+    if (storeId=='grocery' or storeId=='gas-station')
+        and not TownCharacters.isOpen(state.home,storeId,Calendar.absoluteHours(state)) then
+        return false,Store.title(storeId)..' is closed for the night.'
+    end
     if not Store.counter(rider,world,storeId) then return false,'Walk up to the store counter on foot first.' end
     local quote=Store.quote(storeId,intent.productId,intent.quantity)
     if not quote then return false,'Choose a product sold at this store and a quantity from 1 to 10.' end
+    if storeId=='grocery' then
+        local available=GroceryInventory.count(GroceryInventory.ensure(state),intent.productId)
+        if available<intent.quantity then
+            return false,available>0 and ('Only %d %s in stock right now.'):format(available,quote.product.name)
+                or (quote.product.name..' is out of stock right now.')
+        end
+    end
     if intent.expectedRevision~=state.home.revision then return false,'Household details changed. Review the current price and try again.' end
     local residentId=Residents.key(player)
     local resident=Residents.get(state,player)
@@ -78,6 +179,10 @@ function Store.purchase(state,player,rider,world,storeId,intent)
         if period>shop.budgetCloseHours then shop.budgetCloseHours=period;shop.guestSpentCents=0;spent=0 end
         shop.guestSpentCents=spent+quote.totalCents
     end
+    if storeId=='grocery' then
+        local consumed=GroceryInventory.consume(GroceryInventory.ensure(state),{[intent.productId]=intent.quantity})
+        if not consumed then return false,'That item just sold out. Review the grocery shelf again.' end
+    end
     state.home.balanceCents=state.home.balanceCents-quote.totalCents
     bikeInventory.items[intent.productId]=(bikeInventory.items[intent.productId] or 0)+intent.quantity
     bikeInventory.revision=bikeInventory.revision+1;resident.revision=resident.revision+1
@@ -85,13 +190,139 @@ function Store.purchase(state,player,rider,world,storeId,intent)
     return true,('%s bought for $%.2f and loaded onto your bike (%d/%d bags).')
         :format(quote.product.name,quote.totalCents/100,BikeCargo.used(bikeInventory),BikeCargo.CAPACITY)
 end
-function Store.open(storeId,token)
-    return {page='store',storeId=storeId,token=token,selected=1,quantity=1,review=nil,notice=nil}
+function Store.purchaseCart(state,player,rider,world,intent)
+    if not TownCharacters.isOpen(state.home,'grocery',Calendar.absoluteHours(state)) then
+        return false,'Town Grocery is closed for the night.'
+    end
+    if not Store.counter(rider,world,'grocery') then return false,'Walk up to the grocery checkout counter first.' end
+    if intent.expectedRevision~=state.home.revision then
+        return false,'Household details changed. Review the cart total and check out again.'
+    end
+    if type(intent.cart)~='table' then return false,'Your grocery cart is empty.' end
+    local storeStock=GroceryInventory.ensure(state)
+    local totalCents,bagCount=0,0
+    for id,quantity in pairs(intent.cart) do
+        local quote=Store.quote('grocery',id,quantity)
+        if not quote or not integer(quantity,1,10) then return false,'The cart contains an item or quantity this store cannot sell.' end
+        totalCents=totalCents+quote.totalCents;bagCount=bagCount+quantity
+    end
+    local supplied,shortId,available=GroceryInventory.canSupply(storeStock,intent.cart)
+    if not supplied then
+        local product=Catalog.PRODUCTS[shortId]
+        return false,available>0 and ('Only %d %s in stock right now. Update your cart before checkout.'):format(available,product.name)
+            or (product.name..' is out of stock right now. Remove it from your cart or wait for a delivery.')
+    end
+    if bagCount<1 or bagCount>12 then return false,'Add between 1 and 12 bags before checking out.' end
+    local residentId=Residents.key(player)
+    local resident=Residents.get(state,player)
+    if not resident then return false,'Join this household before shopping.' end
+    local bikeInventory=BikeCargo.ensure(resident)
+    if BikeCargo.used(bikeInventory)+bagCount>BikeCargo.CAPACITY then
+        return false,'Bike cargo is full. Unload groceries at your apartment before checking out.'
+    end
+    if state.home.balanceCents<totalCents then return false,'Not enough household funds for this cart.' end
+    local shop=require('src.home_shopping').ensure(state)
+    local _,spent,remaining=require('src.home_shopping').budget(state)
+    if residentId~='owner' and totalCents>remaining then
+        return false,'This cart exceeds the household\'s remaining shared guest food budget.'
+    end
+    if residentId~='owner' then
+        local period=state.home.weekend.closesAtHours
+        if period>shop.budgetCloseHours then shop.budgetCloseHours=period;shop.guestSpentCents=0;spent=0 end
+        shop.guestSpentCents=spent+totalCents
+    end
+    local consumed=GroceryInventory.consume(GroceryInventory.ensure(state),intent.cart)
+    if not consumed then return false,'Some groceries just sold out. Review the cart before paying.' end
+    for id,quantity in pairs(intent.cart) do
+        bikeInventory.items[id]=(bikeInventory.items[id] or 0)+quantity
+    end
+    state.home.balanceCents=state.home.balanceCents-totalCents
+    bikeInventory.revision=bikeInventory.revision+1;resident.revision=resident.revision+1
+    state.home.revision=state.home.revision+1
+    return true,('Checkout complete: %d grocery bag(s) for $%.2f, loaded onto your bike (%d/%d bags).')
+        :format(bagCount,totalCents/100,BikeCargo.used(bikeInventory),BikeCargo.CAPACITY)
 end
-local function productAt(v,index) return Store.products(v.storeId)[index] end
-function Store.key(v,key,revision,buy,close)
+function Store.open(storeId,token)
+    return {page='store',storeId=storeId,token=token,selected=1,quantity=1,review=nil,notice=nil,
+        categoryId=storeId=='grocery' and 'pantry' or nil,cart={}}
+end
+local function productAt(v,index) return Store.productsFor(v)[index] end
+local function cartRows(v)
+    local rows={}
+    for _,offer in ipairs(Store.products('grocery')) do
+        local quantity=v.cart and v.cart[offer.id]
+        if quantity and quantity>0 then rows[#rows+1]={offer=offer,quantity=quantity} end
+    end
+    return rows
+end
+local function cartAdjust(v,delta)
+    local rows=cartRows(v);local selected=math.max(1,math.min(#rows,v.selected or 1));local row=rows[selected]
+    if not row then v.notice='Your cart is empty.';return end
+    local nextQuantity=row.quantity+delta
+    if nextQuantity<=0 then
+        v.cart[row.offer.id]=nil;v.selected=math.max(1,math.min(selected,#cartRows(v)))
+    elseif nextQuantity<=10 and nextQuantity<=Store.stockCount(v,row.offer.id)
+        and Store.cartCount(v.cart)-row.quantity+nextQuantity<=(v.cartCapacity or 12) then
+        v.cart[row.offer.id]=nextQuantity
+    elseif nextQuantity>Store.stockCount(v,row.offer.id) then
+        v.notice=('Only %d %s in stock right now.'):format(Store.stockCount(v,row.offer.id),Catalog.PRODUCTS[row.offer.id].name)
+    else v.notice='There is no room for more bags on the bike.' end
+end
+function Store.key(v,key,revision,buy,close,buyCart)
     if key=='escape' or key=='back' then close();return true end
     if v.pending then return true end
+    if v.storeId=='grocery' then
+        if v.categoryId=='checkout' then
+            local rows=cartRows(v)
+            if key=='up' or key=='down' then
+                v.selected=math.max(1,math.min(#rows,(v.selected or 1)+(key=='up' and -1 or 1)))
+            elseif key=='left' then cartAdjust(v,-1)
+            elseif key=='right' then cartAdjust(v,1)
+            elseif key=='tab' or key=='c' then Store.category(v,v.lastCategory or 'pantry')
+            elseif key=='return' or key=='kpenter' or key=='e' then
+                local payload=Store.encodeCart(v.cart)
+                if not payload then v.notice='Your cart is empty. Browse a shelf and add something first.'
+                elseif not Store.cartAvailability(v,v.cart) then
+                    local _,id,available,requested=Store.cartAvailability(v,v.cart)
+                    local name=Catalog.PRODUCTS[id].name
+                    v.notice=available>0 and ('Only %d %s remain in store; the cart needs %d.'):format(available,name,requested)
+                        or (name..' is out of stock. Remove it or wait for delivery.')
+                elseif not buyCart then v.notice='Checkout is unavailable right now.'
+                else
+                    local notice,accepted=buyCart('grocery',v.cart,revision,payload)
+                    v.notice=notice
+                    if accepted then v.pending={kind='cart',revision=revision,
+                        bikeRevision=v.bikeInventoryRevision or 0,elapsed=0} end
+                end
+            end
+            return true
+        end
+        local products=Store.productsFor(v)
+        if key=='up' or key=='down' then
+            v.selected=math.max(1,math.min(#products,(v.selected or 1)+(key=='up' and -1 or 1)))
+            v.notice=nil
+        elseif key=='left' or key=='right' then
+            v.quantity=math.max(1,math.min(10,(v.quantity or 1)+(key=='left' and -1 or 1)))
+            v.notice=nil
+        elseif key=='tab' or key=='c' then Store.category(v,'checkout')
+        elseif key=='space' or key=='return' or key=='kpenter' or key=='e' then
+            local offer=productAt(v,v.selected)
+            local already=offer and (v.cart[offer.id] or 0) or 0
+            if not offer then v.notice='This shelf is empty.'
+            elseif already+v.quantity>10 then v.notice='The cart limit for this item is 10.'
+            elseif already+v.quantity>Store.stockCount(v,offer.id) then
+                local stock=Store.stockCount(v,offer.id)
+                v.notice=stock>0 and ('Only %d %s in stock right now.'):format(stock,Catalog.PRODUCTS[offer.id].name)
+                    or (Catalog.PRODUCTS[offer.id].name..' is out of stock. Wait for the next delivery.')
+            elseif Store.cartCount(v.cart)+v.quantity>(v.cartCapacity or 12) then
+                v.notice='There is no room for that many bags on the bike.'
+            else
+                v.cart[offer.id]=(v.cart[offer.id] or 0)+v.quantity
+                v.notice=('%d × %s added to your cart.'):format(v.quantity,Catalog.PRODUCTS[offer.id].name)
+            end
+        end
+        return true
+    end
     if key=='up' or key=='down' then
         v.selected=math.max(1,math.min(#Store.products(v.storeId),v.selected+(key=='up' and -1 or 1)))
         v.review=nil;v.notice=nil
@@ -118,34 +349,162 @@ function Store.key(v,key,revision,buy,close)
     end
     return true
 end
-local layout={close={x=65,y=566,w=180,h=58},buy={x=682,y=566,w=212,h=58},minus={x=700,y=122,w=42,h=38},plus={x=846,y=122,w=42,h=38}}
+local layout={close={x=65,y=566,w=180,h=58},cart={x=274,y=566,w=218,h=58},buy={x=682,y=566,w=212,h=58},minus={x=700,y=122,w=42,h=38},plus={x=846,y=122,w=42,h=38}}
 local function contains(b,x,y) return x>=b.x and y>=b.y and x<=b.x+b.w and y<=b.y+b.h end
-function Store.pointer(v,x,y,revision,buy,close)
+function Store.pointer(v,x,y,revision,buy,close,buyCart)
     if y>=566 and y<=634 and x>=65 and x<=245 then close();return true end
     if v.pending then return true end
+    if v.storeId=='grocery' then
+        if y>=566 and y<=634 and x>=layout.cart.x and x<=layout.cart.x+layout.cart.w then
+            if v.categoryId=='checkout' then Store.category(v,v.lastCategory or 'pantry') else Store.category(v,'checkout') end
+            return true
+        end
+        if y>=566 and y<=634 and x>=682 and x<=894 then
+            return Store.key(v,v.categoryId=='checkout' and 'return' or 'space',revision,buy,close,buyCart)
+        end
+        if contains(layout.minus,x,y) then return Store.key(v,'left',revision,buy,close,buyCart) end
+        if contains(layout.plus,x,y) then return Store.key(v,'right',revision,buy,close,buyCart) end
+        local rows=v.categoryId=='checkout' and cartRows(v) or Store.productsFor(v)
+        if x>=65 and x<=575 and y>=174 and y<174+#rows*GROCERY_ROW_HEIGHT then
+            v.selected=math.floor((y-174)/GROCERY_ROW_HEIGHT)+1;v.notice=nil
+        end
+        return true
+    end
     if y>=566 and y<=634 and x>=682 and x<=894 then return Store.key(v,'return',revision,buy,close) end
     if contains(layout.minus,x,y) then return Store.key(v,'left',revision,buy,close) end
     if contains(layout.plus,x,y) then return Store.key(v,'right',revision,buy,close) end
-    local products=Store.products(v.storeId)
+    local products=Store.productsFor(v)
     if x>=65 and x<=575 and y>=174 and y<174+#products*48 then
         v.selected=math.floor((y-174)/48)+1;v.review=nil;v.notice=nil
     end
     return true
 end
-function Store.update(v,state,dt)
+function Store.update(v,state,dt,bikeInventory)
+    v.storeStock=state.groceryStore or GroceryInventory.defaultState()
+    v.calendarDay=state.calendar and state.calendar.totalDays or 0
+    v.calendarWeekday=state.calendar and state.calendar.weekday or 1
     if v.review and v.review.expectedRevision~=state.home.revision then
         v.review=nil;v.notice='Household details changed. Review the current price again.'
     end
     if v.pending then
         v.pending.elapsed=v.pending.elapsed+math.max(0,dt or 0)
         if state.home.revision>v.pending.revision then
-            v.pending=nil;v.notice=state.message or 'Household updated. Check your storage and balance.'
+            local wasCart=v.pending.kind=='cart'
+            local completed=not wasCart or bikeInventory
+                and (bikeInventory.revision or 0)>=(v.pending.bikeRevision or 0)+1
+            v.pending=nil
+            if wasCart and completed then v.cart={};v.selected=1 end
+            v.notice=wasCart and (completed and (state.message or 'Checkout complete.')
+                or 'Household changed. Your cart is still here; review the total before checking out again.')
+                or state.message or 'Household updated. Check your storage and balance.'
         elseif v.pending.elapsed>=6 then
             v.pending=nil;v.notice='No household update received. Review the price and retry.'
         end
     end
 end
-function Store.draw(v,balanceCents,bikeInventory,revision,width,height,closeLabel)
+local function drawButton(g,b,text,enabled)
+    g.setColor(enabled and .16 or .09,enabled and .30 or .13,.23,1);g.rectangle('fill',b.x,b.y,b.w,b.h,5)
+    g.setColor(enabled and .73 or .35,enabled and .79 or .39,enabled and .62 or .35,1);g.rectangle('line',b.x,b.y,b.w,b.h,5)
+    g.setColor(enabled and 1 or .48,enabled and .93 or .53,enabled and .71 or .48,1)
+    g.printf(text,b.x+8,b.y+20,b.w-16,'center')
+end
+local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
+    v.bikeInventoryRevision=bikeInventory and bikeInventory.revision or 0
+    v.cartCapacity=Store.cartRoom(bikeInventory)
+    local g=love.graphics;local rows=v.categoryId=='checkout' and cartRows(v) or Store.productsFor(v)
+    local count=Store.cartCount(v.cart);local total=Store.cartTotal(v.cart) or 0
+    local selected=rows[v.selected or 1]
+    g.push('all');g.scale(width/960,height/678)
+    g.setColor(0,0,0,.72);g.rectangle('fill',0,0,960,678)
+    g.setColor(.035,.065,.06,1);g.rectangle('fill',36,38,888,600,10)
+    local title=v.categoryId=='checkout' and 'CHECKOUT' or groceryCategories[v.categoryId] and groceryCategories[v.categoryId].label or 'GROCERY AISLE'
+    g.setColor(.96,.9,.7);g.print('TOWN GROCERY  /  '..title,70,65,0,1.3)
+    g.setColor(.79,.84,.76);g.print(('Household $%.2f'):format(balanceCents/100),70,105)
+    local used=BikeCargo.used(bikeInventory)
+    g.print(('Bike cargo %d / %d bags'):format(used,BikeCargo.CAPACITY),352,105)
+    g.print(('Cart %d bag(s) / $%.2f'):format(count,total/100),620,105)
+    local daysToDelivery=math.max(0,(v.storeStock and v.storeStock.nextDeliveryDay or 0)-(v.calendarDay or 0))
+    g.setColor(.62,.77,.66,1)
+    local deliveryText=daysToDelivery==0 and ((v.calendarWeekday or 1)>=6 and 'next weekday' or 'due today')
+        or ('in '..daysToDelivery..' day(s)')
+    g.print('Outside connection delivery: '..deliveryText,70,137)
+    for i,row in ipairs(rows) do
+        local offer=v.categoryId=='checkout' and row.offer or row
+        local quantity=v.categoryId=='checkout' and row.quantity or 1
+        local product=Catalog.PRODUCTS[offer.id];local y=174+(i-1)*GROCERY_ROW_HEIGHT
+        g.setColor(i==v.selected and .24 or .09,i==v.selected and .31 or .17,.21,1)
+        g.rectangle('fill',65,y,510,GROCERY_ROW_HEIGHT-2,4)
+        g.setColor(.98,.95,.82,1)
+        g.print(product.name,80,y+6)
+        local stored=bikeInventory and bikeInventory.items[offer.id] or 0
+        local inStock=Store.stockCount(v,offer.id)
+        local detail=v.categoryId=='checkout' and ('In cart: %d  /  on bike: %d'):format(quantity,stored)
+            or ('Stock: %d  /  %d serving(s)/item  /  on bike: %d'):format(inStock,product.servings,stored)
+        if v.categoryId=='checkout' then detail=detail..('  /  store: %d'):format(inStock) end
+        if inStock==0 then detail='OUT OF STOCK  /  '..detail end
+        g.setColor(inStock==0 and 1 or .69,inStock==0 and .52 or .77,inStock==0 and .42 or .69,1)
+        g.print(detail,80,y+24)
+        g.setColor(.98,.95,.82,1)
+        g.printf(('$%.2f each'):format(offer.priceCents/100),428,y+13,132,'right')
+    end
+    if selected then
+        local offer=v.categoryId=='checkout' and selected.offer or selected
+        local product=Catalog.PRODUCTS[offer.id]
+        g.setColor(.94,.9,.77,1)
+        g.printf(product.name..'\n'..product.servings..' serving(s) per item\n\n'..(product.description or 'Add it to your cart, then pay at the checkout counter.'),610,174,280)
+        g.print(('IN STORE  %d'):format(Store.stockCount(v,offer.id)),610,286)
+        if v.categoryId=='checkout' then
+            g.print(('QUANTITY IN CART  %d'):format(selected.quantity),610,322)
+            g.print('Left: remove one  /  Right: add one',610,350)
+            local canPay,shortId,available,requested=Store.cartAvailability(v,v.cart)
+            if not canPay then
+                local shortName=Catalog.PRODUCTS[shortId].name
+                g.setColor(1,.54,.4,1)
+                g.printf(available>0 and ('Only %d %s left; cart needs %d.'):format(available,shortName,requested)
+                    or (shortName..' is out of stock. Remove it to check out.'),610,384,274)
+            elseif v.storeStock and v.storeStock.lastDeliveryNote then
+                g.setColor(.68,.8,.68,1);g.printf(v.storeStock.lastDeliveryNote,610,384,274)
+            end
+            g.setColor(.22,.33,.26,1)
+            g.rectangle('fill',layout.minus.x,layout.minus.y,layout.minus.w,layout.minus.h,4)
+            g.rectangle('fill',layout.plus.x,layout.plus.y,layout.plus.w,layout.plus.h,4)
+            g.setColor(1,.92,.72,1)
+            g.printf('−',layout.minus.x,layout.minus.y+8,layout.minus.w,'center')
+            g.printf('+',layout.plus.x,layout.plus.y+8,layout.plus.w,'center')
+        else
+            g.print(('QUANTITY  %d'):format(v.quantity or 1),610,322)
+            g.setColor(.22,.33,.26,1)
+            g.rectangle('fill',layout.minus.x,layout.minus.y,layout.minus.w,layout.minus.h,4)
+            g.rectangle('fill',layout.plus.x,layout.plus.y,layout.plus.w,layout.plus.h,4)
+            g.setColor(1,.92,.72,1)
+            g.printf('−',layout.minus.x,layout.minus.y+8,layout.minus.w,'center')
+            g.printf('+',layout.plus.x,layout.plus.y+8,layout.plus.w,'center')
+            local quote=Store.quote('grocery',offer.id,v.quantity or 1)
+            g.print(('ITEM TOTAL  $%.2f'):format(quote.totalCents/100),610,364)
+        end
+    elseif v.categoryId=='checkout' then
+        g.setColor(.94,.9,.77,1)
+        g.printf('Your cart is empty. Browse a shelf and add items before checking out.',610,190,270)
+    end
+    g.setColor(.94,.9,.77,1)
+    local hint=v.pending and 'Waiting for the host to confirm checkout…' or v.notice
+        or v.categoryId=='checkout' and 'Select a cart line to change its quantity. Press Enter or Pay Now to finish.'
+        or 'Choose an item, set quantity, then press Enter or Add to Cart.'
+    g.printf(hint,70,510,810)
+    drawButton(g,layout.close,'Back to floor',not v.pending)
+    drawButton(g,layout.cart,v.categoryId=='checkout' and 'Continue shopping' or ('View cart ('..count..')'),not v.pending)
+    local cartCanPay=Store.cartAvailability(v,v.cart)
+    local selectedOffer=v.categoryId=='checkout' and selected and selected.offer or selected
+    local selectedInStock=selectedOffer and (v.cart[selectedOffer.id] or 0)+(v.quantity or 1)<=Store.stockCount(v,selectedOffer.id)
+    drawButton(g,layout.buy,v.categoryId=='checkout' and (count>0 and 'Pay now' or 'Cart is empty') or 'Add to cart',
+        not v.pending and (v.categoryId~='checkout' and selectedInStock or count>0 and cartCanPay))
+    g.pop();return true
+end
+function Store.draw(v,balanceCents,bikeInventory,revision,width,height,closeLabel,storeStock,calendarDay,calendarWeekday)
+    if storeStock then v.storeStock=storeStock end
+    if calendarDay~=nil then v.calendarDay=calendarDay end
+    if calendarWeekday~=nil then v.calendarWeekday=calendarWeekday end
+    if v.storeId=='grocery' then return drawGrocery(v,balanceCents,bikeInventory,revision,width,height) end
     local g=love.graphics;local products=Store.products(v.storeId)
     g.push('all');g.scale(width/960,height/678)
     g.setColor(0,0,0,.72);g.rectangle('fill',0,0,960,678)

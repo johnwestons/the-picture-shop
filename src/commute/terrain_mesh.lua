@@ -1,7 +1,7 @@
 -- Pure CPU preparation for continuously resident town terrain. GPU ownership stays
 -- with the caller; completed tiles can be uploaded and their Lua arrays discarded.
 local Surface=require('src.commute.vendor.terrain')
-local Mesh={};Mesh.__index=Mesh
+local Mesh={MOBILE_SPACING=1.5};Mesh.__index=Mesh
 function Mesh.new(world,options)
     options=options or {}
     local spacing=options.spacing or 1;local tileSize=options.tileSize or 24
@@ -9,7 +9,8 @@ function Mesh.new(world,options)
     assert(tileSize>0 and tileSize/spacing%1==0,'Terrain tile size must align to spacing')
     local self=setmetatable({world=world,spacing=spacing,tileSize=tileSize,tiles={},completed=0,
         sampleCount=0,heightSamples=0,cacheHits=0,vertexCount=0,indexCount=0,lastBuildMs=0,
-        exactMaterials=options.exactMaterials==true,surface=options.surface or Surface.surface,indexCache={}},Mesh)
+        exactMaterials=options.exactMaterials==true,meshNormals=spacing>1 and options.exactMaterials~=true,
+        surface=options.surface or Surface.surface,indexCache={}},Mesh)
     for x0=0,world.size-spacing/100,tileSize do
         for z0=0,world.size-spacing/100,tileSize do
             local x1,z1=math.min(world.size,x0+tileSize),math.min(world.size,z0+tileSize)
@@ -30,6 +31,27 @@ local function height(self,job,x,z)
     if h==nil then h=self.world:height(x,z);row[qz]=h;self.heightSamples=self.heightSamples+1
     else self.cacheHits=self.cacheHits+1 end
     return h
+end
+local function axisCoordinate(start,finish,segments,index,spacing)
+    if index<0 then return start-spacing end
+    if index==segments then return finish end
+    if index>segments then return finish+spacing end
+    return start+index*spacing
+end
+local function sampleHeightRow(self,job,rowIndex)
+    local tile=job.tile
+    local x=axisCoordinate(tile.x0,tile.x1,tile.nx,rowIndex,self.spacing)
+    local row={}
+    for iz=-1,tile.nz+1 do
+        local z
+        if iz<0 then z=tile.z0-self.spacing
+        elseif iz==tile.nz then z=tile.z1
+        elseif iz>tile.nz then z=tile.z1+self.spacing
+        else z=tile.z0+iz*self.spacing end
+        -- Ghost samples let neighboring tiles derive the same edge normal.
+        row[iz+2]=height(self,job,x,z)
+    end
+    return row
 end
 -- Lower only the displayed soil under every nearby road surface. At junctions
 -- the nearest road can be higher than an overlapping lane, so use all segments
@@ -64,11 +86,39 @@ function Mesh:buildRow()
     -- A caller may retry a failed GPU upload without regenerating or duplicating rows.
     if job.row>tile.nx then return true end
     local x=math.min(tile.x1,tile.x0+job.row*self.spacing)
+    if self.meshNormals then
+        -- Coarse mobile meshes reuse adjacent row heights instead of sampling
+        -- four extra offsets at every vertex. Desktop keeps its 1 m path.
+        job.heightRows=job.heightRows or {}
+        for rowIndex=job.row-1,job.row+1 do
+            if not job.heightRows[rowIndex] then
+                job.heightRows[rowIndex]=sampleHeightRow(self,job,rowIndex)
+            end
+        end
+    end
+    local previousRow=job.heightRows and job.heightRows[job.row-1]
+    local currentRow=job.heightRows and job.heightRows[job.row]
+    local nextRow=job.heightRows and job.heightRows[job.row+1]
+    local xPrevious=job.heightRows and axisCoordinate(tile.x0,tile.x1,tile.nx,job.row-1,self.spacing)
+    local xNext=job.heightRows and axisCoordinate(tile.x0,tile.x1,tile.nx,job.row+1,self.spacing)
     for iz=0,tile.nz do
         local z=math.min(tile.z1,tile.z0+iz*self.spacing)
-        local h=height(self,job,x,z)
-        local nx=height(self,job,x-.5,z)-height(self,job,x+.5,z)
-        local nz=height(self,job,x,z-.5)-height(self,job,x,z+.5)
+        local h,nx,nz
+        if currentRow then
+            local heightIndex=iz+2
+            h=currentRow[heightIndex]
+            nx=(previousRow[heightIndex]-nextRow[heightIndex])/(xNext-xPrevious)
+            local zSpan=2*self.spacing
+            if iz==tile.nz then
+                local zPrevious=math.min(tile.z1,tile.z0+(iz-1)*self.spacing)
+                zSpan=tile.z1+self.spacing-zPrevious
+            end
+            nz=(currentRow[heightIndex-1]-currentRow[heightIndex+1])/zSpan
+        else
+            h=height(self,job,x,z)
+            nx=height(self,job,x-.5,z)-height(self,job,x+.5,z)
+            nz=height(self,job,x,z-.5)-height(self,job,x,z+.5)
+        end
         local slope=math.sqrt(nx*nx+nz*nz)
         if self.exactMaterials then
             local hx=height(self,job,x+.3,z)-height(self,job,x-.3,z)
@@ -83,6 +133,7 @@ function Mesh:buildRow()
             (tile.x0/4)%2,(tile.z0/4)%2,r,g,b,1,gw,dw,lw,coverage,gv,sv,lv,-h}
         self.sampleCount=self.sampleCount+1
     end
+    if job.heightRows then job.heightRows[job.row-1]=nil end
     job.row=job.row+1
     return job.row>tile.nx
 end

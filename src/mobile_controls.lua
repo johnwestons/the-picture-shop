@@ -33,6 +33,14 @@ local function distance(x1, y1, x2, y2)
     return math.sqrt(dx * dx + dy * dy)
 end
 
+local function applySensitivity(x, y, sensitivity)
+    local magnitude = math.sqrt(x * x + y * y)
+    if magnitude <= 0 then return 0, 0 end
+    sensitivity = math.max(50, math.min(150, tonumber(sensitivity) or 100))
+    local adjusted = math.min(1, magnitude) ^ (2 - sensitivity / 100)
+    return x / magnitude * adjusted, y / magnitude * adjusted
+end
+
 function MobileControls.new(options)
     options = options or {}
     local self = setmetatable({}, MobileControls)
@@ -46,6 +54,8 @@ function MobileControls.new(options)
     self.releasePointer = assert(options.releasePointer, "mobile controls require releasePointer")
     self.gameplayActive = assert(options.gameplayActive, "mobile controls require gameplayActive")
     self.gestureActive = options.gestureActive or self.gameplayActive
+    self.touchLookActive = options.touchLookActive or function() return false end
+    self.updateTouchLook = options.updateTouchLook or function() end
     self.primaryAction = options.primaryAction or function() return "e", "" end
     self.extraActions = options.extraActions or function() return {} end
     self.afterInput = options.afterInput or function() end
@@ -63,6 +73,7 @@ function MobileControls.new(options)
         { x = 767, y = 518, radius = 36 },
     }
     self.controlLayout = copyLayout(options.layout)
+    self.walkSensitivity = options.walkSensitivity or function() return 100 end
     self.bounds = { left = 0, top = 0, right = 960, bottom = 678, width = 960, height = 678 }
     self:setBounds(self.bounds)
     return self
@@ -70,7 +81,11 @@ end
 
 function MobileControls:isEnabled() return self.enabled end
 function MobileControls:ignoreSyntheticMouse(isTouch) return self.enabled and isTouch == true end
-function MobileControls:movement() return self.axisX, self.axisY end
+function MobileControls:movement()
+    local sensitivity = self.walkSensitivity
+    if type(sensitivity) == "function" then sensitivity = sensitivity() end
+    return applySensitivity(self.axisX, self.axisY, sensitivity)
+end
 function MobileControls:pointer() return self.pointerX, self.pointerY end
 
 function MobileControls.defaultLayout()
@@ -189,6 +204,14 @@ function MobileControls:touchpressed(id, screenX, screenY)
             return true
         end
     end
+    if self.touchLookActive() then
+        self.touches[id] = {
+            kind = "touchLookPending", screenX = screenX, screenY = screenY, x = x, y = y,
+            startScreenX = screenX, startScreenY = screenY, startX = x, startY = y,
+            tapSlop = TAP_SLOP_GAME_UNITS * (tonumber(self.bounds and self.bounds.scale) or 1),
+        }
+        return true
+    end
     if self.gestureActive() then
         if self.gestureTouches then
             self.touches[id] = { kind = "ignored", screenX = screenX, screenY = screenY, x = x, y = y }
@@ -216,10 +239,14 @@ function MobileControls:touchmoved(id, screenX, screenY, dx, dy)
     local x, y = self:_updatePointer(screenX, screenY)
     local touch = self.touches[id]
     if not touch then return false end
-    if touch.kind == "pending" and distance(screenX, screenY,
+    if (touch.kind == "pending" or touch.kind == "touchLookPending") and distance(screenX, screenY,
         touch.startScreenX or screenX, touch.startScreenY or screenY) > (touch.tapSlop or TAP_SLOP_GAME_UNITS)
     then
         touch.moved = true
+        if touch.kind == "touchLookPending" then touch.kind = "touchLook" end
+    end
+    if touch.kind == "touchLook" then
+        self.updateTouchLook(x-(touch.x or x), y-(touch.y or y))
     end
     touch.screenX, touch.screenY, touch.x, touch.y = screenX, screenY, x, y
     if touch.kind == "joystick" then
@@ -253,6 +280,15 @@ function MobileControls:touchreleased(id, screenX, screenY)
         if not moved then
             -- A phone tap belongs to the object where the finger went down.
             -- Never turn the release point into a second or different click.
+            local tapScreenX = touch.startScreenX or screenX
+            local tapScreenY = touch.startScreenY or screenY
+            self.pressPointer(tapScreenX, tapScreenY, 1)
+            self.releasePointer(tapScreenX, tapScreenY, 1)
+            self.pointerX, self.pointerY = touch.startX or x, touch.startY or y
+            self.afterInput(self.pointerX, self.pointerY)
+        end
+    elseif touch.kind == "touchLookPending" then
+        if not touch.moved then
             local tapScreenX = touch.startScreenX or screenX
             local tapScreenY = touch.startScreenY or screenY
             self.pressPointer(tapScreenX, tapScreenY, 1)

@@ -53,12 +53,14 @@ function Component.install(Runtime)
     end
 
     function Runtime.Fleet.nextInbound(state)
+        local now=Runtime.BusinessCalendar.absoluteHours(state)
         for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
             -- Truck motion is intentionally transient. Any undelivered unit is
             -- schedulable again after loading a save, even if its last saved
             -- manifest state said scheduled/backing/at_bay.
             if Runtime.Fleet.isGameplayEnabled(order.modelId)
-                and order.delivery.status ~= "received" and order.item then return order end
+                and order.delivery.status ~= "received" and order.item
+                and now>=(tonumber(order.delivery.expectedAtHours) or 0) then return order end
         end
     end
 

@@ -36,7 +36,8 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.calendarYear = state.calendar.year
         Runtime.ComputerScreen.calendarMonth = state.calendar.month
         Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
-        Runtime.ComputerScreen.calendarScroll = 0
+        Runtime.ComputerScreen.calendarDayOpen = false
+        Runtime.ComputerScreen.calendarDayScroll = 0
         Runtime.ComputerScreen.retailPage = 1
         Runtime.ComputerScreen.wwwSite = 1
         Runtime.ComputerScreen.cart = {}
@@ -105,7 +106,8 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.calendarYear = state.calendar.year
             Runtime.ComputerScreen.calendarMonth = state.calendar.month
             Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
-            Runtime.ComputerScreen.calendarScroll = 0
+            Runtime.ComputerScreen.calendarDayOpen = false
+            Runtime.ComputerScreen.calendarDayScroll = 0
         elseif tab.id == "inventory" then
             Runtime.ComputerScreen.retailPage = 1
         end
@@ -314,8 +316,17 @@ function Component.install(Runtime)
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
-    function Runtime.ComputerScreen.calendarScrollCenter(direction)
-        local rect = direction == "up" and Runtime.CAL_SCROLL_UP or Runtime.CAL_SCROLL_DOWN
+    function Runtime.ComputerScreen.calendarDayEvents(state,year,month,day,twelveHourTime)
+        return Runtime.calendarDayEvents(state,year,month,day,twelveHourTime)
+    end
+
+    function Runtime.ComputerScreen.calendarDayCloseCenter()
+        local rect=Runtime.CAL_DAY_CLOSE
+        return rect.x+rect.width/2,rect.y+rect.height/2
+    end
+
+    function Runtime.ComputerScreen.calendarDayScrollCenter(direction)
+        local rect = direction == "up" and Runtime.CAL_DAY_SCROLL_UP or Runtime.CAL_DAY_SCROLL_DOWN
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
@@ -327,7 +338,8 @@ function Component.install(Runtime)
     function Runtime.ComputerScreen.hiringMousepressed(state,x,y)
         local result=Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
             return Runtime.ComputerScreen.employeeCommand(state,intent)
-        end,false,Runtime.dependencies.remoteCommand==nil)
+        end,false,Runtime.dependencies.remoteCommand==nil,
+            Runtime.twelveHourTime())
         if Runtime.ComputerScreen.hiring.section=="payroll" then
             Runtime.ComputerScreen.tab="financials"
             Runtime.ComputerScreen.financialSection="staff"

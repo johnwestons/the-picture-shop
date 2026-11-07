@@ -4,6 +4,7 @@ local M=require('src.commute.vendor.mathx')
 local Flora=require('src.commute.vendor.flora')
 local Life=require('src.commute.vendor.lifecycle')
 local Motion={};Motion.__index=Motion
+Motion.MAX_SWAY=.065
 local reach=Flora.spriteReach
 local flexibility={grass=1.1,strawberry=1,sumac=.7,bramble=.7,oak=.12,pine=.12,
     redbud=.12,blueberry=.7,milkweed=.95,dogwood=.16,persimmon=.12,
@@ -40,6 +41,9 @@ function Motion:update(dt)
         r.v=fade*(v*c-(damping*v+frequency^2*x)/w*s)
         if self.time-r.last>1.5 and math.abs(r.x)+math.abs(r.v)<.0001 then self.responses[id]=nil end
     end
+end
+function Motion:hasSway()
+    return self.wind~=nil or next(self.responses)~=nil
 end
 function Motion:disturb(p,strength,direction)
     if not Flora.types[p.kind] or p.lifePhase~='live' or not Flora.appearance(p,self.world.calendar)
@@ -81,6 +85,6 @@ function Motion:sway(p)
                 *.018*((p.kind=='oak' or p.kind=='pine' or p.kind=='redbud' or p.kind=='dogwood' or p.kind=='persimmon') and .6 or flexibility[p.kind])
         end
     end
-    return M.clamp(sway,-.065,.065)
+    return M.clamp(sway,-Motion.MAX_SWAY,Motion.MAX_SWAY)
 end
 return Motion

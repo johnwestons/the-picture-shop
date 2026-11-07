@@ -160,6 +160,8 @@ function Assets.load()
         end
     end
     local technicianNpcs = loadImage("technicianNpcs", Config.paths.technicianNpcs, false)
+    local woodenBladeSleeve = loadImage("woodenBladeSleeve", Config.paths.woodenBladeSleeve, false)
+    if woodenBladeSleeve then woodenBladeSleeve:setFilter("linear", "linear") end
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
     local exterior = loadImage("loadingBayExterior", Config.paths.loadingBayExterior, false)
     if exterior and exterior:getWidth()>256 then

@@ -5,6 +5,8 @@ local M=require('src.commute.vendor.mathx')
 local PaintArt=require('src.commute.bike_paint_art')
 local Colorways=require('src.rabbit_colorways')
 local Camera=require('src.commute.camera')
+local SilhouetteStyle=require('src.commute.silhouette_style')
+local PlantMotion=require('src.commute.vendor.plant_motion')
 local View={};View.__index=View
 local format={{'VertexPosition','float',2},{'WorldHeight','float',1},{'VertexTexCoord','float',2}}
 local meshShader=[[
@@ -46,11 +48,15 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 extern float spriteFog;
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;
+]]..SilhouetteStyle.shaderFunctions..[[
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     vec4 surface=bikePaintSurface(Texel(tex,uv),uv)*color;
     if(surface.a<.08) discard;
     surface=applyRabbitColorways(surface);
-    if(silhouetteMode) return vec4(silhouetteColor,surface.a);
+    if(silhouetteMode) {
+        if(silhouetteOutlineOnly && !silhouetteOutlinePixel(tex,uv)) discard;
+        return vec4(silhouetteColor,silhouetteOutputAlpha(surface.a));
+    }
     surface.rgb=mix(surface.rgb,vec3(.57,.68,.70),spriteFog);
     return surface;
 }
@@ -86,7 +92,12 @@ end
 function View.new(renderer)
     local g=love.graphics
     local width,height=renderer.viewportWidth or 1280,renderer.viewportHeight or 880
-    local self=setmetatable({meshes={},viewportWidth=width,viewportHeight=height,canvas=g.newCanvas(width,height),
+    -- This view uses the game's fixed 1280x880 coordinate space. Android
+    -- enables DPI scaling even when the desktop high-DPI flag is false, so
+    -- inheriting the window scale here makes the rendered scene occupy only
+    -- part of the canvas before it is composited into the game viewport.
+    local self=setmetatable({meshes={},viewportWidth=width,viewportHeight=height,
+        canvas=g.newCanvas(width,height,{dpiscale=1}),
         shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..'\n'..meshShader),
         spriteShader=g.newShader(PaintArt.source()..spriteShader)},View)
     self.canvas:setFilter('linear','linear')
@@ -97,18 +108,32 @@ end
 function View:resizeViewport(width,height)
     width,height=math.max(1,math.floor(width+.5)),math.max(1,math.floor(height+.5))
     if width==self.viewportWidth and height==self.viewportHeight then return false end
-    self.canvas:release();self.canvas=love.graphics.newCanvas(width,height)
+    self.canvas:release();self.canvas=love.graphics.newCanvas(width,height,{dpiscale=1})
     self.canvas:setFilter('linear','linear')
     self.viewportWidth,self.viewportHeight=width,height
     return true
 end
-function View:billboard(camera,x,z,h,radius,draw,surfaceTop,silhouetteMode)
+function View:billboard(camera,x,z,h,radius,draw,surfaceTop,silhouetteMode,highlightStyle,billboardScale)
     local sx,sy,depth=camera:screen(x,z,h)
     local distance=M.length(x-camera.centerX,z-camera.centerZ)
     if depth<FP.NEAR or depth>FP.FAR or distance>=radius then return end
     local scale=camera.focal/depth/48
     local width=camera.viewportWidth or 1280
     if sx < -width*.5*scale or sx > width+width*.5*scale then return end
+    if billboardScale then
+        local size=billboardScale*scale
+        local halfX=(128+256*PlantMotion.MAX_SWAY)*size
+        local halfY=128*size
+        local centerY=-120*size
+        local cosine,sine=math.cos(camera.roll or 0),math.sin(camera.roll or 0)
+        local centerX=-sine*centerY
+        centerY=centerY*cosine
+        local boundX=math.abs(cosine)*halfX+math.abs(sine)*halfY+2
+        local boundY=math.abs(sine)*halfX+math.abs(cosine)*halfY+2
+        local height=camera.viewportHeight or 880
+        if sx+centerX+boundX<0 or sx+centerX-boundX>width
+            or sy+centerY+boundY<0 or sy+centerY-boundY>height then return end
+    end
     local g=love.graphics
     local testDepth=depth
     if surfaceTop and h<surfaceTop and camera.eyeHeight>surfaceTop then
@@ -119,16 +144,15 @@ function View:billboard(camera,x,z,h,radius,draw,surfaceTop,silhouetteMode)
     self.spriteDepthValue=FP.depthValue(math.max(FP.NEAR,testDepth))
     self.spriteShader:send('spriteDepth',self.spriteDepthValue)
     self.spriteShader:send('spriteFog',M.smooth((distance-radius*.74)/(radius*.26)))
-    self.spriteShader:send('silhouetteMode',silhouetteMode==true)
-    self.spriteShader:send('silhouetteColor',{1,.72,.08})
+    if silhouetteMode~=nil then SilhouetteStyle.send(self.spriteShader,silhouetteMode,highlightStyle) end
     self.spriteShader:send('furEnabled',0);self.spriteShader:send('overallsEnabled',0)
     g.setShader(self.spriteShader)
     g.push();g.translate(sx,sy);g.rotate(camera.roll)
     draw(scale)
     g.pop()
-    self.spriteShader:send('silhouetteMode',false)
+    if silhouetteMode then SilhouetteStyle.send(self.spriteShader,false,highlightStyle) end
 end
-function View:draw(renderer,camera,actor,actors)
+function View:draw(renderer,camera,actor,actors,highlightStyle)
     local g=love.graphics
     -- Restore the caller's canvas, transform and depth state even when the
     -- commute is drawn inside the main game's scaled UI canvas.
@@ -145,8 +169,8 @@ function View:draw(renderer,camera,actor,actors)
     local Headlight=require('src.commute.headlight')
     Headlight.send(groundShader,camera,actor)
     g.setShader(groundShader)
-    for _,chunk in ipairs(renderer.visible or {}) do
-        g.draw(chunk.mesh) -- Complete resident ground; GPU clipping handles every camera pitch.
+    for _,chunk in ipairs(renderer.drawTiles or renderer.visible or {}) do
+        g.draw(chunk.mesh) -- Fog-radius tile culling is independent of camera pitch.
     end
     for _,mesh in ipairs(renderer.roadMeshes) do g.draw(mesh) end
     if renderer.grassFields then renderer:drawGrass(camera,actor) end
@@ -158,11 +182,14 @@ function View:draw(renderer,camera,actor,actors)
     for _,entry in ipairs(self.meshes) do g.setColor(entry.color);g.draw(entry.mesh) end
     renderer.structures:drawFirstPerson(camera,actor,renderer.effectiveRadius)
     local foliageRadius=renderer.visiblePropsRadius or renderer.effectiveRadius
+    local plantMotion=renderer.plantMotion
+    local plantMotionActive=not plantMotion.hasSway or plantMotion:hasSway()
     for _,p in ipairs(renderer.visibleProps or {}) do
-        self:billboard(camera,p.x,p.z,p.h,foliageRadius,function(scale)
+        self:billboard(camera,p.x,p.z,p.h,p.foliageRadius or foliageRadius,function(scale)
             g.setColor(.91,.94,.87)
-            renderer.plantSprites:drawPlant(p,renderer.calendar,renderer.clock,0,0,p.scale*scale,renderer.plantMotion:sway(p))
-        end)
+            local sway=plantMotionActive and plantMotion:sway(p) or 0
+            renderer.plantSprites:drawPlant(p,renderer.calendar,renderer.clock,0,0,p.scale*scale,sway)
+        end,nil,nil,nil,p.scale)
     end
     -- Rider-eye omits the local bike; shoulder view includes it in the same
     -- depth-tested actor pass as the other riders.
@@ -198,7 +225,7 @@ function View:draw(renderer,camera,actor,actors)
                     renderer.bikeArt:draw(p,proxy,renderer.world,true,entry.presentation)
                     presentation.world(renderer.characterAssets,entry.actionActor or p,proxy,renderer.world,
                         entry.gear,entry.appearance,entry.presentation,renderer.clock,self.spriteShader,
-                        self.spriteShader,self.spriteDepthValue,silhouette)
+                        self.spriteShader,self.spriteDepthValue,silhouette,highlightStyle)
                 elseif entry.gear then
                     local presentation=require('src.commute.presentation')
                     g.setShader(self.spriteShader)
@@ -207,11 +234,11 @@ function View:draw(renderer,camera,actor,actors)
                     local falling=not authoredCrash and presentation.beginFallPose(p,entry.presentation,proxy,0,0)
                     presentation.world(renderer.characterAssets,p,proxy,renderer.world,
                         entry.gear,entry.appearance,entry.presentation,renderer.clock,self.spriteShader,
-                        self.spriteShader,self.spriteDepthValue,silhouette)
+                        self.spriteShader,self.spriteDepthValue,silhouette,highlightStyle)
                     if falling then g.pop() end
                 elseif entry.truck then
-                    renderer.truckArt:draw(p,proxy,renderer.world)
-                    renderer.truckArt:drawSignals(p,proxy,renderer.world,renderer.clock)
+                    renderer.truckArt:draw(p,proxy,renderer.world,silhouette)
+                    if not silhouette then renderer.truckArt:drawSignals(p,proxy,renderer.world,renderer.clock) end
                     if camera.includeLocalRider and entry.localPlayer then
                         camera.riderSpriteX,camera.riderSpriteY=g.transformPoint(0,0)
                         camera.riderSpriteScale=scale
@@ -226,19 +253,21 @@ function View:draw(renderer,camera,actor,actors)
             end
             self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
                 drawActor(scale,false)
-            end,surfaceTop,false)
+            end,surfaceTop,false,highlightStyle)
             if entry.localPlayer then
                 g.setDepthMode('greater',false)
                 self:billboard(camera,p.x,p.z,height,renderer.effectiveRadius,function(scale)
                     drawActor(scale,true)
-                end,surfaceTop,true)
+                end,surfaceTop,true,highlightStyle)
                 g.setDepthMode('lequal',true)
             end
         end
     end
     if renderer.bikeParticles then renderer.bikeParticles:draw(camera,renderer.effectiveRadius,renderer:depthSpan()) end
     g.pop()
-    g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
+    -- See the isometric renderer: Android's inherited viewport scissor clips
+    -- this full-size scene canvas when it is drawn under nested transforms.
+    g.push('all');g.setScissor();g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
     g.draw(self.canvas,0,0);g.pop()
 end
 function View:release()

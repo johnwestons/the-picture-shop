@@ -73,7 +73,7 @@ function Component.install(Runtime)
                 rect.x + 10, rect.y + 24, rect.width - 20, "left")
         end
         love.graphics.setColor(0.55, 0.68, 0.68, 1)
-        love.graphics.printf("Showing the 6 most recent • Ratings reflect delivered quality and material specs.",
+        love.graphics.printf("Quality, delivery timing, and driver service affect ratings.",
             panel.x + 16, panel.y + 420, panel.width - 32, "center")
     end
 end

@@ -70,6 +70,23 @@ local function planesFor(width, height, shape, mx, my, moverShape)
     return planes
 end
 
+-- Build the same contact as `expand(at(...), mover)` without copying the
+-- temporary footprint table. This is useful for stable machine geometry that
+-- is reconstructed with current coordinates for each movement snapshot.
+function Footprint.atExpanded(x, y, config, mover)
+    mover = mover or {}
+    local width, height = config.collisionHalfWidth, config.collisionHalfHeight
+    local mx, my = mover.x or 0, mover.y or 0
+    return {
+        x = x,
+        y = y + (config.collisionOffsetY or -8),
+        halfWidth = width + mx,
+        halfHeight = height + my,
+        shape = "diamond",
+        planes = planesFor(width, height, "diamond", mx, my, mover.shape),
+    }
+end
+
 -- Minkowski expansion: a diamond moving beside a rectangle (or another
 -- diamond) retains its sloped edges instead of acquiring empty blocked corners.
 function Footprint.expand(obstacle, mover)
@@ -98,6 +115,23 @@ function Footprint.expand(obstacle, mover)
     else result.planes = planesFor(width,height,obstacle.shape,mx,my,mover.shape) end
     result.halfWidth, result.halfHeight = width + mx, height + my
     return result
+end
+
+-- The movement-obstacle builder owns fresh records, so it can inflate simple
+-- footprints in place instead of allocating a shallow copy for every contact.
+-- Polygon callers retain the non-mutating path because their source vertices
+-- are also needed while constructing the expanded planes.
+function Footprint.expandInPlace(obstacle, mover)
+    if obstacle.shape == "polygon" then return Footprint.expand(obstacle, mover) end
+    local width, height = obstacle.halfWidth, obstacle.halfHeight
+    local mx, my = mover.x or 0, mover.y or 0
+    if not width or not height then
+        obstacle.radius = obstacle.radius + math.max(mx, my)
+        return obstacle
+    end
+    obstacle.planes = planesFor(width, height, obstacle.shape, mx, my, mover.shape)
+    obstacle.halfWidth, obstacle.halfHeight = width + mx, height + my
+    return obstacle
 end
 
 function Footprint.penetration(obstacle, x, y)

@@ -1,6 +1,7 @@
 -- Read-only help belongs to each console; browsing never changes the household.
 local Shopping=require("src.home_shopping")
 local Food=require("src.home_food_catalog")
+local Calendar=require("src.business_calendar")
 local Guide={}
 Guide.TOPICS={"FIRST WEEKEND","FOOD & WATER","FURNITURE","CHORES","SLEEP & WORK","MONEY & GUESTS"}
 local controls={back={x=104,y=554,width=230,height=44},action={x=374,y=554,width=218,height=44},
@@ -84,9 +85,16 @@ function Guide.draw(Runtime,state,page,px,py)
     local content=Guide.content(state,page)
     label(content.title,360,242,478,{1,.86,.41,1})
     local y=272;local font=love.graphics.getFont()
+    local twelveHourTime=type(Runtime.twelveHourTime)=="function" and Runtime.twelveHourTime() or false
     for _,block in ipairs(content.blocks) do
-        label(block,360,y,478)
-        local _,lines=font:getWrap(block,478);y=y+#lines*font:getHeight()*font:getLineHeight()+12
+        local displayBlock=block
+        if twelveHourTime then
+            displayBlock=displayBlock:gsub("(%d%d):(%d%d)",function(hour,minute)
+                return Calendar.formatTime(tonumber(hour),tonumber(minute),true)
+            end)
+        end
+        label(displayBlock,360,y,478)
+        local _,lines=font:getWrap(displayBlock,478);y=y+#lines*font:getHeight()*font:getLineHeight()+12
     end
     button(controls.back,"MY HOME",true)
     for _,key in ipairs({"action","secondary"}) do

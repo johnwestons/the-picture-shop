@@ -62,8 +62,12 @@ local function wheelPoint(x,y)
 end
 function Body.new()
     local g=love.graphics
-    local self=setmetatable({image=g.newImage(Body.PATH),texture=g.newCanvas(Body.WIDTH,Body.HEIGHT),
-        canvas=g.newCanvas(1280,880),shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..PaintArt.source()..shader)},Body)
+    -- These canvases store art in authored pixel coordinates; don't inherit
+    -- Android's physical display DPI scale.
+    local self=setmetatable({image=g.newImage(Body.PATH),
+        texture=g.newCanvas(Body.WIDTH,Body.HEIGHT,{dpiscale=1}),
+        canvas=g.newCanvas(1280,880,{dpiscale=1}),
+        shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..PaintArt.source()..shader)},Body)
     self.image:setFilter('linear','linear');self.texture:setFilter('linear','linear');self.canvas:setFilter('linear','linear')
     local vertices,overlays={},{}
     local function vertex(x,y,point)

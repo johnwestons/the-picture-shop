@@ -220,21 +220,30 @@ function Test.run(context, check)
         and #fleet.serviceInbox(cutterServiceState) == 1
         and context.jobService.emailInbox(cutterServiceState)[1].serviceNotice == true)
     local missedVisitState = context.State.new()
-    context.businessCalendar.update(missedVisitState,
-        context.config.businessCalendar.secondsPerDay)
     context.machineMaintenance.prepareBladeForTechnician(missedVisitState)
     local visitRequested = context.machineMaintenance.requestTechnician(missedVisitState)
-    -- Exercise the now-rare call-out rather than relying on the old 15% rate.
-    fleet.installed(missedVisitState,"polar_115").maintenance.cutter.technicianSequence=34
+    -- Choose a deterministic sequence that lands inside the current 2% call-out band.
+    local missedCutterItem=fleet.installed(missedVisitState,"polar_115")
+    local missedCutter=missedCutterItem.maintenance.cutter
+    local machineSequence=tonumber(missedCutterItem.id:match("(%d+)$"))
+    local sequence=0
+    repeat
+        sequence=sequence+1
+    until (missedCutter.nextTechnicianDay*37+(sequence+1)*29+machineSequence*11)%100<2
+    missedCutter.technicianSequence=sequence
     context.businessCalendar.update(missedVisitState,
         context.config.businessCalendar.secondsPerDay)
     local missedVisit = context.machineMaintenance.updateTechnician(missedVisitState)
-    local missedCutter = fleet.installed(missedVisitState, "polar_115").maintenance.cutter
+    missedCutter = fleet.installed(missedVisitState, "polar_115").maintenance.cutter
     check("blade_technician_can_miss_visit_and_email_reschedule_notice",
         visitRequested and missedVisit and missedCutter.bladeInSleeve
-        and missedCutter.nextTechnicianDay == 9
+        and missedCutter.nextTechnicianDay == 8
         and #fleet.serviceInbox(missedVisitState) == 1
-        and fleet.serviceInbox(missedVisitState)[1].subject == "Technician unable to attend")
+        and fleet.serviceInbox(missedVisitState)[1].subject == "Technician unable to attend",
+        string.format("requested=%s updated=%s sleeved=%s next=%s notices=%d subject=%s seq=%d",
+            tostring(visitRequested),tostring(missedVisit),tostring(missedCutter.bladeInSleeve),
+            tostring(missedCutter.nextTechnicianDay),#fleet.serviceInbox(missedVisitState),
+            tostring(fleet.serviceInbox(missedVisitState)[1] and fleet.serviceInbox(missedVisitState)[1].subject),sequence))
 
     local saleValue = fleet.resaleValue(usedCutter, "online")
     local sold, sale = fleet.sell(state, usedCutter.id, "online")
@@ -383,8 +392,26 @@ function Test.run(context, check)
         and deliveredWrapper.status == "installed" and deliveredWrapper.world
         and deliveredWrapper.world.x ~= wrapperDeliveryState.wrapper.x
         and fleet.validState(wrapperDeliveryState.machines))
-    check("empty_machine_flatbed_releases_directly",
-        context.world.closeTruckAfterUnload(websiteState)
+    local driverService=require("src.warehouse_delivery_driver")
+    local driverVisit=driverService.matching(websiteState,onlineOrder.id)
+    for _=1,120 do
+        if not driverVisit or driverVisit.status=="waiting" then break end
+        context.world.update(.1,0,0,context.assets,websiteState)
+    end
+    local driverActor=driverService.actor(websiteState)
+    if driverActor then
+        context.world.player.sceneId="warehouse"
+        context.world.player.x,context.world.player.y=driverActor.x,driverActor.y
+    end
+    local signed=context.world.signDelivery(websiteState,context.world.player)
+    for _=1,180 do
+        if not driverVisit or driverVisit.driverReturned then break end
+        context.world.update(.1,0,0,context.assets,websiteState)
+    end
+    check("machine_delivery_driver_signs_and_returns_before_flatbed_release",
+        signed and driverVisit and driverVisit.driverReturned)
+    check("empty_machine_flatbed_departs_after_driver_returns",
+        driverVisit and driverVisit.driverReturned
         and context.world.truckSnapshot().state == "departing")
     context.world.load()
 

@@ -9,6 +9,7 @@ B.actions={
  {id='handbrake',label='Additional brake',held=true,key='space',pad='b'},
  {id='boost',label='Boost',held=true,key='lshift',pad='rightshoulder',touch='touch3'},
  {id='interact',label='Mount / dismount / door',key='e',pad='a',touch='touch4',main='e',preview='e'},
+ {id='worldAction',label='Contextual world action',touch='touch6',main='e',preview=''},
  {id='ignition',label='Engine on / off',key='i',pad='back',main='i',preview='i'},
  {id='horn',label='Horn (hold)',held=true,key='k',main='k',preview='k'},
  {id='reverse',label='Forward / reverse',key='b',pad='leftstick',main='b',preview='b'},
@@ -16,7 +17,7 @@ B.actions={
  {id='beam',label='High / low beam',key='n',main='n',preview='n'},
  {id='signalLeft',label='Truck turn signal left',key=',',main=',',preview=''},
  {id='signalRight',label='Truck turn signal right',key='.',main='.',preview=''},
- {id='view',label='Camera view',key='p',pad='rightstick',touch='touch6',main='p',preview='p'},
+ {id='view',label='Camera view',key='p',pad='rightstick',main='p',preview='p'},
  {id='transmission',label='Auto / manual gearbox',key='v',pad='dpup',main='v',preview='v'},
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},
  {id='shiftUp',label='Shift up',key='x',pad='dpright',main='x',preview='x'},
@@ -196,31 +197,39 @@ local function steerToTouch(touch,camera,bike)
     return sign*math.max(-1,math.min(1,error/.62))
 end
 
-function B.drive(p,touch,camera,bike,mobile)
+function B.drive(p,touch,camera,vehicle,mobile,vehicleSteeringMode)
     local x=B.value(p,'right',touch)-B.value(p,'left',touch)
     local throttle=B.value(p,'accelerate',touch)
     local brake=math.max(B.value(p,'brake',touch),B.value(p,'handbrake',touch))
+    local touchBoost=touch and touch.held and touch.held.boost==true
+    if mobile and touchBoost then throttle=1 end
     if mobile and touch then throttle=math.max(throttle,touch.gripGas or 0) end
     local pedalDrive=brake>0 and brake or -throttle
-    if bike and touch and B.freeCameraTouch(mobile,camera) then
-        if (touch.aimX or 0)~=0 or (touch.aimY or 0)~=0 then x=steerToTouch(touch,camera,bike) end
+    if mobile and vehicle and vehicleSteeringMode=='horizontal' and touch then
+        local touchX=touch.horizontalX
+        if touchX==nil then touchX=touch.x or 0 end
+        if math.abs(touchX)>math.abs(x) then x=touchX end
+        return x,pedalDrive,B.value(p,'boost',touch)>.1
+    end
+    if vehicle and touch and B.freeCameraTouch(mobile,camera) then
+        if (touch.aimX or 0)~=0 or (touch.aimY or 0)~=0 then x=steerToTouch(touch,camera,vehicle) end
         return x,pedalDrive,B.value(p,'boost',touch)>.1
     end
     local touchX,touchY=touch and touch.x or 0,touch and touch.y or 0
     local magnitude=math.sqrt(touchX*touchX+touchY*touchY)
     if magnitude>.001 then
-        if camera and not camera.firstPerson and bike and camera.screenVectorToWorld then
+        if camera and not camera.firstPerson and vehicle and camera.screenVectorToWorld then
             -- In the outside view, the riding pad points toward a screen-space
-            -- destination. The rider still turns through the bike's normal
+            -- destination. The vehicle still turns through its normal
             -- steering physics instead of teleporting its velocity.
             local worldX,worldZ=camera:screenVectorToWorld(touchX,touchY)
             local heading=math.atan2(worldZ,worldX)
-            local alignment=math.cos(wrapRadians(heading-(bike.heading or 0)))
+            local alignment=math.cos(wrapRadians(heading-(vehicle.heading or 0)))
             local reverse=alignment<-.001
             local desiredHeading=heading+(reverse and math.pi or 0)
-            local error=wrapRadians(desiredHeading-(bike.heading or 0))*(bike.reverse and -1 or 1)
+            local error=wrapRadians(desiredHeading-(vehicle.heading or 0))*(vehicle.reverse and -1 or 1)
             -- The outside-view stick points toward a destination. Ease off
-            -- the throttle while the bike is still aimed elsewhere, and brake
+            -- the throttle while the vehicle is still aimed elsewhere, and brake
             -- when the requested direction opposes travel, then back toward
             -- that destination once stopped. The signed drive intent stays
             -- stable after selecting reverse, rather than flipping each frame.

@@ -13,7 +13,7 @@ local WindmillPlacement = require("src.windmill_placement")
 local View = {}
 local format = {{"VertexPosition", "float", 2}, {"WorldHeight", "float", 1},
     {"VertexTexCoord", "float", 2}}
-local state = {enabled=false, yaw=nil, pitch=-0.04, focused=true, mouseCaptured=false,
+local state = {enabled=false, cameraMenu=false, yaw=nil, pitch=-0.04, focused=true, mouseCaptured=false,
     ignoreMouseDelta=false, billboards={}, initialized=false}
 
 local function setMouseCapture(enabled)
@@ -114,6 +114,98 @@ local function closeToWarehouse(Runtime)
         and require("src.shop_rooms").scene(Runtime.World.player) == "warehouse"
 end
 
+local function faceCutter(Runtime)
+    if state.yaw then return end
+    local playerX, playerZ = sourcePosition(Runtime.World.player.x, Runtime.World.player.y)
+    local cutter = CutterPlacement.ensure(Runtime.state, Runtime.Config.cutterPlacement)
+    local cutterX, cutterZ = sourcePosition(cutter.x, cutter.y)
+    state.yaw = math.atan2(cutterZ - playerZ, cutterX - playerX)
+end
+
+local function setEnabled(Runtime, enabled)
+    state.enabled=enabled==true
+    state.cameraMenu=false
+    if state.enabled then faceCutter(Runtime) end
+    setMouseCapture(state.enabled and state.focused)
+    return true
+end
+
+function View.cameraButton(Runtime)
+    if not closeToWarehouse(Runtime) then return nil end
+    local right=Runtime.Config.baseWidth
+    if Runtime.optionsAccessLayout then
+        local _,bounds=Runtime.optionsAccessLayout()
+        if bounds and bounds.right then right=bounds.right end
+    end
+    return {x=right-410,y=58,width=132,height=32}
+end
+
+function View.cameraRow(Runtime,index)
+    local button=View.cameraButton(Runtime)
+    if not button then return nil end
+    return {x=button.x,y=button.y+button.height+4+(index-1)*36,width=button.width,height=34}
+end
+
+function View:cameraPointer(Runtime,x,y,button)
+    if button~=nil and button~=1 then return false end
+    local cameraButton=View.cameraButton(Runtime)
+    if not cameraButton then return false end
+    local function hit(rect)
+        return x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height
+    end
+    if hit(cameraButton) then
+        state.cameraMenu=not state.cameraMenu
+        setMouseCapture(state.enabled and state.focused and not state.cameraMenu)
+        return true
+    end
+    if state.cameraMenu then
+        for index,enabled in ipairs({false,true}) do
+            local row=View.cameraRow(Runtime,index)
+            if hit(row) then return setEnabled(Runtime,enabled) end
+        end
+        state.cameraMenu=false
+        setMouseCapture(state.enabled and state.focused)
+        return true
+    end
+    return false
+end
+
+function View:drawCameraOption(Runtime)
+    local button=View.cameraButton(Runtime)
+    if not button then return false end
+    local g=love.graphics
+    local Ui=require("src.screens.ui")
+    local font=g.getFont()
+    g.push("all")
+    Ui.panel(button,state.enabled and {.12,.20,.16,1} or {.09,.13,.14,1},
+        state.cameraMenu and {.84,.72,.36,1} or {.43,.53,.51,1},5,1)
+    g.setColor(.94,.95,.89)
+    g.printf(state.enabled and "CAMERA  ·  FP" or "CAMERA",button.x+4,
+        button.y+(button.height-font:getHeight())*.5,button.width-8,"center")
+    if state.cameraMenu then
+        for index,entry in ipairs({{"Isometric",false},{"First person",true}}) do
+            local row=View.cameraRow(Runtime,index)
+            local selected=state.enabled==entry[2]
+            Ui.panel(row,selected and {.16,.25,.19,1} or {.055,.085,.09,.97},
+                selected and {.84,.72,.36,1} or {.32,.41,.40,1},4,1)
+            g.setColor(selected and 1 or .88,selected and .88 or .91,selected and .54 or .84,1)
+            g.circle("line",row.x+15,row.y+row.height*.5,5)
+            if selected then g.circle("fill",row.x+15,row.y+row.height*.5,2.6) end
+            g.print(entry[1],row.x+28,row.y+(row.height-font:getHeight())*.5)
+        end
+    end
+    g.pop()
+    return true
+end
+
+function View:touchLook(Runtime,dx,dy)
+    if not self:isActive(Runtime) then return false end
+    local turnRate=.0024*1280/math.max(1,Runtime.Config.baseWidth or 1280)
+    state.yaw=((state.yaw or Geometry.YAW)+(dx or 0)*turnRate+math.pi)%(math.pi*2)-math.pi
+    state.pitch=math.max(-.70,math.min(.50,state.pitch-(dy or 0)*turnRate))
+    return true
+end
+
 function View:isActive(Runtime)
     local scene = require("src.shop_rooms").scene(Runtime.World.player)
     local ended = scene ~= "warehouse" or Runtime.state.screen == "title"
@@ -121,6 +213,7 @@ function View:isActive(Runtime)
         or Runtime.state.screen == "asset_error"
     if state.enabled and ended then
         state.enabled=false
+        state.cameraMenu=false
     end
     local active=state.enabled and closeToWarehouse(Runtime)
     setMouseCapture(active and state.focused)
@@ -134,13 +227,15 @@ end
 
 function View:keypressed(Runtime, key)
     if key == "f1" and closeToWarehouse(Runtime) then
-        state.enabled = not state.enabled
-        if state.enabled and not state.yaw then
-            local playerX, playerZ = sourcePosition(Runtime.World.player.x, Runtime.World.player.y)
-            local cutter = CutterPlacement.ensure(Runtime.state, Runtime.Config.cutterPlacement)
-            local cutterX, cutterZ = sourcePosition(cutter.x, cutter.y)
-            state.yaw = math.atan2(cutterZ - playerZ, cutterX - playerX)
-        end
+        return setEnabled(Runtime,not state.enabled)
+    end
+    if key == "c" and closeToWarehouse(Runtime) then
+        state.cameraMenu=not state.cameraMenu
+        setMouseCapture(state.enabled and state.focused and not state.cameraMenu)
+        return true
+    end
+    if key == "escape" and state.cameraMenu then
+        state.cameraMenu=false
         setMouseCapture(state.enabled and state.focused)
         return true
     end
@@ -517,9 +612,11 @@ local function drawHelp(Runtime, prompt)
     g.setColor(.025,.04,.05,.78)
     g.rectangle("fill",12,12,310,74,7,7)
     g.setColor(.93,.96,.94)
-    g.print("WAREHOUSE  |  F1: RETURN TO ISOMETRIC",24,21)
+    g.print("WAREHOUSE  |  F1: CAMERA",24,21)
     g.setColor(.73,.83,.83)
-    g.print("WASD move  |  mouse look  |  E use",24,43)
+    local mobile=Runtime.mobileControls and Runtime.mobileControls:isEnabled()
+    g.print(mobile and "Joystick move  |  drag to look  |  tap use"
+        or "WASD move  |  mouse look  |  E use  |  C camera",24,43)
     if prompt then
         g.setColor(.025,.04,.05,.82)
         g.rectangle("fill",Runtime.Config.baseWidth*.5-190,Runtime.Config.baseHeight-70,380,42,5,5)

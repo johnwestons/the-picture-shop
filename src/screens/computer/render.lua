@@ -75,7 +75,7 @@ function Component.install(Runtime)
             Runtime.drawReviews(state, pointerX, pointerY, twelveHourTime)
         else
             Runtime.drawJobList(state, pointerX, pointerY)
-            Runtime.drawDetail(state, pointerX, pointerY, assets)
+            Runtime.drawDetail(state, pointerX, pointerY, assets, twelveHourTime)
         end
         Runtime.drawTabSelector(state, pointerX, pointerY)
         Runtime.buttonDrawPointerX, Runtime.buttonDrawPointerY = nil, nil

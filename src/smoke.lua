@@ -154,8 +154,26 @@ function Smoke.start(context)
         elseif focus=='terrain-streaming' then
             require('src.commute.tests.terrain_cache_test').run(check)
             require('src.commute.tests.runtime_test').run(context,check)
+        elseif focus=='grass-fields' then
+            require('src.commute.tests.grass_fields_test').run(check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='home-guide' then
+            require('src.tests.home_guide_test').run(context,check)
+        elseif focus=='network-protocol' then
+            require('src.tests.network_protocol_test').run(context,check)
+        elseif focus=='capabilities' then
+            require('src.tests.multiplayer_capabilities_test').run(context,check)
+        elseif focus=='options' then
+            require('src.tests.options_test').run(context,check)
+        elseif focus=='machine-fleet' then
+            require('src.tests.machine_fleet_test').run(context,check)
+        elseif focus=='employee-capacity' then
+            require('src.tests.employee_capacity_test').run(context,check)
+        elseif focus=='progression' then
+            require('src.tests.progression_balance_test').run(context,check)
+        elseif focus=='shop-workflow' then
+            require('src.tests.shop_workflow_test').run(context,check)
         elseif focus=='mechanic-paint' then
             require('src.commute.tests.mechanic_paint_runtime_test').run(context,check)
         elseif focus=='bike-damage' then
@@ -210,6 +228,29 @@ function Smoke.start(context)
             require('src.tests.save_contract_test').run(context,check)
         elseif focus=='delivery-traffic' then
             require('src.commute.tests.delivery_traffic_test').run(check)
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='ai-motorcycle-traffic' then
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
+            require('src.commute.tests.driving_path_test').run(check)
+            require('src.commute.tests.traffic_actor_index_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='ai-motorcycle-route' then
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check,nil,true)
+            require('src.commute.tests.traffic_actor_index_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='vehicle-controls' then
+            require('src.commute.tests.bindings_test').run(check)
+            require('src.commute.tests.delivery_traffic_test').run(check)
+        elseif focus=='silhouette-outline' then
+            require('src.commute.tests.silhouette_style_test').run(check)
+        elseif focus=='calendar-redesign' then
+            require('src.tests.computer_calendar_test').run(context,check)
+        elseif focus=='delivery-route-smoke' then
+            require('src.commute.tests.delivery_route_smoke_test').run(check)
         elseif focus=='truck-cab' then
             require('src.commute.tests.trip_test').run(check)
             require('src.commute.tests.mobile_vehicle_test').run(check)
@@ -225,6 +266,14 @@ function Smoke.start(context)
                 require('src.tests.'..name..'_test').run(context,check)
             end
         elseif focus=='weekend-playthrough' then
+            require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=='recent-features' then
+            require('src.commute.tests.sprint_test').run(check)
+            require('src.commute.tests.structure_geometry_test').run(check)
+            require('src.commute.tests.gas_station_test').run(check)
+            require('src.tests.home_cooking_pose_test').run(context,check)
+            require('src.tests.recent_feature_regression_test').run(context,check)
+            require('src.tests.weekend_flow_test').run(context,check)
             require('src.tests.weekend_runtime_test').run(context,check)
         elseif focus=="home-production" then
             require("src.tests.home_production_budget_test").run(context,check)

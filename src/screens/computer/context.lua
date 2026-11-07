@@ -48,7 +48,8 @@ function Component.install(Runtime)
         calendarYear = nil,
         calendarMonth = nil,
         calendarSelectedDay = nil,
-        calendarScroll = 0,
+        calendarDayOpen = false,
+        calendarDayScroll = 0,
         retailPage = 1,
         wwwSite = 1,
         cart = {},
@@ -75,6 +76,14 @@ function Component.install(Runtime)
     }
     function Runtime.ComputerScreen.configureRadio(options)
         Runtime.dependencies.isNetworkClient=options and options.isNetworkClient
+    end
+    function Runtime.ComputerScreen.configureTimeFormat(provider)
+        Runtime.dependencies.twelveHourTime=provider
+    end
+    function Runtime.twelveHourTime()
+        local setting=Runtime.dependencies.twelveHourTime
+        if type(setting)=='function' then setting=setting() end
+        return setting~=false
     end
     function Runtime.ComputerScreen.radioReadOnly()
         if Runtime.dependencies.isNetworkClient then
@@ -151,12 +160,17 @@ function Component.install(Runtime)
     Runtime.PROMO = { x = 640, y = 526, width = 186, height = 44 }
     Runtime.JOB_PROMO = { x = 640, y = 590, width = 186, height = 44 }
     Runtime.PROMO_INPUT = { x = 434, y = 338, width = 392, height = 122 }
+    Runtime.CAL_PANEL = { x = 82, y = 190, width = 792, height = 408 }
     Runtime.CAL_PREVIOUS = { x = 96, y = 202, width = 42, height = 30 }
-    Runtime.CAL_NEXT = { x = 542, y = 202, width = 42, height = 30 }
-    Runtime.CAL_GRID = { x = 94, y = 272, cellWidth = 70, cellHeight = 54 }
-    Runtime.CAL_EVENT_LIST = { x = 624, y = 240, width = 216, rowHeight = 34, visibleRows = 9 }
-    Runtime.CAL_SCROLL_UP = { x = 624, y = 558, width = 102, height = 28 }
-    Runtime.CAL_SCROLL_DOWN = { x = 738, y = 558, width = 102, height = 28 }
+    Runtime.CAL_NEXT = { x = 818, y = 202, width = 42, height = 30 }
+    Runtime.CAL_GRID = { x = 94, y = 272, cellWidth = 108, cellHeight = 52 }
+    Runtime.CAL_DAY_DIALOG = { x = 112, y = 190, width = 736, height = 412 }
+    Runtime.CAL_DAY_CLOSE = { x = 794, y = 199, width = 38, height = 30 }
+    Runtime.CAL_DAY_LIST = { visibleRows = 5, rowHeight = 45,
+        shop = { x = 128, y = 266, width = 430, height = 264 },
+        town = { x = 572, y = 266, width = 260, height = 264 } }
+    Runtime.CAL_DAY_SCROLL_UP = { x = 460, y = 541, width = 44, height = 24 }
+    Runtime.CAL_DAY_SCROLL_DOWN = { x = 510, y = 541, width = 48, height = 24 }
     Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 50, gap = 5 }
     Runtime.OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
     Runtime.ComputerScreen.machinePageSize = 4

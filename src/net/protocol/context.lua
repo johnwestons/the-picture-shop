@@ -11,14 +11,18 @@ function Component.install(Runtime)
     Runtime.MachineResource = require("src.machine_resource_id")
     Runtime.PlacementGrid = require("src.placement_grid")
     Runtime.EmployeePose = require("src.employee_pose")
+    Runtime.DeliveryDriverPose = require("src.delivery_driver_pose")
     Runtime.TechnicianPose = require("src.technician_pose")
     Runtime.PalletJackPose = require("src.pallet_jack_pose")
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 68,
+        VERSION = 70,
         MAX_PACKET_BYTES = 1200,
-        MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
+        MAX_SHOP_SNAPSHOT_BYTES = 1024 * 1024,
+        SHOP_COMPRESSION_MAGIC = "TPSL",
+        SHOP_COMPRESSION_MIN_BYTES = 4096,
+        SHOP_COMPRESSION_MIN_SAVING_BYTES = 64,
         MAX_PLAYERS = 4,
         MAX_EVENTS_PER_UPDATE = 64,
         CHANNEL_CONTROL = 0,
@@ -64,7 +68,9 @@ function Component.install(Runtime)
     Runtime.SHOP_CODEC_LIMITS = {
         maxBytes = Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES,
         maxDepth = 32,
-        maxEntries = 32768,
+        -- Durable snapshots include the generated town, residents, employees,
+        -- and commute routes. Keep headroom for a crowded four-player save.
+        maxEntries = 65536,
         maxStringBytes = 128 * 1024,
         maxNumberBytes = 32,
     }

@@ -1,32 +1,43 @@
 -- Metres from the truck sprite's road anchor to its bumpers, sides and roof.
 local F={halfLength=2.74,halfWidth=1.08,height=2.89}
+local dimensionsByModel={box={halfLength=2.74,halfWidth=1.08,height=2.89},
+    kei={halfLength=1.76,halfWidth=.76,height=2.30}}
+
+function F.dimensions(model)
+    if type(model)=='table' then model=model.model end
+    local source=dimensionsByModel[model or 'box'] or dimensionsByModel.box
+    return {halfLength=source.halfLength,halfWidth=source.halfWidth,height=source.height,
+        radius=math.sqrt(source.halfLength^2+source.halfWidth^2)}
+end
 
 -- Separating axes of the oriented truck rectangle and a roadside segment.
 -- A zero-length segment tests a trunk, rock or post with the supplied radius.
-function F.overlaps(x,z,c,s,ax,az,bx,bz,radius)
+function F.overlaps(x,z,c,s,ax,az,bx,bz,radius,dims)
+    dims=dims or dimensionsByModel.box
     local dx,dz=(bx-ax)*.5,(bz-az)*.5
     local mx,mz=ax+dx-x,az+dz-z
     local along,side=mx*c+mz*s,-mx*s+mz*c
     local du,dv=dx*c+dz*s,-dx*s+dz*c
     if du==0 and dv==0 then
-        local u=math.max(0,math.abs(along)-F.halfLength)
-        local v=math.max(0,math.abs(side)-F.halfWidth)
+        local u=math.max(0,math.abs(along)-dims.halfLength)
+        local v=math.max(0,math.abs(side)-dims.halfWidth)
         return u*u+v*v<=radius*radius
     end
-    return math.abs(along)<=F.halfLength+math.abs(du)+radius
-        and math.abs(side)<=F.halfWidth+math.abs(dv)+radius
-        and math.abs(along*dv-side*du)<=F.halfLength*math.abs(dv)+F.halfWidth*math.abs(du)
+    return math.abs(along)<=dims.halfLength+math.abs(du)+radius
+        and math.abs(side)<=dims.halfWidth+math.abs(dv)+radius
+        and math.abs(along*dv-side*du)<=dims.halfLength*math.abs(dv)+dims.halfWidth*math.abs(du)
             +radius*math.sqrt(du*du+dv*dv)
 end
 F.radius=math.sqrt(F.halfLength^2+F.halfWidth^2)
-function F.overlapsTruck(x,z,heading,otherX,otherZ,otherHeading)
+function F.overlapsTruck(x,z,heading,otherX,otherZ,otherHeading,model,otherModel)
+    local aDims,bDims=F.dimensions(model),F.dimensions(otherModel)
     local ac,as=math.cos(heading),math.sin(heading)
     local bc,bs=math.cos(otherHeading),math.sin(otherHeading)
     local dx,dz=otherX-x,otherZ-z
     local function separated(ax,az)
         local separation=math.abs(dx*ax+dz*az)
-        local aRadius=F.halfLength*math.abs(ac*ax+as*az)+F.halfWidth*math.abs(-as*ax+ac*az)
-        local bRadius=F.halfLength*math.abs(bc*ax+bs*az)+F.halfWidth*math.abs(-bs*ax+bc*az)
+        local aRadius=aDims.halfLength*math.abs(ac*ax+as*az)+aDims.halfWidth*math.abs(-as*ax+ac*az)
+        local bRadius=bDims.halfLength*math.abs(bc*ax+bs*az)+bDims.halfWidth*math.abs(-bs*ax+bc*az)
         return separation>aRadius+bRadius
     end
     return not separated(ac,as) and not separated(-as,ac)
@@ -36,22 +47,23 @@ end
 -- Sweep a circular actor against the truck's oriented footprint. The bike
 -- controller already subdivides travel into short steps; binary search the
 -- first overlap in each step to return a stable contact point and normal.
-function F.sweepCircle(x,z,nx,nz,radius,truckX,truckZ,heading)
+function F.sweepCircle(x,z,nx,nz,radius,truckX,truckZ,heading,model)
+    local dims=F.dimensions(model)
     local c,s=math.cos(heading),math.sin(heading)
     local dx,dz=nx-x,nz-z
     local function pointAt(t)
         local px,pz=x+dx*t,z+dz*t
         local ox,oz=px-truckX,pz-truckZ
         local along,side=ox*c+oz*s,-ox*s+oz*c
-        local nearAlong=math.max(-F.halfLength,math.min(F.halfLength,along))
-        local nearSide=math.max(-F.halfWidth,math.min(F.halfWidth,side))
+        local nearAlong=math.max(-dims.halfLength,math.min(dims.halfLength,along))
+        local nearSide=math.max(-dims.halfWidth,math.min(dims.halfWidth,side))
         local ex,ez=along-nearAlong,side-nearSide
         return ex*ex+ez*ez<=radius*radius,along,side,nearAlong,nearSide,ex,ez
     end
     local function escapeScore(t)
         local _,along,side,_,_,ex,ez=pointAt(t)
-        if math.abs(along)<=F.halfLength and math.abs(side)<=F.halfWidth then
-            return -math.min(F.halfLength-math.abs(along),F.halfWidth-math.abs(side))
+        if math.abs(along)<=dims.halfLength and math.abs(side)<=dims.halfWidth then
+            return -math.min(dims.halfLength-math.abs(along),dims.halfWidth-math.abs(side))
         end
         return math.sqrt(ex*ex+ez*ez)
     end
@@ -76,7 +88,7 @@ function F.sweepCircle(x,z,nx,nz,radius,truckX,truckZ,heading)
     local localX,localZ
     if distance>1e-7 then
         localX,localZ=ex/distance,ez/distance
-    elseif F.halfLength-math.abs(along)<F.halfWidth-math.abs(side) then
+    elseif dims.halfLength-math.abs(along)<dims.halfWidth-math.abs(side) then
         localX,localZ=along<0 and -1 or 1,0
     else
         localX,localZ=0,side<0 and -1 or 1
@@ -84,12 +96,14 @@ function F.sweepCircle(x,z,nx,nz,radius,truckX,truckZ,heading)
     return first,localX*c-localZ*s,localX*s+localZ*c
 end
 
-function F.hitsEdges(rects,x,z,c,s)
+function F.hitsEdges(rects,x,z,c,s,dims)
+    dims=dims or dimensionsByModel.box
+    local radius=dims.radius or math.sqrt(dims.halfLength^2+dims.halfWidth^2)
     for _,rect in ipairs(rects) do
-        if x+F.radius>=rect.minX and x-F.radius<=rect.maxX and z+F.radius>=rect.minZ and z-F.radius<=rect.maxZ then
+        if x+radius>=rect.minX and x-radius<=rect.maxX and z+radius>=rect.minZ and z-radius<=rect.maxZ then
             local a=rect.corners[4]
             for _,b in ipairs(rect.corners) do
-                if F.overlaps(x,z,c,s,a.x,a.z,b.x,b.z,0) then return true end
+                if F.overlaps(x,z,c,s,a.x,a.z,b.x,b.z,0,dims) then return true end
                 a=b
             end
         end

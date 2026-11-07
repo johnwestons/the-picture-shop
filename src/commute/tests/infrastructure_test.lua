@@ -20,7 +20,11 @@ local function fixtureWorld()
         recreation={{kind='camp',x=87,z=75,radius=5.5},{kind='picnic',x=45,z=25,radius=5.5},
             {kind='park',x=48,z=75,radius=5.5}}},sites=registry}
     w.roads=Roads.new({definitions=roads,sites=registry,destinations={},bounds={x0=0,z0=0,x1=120,z1=100}})
-    function w:height(x,z)return 5-math.max(0,math.min(3,(z-55)*.55))end
+    function w:height(x,z)
+        local ravine=x>=55 and x<82 and z>60 and math.min(2.4,(z-60)*.8) or 0
+        local base=5
+        return base-ravine
+    end
     return w
 end
 function Test.run(check)
@@ -73,8 +77,11 @@ function Test.run(check)
     local bike=Bike.new(x-nx*2,z-nz*2,math.atan2(nz,nx))
     bike.speed=12;Bike.resetHorizontal(bike);Bike.resetContact(bike,world)
     for _=1,24 do Bike.update(bike,{},1/60,world) end
+    local bikeRailDistance=(bike.x-x)*nx+(bike.z-z)*nz
     check('town_guardrail_stops_a_moving_motorcycle_on_the_approach_side',bike.collisionKind=='guardrail'
-        and bike.speed<.05 and (bike.x-x)*nx+(bike.z-z)*nz<0)
+        and bike.speed<.05 and bikeRailDistance<0,
+        string.format('kind=%s speed=%.3f railDistance=%.3f position=%.2f,%.2f rail=%.2f,%.2f grounded=%s',
+            tostring(bike.collisionKind),bike.speed,bikeRailDistance,bike.x,bike.z,x,z,tostring(bike.grounded)))
     local meshes=Geometry.build(plan)
     local finite=true
     for _,mesh in ipairs(meshes) do

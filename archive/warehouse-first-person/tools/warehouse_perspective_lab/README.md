@@ -1,7 +1,13 @@
-# Warehouse perspective lab
+# Archived warehouse perspective lab
 
-The first-person warehouse renderer is now available in the live game: press
-F1 while in the warehouse to enter it. WASD movement and E interactions use
+This is the historical development copy. The live warehouse view was
+disconnected and the launcher hook was removed from the game. See
+[`docs/warehouse_first_person_experiment.md`](../../../../docs/warehouse_first_person_experiment.md)
+for the experiment notes and restoration steps.
+
+At this point in the experiment, the first-person warehouse renderer was
+available in the live game: press F1 while in the warehouse to enter it. WASD
+movement and E interactions use
 the normal game simulation, and right mouse drag looks around. Press F1 or
 Escape to return to the isometric view. This view uses the live machine
 placements, stored pallets, and warehouse actors; opening a machine or shop
@@ -46,6 +52,6 @@ and film bands. These are visual test actions and do not alter production or sav
 data.
 
 Current first-person reviews are saved at
-`output/warehouse-perspective-lab/first-person-expanded-room.png`,
-`output/warehouse-perspective-lab/first-person-cutter-detail.png`, and
-`output/warehouse-perspective-lab/first-person-wrapper-detail.png`.
+`archive/warehouse-first-person/output/warehouse-perspective-lab/first-person-expanded-room.png`,
+`archive/warehouse-first-person/output/warehouse-perspective-lab/first-person-cutter-detail.png`, and
+`archive/warehouse-first-person/output/warehouse-perspective-lab/first-person-wrapper-detail.png`.

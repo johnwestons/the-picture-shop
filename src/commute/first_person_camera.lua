@@ -113,7 +113,7 @@ function FP.screen(camera,x,z,h)
     -- Markers behind the eye must never flip across the viewport.
     if depth<FP.NEAR then return -10000,-10000,depth end
     local centerX=(camera.viewportWidth or 1280)*.5
-    local centerY=(camera.viewportHeight or 880)*.5
+    local centerY=camera.viewCenterY or (camera.viewportHeight or 880)*.5
     return centerX+right*camera.focal/depth,centerY-up*camera.focal/depth,depth
 end
 function FP.depthValue(depth)
@@ -121,7 +121,8 @@ function FP.depthValue(depth)
 end
 function FP.send(camera,shader)
     if shader:hasUniform('viewCenter') then
-        shader:send('viewCenter',{(camera.viewportWidth or 1280)*.5,(camera.viewportHeight or 880)*.5})
+        shader:send('viewCenter',{camera.viewCenterX or (camera.viewportWidth or 1280)*.5,
+            camera.viewCenterY or (camera.viewportHeight or 880)*.5})
     end
     shader:send('eyePosition',{camera.centerX,camera.eyeHeight,camera.centerZ})
     shader:send('eyeAngles',{camera.viewHeading,camera.viewPitch,camera.roll})

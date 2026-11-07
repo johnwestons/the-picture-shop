@@ -72,21 +72,37 @@ function Component.install(Runtime)
         Runtime.acceptanceHostRelocationSignature = nil
         love.graphics.setDefaultFilter("nearest", "nearest")
         Runtime.App.settings = Runtime.Settings.load()
+        Runtime.ComputerScreen.configureTimeFormat(function()
+            return Runtime.App.settings and Runtime.App.settings.twelveHourTime
+        end)
         Runtime.Settings.applyDisplay(Runtime.App.settings)
         Runtime.mobileControls = Runtime.MobileControls.new({
             layout = Runtime.App.settings.controlLayout,
+            walkSensitivity = function()
+                return Runtime.App.settings and Runtime.App.settings.mobileWalkSensitivity
+            end,
             toGame = function(x, y)
                 return Runtime.Viewport.toGame(x, y, Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeFitsScreen())
             end,
             pressKey = Runtime.dispatchKeyPressed,
             releaseKey = function(key) Runtime.Input.keyreleased(key, Runtime.inputContext) end,
-            pressPointer = Runtime.dispatchMousePressed,
+            pressPointer = function(x,y,button)
+                local commute=require('src.commute.runtime')
+                if commute.indoorControlsActive(Runtime) then
+                    local px,py=Runtime.toPointerCoordinates(x,y)
+                    return commute.pointer(Runtime,px,py,'touch')
+                end
+                return Runtime.dispatchMousePressed(x,y,button)
+            end,
             movePointer = Runtime.dispatchMouseMoved,
             releasePointer = Runtime.dispatchMouseReleased,
-            gameplayActive = function() return Runtime.state.screen == "world" and not require('src.commute.runtime').active(Runtime) end,
+            gameplayActive = function()
+                local commute=require('src.commute.runtime')
+                return Runtime.state.screen == "world"
+                    and (not commute.active(Runtime) or commute.indoorControlsActive(Runtime))
+            end,
             gestureActive = function()
                 if require('src.commute.runtime').active(Runtime) then return false end
-                if Runtime.WarehouseFirstPerson and Runtime.WarehouseFirstPerson:isActive(Runtime) then return false end
                 return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and not Runtime.spriteLabActive
                     and not Runtime.App.officeFitsScreen()
                     and not (Runtime.state.screen == "options" and Runtime.OptionsScreen.isControlsTab())

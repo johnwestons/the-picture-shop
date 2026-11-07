@@ -9,16 +9,19 @@ local headerFormat='<I4I4I4I4I4'
 local headerBytes=4+20+32
 local magic='TPS1'
 
-local function storeFor(town)
+local function storeFor(town,spacing)
     if not town then return nil end
+    spacing=spacing or 1
     local fingerprint=Town.fingerprint(town)
-    local directory='terrain-cache/v'..Cache.VERSION..'-'..fingerprint
-    return {directory=directory,fingerprint=fingerprint,id=town.id,
-        marker=magic..'|'..tostring(town.id)..'|'..fingerprint..'|484'}
+    local variant=spacing==1 and '' or '-spacing-'..tostring(spacing)
+    local marker=magic..'|'..tostring(town.id)..'|'..fingerprint..'|484'
+    if spacing~=1 then marker=marker..'|spacing='..tostring(spacing) end
+    local directory='terrain-cache/v'..Cache.VERSION..variant..'-'..fingerprint
+    return {directory=directory,fingerprint=fingerprint,id=town.id,spacing=spacing,marker=marker}
 end
 
-function Cache.store(world)
-    return world and storeFor(world.town) or nil
+function Cache.store(world,spacing)
+    return world and storeFor(world.town,spacing) or nil
 end
 
 function Cache.available(store)
@@ -47,7 +50,11 @@ end
 function Cache.writeTile(store,tile,vertices,indices)
     if not store then return false,'no_store' end
     local ok,reason=pcall(function()
-        assert(love.filesystem.createDirectory(store.directory))
+        local created=love.filesystem.createDirectory(store.directory)
+        if not created then
+            local info=love.filesystem.getInfo(store.directory)
+            assert(info and info.type=='directory','Unable to create terrain cache directory')
+        end
         local body=encode(vertices,indices)
         local compressed=love.data.compress('string','lz4',body)
         local useCompression=#compressed<#body
@@ -85,10 +92,14 @@ function Cache.complete(store,mesh)
     return love.filesystem.write(store.directory..'/complete.txt',store.marker)==true
 end
 
-function Cache.bake(town)
+function Cache.bake(town,spacing)
+    if not spacing then
+        local mobile=love.system.getOS()=='Android' or os.getenv('PICTURE_SHOP_TERRAIN_FORCE_MOBILE')=='1'
+        spacing=mobile and TerrainMesh.MOBILE_SPACING or 1
+    end
     local world=Town.world(town)
-    local store=Cache.store(world)
-    local job={world=world,store=store,mesh=TerrainMesh.new(world,{tileSize=24,spacing=1}),
+    local store=Cache.store(world,spacing)
+    local job={world=world,store=store,mesh=TerrainMesh.new(world,{tileSize=24,spacing=spacing}),
         done=Cache.available(store),failed=false}
     function job:step(seconds)
         if self.done then return true end

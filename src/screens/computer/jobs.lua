@@ -142,7 +142,7 @@ function Component.install(Runtime)
             rect.x + 8, rect.y + 3, rect.width - 14, "left")
     end
 
-    function Runtime.drawDeliveryTrackerDetail(state,selected)
+    function Runtime.drawDeliveryTrackerDetail(state,selected,twelveHourTime)
         Runtime.panel(Runtime.DETAIL,{0.065,0.08,0.10,1},{0.23,0.35,0.38,1})
         if not selected then
             love.graphics.setColor(0.58,0.64,0.66)
@@ -157,7 +157,8 @@ function Component.install(Runtime)
         local epoch=os.time()
         local position=DeliveryTraffic.tracking(record,nowHours,epoch)
         local expected=tonumber(route.arrivalAtHours or delivery.expectedAtHours or delivery.readyAtHours)
-        local scheduled=expected and BusinessCalendar.dateTimeTextAtHours(expected,true)
+        twelveHourTime=twelveHourTime~=false
+        local scheduled=expected and BusinessCalendar.dateTimeTextAtHours(expected,twelveHourTime)
             or "Waiting for a confirmed dispatch window"
         local liveEta
         local vehicle=route.vehicle
@@ -305,7 +306,7 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.drawDetail(state, pointerX, pointerY, assets)
+    function Runtime.drawDetail(state, pointerX, pointerY, assets, twelveHourTime)
         Runtime.panel(Runtime.DETAIL, { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
         if not selected then
@@ -317,7 +318,7 @@ function Component.install(Runtime)
             return
         end
         if Runtime.ComputerScreen.tab=="deliveries" then
-            Runtime.drawDeliveryTrackerDetail(state,selected)
+            Runtime.drawDeliveryTrackerDetail(state,selected,twelveHourTime)
             return
         end
         if Runtime.isPurchaseOrder(selected) then

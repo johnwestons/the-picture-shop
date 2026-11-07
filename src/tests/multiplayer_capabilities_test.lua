@@ -13,6 +13,7 @@ local EXPECTED_INTERACTIONS = {
     applicant = true,
     employeeHighFive = true,
     vendor = true,
+    deliverySignature = true,
     loadingBayDoor = true,
     truckCargoDoor = true,
     palletWorkOrder = true,

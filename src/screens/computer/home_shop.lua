@@ -31,11 +31,14 @@ function Component.install(Runtime)
     local function products(group)
         local result={};for _,id in ipairs(Catalog.ORDER) do if Catalog.PRODUCTS[id].group==group then result[#result+1]=id end end;return result
     end
+    local function usesTwelveHourTime()
+        return Runtime.twelveHourTime()
+    end
     local function send(state,intent)
         if Runtime.dependencies.remoteCommand then return Runtime.remoteAction(intent.kind,intent) end
         local ok,message,code
         if Runtime.dependencies.warehouseCommand then ok,code,message=Runtime.dependencies.warehouseCommand(intent)
-        else ok,message=require("src.home").command(state,intent) end
+        else ok,message=require("src.home").command(state,intent,nil,usesTwelveHourTime()) end
         state.message=message or "Household action unavailable."
         return {action=ok and "home_changed" or "blocked"}
     end
@@ -81,6 +84,7 @@ function Component.install(Runtime)
     function Runtime.drawHomeShop(state,px,py)
         syncTab()
         local home=state.home;local shop=home.shopping or Shopping.new()
+        local twelveHourTime=usesTwelveHourTime()
         Runtime.panel({x=82,y=190,width=792,height=424},{.045,.08,.10,1},{.28,.50,.49,1})
         local function text(value,x,y,width,color)
             love.graphics.setColor(unpack(color or {.86,.93,.89,1}));love.graphics.printf(value,x,y,width,"left")
@@ -101,7 +105,7 @@ function Component.install(Runtime)
                 local small=require("src.home_furniture_catalog").ITEMS[q.product.furnitureId].small
                 text(q.product.dimensions.." · 8 directions"..(small and "" or " · clear floor required"),414,331,424)
             end
-            text("Deliver to: "..address.."\nArrival: "..Calendar.dateTimeTextAtHours(ordered and ordered.dueAt or Calendar.absoluteHours(state)+q.minutes/60),414,350,424)
+            text("Deliver to: "..address.."\nArrival: "..Calendar.dateTimeTextAtHours(ordered and ordered.dueAt or Calendar.absoluteHours(state)+q.minutes/60,twelveHourTime),414,350,424)
             text("Quantity: "..confirmation.quantity,614,410,160)
             button(buttons.quantityMinus,"-",not confirmation.requestId and confirmation.quantity>1);button(buttons.quantityPlus,"+",not confirmation.requestId and confirmation.quantity<10)
             local _,_,remaining=Shopping.budget(state)
@@ -123,7 +127,7 @@ function Component.install(Runtime)
                 if row then
                     local y=298+(i-1)*33;local product=Catalog.PRODUCTS[row.productId]
                     text("#"..row.id.."  "..product.name.." x"..row.quantity,104,y,340)
-                    text(row.status=="transit" and Calendar.dateTimeTextAtHours(row.dueAt)
+                    text(row.status=="transit" and Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime)
                         or row.status=="waiting" and "AT APARTMENT DOOR" or "RECEIVED",458,y,380)
                 end
             end

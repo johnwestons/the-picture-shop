@@ -282,6 +282,7 @@ function Component.install(Runtime)
                         truck = environment.truck,
                         employees = environment.employees and #environment.employees<=3 and environment.employees or nil,
                         technician = environment.technician,
+                        deliveryDriver = environment.deliveryDriver,
                     })
                 if not environmentOk then self:_queue("error", { message = environmentError }) end
                 if environment.employees and #environment.employees>3 then

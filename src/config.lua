@@ -449,6 +449,7 @@ local Config = {
         pressOperatorHandbook = "assets/generated/heidelberg-operator-handbook-atlas-v2.png",
         pressSetupInteractions = "assets/generated/heidelberg-setup-interactions-atlas-v2.png",
         technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
+        woodenBladeSleeve = "assets/workshop/wooden-blade-sleeve-v1.png",
         palletWorkOrderPaper = "assets/generated/pallet-work-order-paper-v1.png",
         critterNetMenu = "assets/generated/critter-net-90s-menu-bg-v1.png",
         critterNetSprites = "assets/generated/critter-net-animated-icons-atlas-v1.png",

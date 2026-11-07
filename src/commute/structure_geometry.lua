@@ -4,7 +4,10 @@ local Geometry={}
 local mechanicSign=require('src.commute.sites').MECHANIC_NAME:upper()
 local colors={wall={.53,.49,.44},brick={.49,.42,.37},metal={.48,.51,.52},
     trim={.70,.68,.62},roof={.26,.29,.30},glass={.23,.36,.40},recess={.12,.15,.16},
-    door={.28,.30,.29},rail={.24,.27,.28},stone={.58,.59,.56},sign={.77,.75,.67}}
+    door={.28,.30,.29},rail={.24,.27,.28},stone={.58,.59,.56},sign={.77,.75,.67},
+    farmhouse={.72,.64,.49},barn={.58,.17,.13},barnDoor={.43,.10,.09},
+    farmTrim={.88,.82,.68},soil={.28,.17,.095},corn={.24,.43,.15},cornLeaf={.34,.53,.18},
+    tomatoLeaf={.25,.43,.17},tomato={.78,.16,.10},wood={.36,.25,.14}}
 Geometry.colors=colors
 function Geometry.new()
     return {vertices={},features={},counts={boxes=0,quads=0,cylinders=0},
@@ -228,16 +231,19 @@ local function balcony(m,axis,plane,sign,u0,u1,height)
     for _,u in ipairs({u0,u1}) do panel(m,axis,plane,sign,u-.035,u+.035,height+.94,height+1.01,0,.8,colors.rail) end
     feature(m,'balconies',{axis=axis,plane=plane,u0=u0,u1=u1,h=height})
 end
-local function pitchedRoof(m,r,height,rise)
+local function pitchedRoof(m,r,height,rise,palette)
+    palette=palette or {}
+    local roofColor,trimColor,gableColor=palette.roof or colors.roof,palette.trim or colors.trim,
+        palette.gable or colors.wall
     local e=.30;local x0,x1,z0,z1=r.minX-e,r.maxX+e,r.minZ-e,r.maxZ+e;local mid=(z0+z1)*.5
     local slope=(rise-.12)/(mid-z0);local length=math.sqrt(1+slope*slope)
-    Geometry.quad(m,{x0,z0,height+.12},{x1,z0,height+.12},{x1,mid,height+rise},{x0,mid,height+rise},colors.roof,{0,1/length,-slope/length})
-    Geometry.quad(m,{x0,mid,height+rise},{x1,mid,height+rise},{x1,z1,height+.12},{x0,z1,height+.12},colors.roof,{0,1/length,slope/length})
-    Geometry.triangle(m,{r.minX,r.minZ,height},{r.minX,r.maxZ,height},{r.minX,mid,height+rise-.10},colors.wall,{-1,0,0})
-    Geometry.triangle(m,{r.maxX,r.maxZ,height},{r.maxX,r.minZ,height},{r.maxX,mid,height+rise-.10},colors.wall,{1,0,0})
-    Geometry.box(m,x0,z0-.04,height+.02,x1,z0+.04,height+.22,colors.trim)
-    Geometry.box(m,x0,z1-.04,height+.02,x1,z1+.04,height+.22,colors.trim)
-    Geometry.box(m,x0,mid-.08,height+rise-.04,x1,mid+.08,height+rise+.08,colors.trim)
+    Geometry.quad(m,{x0,z0,height+.12},{x1,z0,height+.12},{x1,mid,height+rise},{x0,mid,height+rise},roofColor,{0,1/length,-slope/length})
+    Geometry.quad(m,{x0,mid,height+rise},{x1,mid,height+rise},{x1,z1,height+.12},{x0,z1,height+.12},roofColor,{0,1/length,slope/length})
+    Geometry.triangle(m,{r.minX,r.minZ,height},{r.minX,r.maxZ,height},{r.minX,mid,height+rise-.10},gableColor,{-1,0,0})
+    Geometry.triangle(m,{r.maxX,r.maxZ,height},{r.maxX,r.minZ,height},{r.maxX,mid,height+rise-.10},gableColor,{1,0,0})
+    Geometry.box(m,x0,z0-.04,height+.02,x1,z0+.04,height+.22,trimColor)
+    Geometry.box(m,x0,z1-.04,height+.02,x1,z1+.04,height+.22,trimColor)
+    Geometry.box(m,x0,mid-.08,height+rise-.04,x1,mid+.08,height+rise+.08,trimColor)
     feature(m,'pitchedRoofs',{rise=rise})
 end
 local function warehouse(m,design,r)
@@ -324,6 +330,131 @@ local function pergola(m,x,z,width,height)
     end
     feature(m,'pergolas',{x=x,z=z,width=width})
 end
+local function ruralHouse(m)
+    local r={minX=7,maxX=18,minZ=-17,maxZ=-7};local height=4.15
+    Geometry.box(m,r.minX,r.minZ,-.08,r.maxX,r.maxZ,.12,colors.stone)
+    facade(m,'z',r.maxZ,1,r.minX,r.maxX,height,1,colors.farmhouse,12,
+        {windowWidth=1.25,windowBase=.9,windowTop=2.55,doorWidth=1.2,doorHeight=2.55})
+    facade(m,'z',r.minZ,-1,r.minX,r.maxX,height,1,colors.farmhouse)
+    facade(m,'x',r.minX,-1,r.minZ,r.maxZ,height,1,colors.farmhouse)
+    facade(m,'x',r.maxX,1,r.minZ,r.maxZ,height,1,colors.farmhouse)
+    Geometry.box(m,11.46,r.maxZ+.035,.12,12.54,r.maxZ+.11,2.26,colors.wood)
+    entry(m,12,r.maxZ,2.5)
+    pitchedRoof(m,r,height,2.15,{roof={.28,.25,.20},trim=colors.farmTrim,gable=colors.farmhouse})
+    for _,x in ipairs({r.minX+.22,r.maxX-.22}) do
+        Geometry.box(m,x-.07,r.maxZ-.04,.1,x+.07,r.maxZ+.08,height,colors.farmTrim)
+    end
+    feature(m,'farmhouses',{bounds=r,doorX=12,doorZ=r.maxZ})
+end
+local function brace(m,x0,h0,x1,h1,z,width,color)
+    local dx,dh=x1-x0,h1-h0;local length=math.sqrt(dx*dx+dh*dh)
+    local ox,oh=-dh/length*width*.5,dx/length*width*.5
+    Geometry.quad(m,{x0+ox,z,h0+oh},{x0-ox,z,h0-oh},{x1-ox,z,h1-oh},{x1+ox,z,h1+oh},color,{0,0,1})
+end
+local function ruralBarn(m)
+    local r={minX=-18,maxX=-3,minZ=-16,maxZ=-1};local height=4.85
+    Geometry.box(m,r.minX,r.minZ,-.08,r.maxX,r.maxZ,.15,colors.stone)
+    facade(m,'z',r.maxZ,1,r.minX,r.maxX,height,1,colors.barn,nil,
+        {noWindows=true,openings={{u0=-15.6,u1=-5.4,h0=.12,h1=3.55,kind='garage'}}})
+    facade(m,'z',r.minZ,-1,r.minX,r.maxX,height,1,colors.barn)
+    facade(m,'x',r.minX,-1,r.minZ,r.maxZ,height,1,colors.barn)
+    facade(m,'x',r.maxX,1,r.minZ,r.maxZ,height,1,colors.barn)
+    -- A red sliding barn door with pale timber framing and cross braces.
+    Geometry.box(m,-15.45,r.maxZ+.045,.15,-5.55,r.maxZ+.12,3.45,colors.barnDoor)
+    for _,x in ipairs({-15.65,-5.35}) do
+        Geometry.box(m,x-.12,r.maxZ+.05,.08,x+.12,r.maxZ+.16,3.65,colors.farmTrim)
+    end
+    Geometry.box(m,-15.65,r.maxZ+.05,3.52,-5.35,r.maxZ+.16,3.72,colors.farmTrim)
+    for _,x in ipairs({-14.8,-12.3,-9.7,-7.1,-6.2}) do
+        Geometry.box(m,x-.045,r.maxZ+.13,.22,x+.045,r.maxZ+.17,3.40,colors.barn)
+    end
+    brace(m,-15.1,.34,-5.9,3.28,r.maxZ+.18,.20,colors.farmTrim)
+    brace(m,-5.9,.34,-15.1,3.28,r.maxZ+.18,.20,colors.farmTrim)
+    pitchedRoof(m,r,height,2.72,{roof={.22,.25,.20},trim=colors.farmTrim,gable=colors.barn})
+    -- Narrow siding boards and a small loft vent make the barn read at a distance.
+    for x=-17.5,-3.5,.7 do
+        Geometry.box(m,x-.025,r.maxZ+.015,.20,x+.025,r.maxZ+.035,4.35,colors.farmTrim)
+    end
+    Geometry.box(m,-11.4,r.maxZ+.04,4.03,-9.6,r.maxZ+.12,4.37,colors.barnDoor)
+    feature(m,'barns',{bounds=r,doorWidth=10,doorHeight=3.55})
+end
+local function cornPlant(m,x,z,height)
+    Geometry.box(m,x-.045,z-.045,.12,x+.045,z+.045,height,colors.corn)
+    for i=1,4 do
+        local side=i%2==0 and 1 or -1
+        local level=.28+i*.25
+        local offset=side*(.24+(i%3)*.08)
+        local leaf=colors.cornLeaf
+        Geometry.triangle(m,{x,z,level},{x+offset,z+.05,level+.12},{x+side*.48,z+.08,level+.02},leaf,{0,0,1})
+        Geometry.triangle(m,{x,z,level+.06},{x-.04,z+offset,level+.17},{x-.08,z+side*.43,level+.08},leaf,{1,0,0})
+    end
+    Geometry.triangle(m,{x-.12,z,height-.05},{x,z-.04,height+.28},{x+.12,z,height-.05},{.73,.66,.26},{0,0,1})
+end
+local function tomatoPlant(m,x,z)
+    Geometry.box(m,x-.045,z-.045,.12,x+.045,z+.045,.82,colors.tomatoLeaf)
+    for _,side in ipairs({-1,1}) do
+        Geometry.box(m,x+side*.18-.20,z-.08,.39,x+side*.18+.20,z+.08,.51,colors.tomatoLeaf)
+    end
+    for _,fruit in ipairs({{-.20,.02,.39},{.20,.02,.50},{0,-.16,.61}}) do
+        Geometry.cylinder(m,x+fruit[1],z+fruit[2],fruit[3],.105,.14,colors.tomato,6)
+    end
+end
+local function fenceRun(m,x0,z0,x1,z1,spacing)
+    local length=math.sqrt((x1-x0)^2+(z1-z0)^2);local count=math.max(1,math.ceil(length/spacing))
+    for i=0,count do
+        local t=i/count;local x,z=x0+(x1-x0)*t,z0+(z1-z0)*t
+        Geometry.box(m,x-.08,z-.08,.08,x+.08,z+.08,1.34,colors.wood)
+        if i<count then
+            local nextT=(i+1)/count;local nx,nz=x0+(x1-x0)*nextT,z0+(z1-z0)*nextT
+            local thick=.075
+            if math.abs(x1-x0)>math.abs(z1-z0) then
+                Geometry.box(m,math.min(x,nx),z-thick,.42,math.max(x,nx),z+thick,.54,colors.farmTrim)
+                Geometry.box(m,math.min(x,nx),z-thick,.90,math.max(x,nx),z+thick,1.02,colors.farmTrim)
+            else
+                Geometry.box(m,x-thick,math.min(z,nz),.42,x+thick,math.max(z,nz),.54,colors.farmTrim)
+                Geometry.box(m,x-thick,math.min(z,nz),.90,x+thick,math.max(z,nz),1.02,colors.farmTrim)
+            end
+        end
+    end
+end
+local function farm(m,d)
+    ruralBarn(m);ruralHouse(m)
+    -- Cultivated beds are distinct plots: tall corn to the west and tomatoes
+    -- on low trellised rows to the east, with a dirt lane between them.
+    local corn={minX=-19,maxX=-1,minZ=1,maxZ=18}
+    Geometry.box(m,corn.minX,corn.minZ,.025,corn.maxX,corn.maxZ,.11,colors.soil)
+    local cornRows,cornCount=0,0
+    for row=0,6 do
+        local x=-17.65+row*2.38;cornRows=cornRows+1
+        Geometry.box(m,x-.63,corn.minZ+.2,.11,x+.63,corn.maxZ-.2,.20,{.36,.23,.12})
+        for column=0,7 do
+            cornPlant(m,x,2.25+column*2.05,1.55+(column%3)*.09);cornCount=cornCount+1
+        end
+    end
+    feature(m,'cornFields',{bounds=corn,rows=cornRows,plants=cornCount})
+    local tomatoes={minX=2,maxX=18,minZ=1,maxZ=18}
+    Geometry.box(m,tomatoes.minX,tomatoes.minZ,.025,tomatoes.maxX,tomatoes.maxZ,.11,colors.soil)
+    local tomatoRows,tomatoCount=0,0
+    for row=0,5 do
+        local x=3.2+row*2.72;tomatoRows=tomatoRows+1
+        Geometry.box(m,x-.50,tomatoes.minZ+.25,.11,x+.50,tomatoes.maxZ-.25,.18,{.39,.25,.13})
+        for column=0,5 do
+            tomatoPlant(m,x,2.35+column*2.72);tomatoCount=tomatoCount+1
+        end
+        Geometry.box(m,x-.54,tomatoes.minZ+.5,.95,x+.54,tomatoes.maxZ-.5,1.01,colors.wood)
+    end
+    feature(m,'tomatoFields',{bounds=tomatoes,rows=tomatoRows,plants=tomatoCount})
+    -- The farm drive ends at a simple timber gate; no interaction is wired yet.
+    for _,x in ipairs({-3,3}) do Geometry.box(m,x-.16,19.10,.08,x+.16,19.42,2.35,colors.wood) end
+    Geometry.box(m,-3.05,19.06,2.20,3.05,19.46,2.47,colors.wood)
+    Geometry.box(m,-2.35,19.47,2.23,2.35,19.51,3.22,colors.farmTrim)
+    Geometry.lettering(m,'MILLER FARM',0,19.52,2.75,3.25,.48)
+    fenceRun(m,-20,-19,-20,19,4.6);fenceRun(m,20,-19,20,19,4.6)
+    fenceRun(m,-20,-19,20,-19,4.8)
+    fenceRun(m,-20,19,-3.2,19,4.8);fenceRun(m,3.2,19,20,19,4.8)
+    feature(m,'farmFences',{gateWidth=6.4})
+    feature(m,'farmApproach',{threshold=d.threshold,parking=d.parking})
+end
 local services={['gas-station']=true,mechanic=true,grocery=true,['post-office']=true,police=true,['fire-station']=true,
     diner=true,['coffee-shop']=true,['general-store']=true}
 local function commercial(m,d,r)
@@ -354,12 +485,52 @@ local function commercial(m,d,r)
         feature(m,'workCanopies',{width=d.width-1,depth=1.55})
         sign(m,d,r,mechanicSign,height-.48)
     elseif style=='gas-station' then
-        b(m,-4,r.maxZ,2.75,4,r.maxZ+2.6,2.98,colors.roof)
-        for _,x in ipairs({-3,3}) do
-            b(m,x-.4,4.5,0,x+.4,5.1,1.45,colors.trim)
-            b(m,x-.26,5.1,.84,x+.26,5.13,1.27,colors.recess)
-            b(m,x-.08,4.7,1.45,x+.08,4.9,2.76,colors.metal)
+        local asphalt={.28,.30,.29};local stripe={.92,.82,.50}
+        local pumpRed={.73,.16,.12};local pumpWhite={.82,.83,.78};local display={.10,.26,.24}
+        -- A broad, level apron connects the building to clearly marked pump
+        -- bays and a separate truck pull-through space.
+        b(m,-5.5,4,-.08,5.5,13.5,.025,asphalt)
+        for _,x in ipairs({-3.05,-1.35,1.35,3.05}) do
+            b(m,x-.035,5.35,.03,x+.035,7.65,.047,stripe)
         end
+        for _,z in ipairs({5.35,7.65}) do
+            b(m,-3.085,z,.03,-1.315,z+.07,.047,stripe)
+            b(m,1.315,z,.03,3.085,z+.07,.047,stripe)
+        end
+        -- Truck bay markings sit beyond the two motorcycle bays.
+        for _,x in ipairs({-3.45,3.45}) do b(m,x-.045,9.35,.03,x+.045,13.15,.047,stripe) end
+        for _,z in ipairs({9.35,13.1}) do b(m,-3.45,z,.03,3.45,z+.07,.047,stripe) end
+        b(m,-4.55,3.75,3.15,4.55,9.1,3.42,colors.roof)
+        for _,x in ipairs({-4.25,4.25}) do
+            for _,z in ipairs({4.05,8.8}) do
+                b(m,x-.11,z-.11,0,x+.11,z+.11,3.15,colors.metal)
+                b(m,x-.16,z-.16,0,x+.16,z+.16,.18,colors.trim)
+            end
+        end
+        for index,x in ipairs({-3,3}) do
+            -- Raised island, cabinet, digital display, payment keypad and
+            -- hose/nozzle make each dispenser readable at terrain scale.
+            b(m,x-.57,4.22,.025,x+.57,5.38,.13,colors.stone)
+            b(m,x-.39,4.38,.13,x+.39,5.12,1.42,pumpWhite)
+            b(m,x-.43,4.36,1.39,x+.43,5.14,1.58,pumpRed)
+            b(m,x-.31,5.125,.87,x+.31,5.155,1.25,display)
+            b(m,x-.25,5.16,1.02,x+.25,5.18,1.12,colors.sign)
+            for row=0,1 do
+                for column=0,2 do
+                    local bx=x-.18+column*.16;local bh=.69-row*.14
+                    b(m,bx,5.13,bh,bx+.085,5.16,bh+.065,
+                        (row+column)%2==0 and colors.sign or pumpRed)
+                end
+            end
+            b(m,x+.40,4.78,.35,x+.49,4.94,.43,colors.metal)
+            b(m,x+.42,4.82,.44,x+.46,4.90,1.13,colors.metal)
+            b(m,x+.29,4.84,1.00,x+.47,4.91,1.07,colors.metal)
+            b(m,x+.40,4.80,1.04,x+.52,4.94,1.17,pumpRed)
+            feature(m,'fuelPumps',{x=x,z=4.8,side=index,screen=true,nozzle=true})
+        end
+        feature(m,'pumpBays',{centers={{x=-2.2,z=6.5},{x=2.2,z=6.5}},count=2})
+        feature(m,'truckPumpBay',{x=0,z=11.1,width=6.9,depth=3.8})
+        feature(m,'pumpCanopy',{width=9.1,depth=5.35,frontZ=9.1})
         sign(m,d,r,'GAS',3.21)
     elseif style=='grocery' then
         b(m,r.minX+.3,r.maxZ-.1,3.22,r.maxX-.3,r.maxZ+1.20,3.40,colors.roof)
@@ -443,6 +614,7 @@ function Geometry.build(site)
     local m=Geometry.new();local d=site.design;local r=site.localFoundation
     if d.style=='warehouse' then warehouse(m,d,r)
     elseif services[d.style] then commercial(m,d,r)
+    elseif d.style=='farm' then farm(m,d)
     elseif d.style=='courtyard' then
         for _,piece in ipairs(site.localFootprints) do block(m,piece,d.height,d.floors,colors.wall) end
         -- Inward balconies overlook a genuinely open court; the entrance is a

@@ -4,6 +4,7 @@ local Roads=require('src.commute.roads')
 local Rider=require('src.commute.rider')
 local Gear=require('src.commute.gear')
 local Bike=require('src.commute.motorcycle')
+local AIMotorcycleTraffic=require('src.commute.ai_motorcycle_traffic')
 local Truck=require('src.commute.delivery_truck')
 local Paint=require('src.commute.bike_paint')
 local RidingAnimation=require('src.commute.riding_animation')
@@ -20,13 +21,40 @@ local function door(world,id)
     return sites.byId[id].door
 end
 local function participantId(id) return id=='owner' or Residents.validId(id) end
+local function vehicleForModel(t,model)
+    return model=='kei' and t.keiTruck or t.truck
+end
+function Trip.truckFor(rider,t)
+    if rider and rider.vehicle=='truck' and Truck.valid(rider.truck) then return rider.truck end
+    return t and vehicleForModel(t,t.deliveryVehicleModel)
+end
+function Trip.trucks(t)
+    local result={}
+    if t and t.truck then result[#result+1]=t.truck end
+    if t and t.keiTruck then result[#result+1]=t.keiTruck end
+    return result
+end
+local function hasTruckOwner(t,id)
+    for _,truck in ipairs(Trip.trucks(t)) do if truck.owner==id then return true end end
+    return false
+end
+function Trip.nearestTruck(t,rider,radius)
+    if not rider or not rider.ped then return nil end
+    local nearest,distance
+    for _,truck in ipairs(Trip.trucks(t)) do
+        local current=M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)
+        if current<=(radius or math.huge) and (not distance or current<distance) then
+            nearest,distance=truck,current
+        end
+    end
+    return nearest,distance
+end
 local function truckParkedInBay(world,id,truck)
     local site=world and world.sites and world.sites.byId[id]
     if site then
         local x,z=site:toLocal(truck.x,truck.z)
         if id=='warehouse' and site.localTruckParkingArea and site.design.truckParking then
-            -- The enlarged hardscape includes a staging slot. Only the marked
-            -- primary anchor counts as the loading bay for pallet interactions.
+            -- The box truck's primary loading position stays aligned to the marked bay.
             return math.abs(x-site.design.truckParking.x)<=1.1/site.scale.x
                 and math.abs(z-site.design.truckParking.z)<=.9/site.scale.z
         end
@@ -39,20 +67,46 @@ local function truckParkedInBay(world,id,truck)
     return M.length(truck.x-pad.x,truck.z-pad.z)<=3
 end
 function Trip.truckAtLoadingBay(world,truck)
-    return truck~=nil and truckParkedInBay(world,'warehouse',truck)
+    if not truck then return false end
+    if truckParkedInBay(world,'warehouse',truck) then return true end
+    local site=world and world.sites and world.sites.byId.warehouse
+    local anchor=site and site.design.truckParking
+    if truck.model=='kei' and anchor then
+        local x,z=site:toLocal(truck.x,truck.z)
+        for _,offset in ipairs({-3.1,3.1,-3.6,3.6}) do
+            if math.abs(x-anchor.x)<=1.1/site.scale.x
+                and math.abs(z-(anchor.z+offset))<=.9/site.scale.z then return true end
+        end
+    end
+    return false
 end
-function Trip.truckParking(world,companyTruck)
+function Trip.truckParking(world,companyTruck,model,boxTruck)
     local site=world and world.sites and world.sites.byId.warehouse
     if not site then return nil end
     local heading=site.design.truckParking and site.yaw or math.atan2(site.front.z,site.front.x)
     local candidates=site.design.truckParking and {{site.design.truckParking.x,site.design.truckParking.z}}
         or {{-3.5,7.8},{-4.4,10.1},{-4.0,5.6}}
+    model=model or 'box'
+    if model=='kei' and site.design.truckParking then
+        local anchor=site.design.truckParking
+        candidates={}
+        for _,offset in ipairs({-3.1,3.1,-3.6,3.6}) do
+            candidates[#candidates+1]={anchor.x,anchor.z+offset}
+        end
+    end
     for _,localPoint in ipairs(candidates) do
         local x,z=site:toWorld(localPoint[1],localPoint[2],0)
         local h=world:supportHeight(x,z)
-        if not Truck.blocked(world,x,z,heading) then
-            local truck=Truck.new(x,z,heading,'picture_shop');truck.h=h;truck.homeX=x;truck.homeZ=z
-            require('src.company_delivery_driver').apply(companyTruck,truck)
+        local subject={model=model}
+        local blocked=Truck.blocked(world,x,z,heading,subject)
+        if not blocked and model=='kei' and boxTruck then
+            blocked=require('src.commute.truck_footprint').overlapsTruck(x,z,heading,
+                boxTruck.x,boxTruck.z,boxTruck.heading,model,boxTruck.model)
+        end
+        if not blocked then
+            local truck=Truck.new(x,z,heading,model=='box' and 'picture_shop' or 'plain',model)
+            truck.h=h;truck.homeX=x;truck.homeZ=z
+            if model=='box' then require('src.company_delivery_driver').apply(companyTruck,truck) end
             return truck
         end
     end
@@ -103,11 +157,15 @@ function Trip.valid(t,home)
             or not participantId(t.deliveryDriver))
         or independent and t.deliveryRun==nil and t.deliveryDriver~=nil
         or type(t.participants)~='table' or not independent and not t.participants.owner
+        or t.aiMotorcycles~=nil and not AIMotorcycleTraffic.valid(t.aiMotorcycles)
         or t.mapId~=nil and (type(t.mapId)~='string' or #t.mapId>80
             or home and home.town and t.mapId~=home.town.id) then return false end
-    if t.truck~=nil and (not Truck.valid(t.truck)
-        or t.truck.driver~=nil and not participantId(t.truck.driver)
-        or t.truck.owner~=nil and not participantId(t.truck.owner)) then return false end
+    for _,truck in ipairs({t.truck or false,t.keiTruck or false}) do
+        if truck and (not Truck.valid(truck)
+            or truck.driver~=nil and not participantId(truck.driver)
+            or truck.owner~=nil and not participantId(truck.owner)) then return false end
+    end
+    if t.deliveryVehicleModel~=nil and t.deliveryVehicleModel~='box' and t.deliveryVehicleModel~='kei' then return false end
     local count,slots,truckDrivers=0,{},0
     for id,p in pairs(t.participants) do
         count=count+1
@@ -127,13 +185,15 @@ function Trip.valid(t,home)
             or type(p.rider)~='table' or not Gear.valid(p.rider.gear)
             or p.interior~=nil and (p.rider.gear.mounted or p.rider.vehicle~=nil)
             or not position(p.rider.ped) or not position(p.rider.bike) or not Bike.valid(p.rider.bike)
-            or p.rider.vehicle~=nil and (p.rider.vehicle~='truck' or not t.truck or not Truck.valid(p.rider.truck)
+            or p.rider.vehicle~=nil and (p.rider.vehicle~='truck' or not Truck.valid(p.rider.truck)
+                or not vehicleForModel(t,p.rider.truck.model or 'box')
                 or p.rider.gear.mounted)
-            or p.rider.transport~=nil and (p.rider.transport~='truck' or not t.truck or t.truck.owner~=id)
+            or p.rider.transport~=nil and (p.rider.transport~='truck' or not hasTruckOwner(t,id))
             or not NormalArt.valid(p.appearance) then return false end
         if p.rider.vehicle=='truck' then
             truckDrivers=truckDrivers+1
-            if t.truck.driver~=id or t.truck.owner~=id then return false end
+            local truck=vehicleForModel(t,p.rider.truck.model or 'box')
+            if truck.driver~=id or truck.owner~=id then return false end
         end
         slots[p.slot]=true
         local v=p.presentation
@@ -161,11 +221,16 @@ function Trip.valid(t,home)
                 or (p.rider.bike.damage or 0)~=(resident.ridingDamage or 0) then return false end
         end
     end
-    if truckDrivers>1 or t.truck and t.truck.driver~=nil
-        and (not t.participants[t.truck.driver] or t.participants[t.truck.driver].rider.vehicle~='truck')
-        or t.truck and t.truck.owner~=nil and not t.participants[t.truck.owner] then return false end
+    if truckDrivers>2 then return false end
+    for _,truck in ipairs({t.truck or false,t.keiTruck or false}) do
+        if truck and (truck.driver~=nil and (not t.participants[truck.driver]
+                or t.participants[truck.driver].rider.vehicle~='truck'
+                or (t.participants[truck.driver].rider.truck.model or 'box')~=(truck.model or 'box'))
+            or truck.owner~=nil and not t.participants[truck.owner]) then return false end
+    end
     if independent and t.deliveryDriver and (not t.participants[t.deliveryDriver]
-        or not t.truck or t.truck.owner~=t.deliveryDriver) then return false end
+        or not vehicleForModel(t,t.deliveryVehicleModel or 'box')
+        or vehicleForModel(t,t.deliveryVehicleModel or 'box').owner~=t.deliveryDriver) then return false end
     if home then
         if delivery then
             if not home.town then return false end
@@ -192,9 +257,15 @@ function Trip.start(state,players,token,world)
     end
     local origin=homeward and 'warehouse' or state.home.apartmentId
     local destination=homeward and state.home.apartmentId or 'warehouse'
-    local t={version=Trip.VERSION,mapVersion=Roads.VERSION,mapId=world and world.townId,token=token,purpose=outing and 'outing' or 'weekend',origin=origin,destination=destination,participants={}}
-    t.truck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state))
+    local t={version=Trip.VERSION,mapVersion=Roads.VERSION,mapId=world and world.townId,
+        token=token,purpose=outing and 'outing' or 'weekend',origin=origin,destination=destination,
+        participants={},aiMotorcycles={}}
+    local companyTruck=require('src.company_delivery_driver').ensure(state)
+    t.truck=Trip.truckParking(world,companyTruck)
     if not t.truck then return false,'No safe loading area is available for the delivery truck.' end
+    t.keiTruck=Trip.truckParking(world,companyTruck,'kei',t.truck)
+    if not t.keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
+    t.keiTruck.fuel=t.truck.fuel
     for _,player in ipairs(players) do
         local id=Residents.key(player);local resident=Residents.get(state,player)
         if not resident or t.participants[id] then return false,'Each traveler needs a distinct household resident.' end
@@ -229,8 +300,12 @@ function Trip.snapshot(t)
     local result={version=t.version,mapVersion=t.mapVersion,mapId=t.mapId,token=t.token,purpose=t.purpose,origin=t.origin,destination=t.destination,participants={},
         independent=t.independent,deliveryDriver=t.deliveryDriver,
         truck=t.truck and Truck.snapshot(t.truck) or nil,
-        deliveryRun=t.deliveryRun and dataCopy(t.deliveryRun) or nil}
+        deliveryRun=t.deliveryRun and dataCopy(t.deliveryRun) or nil,
+        deliveryVehicleModel=t.deliveryVehicleModel,
+        aiMotorcycles=AIMotorcycleTraffic.snapshot(t.aiMotorcycles),
+        keiTruck=t.keiTruck and Truck.snapshot(t.keiTruck) or nil}
     if result.truck then result.truck.owner=t.truck.owner;result.truck.driver=t.truck.driver end
+    if result.keiTruck then result.keiTruck.owner=t.keiTruck.owner;result.keiTruck.driver=t.keiTruck.driver end
     for id,p in pairs(t.participants) do
         local pose,progress=Rider.pose(p.rider);local actor=Rider.actor(p.rider)
         local bike=p.rider.bike
@@ -263,7 +338,12 @@ function Trip.restore(t,world,companyTruck)
     if not Trip.valid(t) then return nil,'Invalid saved commute.' end
     if t.mapId and world.townId and t.mapId~=world.townId then return nil,'The saved trip belongs to another town.' end
     local result=Trip.snapshot(t)
+    if t.mapVersion~=Roads.VERSION then result.aiMotorcycles={} end
     if not result.truck or t.mapVersion~=Roads.VERSION then result.truck=Trip.truckParking(world,companyTruck) end
+    if not result.keiTruck or t.mapVersion~=Roads.VERSION then
+        result.keiTruck=Trip.truckParking(world,companyTruck,'kei',result.truck)
+        if result.keiTruck and result.truck then result.keiTruck.fuel=result.truck.fuel end
+    end
     if t.mapVersion~=Roads.VERSION and result.deliveryRun and result.deliveryRun.status=='offmap' then
         -- Re-enter the gate cinematic after a road-map migration instead of
         -- restoring an off-map driver with no usable vehicle controls.
@@ -271,7 +351,11 @@ function Trip.restore(t,world,companyTruck)
         result.deliveryRun.cutsceneStartedAtEpoch=nil;result.deliveryRun.cutsceneEndsAtEpoch=nil
     end
     if not result.truck then return nil,'No safe loading area exists for the delivery truck.' end
-    if t.mapVersion~=Roads.VERSION then result.truck.owner=nil;result.truck.driver=nil end
+    if not result.keiTruck then return nil,'No safe parking space exists for the kei delivery truck.' end
+    if t.mapVersion~=Roads.VERSION then
+        result.truck.owner=nil;result.truck.driver=nil
+        result.keiTruck.owner=nil;result.keiTruck.driver=nil
+    end
     for _,p in pairs(result.participants) do
         local anchor=Trip.parking(world,p.arrived and (p.destination or t.destination) or (p.origin or t.origin),p.slot)
         if not anchor then return nil,'No safe parking space exists for the saved rider.' end
@@ -282,16 +366,19 @@ function Trip.restore(t,world,companyTruck)
         local rider,reason=Rider.restore(p.rider,world,anchor)
         if not rider then return nil,reason end
         p.rider=rider
-        if rider.vehicle=='truck' then rider.truck=result.truck end
+        if rider.vehicle=='truck' then rider.truck=vehicleForModel(result,rider.truck.model or 'box') end
         p.presentation=nil
         if t.mapVersion~=Roads.VERSION then p.arrived=false end
     end
     if companyTruck and result.truck then
-        if t.truck and t.truck.fuel~=nil and t.mapVersion==Roads.VERSION then
-            companyTruck.fuelLiters=result.truck.fuel
+        local activeTruck=vehicleForModel(result,t.deliveryVehicleModel or 'box')
+        if t.mapVersion==Roads.VERSION and activeTruck and activeTruck.fuel~=nil then
+            companyTruck.fuelLiters=activeTruck.fuel
         else
             require('src.company_delivery_driver').apply(companyTruck,result.truck)
         end
+        result.truck.fuel=companyTruck.fuelLiters
+        result.keiTruck.fuel=companyTruck.fuelLiters
     end
     result.mapVersion=Roads.VERSION;result.mapId=world.townId;return result
 end
@@ -305,6 +392,7 @@ end
 function Trip.command(state,player,token,action,world)
     local part,t=Trip.participant(state,player,token)
     if not part then return false,t end
+    local baseTrip=t
     if t.independent then
         if part.interior then return false,'Leave the store before using outdoor controls.' end
         t=setmetatable({origin=part.origin,destination=part.destination,
@@ -318,11 +406,12 @@ function Trip.command(state,player,token,action,world)
         local rider=part.rider
         if rider.vehicle or rider.gear.mounted or rider.gear.transition or rider.ped.crash
             or rider.ped.speed>.05 then return false,'Get out of the truck and stand still to load the pallets.' end
-        if not t.truck or t.truck.speed>.05 then return false,'Stop the delivery truck before loading pallets.' end
-        if not Trip.truckAtLoadingBay(world,t.truck) then
+        local truck=Trip.truckFor(rider,t)
+        if not truck or truck.speed>.05 then return false,'Stop the delivery truck before loading pallets.' end
+        if not Trip.truckAtLoadingBay(world,truck) then
             return false,'Park the truck inside the marked warehouse loading bay before loading pallets.'
         end
-        if M.length(rider.ped.x-t.truck.x,rider.ped.z-t.truck.z)>5.5 then
+        if M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)>5.5 then
             return false,'Walk over to the truck in the loading bay to load the pallets.'
         end
         local okay,message=require('src.commute.delivery_run').load(state,run)
@@ -345,8 +434,9 @@ function Trip.command(state,player,token,action,world)
         if M.length(rider.ped.x-doorPoint.x,rider.ped.z-doorPoint.z)>1.8 then
             return false,'Walk to '..stop.label..' to hand off the pallets.'
         end
-        if not t.truck or t.truck.speed>.05
-            or M.length(t.truck.x-doorPoint.x,t.truck.z-doorPoint.z)>22 then
+        local truck=Trip.truckFor(rider,t)
+        if not truck or truck.speed>.05
+            or M.length(truck.x-doorPoint.x,truck.z-doorPoint.z)>22 then
             return false,'Park the delivery truck near the customer first.'
         end
         local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
@@ -363,12 +453,12 @@ function Trip.command(state,player,token,action,world)
     if action~='arrive' then
         if action=='truck' then
             local rider=t.participants[Residents.key(player)].rider
-            local truck=t.truck
-            if not truck then return false,'The delivery truck is unavailable.' end
             if require('src.company_delivery_driver').busy(state) then
                 return false,'The scheduled driver is using the delivery truck right now.'
             end
             if rider.vehicle=='truck' then
+                local truck=rider.truck
+                if not Truck.valid(truck) then return false,'The delivery truck is unavailable.' end
                 if truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
                 if truck.speed>.05 then return false,'Stop the delivery truck before getting out.' end
                 local sideX,sideZ=-math.sin(truck.heading),math.cos(truck.heading)
@@ -387,12 +477,22 @@ function Trip.command(state,player,token,action,world)
                 state.home.revision=state.home.revision+1
                 return true,'You are out of the delivery truck.'
             end
+            local available,nearestDistance
+            for _,candidate in ipairs(Trip.trucks(t)) do
+                if (not candidate.owner or candidate.owner==Residents.key(player)) and not candidate.driver then
+                    local distance=M.length(rider.ped.x-candidate.x,rider.ped.z-candidate.z)
+                    if not nearestDistance or distance<nearestDistance then available,nearestDistance=candidate,distance end
+                end
+            end
+            local truck=available
+            if not truck then return false,'No delivery truck is available.' end
             if not t.independent and t.origin~='warehouse' then return false,'The delivery truck is available from the warehouse loading area.' end
             if rider.gear.mounted or rider.gear.transition or rider.ped.crash then return false,'Get off the motorcycle and finish the current action first.' end
             if truck.owner and truck.owner~=Residents.key(player) then return false,'The delivery truck is assigned to another rider.' end
             if truck.driver then return false,'Another rider is driving the delivery truck.' end
-            if M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)>5.5 then return false,'Walk over to the delivery truck first.' end
+            if nearestDistance>5.5 then return false,'Walk over to the delivery truck first.' end
             truck.fuel=require('src.company_delivery_driver').ensure(state).fuelLiters
+            if run then baseTrip.deliveryVehicleModel=truck.model or 'box' end
             truck.owner=Residents.key(player);truck.driver=Residents.key(player)
             rider.vehicle='truck';rider.transport='truck';rider.truck=truck
             rider.ped.x,rider.ped.z,rider.ped.heading=truck.x,truck.z,truck.heading
@@ -401,17 +501,18 @@ function Trip.command(state,player,token,action,world)
             return true,'Delivery truck ready. Use the riding controls to drive; stop and interact to get out.'
         end
         if part.rider.vehicle=='truck' then
+            local truck=part.rider.truck
             local radioAction=({radioPrevious='previous',radioPlay='play',radioNext='next',radioMute='mute'})[action]
             if radioAction then
-                if t.truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
+                if truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
                 local okay=require('src.jukebox').control(radioAction)
                 if okay then state.home.revision=state.home.revision+1 end
                 return okay,okay and 'Truck radio updated.' or 'That radio control is unavailable.'
             end
             if action=='ignition' or action=='headlight' or action=='beam'
                 or action=='signalLeft' or action=='signalRight' or action=='rescue' then
-                if t.truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
-                local okay,message=Truck.command(t.truck,action,world)
+                if truck.driver~=Residents.key(player) then return false,'The truck controls are assigned to another rider.' end
+                local okay,message=Truck.command(truck,action,world)
                 if okay then state.home.revision=state.home.revision+1 end
                 return okay,message
             end
@@ -448,8 +549,9 @@ function Trip.update(state,player,input,dt,world)
     local run=(not t.independent or t.deliveryDriver==Residents.key(player)) and t.deliveryRun
     if run and run.status=='offmap' then
         local key=Residents.key(player)
-        local driver=t.truck and (key==t.truck.driver
-            or t.truck.driver==nil and (tonumber(player.id) or 1)==1)
+        local truck=Trip.truckFor(part.rider,t)
+        local driver=truck and (key==truck.driver
+            or truck.driver==nil and (tonumber(player.id) or 1)==1)
         if driver and os.time()>=(run.cutsceneEndsAtEpoch or math.huge) then
             local stop=run.stops[run.stopIndex]
             local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
@@ -459,16 +561,16 @@ function Trip.update(state,player,input,dt,world)
             run.cutsceneStartedAtEpoch=nil;run.cutsceneEndsAtEpoch=nil
             local gate=world.mainlandExit
             local dx,dz=math.cos(gate.heading),math.sin(gate.heading)
-            if not t.truck.driver then
-                t.truck.owner,t.truck.driver=key,key
-                part.rider.vehicle='truck';part.rider.transport='truck';part.rider.truck=t.truck
+            if not truck.driver then
+                truck.owner,truck.driver=key,key
+                part.rider.vehicle='truck';part.rider.transport='truck';part.rider.truck=truck
             end
-            t.truck.x,t.truck.z=gate.x-dx*8,gate.z-dz*8
+            truck.x,truck.z=gate.x-dx*8,gate.z-dz*8
             local nextStop=run.stops[run.stopIndex]
-            t.truck.heading=nextStop and nextStop.kind=='city' and gate.heading or gate.heading+math.pi
-            t.truck.speed=0;t.truck.reverse=false
-            t.truck.h=world:supportHeight(t.truck.x,t.truck.z)
-            part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=t.truck.x,t.truck.z,t.truck.heading
+            truck.heading=nextStop and nextStop.kind=='city' and gate.heading or gate.heading+math.pi
+            truck.speed=0;truck.reverse=false
+            truck.h=world:supportHeight(truck.x,truck.z)
+            part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=truck.x,truck.z,truck.heading
             state.message='Millhaven delivery complete. Return to The Picture Shop.'
             state.home.revision=state.home.revision+1
             return true
@@ -477,11 +579,14 @@ function Trip.update(state,player,input,dt,world)
     end
     local changed
     if part.rider.vehicle=='truck' then
-        local truck=t.truck
+        local truck=Trip.truckFor(part.rider,t)
         if not truck or truck.driver~=Residents.key(player) then return false end
         changed=Truck.update(truck,input,dt,world)>0
         if require('src.company_delivery_driver').syncFromVehicle(
-            require('src.company_delivery_driver').ensure(state),truck) then changed=true end
+            require('src.company_delivery_driver').ensure(state),truck) then
+            changed=true
+            for _,parked in ipairs(Trip.trucks(t)) do parked.fuel=truck.fuel end
+        end
         part.rider.truck=truck
         part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=truck.x,truck.z,truck.heading
         part.rider.ped.h=truck.h;part.rider.ped.speed=0
@@ -567,7 +672,7 @@ function Trip.rebind(state,player,connected,world)
         -- network slot may be reused without moving or adopting that traveler.
         part.slot=slot;part.presentation=nil;part.appearance=NormalArt.appearance(player)
         part.rider=assert(Rider.restore(Rider.snapshot(part.rider),world,assert(Trip.parking(world,part.origin,slot))))
-        if part.rider.vehicle=='truck' then part.rider.truck=t.truck end
+        if part.rider.vehicle=='truck' then part.rider.truck=vehicleForModel(t,part.rider.truck.model or 'box') end
         state.home.revision=state.home.revision+1
         return true,part
     end
@@ -575,7 +680,9 @@ function Trip.rebind(state,player,connected,world)
     local function retain(otherId,other)
         local person=state.home.residents[otherId]
         if person then local gear=Gear.snapshot(other.rider.gear);gear.mounted=false;gear.engine=false;person.ridingGear=gear end
-        if t.truck and t.truck.owner==otherId then t.truck.owner=nil;t.truck.driver=nil end
+        for _,truck in ipairs(Trip.trucks(t)) do
+            if truck.owner==otherId then truck.owner=nil;truck.driver=nil end
+        end
     end
     for otherId,other in pairs(t.participants) do
         if otherId~=id and other.slot==slot then
@@ -605,7 +712,7 @@ function Trip.rebind(state,player,connected,world)
         Rider.update(part.rider,{},0,world);t.participants[id]=part
     else
         part.rider=assert(Rider.restore(Rider.snapshot(part.rider),world,assert(Trip.parking(world,part.origin or t.origin,slot))))
-        if part.rider.vehicle=='truck' then part.rider.truck=t.truck end
+        if part.rider.vehicle=='truck' then part.rider.truck=vehicleForModel(t,part.rider.truck.model or 'box') end
     end
     part.slot=slot;part.presentation=nil;part.appearance=NormalArt.appearance(player)
     state.home.revision=state.home.revision+1;return true,part

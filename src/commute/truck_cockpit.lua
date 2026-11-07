@@ -50,6 +50,13 @@ end
 local function cabEye(camera)
     if camera and camera.viewHeading and camera.bikeHeading then
         local eye=Body.camera(camera)
+        -- The truck's world camera sits in the driver's side seat. Body.camera
+        -- is centered for a motorcycle, so preserve the truck's lateral seat
+        -- offset when projecting the cab around that eye.
+        if camera.localVehicle=='truck' then
+            eye.centerZ=camera.truckCabSide or FP.TRUCK_SEAT_SIDE
+        end
+        eye.viewCenterX,eye.viewCenterY=camera.viewCenterX,camera.viewCenterY
         eye.roll=eye.roll-(camera.barSteer or 0)*.055
         return eye
     end
@@ -167,7 +174,9 @@ local function drawInterior(view,camera,width,height)
     -- Draw the closed cab from far to near so each turn reveals the right wall.
     table.sort(visible,function(a,b)return a.depth>b.depth end)
     local g=love.graphics;local x,y,scale=transform(width,height)
-    g.push('all');g.translate(x,y);g.scale(scale)
+    -- Cab panels are full-view meshes drawn through the commute's nested
+    -- scale transform; clear the inherited screen-space scissor first.
+    g.push('all');g.setScissor();g.translate(x,y);g.scale(scale)
     g.setMeshCullMode('none');g.setDepthMode('always',false);g.setBlendMode('alpha')
     g.setColor(1,1,1,1);FP.send(eye,view.interiorShader);g.setShader(view.interiorShader)
     for _,item in ipairs(visible) do g.draw(item.entry.mesh) end
@@ -299,7 +308,7 @@ function Cockpit:draw(truck,width,height,camera)
     g.pop()
     g.pop()
     drawInterior(self,camera,width,height)
-    g.push('all')
+    g.push('all');g.setScissor()
     x,y,scale=transform(width,height)
     g.translate(x,y);g.scale(scale)
     g.setColor(1,1,1);g.setMeshCullMode('none');g.setDepthMode('always',false)

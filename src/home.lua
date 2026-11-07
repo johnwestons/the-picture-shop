@@ -3,6 +3,7 @@ local Catalog=require("src.home_catalog")
 local Calendar=require("src.business_calendar")
 local Town=require("src.commute.town")
 local PortablePay=require('src.portable_pay')
+local TownCharacters=require("src.commute.town_characters")
 local Home={}
 local function integer(n,minimum,maximum)
     return type(n)=="number" and n==n and n==math.floor(n) and n>=minimum and n<=maximum
@@ -33,6 +34,7 @@ function Home.new(options,day)
     local due=nextMonth(day)
     if due-day<7 then due=nextMonth(due) end
     local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,town=Town.copy(town),
+        townCharacters=TownCharacters.defaultState(town),
         shopId=PortablePay.newShopId(),portableClaims={},
         balanceCents=Catalog.ALLOWANCE_CENTS,allowanceGranted=true,payPercent=25,
         weekend=require("src.weekend_flow").new(day*24),
@@ -52,6 +54,7 @@ end
 function Home.valid(home)
     if type(home)~="table" or home.version~=1 or not Catalog.APARTMENTS[home.apartmentId]
         or (home.town~=nil and not Town.valid(home.town))
+        or (home.townCharacters~=nil and not TownCharacters.valid(home.townCharacters,home.town))
         or not Catalog.PRESETS[home.furnishingPreset] or home.allowanceGranted~=true
         or not integer(home.revision,0,1e12) or not integer(home.balanceCents,0,1e12)
         or not integer(home.payPercent,0,100) or type(home.inventory)~="table"
@@ -108,6 +111,8 @@ function Home.normalize(home,day)
     -- Existing shops keep their original geography. Saved layouts are copied,
     -- never regenerated from a seed when generator code changes.
     if not result.town then result.town=Town.legacy() end
+    result.townCharacters=TownCharacters.normalize(result.townCharacters,result.town)
+    if not result.townCharacters then return nil,"Invalid saved town character roster." end
     if result.commute then result.commute=require('src.commute.trip').snapshot(result.commute) end
     result.chores=result.chores or require("src.home_chores").new((day or 0)*24)
     result.dining=result.dining or require("src.home_dining").new()
@@ -152,9 +157,9 @@ end
 function Home.isIntent(kind) return kind=="home_pay_rent" or kind=="home_set_pay" or kind=="home_set_reserve"
     or kind=="home_order_food" or kind=="home_order_furniture" or kind=="home_set_food_limit" end
 function Home.ownerOnly(kind) return Home.isIntent(kind) and kind~="home_order_food" and kind~="home_order_furniture" end
-function Home.command(state,intent,player)
+function Home.command(state,intent,player,twelveHourTime)
     player=player or {id=1}
-    if intent.kind=="home_order_food" or intent.kind=="home_order_furniture" then return require("src.home_shopping").order(state,player,intent) end
+    if intent.kind=="home_order_food" or intent.kind=="home_order_furniture" then return require("src.home_shopping").order(state,player,intent,twelveHourTime) end
     if intent.kind=="home_set_food_limit" then return require("src.home_shopping").setLimit(state,player,intent) end
     if intent.kind=="home_pay_rent" then return Home.payRent(state.home,intent.expectedRevision) end
     if intent.kind=="home_set_pay" then return Home.setPayPercent(state.home,intent.percent,intent.expectedRevision) end

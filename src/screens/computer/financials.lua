@@ -90,7 +90,8 @@ function Component.install(Runtime)
             if y<240 then return nil end
             return Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.financialHiring,x,y,
                 function(intent) return Runtime.ComputerScreen.employeeCommand(state,intent) end,
-                false,Runtime.dependencies.remoteCommand==nil)
+                false,Runtime.dependencies.remoteCommand==nil,
+                Runtime.twelveHourTime())
         end
     end
 end

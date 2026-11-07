@@ -22,6 +22,7 @@ function Component.install(Runtime)
         truckInventoryScreen = Runtime.RuntimeDependencies.TruckInventoryScreen,
         vendorScreen = Runtime.VendorScreen,
         palletWorkOrderScreen = Runtime.RuntimeDependencies.PalletWorkOrderScreen,
+        deliverySignatureScreen = Runtime.RuntimeDependencies.DeliverySignatureScreen,
         pressScreen = Runtime.PressScreen,
         windmill = Runtime.Windmill,
         title = Runtime.TitleScreen,
@@ -46,6 +47,13 @@ function Component.install(Runtime)
             return Runtime.workshopAuthority and Runtime.workshopAuthority:leaseForResource(resourceId) ~= nil
         end,
         palletJackControl = Runtime.handlePalletJackControl,
+        requestDeliverySignature = function()
+            local requested,errorMessage=Runtime.multiplayer:requestInteraction("deliverySignature","sign")
+            Runtime.state.message=requested
+                and "Waiting for the host device to verify the delivery signature..."
+                or tostring(errorMessage or "The delivery signature could not be sent.")
+            return requested,errorMessage
+        end,
         networkInteraction = function(selected)
             if selected and selected.kind=="forklift" then Runtime.sendWarehouseIntent({kind="operate"}); return true end
         if selected and selected.kind=="palletRack" then

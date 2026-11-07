@@ -4,9 +4,12 @@ local State=require('src.state')
 local Schema=require('src.save_schema')
 local Trip=require('src.commute.trip')
 local Bike=require('src.commute.motorcycle')
+local Calendar=require('src.business_calendar')
 local Test={}
 function Test.run(check)
     local state=State.new();state.home.town=assert(Town.generate(712345));state.home.balanceCents=1000000
+    state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
+    state.calendar.elapsed=9/24*Calendar.secondsPerDay(state)
     local world=Town.world(state.home.town)
     local host={id=1,sceneId='commute'};local guest={id=2,sceneId='commute',homeResidentId='guest-1'}
     state.home.residents['guest-1']=Schema.copy(state.home.residents.owner)
@@ -50,7 +53,8 @@ function Test.run(check)
         and trip.participants['guest-1'].rider.bike.upgradeLevel==1 and rider.bike.upgradeLevel==3)
     local spoof={id=3,sceneId='commute',homeResidentId='guest-1'}
     check('commute_upgrade_rejects_wrong_network_slot',not Upgrades.purchase(state,spoof,trip,world,intent(2)))
-    local snapshot=assert(Schema.snapshot(state));local localState,shared=State.new(),State.new()
+    local snapshot,snapshotError=Schema.snapshot(state);assert(snapshot,snapshotError)
+    local localState,shared=State.new(),State.new()
     assert(State.applyLocalSave(localState,{state=snapshot,slot=3}));assert(State.applySharedSnapshot(shared,snapshot))
     check('commute_upgrades_survive_save_and_host_shared_snapshot',localState.home.residents.owner.ridingUpgradeLevel==3
         and shared.home.residents['guest-1'].ridingUpgradeLevel==1

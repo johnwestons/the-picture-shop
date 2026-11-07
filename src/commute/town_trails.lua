@@ -339,7 +339,10 @@ function Trails.generate(town,plan)
     end
     local ctx={town=town,plan=plan,random=Terrain.random(town.seed,77),pads={},
         sites=Sites.create({placements=town.placements,designs=town.designs}).all}
-    for _,site in ipairs(ctx.sites) do ctx.pads[#ctx.pads+1]=town.destinations[site.id] end
+    for _,site in ipairs(ctx.sites) do
+        local pad=town.destinations[site.id]
+        if pad then ctx.pads[#ctx.pads+1]=pad end
+    end
     local nodes,edges,anchors=buildNetwork(town);ctx.edges=edges
     ctx.junctions=town.generatorVersion>=5 and require('src.commute.roads').junctionsFor(town.roads) or {}
     town.recreation={}

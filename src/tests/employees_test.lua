@@ -393,11 +393,12 @@ function Test.run(context,check)
     local applicantsCounterOk,applicantsCounterText=staffingCountDraw("applications")
     local staffCounterOk,staffCounterText=staffingCountDraw("staff")
     local payrollCounterOk,payrollCounterText=staffingCountDraw("payroll")
+    local employeeCapacityLabel=("1/%d employees"):format(Employees.MAX_STAFF)
     check("employees_staffing_tabs_show_active_payroll_count",
         applicantsCounterOk and staffCounterOk and payrollCounterOk
-        and applicantsCounterText:find("1/10 employees",1,true)~=nil
-        and staffCounterText:find("1/10 employees",1,true)~=nil
-        and payrollCounterText:find("1/10 employees",1,true)~=nil)
+        and applicantsCounterText:find(employeeCapacityLabel,1,true)~=nil
+        and staffCounterText:find(employeeCapacityLabel,1,true)~=nil
+        and payrollCounterText:find(employeeCapacityLabel,1,true)~=nil)
     screen.hiring.view="assignment";draw("employees_hiring_assignment_draws")
     screen.hiring.section="payroll";screen.hiring.view="detail";draw("employees_hiring_payroll_draws")
     screen.openEmploymentResume(a.id)

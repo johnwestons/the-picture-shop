@@ -4,8 +4,7 @@ local ObstacleIndex = require("src.obstacle_index")
 
 local Navigation = {}
 
-local function whiteAt(mask, x, y)
-    local width, height = mask:getDimensions()
+local function whiteAt(mask, x, y, width, height)
     local pixelX = math.floor(x / Config.baseWidth * width)
     local pixelY = math.floor(y / Config.baseHeight * height)
     if pixelX < 0 or pixelY < 0 or pixelX >= width or pixelY >= height then
@@ -24,18 +23,34 @@ local function outsideFixedObstacle(x, y, obstacles)
     return true
 end
 
-local function feetAreOnMask(mask, x, y)
+local function feetAreOnMask(mask, x, y, width, height)
     if not mask then
         return x > 55 and x < Config.baseWidth - 55 and y > 90 and y < Config.baseHeight - 45
     end
-    return whiteAt(mask, x - 6, y)
-        and whiteAt(mask, x, y + 2)
-        and whiteAt(mask, x + 6, y)
+    if not width then width,height=mask:getDimensions() end
+    return whiteAt(mask, x - 6, y, width, height)
+        and whiteAt(mask, x, y + 2, width, height)
+        and whiteAt(mask, x + 6, y, width, height)
 end
 
-function Navigation.isWalkable(assets, x, y, obstacles)
+function Navigation.walkabilityContext(assets)
     local mask = assets.getData("walkmask")
-    return feetAreOnMask(mask, x, y) and outsideFixedObstacle(x, y, obstacles)
+    local width,height
+    if mask then width,height=mask:getDimensions() end
+    return {mask=mask,width=width,height=height}
+end
+
+local function walkmaskContext(assets, cached)
+    if cached then return cached.mask,cached.width,cached.height end
+    local mask=assets.getData("walkmask")
+    local width,height
+    if mask then width,height=mask:getDimensions() end
+    return mask,width,height
+end
+
+function Navigation.isWalkable(assets, x, y, obstacles, cachedWalkability)
+    local mask,width,height=walkmaskContext(assets,cachedWalkability)
+    return feetAreOnMask(mask,x,y,width,height) and outsideFixedObstacle(x,y,obstacles)
 end
 
 local function areaSamples(halfWidth,halfHeight)
@@ -51,8 +66,10 @@ end
 
 function Navigation.isAreaWalkable(assets, x, y, halfWidth, halfHeight)
     local mask = assets.getData("walkmask")
+    local width,height
+    if mask then width,height=mask:getDimensions() end
     for _, offset in ipairs(areaSamples(halfWidth,halfHeight)) do
-        if not feetAreOnMask(mask, x + offset[1], y + offset[2]) then return false end
+        if not feetAreOnMask(mask, x + offset[1], y + offset[2], width, height) then return false end
     end
     return true
 end
@@ -99,15 +116,17 @@ end
 -- Validate the whole segment, including thin furniture and mask edges between
 -- grid nodes. Recovery permits a short escape from an invalid starting pixel;
 -- once on the floor the actor cannot cross a blocked mask pixel again.
-function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover)
-    obstacles = ObstacleIndex.segment(obstacles,x,y,nextX,nextY)
-    local mask = assets.getData("walkmask")
+function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover, segmentScratch,cachedWalkability)
+    local obstacleCount
+    obstacles,obstacleCount = ObstacleIndex.segment(obstacles,x,y,nextX,nextY,segmentScratch)
+    local mask,width,height=walkmaskContext(assets,cachedWalkability)
     local dx, dy = nextX - x, nextY - y
     local length = math.sqrt(dx * dx + dy * dy)
-    local onFloor = feetAreOnMask(mask, x, y)
+    local onFloor = feetAreOnMask(mask, x, y, width, height)
     if not onFloor and (not recover or length > 32) then return false end
     local overlapping
-    for _,obstacle in ipairs(obstacles or {}) do
+    for index=1,obstacleCount do
+        local obstacle=obstacles[index]
         if Footprint.penetration(obstacle,x,y)>.001 then
             overlapping = overlapping or {}
             overlapping[#overlapping+1] = obstacle
@@ -115,14 +134,13 @@ function Navigation.canTraverse(assets, x, y, nextX, nextY, obstacles, recover)
     end
     local stride=1
     if mask then
-        local width,height=mask:getDimensions()
         stride=math.min(stride,Config.baseWidth/width,Config.baseHeight/height)*.5
     end
     local steps = math.max(1, math.ceil(length / stride))
     local previousX, previousY = x, y
     for index = 1, steps do
         local px, py = x + dx * index / steps, y + dy * index / steps
-        local floor = feetAreOnMask(mask, px, py)
+        local floor = feetAreOnMask(mask, px, py, width, height)
         if (onFloor and not floor)
             -- Continuous collision above already cleared every obstacle we
             -- started outside. Only embedded actors need per-step escape checks.

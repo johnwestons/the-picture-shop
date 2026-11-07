@@ -26,13 +26,15 @@ function Sleep.decode(command)
     local hour=type(command)=="string" and command:match("^alarm:(%d+)$")
     if hour and tostring(tonumber(hour))==hour and tonumber(hour)<=23 then return tonumber(hour) end
 end
-function Sleep.command(state,player,command)
+function Sleep.command(state,player,command,twelveHourTime)
     local choice=Sleep.decode(command);local r=require("src.home_residents").get(state,player)
     if choice==nil or not r or player.sceneId~="home" or not require("src.weekend_flow").atHome(state) then return false,"unavailable","Set your alarm while at home." end
     local now=Calendar.absoluteHours(state);local at
     if choice=="work" then
         at=state.home.weekend.opensAtHours-2
-        if at<=now then return false,"past_alarm","Monday's 07:00 wake time has passed. Return opens at 07:30, before the 08:00 employee shift." end
+        if at<=now then return false,"past_alarm","Monday's "..Calendar.formatTime(7,0,twelveHourTime)
+            .." wake time has passed. Return opens at "..Calendar.formatTime(7,30,twelveHourTime)
+            ..", before the "..Calendar.formatTime(8,0,twelveHourTime).." employee shift." end
     elseif type(choice)=="table" then
         at=math.floor(now/24)*24+choice.hour+choice.minute/60
         if at<=now+1e-7 then at=at+24 end
@@ -43,11 +45,11 @@ function Sleep.command(state,player,command)
         return false,"unchanged",at and "Your alarm is already set that way." or "Your alarm is already off."
     end
     r.alarmAt=at;r.revision=r.revision+1
-    return true,"changed",at and "Your alarm: "..Calendar.dateTimeTextAtHours(at)..". Other residents keep their own alarms." or "Your alarm is off. Monday's household wake reminder still applies."
+    return true,"changed",at and "Your alarm: "..Calendar.dateTimeTextAtHours(at,twelveHourTime)..". Other residents keep their own alarms." or "Your alarm is off. Monday's household wake reminder still applies."
 end
-function Sleep.prepare(state,kind)
+function Sleep.prepare(state,kind,twelveHourTime)
     if Sleep.ACTIONS[kind] and Sleep.ACTIONS[kind].untilWork and Calendar.absoluteHours(state)<state.home.weekend.opensAtHours-13 then
-        return false,"Sleep until Monday morning is available from Sunday at 20:00."
+        return false,"Sleep until Monday morning is available from Sunday at "..Calendar.formatTime(20,0,twelveHourTime).."."
     end
     if Sleep.ACTIONS[kind] and Calendar.absoluteHours(state)>=state.home.weekend.opensAtHours-2 then
         return false,"Monday morning has arrived. Get ready for work; short naps are still available."

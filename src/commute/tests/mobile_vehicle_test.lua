@@ -19,7 +19,9 @@ function Test.run(check)
     check('truck_collides_at_bumper_tail_and_box_sides',
         shape.overlaps(0,0,1,0,2.72,1,2.72,1,.04) and shape.overlaps(0,0,1,0,-2.7,-1,-2.7,-1,.04)
         and shape.overlaps(0,0,0,1,1,2.7,1,2.7,.04) and not shape.overlaps(0,0,0,1,1.4,2,1.4,2,.04))
-    local barrier={supportHeight=function()return 0,'road' end,roads={blocked=function(_,_,x,z)return x>102.80 or x<97.20 end}}
+    local barrier={supportHeight=function()return 0,'road' end,roads={
+        sample=function()return math.huge,nil end,
+        blocked=function(_,_,x,z)return x>102.80 or x<97.20 end}}
     for _,reverse in ipairs({false,true}) do
         local driver=Truck.new(100,100,0)
         driver.speed,driver.reverse=4,reverse
@@ -30,7 +32,8 @@ function Test.run(check)
     local trip={token=1,truck=truck,participants={owner=part}}
     local state={screen='world',home={commute=trip,revision=0}}
     truck.driver='owner'
-    local world={roads={blocked=function() return false end},supportHeight=function() return 2 end}
+    local world={roads={sample=function()return math.huge,nil end,blocked=function() return false end},
+        supportHeight=function() return 2 end}
     local command=require('src.commute.trip').command
     local ok=command(state,{id=1},1,'rescue',world)
     local x,z=truck.x,truck.z
@@ -69,6 +72,28 @@ function Test.run(check)
         front>.5 and frontSwitches==9 and back>.5 and backSwitches==0,
         ('frontAlpha=%.3f frontSwitches=%d backAlpha=%.3f backSwitches=%d')
             :format(front,frontSwitches,back,backSwitches))
+    local phoneWidth,phoneHeight=960,678
+    local phoneScale=math.min(phoneWidth/1280,phoneHeight/880)
+    local phoneCanvas=g.newCanvas(phoneWidth,phoneHeight)
+    camera.viewHeading=0
+    g.push('all');g.setCanvas(phoneCanvas);g.origin();g.clear(0,0,0,0)
+    g.translate((phoneWidth-1280*phoneScale)*.5,(phoneHeight-880*phoneScale)*.5);g.scale(phoneScale)
+    cab:draw(truck,1280,880,camera);g.pop()
+    local phoneData=phoneCanvas:newImageData()
+    local quadrants={0,0,0,0}
+    for y=8,phoneHeight-8,8 do
+        for x=8,phoneWidth-8,8 do
+            local _,_,_,alpha=phoneData:getPixel(x,y)
+            if alpha>.5 then
+                local quadrant=(y<phoneHeight*.5 and 0 or 2)+(x<phoneWidth*.5 and 1 or 2)
+                quadrants[quadrant]=quadrants[quadrant]+1
+            end
+        end
+    end
+    check('mobile_cab_render_fills_phone_view_without_corner_compression',
+        quadrants[1]>100 and quadrants[2]>100 and quadrants[3]>100 and quadrants[4]>100,
+        ('quadrant alpha samples=%d,%d,%d,%d'):format(unpack(quadrants)))
+    phoneData:release();phoneCanvas:release()
     canvas:release();cab:release()
 end
 return Test

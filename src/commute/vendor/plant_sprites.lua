@@ -3,6 +3,7 @@
 local Flora=require('src.commute.vendor.flora')
 local PlantVariants=require('src.commute.vendor.plant_variants')
 local AtlasLayout=require('src.commute.vendor.plant_atlas_layout')
+local ImageLoader=require('src.image_loader')
 local Sprites={MOTION_BUDGET=16*1024*1024,MOTION_RECENCY_RESERVE=4*1024*1024,
     MOTION_HARD_LIMIT=32*1024*1024,BASE_PREPARE_BUDGET_MS=4,
     MOTION_PREPARE_BUDGET_MS=4,MOTION_UPLOAD_BYTES=1024*256*4};Sprites.__index=Sprites
@@ -60,8 +61,9 @@ local function buildItems(hasFile)
     return items
 end
 Sprites.buildItems=buildItems
-function Sprites.new()
-    local mobile=love.system.getOS()=='Android'
+function Sprites.new(options)
+    options=options or {}
+    local mobile=options.mobile==true or love.system.getOS()=='Android'
     for _,v in ipairs(arg or {}) do if v=='--low-ground-memory' then mobile=true end end
     local self=setmetatable({pages={},pageImages={},pageUsage={},pageBytes={},pageKeys={},
         quads={},bytes=0,motion={},motionBytes=0,clock=0,requests={},wanted={},
@@ -104,6 +106,12 @@ function Sprites:resolve(kind,state,variant)
         return self:resolveKey(key)
     end
     return self:resolveKey(kind)
+end
+function Sprites:_loadImage(path)
+    local image,reason=ImageLoader.load(path)
+    if image then return image end
+    if reason and reason~='pending' then error(reason,2) end
+    return nil
 end
 function Sprites:_drawResolved(resolved,x,y,scale,sway,tint)
     if not resolved then return false end
@@ -169,20 +177,20 @@ function Sprites:plantKey(p,calendar,time)
     local variant=p.visualVariant
     if variant and not self:hasKey(lifecycleKey(p.kind,'mature',variant)) then variant=nil end
     if action=='wind-idle' then
-        if variant then return lifecycleKey(p.kind,state,variant) end
-        return p.kind..'/wind'..tostring(frame)
+        if variant then return lifecycleKey(p.kind,state,variant),action,variant end
+        return p.kind..'/wind'..tostring(frame),action,variant
     end
     if action then
         local motionKey=p.kind..'/'..(variant and variant..'/' or '')..action
         local cached=self.motion[motionKey]
         if cached and cached.frames then
             local resolved=cached.frames[frame]
-            if resolved then return resolved.key end
+            if resolved then return resolved.key,action,variant end
         elseif cached and cached.image then
-            return nil
+            return nil,action,variant
         end
         state=state=='senescent' and 'mature' or state
-        return lifecycleKey(p.kind,state,variant)
+        return lifecycleKey(p.kind,state,variant),action,variant
     end
     if profile.authoredMotion==false or variant then
         if (state=='autumn' or state=='senescent') and self:hasKey(lifecycleKey(p.kind,state,variant)) then
@@ -194,21 +202,34 @@ function Sprites:plantKey(p,calendar,time)
             state='mature'
         end
     end
-    return lifecycleKey(p.kind,state,variant)
+    return lifecycleKey(p.kind,state,variant),action,variant
 end
-function Sprites:_visibleKeys(plants,calendar,time,landmarks,extraProps)
+function Sprites:_visibleKeys(plants,calendar,time,landmarks,extraProps,requests)
     local keys,seen={},{}
     local function add(key)
         if key and self:hasKey(key) and not seen[key] then
             seen[key]=true;keys[#keys+1]=key
         end
     end
+    local function addPlant(p,collectMotion)
+        local key,action,variant=self:plantKey(p,calendar,time)
+        add(key)
+        if requests and collectMotion and Flora.types[p.kind]
+            and action and action~='wind-idle' then
+            local motionKey=p.kind..'/'..(variant and variant..'/' or '')..action
+            if not self.wanted[motionKey] then
+                requests[#requests+1]={key=motionKey,kind=p.kind,action=action,variant=variant}
+            end
+            self.wanted[motionKey]=true
+            if self.motion[motionKey] then self.motion[motionKey].used=self.clock end
+        end
+    end
     -- A starting-home marker identifies where a study begins. Queue its page
     -- before nearby flora so the landmark appears as soon as the field opens.
     for _,piece in ipairs(landmarks or {}) do if piece.home then add(piece.kind) end end
-    for _,p in ipairs(plants or {}) do add(self:plantKey(p,calendar,time)) end
+    for _,p in ipairs(plants or {}) do addPlant(p,true) end
     for _,piece in ipairs(landmarks or {}) do if not piece.home then add(piece.kind) end end
-    for _,p in ipairs(extraProps or {}) do add(self:plantKey(p,calendar,time)) end
+    for _,p in ipairs(extraProps or {}) do addPlant(p,false) end
     return keys
 end
 function Sprites:_pageOrder(keys)
@@ -298,8 +319,9 @@ function Sprites:_loadPage(page,protected,budget,uploadBudget)
         if not oldest then return false,0 end
         self:_removePage(oldest)
     end
-    if uploadBudget and not uploadBudget:claim() then return false,0 end
-    local image=love.graphics.newImage(path)
+    local image=self:_loadImage(path)
+    if not image then return false,0 end
+    if uploadBudget and not uploadBudget:claim() then image:release();return false,0 end
     image:setFilter('linear','linear')
     local uploadMs=(love.timer.getTime()-started)*1000
     local actualWidth,actualHeight=image:getDimensions()
@@ -387,24 +409,11 @@ function Sprites:prepare(plants,calendar,time,landmarks,extraProps,uploadBudget)
     if not self.ready and self.layout then return false end
     self.clock=self.clock+1;self.wanted={};self.lastPrepareMs=0;self.lastPrepareBytes=0;self.lastUploadMs=0
     local started=love.timer.getTime()
-    local keys=self:_visibleKeys(plants,calendar,time,landmarks,extraProps)
+    local requests={}
+    local keys=self:_visibleKeys(plants,calendar,time,landmarks,extraProps,requests)
     local order=self:_pageOrder(keys)
     local protected,maxPages,effectiveBudget,target,catalogBytes,wantedBytes=self:_protectedPages(order)
     self:_updateDemand(order,protected,maxPages,effectiveBudget,target,catalogBytes,wantedBytes)
-    local requests={}
-    for _,p in ipairs(plants or {}) do
-        if Flora.types[p.kind] then
-            local _,action=Flora.visual(p,calendar,time)
-            local variant=p.visualVariant
-            if variant and not self:hasKey(lifecycleKey(p.kind,'mature',variant)) then variant=nil end
-            if action and action~='wind-idle' then
-                local key=p.kind..'/'..(variant and variant..'/' or '')..action
-                if not self.wanted[key] then requests[#requests+1]={key=key,kind=p.kind,action=action,variant=variant} end
-                self.wanted[key]=true
-                if self.motion[key] then self.motion[key].used=self.clock end
-            end
-        end
-    end
     local wantedMotionBytes=0
     for _,request in ipairs(requests) do
         if Flora.types[request.kind].authoredMotion~=false and request.variant==nil then
@@ -491,7 +500,13 @@ function Sprites:prepare(plants,calendar,time,landmarks,extraProps,uploadBudget)
             self.lastPrepareMs=(love.timer.getTime()-started)*1000
             return true,currentReady()
         end
+        local image=self:_loadImage('assets/commute/plants/motion/'..request.kind..'-'..action..'.png')
+        if not image then
+            self.lastPrepareMs=(love.timer.getTime()-started)*1000
+            return false,currentReady()
+        end
         if uploadBudget and not uploadBudget:claim() then
+            image:release()
             self.lastPrepareMs=(love.timer.getTime()-started)*1000
             return false,currentReady()
         end
@@ -502,7 +517,6 @@ function Sprites:prepare(plants,calendar,time,landmarks,extraProps,uploadBudget)
             if entry.owned~=false then entry.image:release() end
             self.motionBytes=self.motionBytes-entry.bytes;self.motion[victim]=nil
         end
-        local image=love.graphics.newImage('assets/commute/plants/motion/'..request.kind..'-'..action..'.png')
         image:setFilter('linear','linear')
         local uploadMs=(love.timer.getTime()-started)*1000
         local width,height=image:getDimensions()

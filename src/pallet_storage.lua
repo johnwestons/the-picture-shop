@@ -162,6 +162,37 @@ function Storage.slots(state, rackId)
     return result
 end
 
+-- Employee stocking needs only the first open bottom-row column. Scan the
+-- durable owners directly instead of building every pallet wrapper and all
+-- three slot rows for this one lookup.
+function Storage.firstOpenBottomSlot(state, rackId)
+    local occupied = {}
+    for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
+        for _, pallet in ipairs(job.pallets or {}) do
+            local placement = pallet.storage
+            if pallet.location == "rack" and type(placement) == "table"
+                and placement.rackId == rackId and placement.row == 1
+                and integer(placement.column, 1, Storage.COLUMNS) then
+                occupied[placement.column] = true
+            end
+        end
+    end
+    for _, order in ipairs(state and state.procurement and state.procurement.orders or {}) do
+        for _, pallet in ipairs(order.pallets or {}) do
+            local placement = pallet.storage
+            if pallet.location == "rack" and type(placement) == "table"
+                and placement.rackId == rackId and placement.row == 1
+                and integer(placement.column, 1, Storage.COLUMNS) then
+                occupied[placement.column] = true
+            end
+        end
+    end
+    for column = 1, Storage.COLUMNS do
+        if not occupied[column] then return column, occupied end
+    end
+    return nil, occupied
+end
+
 -- Automatic consumables still update the storage revision so stale shelf
 -- transfer requests cannot act on a rack layout that has since changed.
 function Storage.consumeVendorProduct(state, pallet)

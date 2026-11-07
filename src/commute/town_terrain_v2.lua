@@ -48,7 +48,7 @@ function V2.valid(t)
     for _,p in ipairs(t.forestRegions)do if not region(p) or type(p.open)~='boolean' then return false end end
     return true
 end
-function V2.generate(seed,frame,naturalRivers)
+function V2.generate(seed,frame,naturalRivers,progress,isCancelled)
     local rng=V2.random(seed,2)
     local t={mode=V2.MODE,seed=seed,size=512,heights={},rivers={},lakes={},ridges={},forestRegions={}}
     local function transform(x,z)return frame.x+x*frame.c-z*frame.s,frame.z+x*frame.s+z*frame.c end
@@ -108,22 +108,31 @@ function V2.generate(seed,frame,naturalRivers)
         local x,z=transform(rng(-190,190),rng(-190,190))
         t.forestRegions[#t.forestRegions+1]={x=q(x),z=q(z),rx=rng(45,110),rz=rng(45,100),angle=rng(-math.pi,math.pi),open=i%3==0}
     end
-    for x=0,64 do for z=0,64 do
-        local wx,wz=x*8,z*8
-        local h=base+(M.noise(seed+15053,wx*.009,wz*.009)-.5)*amplitude
-            +(M.noise(seed+15067,wx*.028,wz*.028)-.5)*.65
-        for _,ridge in ipairs(t.ridges)do h=h+ridge.height*(1-M.smooth(ellipse(ridge,wx,wz))) end
-        t.heights[#t.heights+1]=q(math.max(.5,h))
-    end end
+    for x=0,64 do
+        if isCancelled and isCancelled() then error('Town generation cancelled.',0) end
+        if progress and x%4==0 then progress(x/64,'Shaping island terrain') end
+        for z=0,64 do
+            local wx,wz=x*8,z*8
+            local h=base+(M.noise(seed+15053,wx*.009,wz*.009)-.5)*amplitude
+                +(M.noise(seed+15067,wx*.028,wz*.028)-.5)*.65
+            for _,ridge in ipairs(t.ridges)do h=h+ridge.height*(1-M.smooth(ellipse(ridge,wx,wz))) end
+            t.heights[#t.heights+1]=q(math.max(.5,h))
+        end
+    end
     return t
 end
-function V2.new(t,config)
+function V2.new(t,config,progress,isCancelled)
     assert(V2.valid(t),'Invalid frozen v2 town terrain')
     local self=setmetatable({seed=t.seed,config=config,town=true,townPreset=V2.MODE,grid={},rivers=copy(t.rivers),
         lakes=copy(t.lakes),ridges=copy(t.ridges),forestRegions=copy(t.forestRegions),mountains={},marshes={},routes={},
         riverBins={},playableBounds={x0=56,z0=56,x1=458,z1=458}},Plan)
     local index=0
-    for x=0,64 do self.grid[x]={};for z=0,64 do index=index+1;self.grid[x][z]=t.heights[index] end end
+    for x=0,64 do
+        if isCancelled and isCancelled() then error('Town generation cancelled.',0) end
+        if progress and x%8==0 then progress(x/64,'Preparing terrain grid') end
+        self.grid[x]={}
+        for z=0,64 do index=index+1;self.grid[x][z]=t.heights[index] end
+    end
     for _,r in ipairs(self.rivers)do
         r.segments={}
         for i=1,#r.points-1 do

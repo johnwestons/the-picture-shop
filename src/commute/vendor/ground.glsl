@@ -62,6 +62,8 @@ extern Image materialAtlas;
 extern float atlasInset;
 extern float atlasInner;
 extern float detailStrength;
+extern float detailFadeStart;
+extern float detailFadeEnd;
 extern vec3 seasonTint;
 extern float litterSeasonShift;
 extern float snowCoverage;
@@ -73,6 +75,8 @@ extern float ambientLight;
 extern vec3 moonDirection;
 extern vec3 moonColor;
 extern float moonlight;
+extern vec3 waterSunDirection;
+extern vec3 waterMoonDirection;
 extern float waterDetail;
 extern vec3 wavePhase;
 extern vec2 ripplePhase;
@@ -81,29 +85,32 @@ extern float waterRoughness;
 vec3 waterSurface(vec3 base)
 {
     vec2 p=worldPosition;
+    float deep=1.0-exp(-max(waterDepth,0.0)*1.8);
+    vec3 bed=mix(vec3(.24,.37,.32),vec3(.045,.18,.225),deep);
+    vec3 sky=vec3(.40,.57,.63);
     // Broad ripples remain stable at distance; fine glints fade before aliasing.
     float a=dot(p,vec2(2.4,1.1))-wavePhase.x;
     float b=dot(p,vec2(-1.3,3.1))+wavePhase.y;
     float c=dot(p,vec2(.57,.83))-wavePhase.z;
     float fine=1.0-smoothstep(12.0,34.0,viewDistance);
-    vec3 normal=normalize(vec3(cos(a)*.065+cos(b)*.035,1.0,cos(b)*.075+cos(c)*.035));
-    float deep=1.0-exp(-max(waterDepth,0.0)*1.8);
-    vec3 bed=mix(vec3(.24,.37,.32),vec3(.045,.18,.225),deep);
+    vec3 normal=normalize(vec3(cos(a)*.065+cos(b)*.035,1.0,
+        cos(b)*.075+cos(c)*.035));
     float fresnel=.04+.34*pow(1.0-max(dot(normal,waterView),0.0),3.0);
-    vec3 sky=vec3(.40,.57,.63);
     vec3 water=mix(bed,sky,fresnel);
     water+=vec3(.035,.055,.05)*(sin(a)*sin(b)*.5+.5)*fine;
     float crest=smoothstep(.94,.995,sin(p.y*11.0+p.x*.7+sin(c)*.8-ripplePhase.x))
         *smoothstep(.1,.85,sin(p.x*3.6+p.y*.6+ripplePhase.y));
     water+=vec3(.055,.085,.09)*crest*fine*(.7+waterRoughness*.3);
-    float sunSpec=pow(max(dot(normal,normalize(sunDirection+waterView)),0.0),64.0);
-    float moonSpec=pow(max(dot(normal,normalize(moonDirection+waterView)),0.0),80.0);
+    float sunSpec=pow(max(dot(normal,waterSunDirection),0.0),64.0);
+    float moonSpec=0.0;
+    if (moonlight>0.001) moonSpec=pow(max(dot(normal,waterMoonDirection),0.0),80.0);
     water*=vec3(ambientLight)+sunColor*sunlight+moonColor*moonlight;
     water+=sunColor*sunSpec*sunlight*(.55-waterRoughness*.25)*fine;
     water+=moonColor*moonSpec*moonlight*.5*fine;
     // A narrow, broken shoreline ripple follows depth, rather than mesh edges.
     float edge=(1.0-smoothstep(.015,.22,waterDepth))*smoothstep(0.0,.035,waterDepth);
-    float foam=edge*smoothstep(.32,.85,sin(c+sin(a)*.3))*.16;
+    float foamWave=smoothstep(.32,.85,sin(c+sin(a)*.3));
+    float foam=edge*foamWave*.16;
     water+=vec3(.6,.72,.66)*foam*(ambientLight+sunlight);
     return mix(base,water,waterDetail*smoothstep(0.0,.045,waterDepth));
 }
@@ -125,23 +132,28 @@ vec3 family(float base,float maximum,float value,vec2 uv)
 vec4 effect(vec4 color,Image image,vec2 uv,vec2 screen_coords)
 {
     vec3 surface=color.rgb;
+    float detailFade=1.0-smoothstep(detailFadeStart,detailFadeEnd,viewDistance);
     if (materialWeights.w>=0.001) {
-        vec3 weights=materialWeights.xyz/max(dot(materialWeights.xyz,vec3(1.0)),.001);
-        vec3 detail=vec3(0.0);
-        if (weights.x>.001) detail+=family(0.0,3.0,materialVariants.x,groundTextureUV)*weights.x;
-        if (weights.y>.001) detail+=family(4.0,5.0,materialVariants.y,groundTextureUV+vec2(.37,.19))*weights.y;
-        if (weights.z>.001) {
-            float deciduous=clamp(materialVariants.z*.5,0.0,1.0);
-            float litter=materialVariants.z+litterSeasonShift*deciduous;
-            detail+=family(10.0,5.0,litter,vec2(-groundTextureUV.y,groundTextureUV.x))*weights.z;
+        if (detailFade>0.001) {
+            vec3 weights=materialWeights.xyz/max(dot(materialWeights.xyz,vec3(1.0)),.001);
+            vec3 detail=vec3(0.0);
+            if (weights.x>.001) detail+=family(0.0,3.0,materialVariants.x,groundTextureUV)*weights.x;
+            if (weights.y>.001) detail+=family(4.0,5.0,materialVariants.y,groundTextureUV+vec2(.37,.19))*weights.y;
+            if (weights.z>.001) {
+                float deciduous=clamp(materialVariants.z*.5,0.0,1.0);
+                float litter=materialVariants.z+litterSeasonShift*deciduous;
+                detail+=family(10.0,5.0,litter,vec2(-groundTextureUV.y,groundTextureUV.x))*weights.z;
+            }
+            surface*=mix(vec3(1.0),detail,detailStrength*materialWeights.w*detailFade);
         }
-        surface*=mix(vec3(1.0),detail,detailStrength*materialWeights.w);
         float land=clamp(materialWeights.w,0.0,1.0);
         surface*=mix(vec3(1.0),seasonTint,land);
         surface=mix(surface,vec3(0.84,0.89,0.90),clamp(snowCoverage*land,0.0,0.78));
     }
-    float diffuse=max(dot(normalize(surfaceNormal),normalize(sunDirection)),0.0);
-    float moonDiffuse=max(dot(normalize(surfaceNormal),normalize(moonDirection)),0.0);
+    vec3 normal=normalize(surfaceNormal);
+    float diffuse=max(dot(normal,sunDirection),0.0);
+    float moonDiffuse=0.0;
+    if (moonlight>0.001) moonDiffuse=max(dot(normal,moonDirection),0.0);
     surface*=vec3(ambientLight)+sunColor*(sunlight*diffuse)+moonColor*(moonlight*moonDiffuse);
     if (waterDepth>0.0 && waterDetail>0.0) surface=waterSurface(surface);
     surface*=cloudLight;
