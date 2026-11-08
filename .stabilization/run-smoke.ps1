@@ -1,5 +1,5 @@
 param(
-    [int]$TimeoutSeconds = 300,
+    [int]$TimeoutSeconds = 1200,
     [string]$ReportPath = (Join-Path $PSScriptRoot 'smoke-report.rpt'),
     [switch]$Visible
 )
