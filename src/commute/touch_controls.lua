@@ -33,6 +33,10 @@ local function addButton(buttons,id,label,icon,x,y,radius,active,enabled,hitRadi
         hitRadius=hitRadius or radius*1.32,active=active==true,enabled=enabled~=false}
 end
 
+local function stickPoint(p)
+    return p and p.layout and p.layout.stick or {x=.10,y=.80}
+end
+
 local function driveUtilityFits(buttons,x,y,r,gx,gy,scale)
     local dx=math.max(0,math.abs(x-gx)-48*scale)
     local dy=math.max(0,math.abs(y-gy)-23*scale)
@@ -258,7 +262,7 @@ end
 function Touch:move(id,x,y,width,height,p,sensitivity)
     local c=self.contacts[id];if not c then return false end
     if c.stick then
-        local point=p.layout.stick;local radius=math.min(width,height)*.09
+        local point=stickPoint(p);local radius=math.min(width,height)*.09
         local dx,dy=(x-point.x*width)/radius,(y-point.y*height)/radius
         self.x,self.y=shape(dx,dy,DEADZONE,RESPONSE_POWER,sensitivity)
         -- Horizontal vehicle mode ignores vertical thumb drift when steering.
@@ -284,7 +288,7 @@ function Touch:press(id,x,y,width,height,p,perform,context,options)
         return true
     end
     local radius=math.min(width,height)*.045
-    local point=p.layout.stick
+    local point=stickPoint(p)
     local dx,dy=x-point.x*width,y-point.y*height
     local hitRadius=radius*2.2
     if dx*dx+dy*dy<=hitRadius*hitRadius then

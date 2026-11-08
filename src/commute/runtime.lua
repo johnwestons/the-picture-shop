@@ -68,6 +68,9 @@ function C.touchProfile(R,part)
     local profile={}
     for key,value in pairs(base) do profile[key]=value end
     profile.layout={}
+    for key,point in pairs(base.layout or {}) do
+        profile.layout[key]={x=point.x,y=point.y}
+    end
     for key,point in pairs(layout or base.layout or {}) do
         profile.layout[key]={x=point.x,y=point.y}
     end
