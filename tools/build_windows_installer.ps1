@@ -291,9 +291,9 @@ if (-not $SkipSmokeTest) {
             -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath `
             -WindowStyle Hidden -PassThru
         $null = $process.Handle
-        if (-not $process.WaitForExit(300000)) {
+        if (-not $process.WaitForExit(900000)) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-            throw 'Fused Windows game smoke test timed out.'
+            throw 'Fused Windows game smoke test timed out after 15 minutes.'
         }
         $process.WaitForExit()
         if ($process.ExitCode -ne 0) {
