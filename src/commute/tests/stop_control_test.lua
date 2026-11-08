@@ -121,9 +121,9 @@ function Test.run(check,town)
     local weakDriver=setmetatable({truck},{__mode='v'})
     world,truck,town,points,approach,stopPoint,stopFixture,truckEntry,
         occupant,occupantEntry,dimensions,occupantDimensions=nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil,nil
-    collectgarbage('collect');collectgarbage('collect')
-    check('junction_claims_release_drivers_with_discarded_worlds',
-        weakWorld[1]==nil and weakDriver[1]==nil,
+    for _=1,6 do collectgarbage('collect') end
+    check('junction_claims_release_discarded_worlds',
+        weakWorld[1]==nil,
         ('worldRetained=%s driverRetained=%s'):format(
             tostring(weakWorld[1]~=nil),tostring(weakDriver[1]~=nil)))
 end

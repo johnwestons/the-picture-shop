@@ -39,6 +39,35 @@ local function smoothCommuteMotion(player,dt)
 end
 
 function Component.install(Runtime)
+    Runtime.CLIENT_PING_INTERVAL=2
+    Runtime.CLIENT_PING_TIMEOUT=6
+
+    function Runtime.Session:_updateClientPing(dt)
+        if not self:isClient() or self.terminal or not self.ready or not self.sessionId then return end
+        local now=self.clock()
+        if not Runtime.finite(now) then return end
+        for nonce,sentAt in pairs(self.pendingPing or {}) do
+            if now-sentAt>Runtime.CLIENT_PING_TIMEOUT then
+                self.pendingPing[nonce]=nil
+                self.pingLostCount=(self.pingLostCount or 0)+1
+            end
+        end
+        self.pingAccumulator=(self.pingAccumulator or 0)+math.max(0,dt or 0)
+        if self.pingAccumulator<Runtime.CLIENT_PING_INTERVAL then return end
+        self.pingAccumulator=self.pingAccumulator%Runtime.CLIENT_PING_INTERVAL
+        self.pingNonce=((self.pingNonce or 0)+1)%4294967296
+        local nonce=self.pingNonce
+        local okay=self:_sendToServer('ping',{sessionId=self.sessionId,nonce=nonce})
+        if okay then
+            self.pendingPing=self.pendingPing or {}
+            self.pendingPing[nonce]=now
+            self.lastPingSentAt=now
+            self.pingSentCount=(self.pingSentCount or 0)+1
+        else
+            self.pingSendFailures=(self.pingSendFailures or 0)+1
+        end
+    end
+
     function Runtime.Session:_sendClientInput(dt, context)
         if not self.ready or not self.sessionId then return end
         self.inputAccumulator = self.inputAccumulator + dt
@@ -234,6 +263,7 @@ function Component.install(Runtime)
                 return
             end
             self:_sendClientInput(dt, context)
+            self:_updateClientPing(dt)
             self:_updateClientVisuals(dt,context)
             self:_updateClientHighFives()
         end

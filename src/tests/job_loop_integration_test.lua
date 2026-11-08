@@ -105,6 +105,11 @@ function Test.run(context, check, jobs)
         and fullLoopOffer.pickup.status == "awaiting_schedule"
         and fullLoopSaveCalls == 1)
 
+    check("full_loop_defaults_to_employee_delivery",fullLoopOffer.pickup.driverMode=="employee")
+    -- Continue through the legacy warehouse pickup path to verify that older
+    -- saved jobs without a driver selection can still be loaded and paid.
+    fullLoopOffer.pickup.driverMode=nil
+
     context.world.load()
     fullLoopState.screen = "world"
     local pickupScheduledSave = context.world.update(

@@ -5,7 +5,8 @@ local BackButton = require("src.screens.back_button")
 local Config = require("src.config")
 local Ui = require("src.screens.ui")
 
-local Screen = {}
+local Screen = {page=1,manifestKey=nil,manifestState=nil}
+local PAGE_SIZE = 3
 local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
 local DOOR = { x = 650, y = 570, width = 220, height = 42 }
 local PREVIOUS = {x=82,y=410,width=150,height=38}
@@ -37,6 +38,25 @@ local function remainingCargo(state, snapshot)
     return Logistics.remainingOnTruck(state, snapshot.jobId)
 end
 
+local function localPage(state,snapshot,count)
+    local key=tostring(snapshot.mode)..':'..tostring(snapshot.jobId)
+    if Screen.manifestState~=state or Screen.manifestKey~=key then
+        Screen.manifestState,Screen.manifestKey,Screen.page=state,key,1
+    end
+    local pageCount=math.max(1,math.ceil(count/PAGE_SIZE))
+    Screen.page=math.max(1,math.min(pageCount,Screen.page))
+    return Screen.page,pageCount
+end
+
+local function pageItems(inventory,page)
+    local rows={}
+    local first=(page-1)*PAGE_SIZE+1
+    for index=first,math.min(#inventory,first+PAGE_SIZE-1) do
+        rows[#rows+1]=inventory[index]
+    end
+    return rows
+end
+
 local function available(item, pickup, machineDelivery)
     if machineDelivery then return item ~= nil end
     if pickup then return item.location == "warehouse" or item.location == "cutter_output" or item.location == "press_output" end
@@ -48,15 +68,19 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         or world.truckSnapshot()
     local pickup = snapshot.mode == "pickup"
     local machineDelivery = snapshot.mode == "machine_delivery"
-    local job, inventory = manifest(state, snapshot)
-    local totalItems = #inventory
+    local job, allInventory = manifest(state, snapshot)
+    local totalItems = #allInventory
+    local inventory,page,pageCount
     if remoteView then
-        local page={}
+        page,pageCount=remoteView.page,remoteView.pageCount
+        local rows={}
         for index,record in ipairs(remoteView.items) do
-            local item=inventory[(remoteView.page-1)*3+index]
-            page[index]=item or {display=record}
+            rows[index]={display=record}
         end
-        inventory=page
+        inventory=rows
+    else
+        page,pageCount=localPage(state,snapshot,totalItems)
+        inventory=pageItems(allInventory,page)
     end
     local vendorDelivery = snapshot.mode == "vendor_delivery"
     box(52, 42, 856, 592, { 0.045, 0.06, 0.075, 0.99 }, { 0.40, 0.64, 0.70, 1 }, 6)
@@ -134,14 +158,14 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
     local readyState = machineDelivery and snapshot.state == "parked_closed" or snapshot.state == "cargo_open"
     local ready = remaining == 0 and readyState
     if remoteView then ready=remoteView.canClose end
-    if remoteView and remoteView.pageCount>1 then
+    if pageCount>1 then
         for _,r in ipairs({PREVIOUS,NEXT}) do
             box(r.x,r.y,r.width,r.height,{0.08,0.12,0.15,1},{0.40,0.64,0.70,1},4)
         end
         love.graphics.setColor(0.94,0.96,0.94)
         love.graphics.printf("< PREVIOUS",PREVIOUS.x,PREVIOUS.y+12,PREVIOUS.width,"center")
         love.graphics.printf("NEXT >",NEXT.x,NEXT.y+12,NEXT.width,"center")
-        love.graphics.printf(string.format("PAGE %d / %d",remoteView.page,remoteView.pageCount),300,422,360,"center")
+        love.graphics.printf(string.format("PAGE %d / %d",page,pageCount),300,422,360,"center")
     end
     box(DOOR.x, DOOR.y, DOOR.width, DOOR.height,
         ready and { 0.18, 0.46, 0.30, 1 } or { 0.16, 0.17, 0.18, 1 },
@@ -174,7 +198,17 @@ function Screen.mousepressed(state, world, x, y, button)
     local pickup = snapshot.mode == "pickup"
     local machineDelivery = snapshot.mode == "machine_delivery"
     local _, inventory = manifest(state, snapshot)
-    for index, item in ipairs(inventory) do
+    local page,pageCount=localPage(state,snapshot,#inventory)
+    if pageCount>1 then
+        if inside(PREVIOUS,x,y) and page>1 then
+            Screen.page=page-1
+            return {action="page_changed"}
+        elseif inside(NEXT,x,y) and page<pageCount then
+            Screen.page=page+1
+            return {action="page_changed"}
+        end
+    end
+    for index,item in ipairs(pageItems(inventory,page)) do
         local canMove = available(item, pickup, machineDelivery)
         if inside(unloadRect(index), x, y) and canMove then
             local succeeded, cargo, remaining

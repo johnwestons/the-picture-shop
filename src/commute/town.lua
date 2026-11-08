@@ -332,7 +332,7 @@ end
 local function truckRoad(id,points)
     local values={}
     for _,point in ipairs(points) do values[#values+1]={point.x,point.z,point.h} end
-    return {id=id,width=4.4,role='local',surface='paved',lanes=1,oneWay=true,
+    return {id=id,width=5.8,role='local',surface='paved',lanes=1,oneWay=true,
         turnLane=false,sidewalks=false,interpolation='linear',truckOnly=true,
         points=values,bridgeEdges={}}
 end

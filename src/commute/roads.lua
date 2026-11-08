@@ -14,21 +14,26 @@ local function junctionCandidates(definitions)
     -- road order so overlapping junctions resolve identically on each client.
     local function key(p)return ('%.4f:%.4f:%.4f'):format(p[1],p[2],p[3]) end
     for _,def in ipairs(definitions) do
-        for i=1,#def.points-1 do
-            local a,b=def.points[i],def.points[i+1]
-            local bridge=def.bridgeEdges and def.bridgeEdges[i]==true
-            if not def.bridgeEdges and def.id=='east-bank' and (a[1]+b[1])*.5>=302 and (a[1]+b[1])*.5<=360 then bridge=true end
-            for _,endpoint in ipairs({{p=a,other=b},{p=b,other=a}}) do
-                local k=key(endpoint.p);local group=groups[k]
-                if not group then
-                    group={x=endpoint.p[1],z=endpoint.p[2],h=endpoint.p[3],first=def.id,arms={},bridge=false}
-                    groups[k]=group
-                    ordered[#ordered+1]=group
+        -- Private truck lanes meet frontage streets as driveway gates. They
+        -- remain connected in the routing graph, but must not create public
+        -- junction disks that widen the road into the parking lot.
+        if not def.truckOnly then
+            for i=1,#def.points-1 do
+                local a,b=def.points[i],def.points[i+1]
+                local bridge=def.bridgeEdges and def.bridgeEdges[i]==true
+                if not def.bridgeEdges and def.id=='east-bank' and (a[1]+b[1])*.5>=302 and (a[1]+b[1])*.5<=360 then bridge=true end
+                for _,endpoint in ipairs({{p=a,other=b},{p=b,other=a}}) do
+                    local k=key(endpoint.p);local group=groups[k]
+                    if not group then
+                        group={x=endpoint.p[1],z=endpoint.p[2],h=endpoint.p[3],first=def.id,arms={},bridge=false}
+                        groups[k]=group
+                        ordered[#ordered+1]=group
+                    end
+                    if group.first~=def.id then group.shared=true end
+                    group.arms[#group.arms+1]={dx=endpoint.other[1]-endpoint.p[1],dz=endpoint.other[2]-endpoint.p[2],
+                        dh=endpoint.other[3]-endpoint.p[3],role=def.role,width=def.width,surface=def.surface or 'paved',id=def.id,bridge=bridge}
+                    group.bridge=group.bridge or bridge
                 end
-                if group.first~=def.id then group.shared=true end
-                group.arms[#group.arms+1]={dx=endpoint.other[1]-endpoint.p[1],dz=endpoint.other[2]-endpoint.p[2],
-                    dh=endpoint.other[3]-endpoint.p[3],role=def.role,width=def.width,surface=def.surface or 'paved',id=def.id,bridge=bridge}
-                group.bridge=group.bridge or bridge
             end
         end
     end

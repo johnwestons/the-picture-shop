@@ -6,6 +6,7 @@ local BikeCargo=require('src.home_bike_cargo')
 local GroceryInventory=require('src.commute.grocery_inventory')
 local TownCharacters=require('src.commute.town_characters')
 local Calendar=require('src.business_calendar')
+local GroceryUiArt=require('src.commute.grocery_ui_art')
 local Store={}
 local stores={
     grocery={name='TOWN GROCERY',subtitle='Fresh staples and pantry food',group='groceries',items={
@@ -57,6 +58,16 @@ function Store.productsFor(view)
 end
 function Store.category(view,categoryId)
     if view.storeId~='grocery' or categoryId~='checkout' and not groceryCategories[categoryId] then return false end
+    if categoryId=='checkout' and view.interiorKind=='grocery' then
+        if not view.cartPushed then
+            view.notice='Take the shopping cart with you before checking out.'
+            return false
+        end
+        if not view.atGroceryRegister then
+            view.notice='Bring your shopping cart to the staffed register to check out.'
+            return false
+        end
+    end
     if categoryId~='checkout' then view.lastCategory=categoryId end
     view.page='store';view.categoryId=categoryId;view.selected=1;view.quantity=1
     view.review=nil;view.notice=nil
@@ -298,6 +309,10 @@ function Store.key(v,key,revision,buy,close,buyCart)
             return true
         end
         local products=Store.productsFor(v)
+        if v.interiorKind=='grocery' and not v.cartPushed then
+            v.notice='Take the shopping cart before adding groceries.'
+            return true
+        end
         if key=='up' or key=='down' then
             v.selected=math.max(1,math.min(#products,(v.selected or 1)+(key=='up' and -1 or 1)))
             v.notice=nil
@@ -349,7 +364,9 @@ function Store.key(v,key,revision,buy,close,buyCart)
     end
     return true
 end
-local layout={close={x=65,y=566,w=180,h=58},cart={x=274,y=566,w=218,h=58},buy={x=682,y=566,w=212,h=58},minus={x=700,y=122,w=42,h=38},plus={x=846,y=122,w=42,h=38}}
+local layout={close={x=65,y=566,w=180,h=58},cart={x=274,y=566,w=218,h=58},buy={x=682,y=566,w=212,h=58},
+    minus={x=700,y=122,w=42,h=38},plus={x=846,y=122,w=42,h=38},
+    groceryMinus={x=606,y=414,w=40,h=34},groceryPlus={x=854,y=414,w=40,h=34}}
 local function contains(b,x,y) return x>=b.x and y>=b.y and x<=b.x+b.w and y<=b.y+b.h end
 function Store.pointer(v,x,y,revision,buy,close,buyCart)
     if y>=566 and y<=634 and x>=65 and x<=245 then close();return true end
@@ -362,11 +379,12 @@ function Store.pointer(v,x,y,revision,buy,close,buyCart)
         if y>=566 and y<=634 and x>=682 and x<=894 then
             return Store.key(v,v.categoryId=='checkout' and 'return' or 'space',revision,buy,close,buyCart)
         end
-        if contains(layout.minus,x,y) then return Store.key(v,'left',revision,buy,close,buyCart) end
-        if contains(layout.plus,x,y) then return Store.key(v,'right',revision,buy,close,buyCart) end
+        local minus,plus=layout.groceryMinus,layout.groceryPlus
+        if contains(minus,x,y) then return Store.key(v,'left',revision,buy,close,buyCart) end
+        if contains(plus,x,y) then return Store.key(v,'right',revision,buy,close,buyCart) end
         local rows=v.categoryId=='checkout' and cartRows(v) or Store.productsFor(v)
-        if x>=65 and x<=575 and y>=174 and y<174+#rows*GROCERY_ROW_HEIGHT then
-            v.selected=math.floor((y-174)/GROCERY_ROW_HEIGHT)+1;v.notice=nil
+        if x>=53 and x<=561 and y>=195 and y<195+#rows*GROCERY_ROW_HEIGHT then
+            v.selected=math.floor((y-195)/GROCERY_ROW_HEIGHT)+1;v.notice=nil
         end
         return true
     end
@@ -402,11 +420,15 @@ function Store.update(v,state,dt,bikeInventory)
         end
     end
 end
-local function drawButton(g,b,text,enabled)
-    g.setColor(enabled and .16 or .09,enabled and .30 or .13,.23,1);g.rectangle('fill',b.x,b.y,b.w,b.h,5)
-    g.setColor(enabled and .73 or .35,enabled and .79 or .39,enabled and .62 or .35,1);g.rectangle('line',b.x,b.y,b.w,b.h,5)
-    g.setColor(enabled and 1 or .48,enabled and .93 or .53,enabled and .71 or .48,1)
-    g.printf(text,b.x+8,b.y+20,b.w-16,'center')
+local function drawButton(g,b,text,enabled,primary)
+    local fill=primary and {.25,.43,.26} or {.15,.25,.19}
+    local edge=primary and {.94,.73,.39} or {.62,.73,.57}
+    if not enabled then fill={.10,.15,.12};edge={.32,.39,.33} end
+    g.setColor(.025,.055,.035,.58);g.rectangle('fill',b.x,b.y+3,b.w,b.h,8)
+    g.setColor(fill[1],fill[2],fill[3],1);g.rectangle('fill',b.x,b.y,b.w,b.h-3,8)
+    g.setColor(edge[1],edge[2],edge[3],1);g.rectangle('line',b.x,b.y,b.w,b.h-3,8)
+    g.setColor(enabled and 1 or .48,enabled and .94 or .53,enabled and .75 or .48,1)
+    g.setFont(Fonts.get('metal',11));g.printf(text,b.x+8,b.y+14,b.w-16,'center')
 end
 local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
     v.bikeInventoryRevision=bikeInventory and bikeInventory.revision or 0
@@ -415,27 +437,65 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
     local count=Store.cartCount(v.cart);local total=Store.cartTotal(v.cart) or 0
     local selected=rows[v.selected or 1]
     g.push('all');g.scale(width/960,height/678)
-    g.setColor(0,0,0,.72);g.rectangle('fill',0,0,960,678)
-    g.setColor(.035,.065,.06,1);g.rectangle('fill',36,38,888,600,10)
-    local title=v.categoryId=='checkout' and 'CHECKOUT' or groceryCategories[v.categoryId] and groceryCategories[v.categoryId].label or 'GROCERY AISLE'
-    g.setColor(.96,.9,.7);g.print('TOWN GROCERY  /  '..title,70,65,0,1.3)
-    g.setColor(.79,.84,.76);g.print(('Household $%.2f'):format(balanceCents/100),70,105)
+    g.setColor(.008,.018,.013,.76);g.rectangle('fill',0,0,960,678)
+    g.setColor(.055,.09,.064,1);g.rectangle('fill',26,22,908,634,16)
+    g.setColor(.73,.63,.40,1);g.setLineWidth(2);g.rectangle('line',26,22,908,634,16)
+    g.setColor(.10,.22,.15,1);g.rectangle('fill',40,34,880,112,10)
+    local awning={{.80,.31,.22,1},{.97,.88,.68,1},{.34,.49,.30,1},{.97,.88,.68,1}}
+    local stripeWidth=880/16
+    for stripe=0,15 do
+        g.setColor(unpack(awning[stripe%#awning+1]))
+        local x=40+stripe*stripeWidth
+        g.rectangle('fill',x,34,stripeWidth+1,12)
+        g.circle('fill',x+stripeWidth/2,46,6)
+    end
+    g.setColor(.89,.75,.45,1);g.rectangle('fill',40,51,880,2)
+    GroceryUiArt.drawEmblem(91,98,83)
+    local title=v.categoryId=='checkout' and 'REGISTER CHECKOUT'
+        or groceryCategories[v.categoryId] and groceryCategories[v.categoryId].label or 'GROCERY AISLE'
+    g.setColor(1,.88,.61,1);g.setFont(Fonts.get('metal',21));g.print('TOWN GROCERY',140,61)
+    g.setColor(.99,.96,.85,1);g.setFont(Fonts.get('metal',14));g.print(title,140,92)
+    g.setColor(.70,.83,.68,1);g.setFont(Fonts.get('metal',10))
+    g.print(v.categoryId=='checkout' and 'A friendly checkout, staffed by our store cat'
+        or 'Fresh finds for your neighborhood kitchen',140,119)
     local used=BikeCargo.used(bikeInventory)
-    g.print(('Bike cargo %d / %d bags'):format(used,BikeCargo.CAPACITY),352,105)
-    g.print(('Cart %d bag(s) / $%.2f'):format(count,total/100),620,105)
+    local chips={
+        {x=492,w=126,caption='HOUSEHOLD',value=('$%.2f'):format(balanceCents/100),color={.99,.86,.57,1}},
+        {x=625,w=126,caption='BIKE BAGS',value=('%d / %d'):format(used,BikeCargo.CAPACITY),color={.80,.90,.72,1}},
+        {x=758,w=150,caption='SHOPPING CART',value=('%d  ·  $%.2f'):format(count,total/100),color={1,.82,.53,1}},
+    }
+    for _,chip in ipairs(chips) do
+        g.setColor(.045,.12,.078,1);g.rectangle('fill',chip.x,63,chip.w,53,7)
+        g.setColor(.27,.40,.28,1);g.rectangle('line',chip.x,63,chip.w,53,7)
+        g.setColor(.64,.77,.64,1);g.setFont(Fonts.get('metal',8));g.printf(chip.caption,chip.x+8,71,chip.w-16,'left')
+        g.setColor(unpack(chip.color));g.setFont(Fonts.get('metal',13));g.printf(chip.value,chip.x+8,88,chip.w-16,'left')
+    end
     local daysToDelivery=math.max(0,(v.storeStock and v.storeStock.nextDeliveryDay or 0)-(v.calendarDay or 0))
-    g.setColor(.62,.77,.66,1)
     local deliveryText=daysToDelivery==0 and ((v.calendarWeekday or 1)>=6 and 'next weekday' or 'due today')
         or ('in '..daysToDelivery..' day(s)')
-    g.print('Outside connection delivery: '..deliveryText,70,137)
+    g.setColor(.88,.84,.66,1);g.rectangle('fill',46,153,868,27,6)
+    g.setColor(.36,.51,.36,1);g.circle('fill',61,166,5)
+    g.setColor(.13,.25,.17,1);g.setFont(Fonts.get('metal',9))
+    g.print(v.categoryId=='checkout' and 'REGISTER OPEN  ·  Review your basket before paying'
+        or ('FRESH STOCK DELIVERY  ·  '..deliveryText),75,160)
+    g.setColor(.085,.14,.096,1);g.rectangle('fill',46,188,522,326,9)
+    g.setColor(.25,.36,.25,1);g.rectangle('line',46,188,522,326,9)
+    g.setColor(.91,.84,.66,1);g.rectangle('fill',578,188,336,326,9)
+    g.setColor(.69,.59,.38,1);g.rectangle('line',578,188,336,326,9)
     for i,row in ipairs(rows) do
         local offer=v.categoryId=='checkout' and row.offer or row
         local quantity=v.categoryId=='checkout' and row.quantity or 1
-        local product=Catalog.PRODUCTS[offer.id];local y=174+(i-1)*GROCERY_ROW_HEIGHT
-        g.setColor(i==v.selected and .24 or .09,i==v.selected and .31 or .17,.21,1)
-        g.rectangle('fill',65,y,510,GROCERY_ROW_HEIGHT-2,4)
-        g.setColor(.98,.95,.82,1)
-        g.print(product.name,80,y+6)
+        local product=Catalog.PRODUCTS[offer.id];local y=195+(i-1)*GROCERY_ROW_HEIGHT
+        if i==v.selected then
+            g.setColor(.27,.40,.27,1);g.rectangle('fill',53,y,508,GROCERY_ROW_HEIGHT-2,6)
+            g.setColor(.96,.75,.40,1);g.rectangle('fill',53,y+5,3,GROCERY_ROW_HEIGHT-12,2)
+        else
+            g.setColor(.12,.20,.14,1);g.rectangle('fill',53,y,508,GROCERY_ROW_HEIGHT-2,6)
+        end
+        g.setColor(.87,.82,.66,1);g.rectangle('fill',59,y+3,35,35,7)
+        GroceryUiArt.drawProduct(offer.id,76.5,y+20,35)
+        g.setColor(.98,.95,.82,1);g.setFont(Fonts.get('metal',11))
+        g.print(product.name,103,y+4)
         local stored=bikeInventory and bikeInventory.items[offer.id] or 0
         local inStock=Store.stockCount(v,offer.id)
         local detail=v.categoryId=='checkout' and ('In cart: %d  /  on bike: %d'):format(quantity,stored)
@@ -443,61 +503,85 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         if v.categoryId=='checkout' then detail=detail..('  /  store: %d'):format(inStock) end
         if inStock==0 then detail='OUT OF STOCK  /  '..detail end
         g.setColor(inStock==0 and 1 or .69,inStock==0 and .52 or .77,inStock==0 and .42 or .69,1)
-        g.print(detail,80,y+24)
-        g.setColor(.98,.95,.82,1)
-        g.printf(('$%.2f each'):format(offer.priceCents/100),428,y+13,132,'right')
+        g.setFont(Fonts.get('metal',8));g.print(detail,103,y+22)
+        g.setColor(.98,.87,.60,1);g.setFont(Fonts.get('metal',10))
+        g.printf(('$%.2f'):format(offer.priceCents/100),450,y+13,101,'right')
     end
+    g.setColor(.18,.30,.20,1);g.setFont(Fonts.get('metal',9))
+    g.print(v.categoryId=='checkout' and 'IN YOUR BASKET' or 'FRESH PICKS',594,199)
     if selected then
         local offer=v.categoryId=='checkout' and selected.offer or selected
         local product=Catalog.PRODUCTS[offer.id]
-        g.setColor(.94,.9,.77,1)
-        g.printf(product.name..'\n'..product.servings..' serving(s) per item\n\n'..(product.description or 'Add it to your cart, then pay at the checkout counter.'),610,174,280)
-        g.print(('IN STORE  %d'):format(Store.stockCount(v,offer.id)),610,286)
+        g.setColor(.98,.93,.80,1);g.rectangle('fill',681,205,130,112,10)
+        g.setColor(.82,.73,.53,1);g.rectangle('line',681,205,130,112,10)
+        GroceryUiArt.drawProduct(offer.id,746,261,104)
+        g.setColor(.14,.25,.17,1);g.setFont(Fonts.get('metal',15))
+        g.printf(product.name,594,326,304,'center')
+        g.setColor(.30,.39,.28,1);g.setFont(Fonts.get('metal',9))
+        local descriptor=product.description or ('A lovely grocery pick with %d serving(s) per item.'):format(product.servings)
+        g.printf(descriptor,602,349,288,'center')
+        g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',9))
+        local inStock=Store.stockCount(v,offer.id)
+        local stored=bikeInventory and bikeInventory.items[offer.id] or 0
+        g.printf(('IN STORE  %d   ·   ON BIKE  %d'):format(inStock,stored),594,391,304,'center')
         if v.categoryId=='checkout' then
-            g.print(('QUANTITY IN CART  %d'):format(selected.quantity),610,322)
-            g.print('Left: remove one  /  Right: add one',610,350)
+            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',10))
+            g.printf(('QUANTITY IN CART  %d'):format(selected.quantity),594,414,304,'center')
+            g.setColor(.38,.46,.32,1);g.setFont(Fonts.get('metal',8))
+            g.printf('Left: remove one  ·  Right: add one',594,433,304,'center')
             local canPay,shortId,available,requested=Store.cartAvailability(v,v.cart)
             if not canPay then
                 local shortName=Catalog.PRODUCTS[shortId].name
-                g.setColor(1,.54,.4,1)
+                g.setColor(.68,.24,.16,1);g.setFont(Fonts.get('metal',8))
                 g.printf(available>0 and ('Only %d %s left; cart needs %d.'):format(available,shortName,requested)
-                    or (shortName..' is out of stock. Remove it to check out.'),610,384,274)
+                    or (shortName..' is out of stock. Remove it to check out.'),596,449,300,'center')
             elseif v.storeStock and v.storeStock.lastDeliveryNote then
-                g.setColor(.68,.8,.68,1);g.printf(v.storeStock.lastDeliveryNote,610,384,274)
+                g.setColor(.30,.43,.29,1);g.setFont(Fonts.get('metal',8))
+                g.printf(v.storeStock.lastDeliveryNote,596,449,300,'center')
             end
             g.setColor(.22,.33,.26,1)
-            g.rectangle('fill',layout.minus.x,layout.minus.y,layout.minus.w,layout.minus.h,4)
-            g.rectangle('fill',layout.plus.x,layout.plus.y,layout.plus.w,layout.plus.h,4)
-            g.setColor(1,.92,.72,1)
-            g.printf('−',layout.minus.x,layout.minus.y+8,layout.minus.w,'center')
-            g.printf('+',layout.plus.x,layout.plus.y+8,layout.plus.w,'center')
+            g.rectangle('fill',layout.groceryMinus.x,layout.groceryMinus.y,layout.groceryMinus.w,layout.groceryMinus.h,6)
+            g.rectangle('fill',layout.groceryPlus.x,layout.groceryPlus.y,layout.groceryPlus.w,layout.groceryPlus.h,6)
+            g.setColor(1,.92,.72,1);g.setFont(Fonts.get('metal',14))
+            g.printf('−',layout.groceryMinus.x,layout.groceryMinus.y+7,layout.groceryMinus.w,'center')
+            g.printf('+',layout.groceryPlus.x,layout.groceryPlus.y+7,layout.groceryPlus.w,'center')
         else
-            g.print(('QUANTITY  %d'):format(v.quantity or 1),610,322)
-            g.setColor(.22,.33,.26,1)
-            g.rectangle('fill',layout.minus.x,layout.minus.y,layout.minus.w,layout.minus.h,4)
-            g.rectangle('fill',layout.plus.x,layout.plus.y,layout.plus.w,layout.plus.h,4)
-            g.setColor(1,.92,.72,1)
-            g.printf('−',layout.minus.x,layout.minus.y+8,layout.minus.w,'center')
-            g.printf('+',layout.plus.x,layout.plus.y+8,layout.plus.w,'center')
             local quote=Store.quote('grocery',offer.id,v.quantity or 1)
-            g.print(('ITEM TOTAL  $%.2f'):format(quote.totalCents/100),610,364)
+            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',10))
+            g.printf(('QUANTITY  %d'):format(v.quantity or 1),594,414,304,'center')
+            g.setColor(.22,.33,.26,1)
+            g.rectangle('fill',layout.groceryMinus.x,layout.groceryMinus.y,layout.groceryMinus.w,layout.groceryMinus.h,6)
+            g.rectangle('fill',layout.groceryPlus.x,layout.groceryPlus.y,layout.groceryPlus.w,layout.groceryPlus.h,6)
+            g.setColor(1,.92,.72,1);g.setFont(Fonts.get('metal',14))
+            g.printf('−',layout.groceryMinus.x,layout.groceryMinus.y+7,layout.groceryMinus.w,'center')
+            g.printf('+',layout.groceryPlus.x,layout.groceryPlus.y+7,layout.groceryPlus.w,'center')
+            g.setColor(.66,.25,.16,1);g.setFont(Fonts.get('metal',11))
+            g.printf(('ITEM TOTAL  $%.2f'):format(quote.totalCents/100),594,448,304,'center')
         end
     elseif v.categoryId=='checkout' then
-        g.setColor(.94,.9,.77,1)
-        g.printf('Your cart is empty. Browse a shelf and add items before checking out.',610,190,270)
+        GroceryUiArt.drawEmblem(746,302,126)
+        g.setColor(.24,.34,.23,1);g.setFont(Fonts.get('metal',10))
+        g.printf('Your basket is waiting for its first good find.',602,393,288,'center')
+    else
+        GroceryUiArt.drawEmblem(746,302,126)
+        g.setColor(.24,.34,.23,1);g.setFont(Fonts.get('metal',10))
+        g.printf('Choose a fresh find from the shelf.',602,393,288,'center')
     end
-    g.setColor(.94,.9,.77,1)
+    g.setColor(.055,.12,.08,1);g.rectangle('fill',46,520,868,32,6)
+    g.setColor(.89,.82,.63,1);g.setFont(Fonts.get('metal',9))
     local hint=v.pending and 'Waiting for the host to confirm checkout…' or v.notice
         or v.categoryId=='checkout' and 'Select a cart line to change its quantity. Press Enter or Pay Now to finish.'
         or 'Choose an item, set quantity, then press Enter or Add to Cart.'
-    g.printf(hint,70,510,810)
-    drawButton(g,layout.close,'Back to floor',not v.pending)
-    drawButton(g,layout.cart,v.categoryId=='checkout' and 'Continue shopping' or ('View cart ('..count..')'),not v.pending)
+    g.printf(hint,62,529,836)
+    drawButton(g,layout.close,'Back to floor',not v.pending,false)
+    local canOpenCheckout=v.interiorKind~='grocery' or v.cartPushed and v.atGroceryRegister
+    drawButton(g,layout.cart,v.categoryId=='checkout' and 'Continue shopping' or ('View cart ('..count..')'),
+        not v.pending and (v.categoryId=='checkout' or canOpenCheckout),false)
     local cartCanPay=Store.cartAvailability(v,v.cart)
     local selectedOffer=v.categoryId=='checkout' and selected and selected.offer or selected
     local selectedInStock=selectedOffer and (v.cart[selectedOffer.id] or 0)+(v.quantity or 1)<=Store.stockCount(v,selectedOffer.id)
     drawButton(g,layout.buy,v.categoryId=='checkout' and (count>0 and 'Pay now' or 'Cart is empty') or 'Add to cart',
-        not v.pending and (v.categoryId~='checkout' and selectedInStock or count>0 and cartCanPay))
+        not v.pending and (v.categoryId~='checkout' and selectedInStock or count>0 and cartCanPay),true)
     g.pop();return true
 end
 function Store.draw(v,balanceCents,bikeInventory,revision,width,height,closeLabel,storeStock,calendarDay,calendarWeekday)

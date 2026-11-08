@@ -99,9 +99,10 @@ function Test.run(check)
     check('commute_truck_legacy_livery',Truck.valid(plain) and Truck.snapshot(plain).livery=='picture_shop')
     local truckSite=world.sites.byId.warehouse
     local spawnLocalX,spawnLocalZ=truckSite:toLocal(deliveryTruck.x,deliveryTruck.z)
-    check('commute_truck_spawns_in_its_loading_dock_space',
-        math.abs(spawnLocalX-truckSite.design.truckParking.x)<.001
-        and math.abs(spawnLocalZ-truckSite.design.truckParking.z)<.001
+    local homeLocalX,homeLocalZ=truckSite:toLocal(truckSite.truckHomeParking.box.x,truckSite.truckHomeParking.box.z)
+    check('commute_truck_spawns_in_its_home_stall',
+        math.abs(spawnLocalX-homeLocalX)<.001
+        and math.abs(spawnLocalZ-homeLocalZ)<.001
         and Truck.RADIUS>0)
     local truckX,truckZ=deliveryTruck.x,deliveryTruck.z
     local ownerRider=state.home.commute.participants.owner.rider

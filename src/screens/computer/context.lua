@@ -130,6 +130,8 @@ function Component.install(Runtime)
     Runtime.PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
     Runtime.NEXT = { x = 306, y = 570, width = 86, height = 30 }
     Runtime.COMPLETE = { x = 598, y = 598, width = 228, height = 36 }
+    Runtime.PICKUP_EMPLOYEE = { x = 632, y = 598, width = 104, height = 36 }
+    Runtime.PICKUP_PLAYER = { x = 742, y = 598, width = 108, height = 36 }
     Runtime.MONITOR = { x = 16, y = 8, width = 928, height = 660 }
     Runtime.WWW_SITE = { x = 92, y = 238, width = 140, height = 42, gap = 8 }
     Runtime.WWW_PRODUCT = { x = 92, y = 296, width = 748, rowHeight = 52, gap = 6 }

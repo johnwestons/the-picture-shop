@@ -7,7 +7,18 @@ local colors={wall={.53,.49,.44},brick={.49,.42,.37},metal={.48,.51,.52},
     door={.28,.30,.29},rail={.24,.27,.28},stone={.58,.59,.56},sign={.77,.75,.67},
     farmhouse={.72,.64,.49},barn={.58,.17,.13},barnDoor={.43,.10,.09},
     farmTrim={.88,.82,.68},soil={.28,.17,.095},corn={.24,.43,.15},cornLeaf={.34,.53,.18},
-    tomatoLeaf={.25,.43,.17},tomato={.78,.16,.10},wood={.36,.25,.14}}
+    tomatoLeaf={.25,.43,.17},tomato={.78,.16,.10},wood={.36,.25,.14},
+    groceryWall={.71,.66,.51},marketGreen={.19,.39,.24},marketCream={.91,.83,.64},
+    produceCrate={.31,.39,.22},produceRed={.79,.17,.10},produceOrange={.91,.43,.09},
+    produceYellow={.91,.73,.16},gasWall={.74,.71,.61},gasRed={.75,.15,.10},
+    gasYellow={.95,.75,.20},gasBlue={.12,.31,.38},gasGreen={.20,.48,.34},
+    mechanicSteel={.40,.47,.48},postOfficeWall={.73,.69,.57},mailBlue={.10,.30,.54},
+    mailRed={.78,.16,.12},policeWall={.68,.70,.67},policeBlue={.12,.25,.43},
+    policeGold={.88,.68,.19},fireWall={.72,.70,.63},fireRed={.72,.14,.12},
+    fireCream={.91,.85,.68},dinerWall={.80,.75,.61},dinerRed={.71,.13,.13},
+    dinerCream={.94,.87,.69},coffeeWall={.48,.37,.29},coffeeBrown={.28,.17,.10},
+    coffeeCream={.91,.83,.64},generalWall={.63,.62,.46},generalWood={.38,.27,.16},
+    generalSage={.37,.43,.29}}
 Geometry.colors=colors
 function Geometry.new()
     return {vertices={},features={},counts={boxes=0,quads=0,cylinders=0},
@@ -304,16 +315,18 @@ local function portico(m,x,z,width,height)
         {x+width*.5,z+.86,height+.20},{x+width*.5,z-.46,height+.20},colors.roof,{slope/length,1/length,0})
     feature(m,'porticos',{x=x,z=z,width=width})
 end
-local function curvedCanopy(m,x,z,width,depth,height)
+local function curvedCanopy(m,x,z,width,depth,height,palette)
     local segments=16;local thick=.16
+    palette=palette or {roof=colors.roof,trim=colors.trim}
     for i=0,segments-1 do
         local a,b=i*math.pi/segments,(i+1)*math.pi/segments
         local ax,az=x+math.cos(a)*width*.5,z+math.sin(a)*depth
         local bx,bz=x+math.cos(b)*width*.5,z+math.sin(b)*depth
-        Geometry.triangle(m,{x,z,height},{ax,az,height},{bx,bz,height},colors.roof,{0,1,0})
-        Geometry.triangle(m,{x,z,height-thick},{bx,bz,height-thick},{ax,az,height-thick},colors.trim,{0,-1,0})
+        local roofColor=palette.alternate and i%2==0 and palette.alternate or palette.roof
+        Geometry.triangle(m,{x,z,height},{ax,az,height},{bx,bz,height},roofColor,{0,1,0})
+        Geometry.triangle(m,{x,z,height-thick},{bx,bz,height-thick},{ax,az,height-thick},palette.trim,{0,-1,0})
         local nx,nz=math.cos((a+b)*.5)/(width*.5),math.sin((a+b)*.5)/depth;local length=math.sqrt(nx*nx+nz*nz)
-        Geometry.quad(m,{ax,az,height-thick},{bx,bz,height-thick},{bx,bz,height},{ax,az,height},colors.trim,{nx/length,0,nz/length})
+        Geometry.quad(m,{ax,az,height-thick},{bx,bz,height-thick},{bx,bz,height},{ax,az,height},palette.trim,{nx/length,0,nz/length})
     end
     feature(m,'curvedCanopies',{x=x,z=z,width=width,depth=depth})
 end
@@ -469,20 +482,43 @@ local function commercial(m,d,r)
             front.openings[#front.openings+1]={u0=center-step*.40,u1=center+step*.40,h0=.12,
                 h1=height-(style=='mechanic' and 1.05 or 1.25),kind='garage'}
         end
+    elseif style=='grocery' then
+        front={windowWidth=2.55,windowBase=.45,windowTop=2.65,doorWidth=1.8,doorHeight=2.65}
+    elseif style=='gas-station' then
+        front={windowWidth=1.75,windowBase=.55,windowTop=2.7}
     elseif style=='coffee-shop' then front.windowTop=2.75
-    elseif style=='diner' then front.windowBase=.65;front.windowTop=2.6
+    elseif style=='diner' then front.windowWidth=2.65;front.windowBase=.65;front.windowTop=2.6
     elseif style=='police' or style=='general-store' then front={windowWidth=1.65} end
+    local facadePalette={mechanic=colors.mechanicSteel,['gas-station']=colors.gasWall,
+        grocery=colors.groceryWall,['post-office']=colors.postOfficeWall,
+        police=colors.policeWall,['fire-station']=colors.fireWall,
+        diner=colors.dinerWall,['coffee-shop']=colors.coffeeWall,
+        ['general-store']=colors.generalWall}
+    local facadeColor=facadePalette[style] or colors.brick
+    local sideColor=facadePalette[style] or colors.wall
     b(m,r.minX,r.minZ,-.08,r.maxX,r.maxZ,.12,colors.stone)
-    facade(m,'z',r.maxZ,1,r.minX,r.maxX,height,d.floors,colors.brick,d.threshold.x,front)
-    facade(m,'z',r.minZ,-1,r.minX,r.maxX,height,d.floors,colors.wall)
-    facade(m,'x',r.minX,-1,r.minZ,r.maxZ,height,d.floors,style=='mechanic' and colors.metal or colors.wall)
-    facade(m,'x',r.maxX,1,r.minZ,r.maxZ,height,d.floors,style=='mechanic' and colors.metal or colors.wall)
+    facade(m,'z',r.maxZ,1,r.minX,r.maxX,height,d.floors,facadeColor,d.threshold.x,front)
+    facade(m,'z',r.minZ,-1,r.minX,r.maxX,height,d.floors,sideColor)
+    facade(m,'x',r.minX,-1,r.minZ,r.maxZ,height,d.floors,sideColor)
+    facade(m,'x',r.maxX,1,r.minZ,r.maxZ,height,d.floors,sideColor)
     roofEdge(m,r,height,style~='mechanic');corbels(m,r,height)
     entry(m,d.threshold.x,d.threshold.z,2.3)
     if style=='mechanic' then
         pitchedRoof(m,r,height,1.35)
         b(m,r.minX+.5,r.maxZ-.2,3.20,r.maxX-.5,r.maxZ+1.35,3.38,colors.metal)
         feature(m,'workCanopies',{width=d.width-1,depth=1.55})
+        for index,x in ipairs({-3.7,6.55}) do
+            for layer=0,2 do
+                Geometry.cylinder(m,x,r.maxZ+.60,.08+layer*.25,.36,.20,colors.recess,12)
+            end
+            Geometry.cylinder(m,x,r.maxZ+.60,.68,.14,.08,colors.metal,10)
+            feature(m,'tireStacks',{x=x,z=r.maxZ+.60,layers=3,side=index})
+        end
+        b(m,5.8,r.maxZ+.30,.08,7.0,r.maxZ+.74,1.02,colors.gasRed)
+        for h=.30,.82,.26 do
+            b(m,5.86,r.maxZ+.751,h,6.94,r.maxZ+.79,h+.08,colors.metal)
+        end
+        feature(m,'mechanicToolCabinets',{x=6.4,z=r.maxZ+.52})
         sign(m,d,r,mechanicSign,height-.48)
     elseif style=='gas-station' then
         local asphalt={.28,.30,.29};local stripe={.92,.82,.50}
@@ -531,14 +567,51 @@ local function commercial(m,d,r)
         feature(m,'pumpBays',{centers={{x=-2.2,z=6.5},{x=2.2,z=6.5}},count=2})
         feature(m,'truckPumpBay',{x=0,z=11.1,width=6.9,depth=3.8})
         feature(m,'pumpCanopy',{width=9.1,depth=5.35,frontZ=9.1})
+        -- A bright branded canopy edge is visible from the road before the
+        -- player reaches the pumps.
+        b(m,-4.55,8.98,3.10,4.55,9.19,3.49,colors.gasRed)
+        b(m,-4.55,8.98,3.10,4.55,9.19,3.20,colors.gasYellow)
+        Geometry.lettering(m,'FUEL',0,9.20,3.28,3.1,.28)
         sign(m,d,r,'GAS',3.21)
+        -- Small roadside price/amenities pylon gives the forecourt its own
+        -- landmark silhouette and advertises fuel and ice without relying on
+        -- the building name sign.
+        local pylonX,pylonZ=-4.82,10.15
+        for _,dx in ipairs({-.50,.50}) do
+            b(m,pylonX+dx-.065,pylonZ-.085,.02,pylonX+dx+.065,pylonZ+.085,2.75,colors.metal)
+        end
+        b(m,pylonX-.82,pylonZ-.16,2.68,pylonX+.82,pylonZ+.16,4.78,colors.gasRed)
+        b(m,pylonX-.70,pylonZ+.161,3.40,pylonX+.70,pylonZ+.19,4.65,colors.gasYellow)
+        Geometry.lettering(m,'FUEL',pylonX,pylonZ+.19,4.27,1.22,.30)
+        Geometry.lettering(m,'ICE',pylonX,pylonZ+.19,3.69,.87,.27)
+        feature(m,'gasAdvertising',{x=pylonX,z=pylonZ,items={'fuel','ice'},height=4.78})
     elseif style=='grocery' then
-        b(m,r.minX+.3,r.maxZ-.1,3.22,r.maxX-.3,r.maxZ+1.20,3.40,colors.roof)
+        b(m,r.minX+.3,r.maxZ-.1,3.22,r.maxX-.3,r.maxZ+1.20,3.40,colors.marketGreen)
         for i=0,5 do
             local x=r.minX+.5+(d.width-1)*i/5
             b(m,x-.055,r.maxZ-.03,2.92,x+.055,r.maxZ+.18,3.35,colors.trim)
         end
+        -- Cream and green fabric stripes make this read as a neighborhood
+        -- market awning instead of the same flat commercial cornice.
+        for i=0,7 do
+            local x0=r.minX+.32+(d.width-.64)*i/8
+            local x1=r.minX+.32+(d.width-.64)*(i+1)/8
+            b(m,x0,r.maxZ+1.16,3.03,x1,r.maxZ+1.24,3.37,
+                i%2==0 and colors.marketCream or colors.marketGreen)
+        end
         feature(m,'shelteredStorefronts',{width=d.width-.6})
+        for _,center in ipairs({-6.2,6.2}) do
+            local z=r.maxZ+.62
+            b(m,center-.96,z-.34,.12,center+.96,z+.60,.65,colors.produceCrate)
+            b(m,center-.90,z-.28,.65,center+.90,z+.54,.72,colors.marketGreen)
+            local fruit={colors.produceRed,colors.produceOrange,colors.produceYellow}
+            for row=0,1 do for column=0,2 do
+                local x=center+(column-1)*.48
+                local fz=z-.08+row*.42
+                Geometry.cylinder(m,x,fz,.72,.15,.15,fruit[(column+row)%#fruit+1],8)
+            end end
+            feature(m,'groceryProduceDisplays',{x=center,z=z,crates=2})
+        end
         sign(m,d,r,'TOWN GROCERY',4.18)
         mechanical(m,1,-1,height)
     elseif style=='post-office' or style=='police' then
@@ -547,12 +620,29 @@ local function commercial(m,d,r)
         if style=='post-office' then
             -- Solid mail collection cabinet beside the public entrance.
             local x=r.minX+1.1;local z=r.maxZ-.10
-            b(m,x-.32,z-.32,.10,x+.32,z+.24,1.32,colors.metal)
-            b(m,x-.38,z-.36,1.32,x+.38,z+.29,1.43,colors.roof)
+            b(m,x-.32,z-.32,.10,x+.32,z+.24,1.32,colors.mailBlue)
+            b(m,x-.38,z-.36,1.32,x+.38,z+.29,1.43,colors.mailBlue)
+            b(m,x-.25,z+.245,.90,x+.25,z+.27,.98,colors.mailRed)
             b(m,x-.21,z+.245,1.04,x+.21,z+.265,1.10,colors.recess)
+            b(m,x-.22,z+.245,1.12,x+.22,z+.27,1.30,colors.sign)
+            Geometry.lettering(m,'MAIL',x,z+.27,1.21,.40,.12)
+            b(m,r.minX+.35,r.maxZ+.07,3.18,r.maxX-.35,r.maxZ+.17,3.45,colors.mailBlue)
+            b(m,r.minX+.35,r.maxZ+.07,3.18,r.maxX-.35,r.maxZ+.17,3.27,colors.mailRed)
             feature(m,'mailboxes',{x=x,z=z})
+            feature(m,'postalServiceBand',{height=3.18})
         else
             b(m,r.minX+.35,r.maxZ+.03,height*.5-.11,r.maxX-.35,r.maxZ+.13,height*.5+.08,colors.trim)
+            local band=height*.5
+            b(m,r.minX+.2,r.maxZ+.08,band-.16,r.maxX-.2,r.maxZ+.20,band+.20,colors.policeBlue)
+            b(m,-.72,r.maxZ+.21,band-.02,.72,r.maxZ+.24,band+.92,colors.policeBlue)
+            Geometry.triangle(m,{-0.44,r.maxZ+.25,band+.69},{0,r.maxZ+.25,band+.18},
+                {.44,r.maxZ+.25,band+.69},colors.policeGold,{0,0,1})
+            b(m,-.10,r.maxZ+.26,band+.40,.10,r.maxZ+.29,band+.62,colors.policeGold)
+            b(m,-.42,r.maxZ+.03,height+.66,.42,r.maxZ+.32,height+.80,colors.metal)
+            b(m,-.38,r.maxZ+.33,height+.66,-.05,r.maxZ+.52,height+.98,colors.mailRed)
+            b(m,.05,r.maxZ+.33,height+.66,.38,r.maxZ+.52,height+.98,colors.gasBlue)
+            feature(m,'policeBadge',{x=0,z=r.maxZ+.24,height=band+.55})
+            feature(m,'policeRoofBeacon',{height=height+.98})
             feature(m,'civicBuildings',{portico=true})
         end
         mechanical(m,1,-2,height)
@@ -564,10 +654,19 @@ local function commercial(m,d,r)
             local h=height+.55+i*.78
             panel(m,'z',tower.maxZ,1,tower.minX+.75,tower.maxX-.75,h,h+.38,.01,.04,colors.recess)
         end
+        -- Red apparatus-bay lintel and a bell on the hose tower reinforce the
+        -- station silhouette even when the lettering is too small to read.
+        b(m,r.minX+.2,r.maxZ+.08,height-1.20,r.maxX-.2,r.maxZ+.20,height-1.00,colors.fireRed)
+        b(m,r.minX+.2,r.maxZ+.08,height-1.28,r.maxX-.2,r.maxZ+.20,height-1.20,colors.fireCream)
+        b(m,tower.minX+1.38,tower.maxZ+.10,height+4.38,tower.minX+1.92,tower.maxZ+.36,height+4.54,colors.metal)
+        Geometry.cylinder(m,tower.minX+1.65,tower.maxZ+.23,height+4.54,.27,.34,colors.fireRed,12)
+        feature(m,'fireApparatusBays',{count=3,lintelHeight=height-1.00})
+        feature(m,'fireBell',{x=tower.minX+1.65,z=tower.maxZ+.23,height=height+4.88})
         feature(m,'hoseTowers',{x=tower.minX,z=tower.minZ,height=height+4.4})
         sign(m,d,r,'FIRE STATION',height-.62)
     elseif style=='diner' then
-        curvedCanopy(m,0,r.maxZ+.02,d.width-.5,1.5,2.96)
+        curvedCanopy(m,0,r.maxZ+.02,d.width-.5,1.5,2.96,
+            {roof=colors.dinerRed,trim=colors.dinerCream,alternate=colors.dinerCream})
         b(m,r.minX+1,r.minZ+1,height+.10,r.maxX-1,r.maxZ-1,height+.72,colors.metal)
         panel(m,'z',r.maxZ-1,1,r.minX+1.25,r.maxX-1.25,height+.22,height+.56,.01,.04,colors.glass)
         for i=1,6 do
@@ -575,17 +674,63 @@ local function commercial(m,d,r)
             panel(m,'z',r.maxZ-1,1,x-.04,x+.04,height+.16,height+.65,.04,.08,colors.trim)
         end
         feature(m,'clerestories',{height=height+.72})
+        b(m,r.minX+.3,r.maxZ+.06,2.86,r.maxX-.3,r.maxZ+.16,3.03,colors.dinerRed)
+        for _,x in ipairs({-5.1,5.1}) do
+            local z=r.maxZ+1.05
+            Geometry.cylinder(m,x,z,.68,.44,.10,colors.dinerRed,12)
+            Geometry.cylinder(m,x,z,.18,.07,.50,colors.metal,10)
+            for _,side in ipairs({-1,1}) do
+                b(m,x+side*.66-.23,z-.18,.16,x+side*.66+.23,z+.18,.50,colors.dinerCream)
+            end
+            feature(m,'dinerOutdoorTables',{x=x,z=z,seats=2})
+        end
         sign(m,d,r,'DINER',3.53)
     elseif style=='coffee-shop' then
         pergola(m,0,r.maxZ,d.width-1,2.95)
+        local cupZ=r.maxZ+.24
+        b(m,-.92,r.maxZ+.06,3.82,.92,r.maxZ+.20,5.04,colors.coffeeBrown)
+        Geometry.quad(m,{-.43,cupZ,4.76},{-.30,cupZ,4.20},{.30,cupZ,4.20},
+            {.43,cupZ,4.76},colors.coffeeCream,{0,0,1})
+        b(m,.40,cupZ,4.52,.66,cupZ+.035,4.62,colors.coffeeCream)
+        b(m,.52,cupZ,4.30,.66,cupZ+.035,4.53,colors.coffeeCream)
+        b(m,.40,cupZ,4.22,.66,cupZ+.035,4.32,colors.coffeeCream)
+        b(m,-.52,cupZ,4.10,.52,cupZ+.06,4.18,colors.trim)
+        for _,x in ipairs({-.25,0,.25}) do
+            b(m,x-.035,cupZ,4.82,x+.035,cupZ+.035,4.98,colors.coffeeCream)
+        end
+        feature(m,'coffeeCupLogo',{x=0,z=cupZ,height=4.4})
+        for _,x in ipairs({-3.15,3.15}) do
+            local z=r.maxZ+.82
+            Geometry.cylinder(m,x,z,.72,.43,.10,colors.coffeeBrown,12)
+            Geometry.cylinder(m,x,z,.12,.065,.60,colors.generalWood,10)
+            for _,side in ipairs({-1,1}) do
+                b(m,x+side*.65-.22,z-.17,.17,x+side*.65+.22,z+.17,.48,colors.generalWood)
+            end
+            feature(m,'coffeePatioSeating',{x=x,z=z,seats=2})
+        end
         sign(m,d,r,'COFFEE',3.30)
         mechanical(m,-1,-1,height)
     elseif style=='general-store' then
-        b(m,r.minX+.2,r.maxZ-.15,2.78,r.maxX-.2,r.maxZ+1.18,2.98,colors.roof)
+        b(m,r.minX+.2,r.maxZ-.15,2.78,r.maxX-.2,r.maxZ+1.18,2.98,colors.generalSage)
         for _,x in ipairs({r.minX+.6,r.minX+3,r.maxX-3,r.maxX-.6}) do
-            b(m,x-.07,r.maxZ-.14,0,x+.07,r.maxZ+.01,2.80,colors.trim)
+            b(m,x-.09,r.maxZ-.14,0,x+.09,r.maxZ+.01,2.80,colors.generalWood)
         end
         feature(m,'coveredPorches',{width=d.width-.4,depth=1.33})
+        for _,x in ipairs({-4.9,4.9}) do
+            local z=r.maxZ+.72
+            b(m,x-.52,z-.38,.08,x+.52,z+.38,.72,colors.generalWood)
+            b(m,x-.45,z-.31,.72,x+.45,z+.31,.82,colors.generalSage)
+            local barrelX=x+(x>0 and .95 or -.95)
+            Geometry.cylinder(m,barrelX,z+.08,.12,.31,.82,colors.generalWood,10)
+            Geometry.cylinder(m,barrelX,z+.08,.38,.34,.08,colors.trim,10)
+            Geometry.cylinder(m,barrelX,z+.08,.65,.34,.08,colors.trim,10)
+            feature(m,'generalStoreDisplays',{x=x,z=z,barrel=true,crate=true})
+        end
+        for i=0,9 do
+            local x=r.minX+.25+(d.width-.5)*i/10
+            b(m,x-.045,r.maxZ+1.12,2.80,x+.045,r.maxZ+1.18,2.98,
+                i%2==0 and colors.generalWood or colors.generalSage)
+        end
         sign(m,d,r,'GENERAL STORE',3.6)
         mechanical(m,1,-1,height)
     end

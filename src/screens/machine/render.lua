@@ -321,7 +321,7 @@ function Component.install(Runtime)
             elseif button.action == "estop" then Runtime.drawSpriteButton(assets, button, true, Runtime.Machine.emergencyStopped) end
         end
         love.graphics.setColor(0.75, 0.82, 0.83)
-        love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate | SPACE clamp | "
+        love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate CCW | SPACE clamp | "
             .. (Runtime.Machine.multiplayerSingleControl and "J or K cut" or "J+K cut")
             .. " | T repeat | U unload", 48, 535)
         local memory = Runtime.Machine.savedMeasurements(state, Runtime.Machine.programIndex)

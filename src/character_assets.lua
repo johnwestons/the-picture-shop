@@ -92,6 +92,15 @@ end
 for character,actions in pairs(workerWalkArt.metrics) do
     for action,frames in pairs(actions) do Metrics[character][action]=frames end
 end
+local medicFoxArt=require("src.medic_fox_worker_art")
+for character,actions in pairs(medicFoxArt.anchors) do
+    Anchors[character]=Anchors[character] or {}
+    for action,frames in pairs(actions) do Anchors[character][action]=frames end
+end
+for character,actions in pairs(medicFoxArt.metrics) do
+    Metrics[character]=Metrics[character] or {}
+    for action,frames in pairs(actions) do Metrics[character][action]=frames end
+end
 local commuteWalkerArt=require("src.commute.walker_art")
 for character,actions in pairs(commuteWalkerArt.anchors) do
     Anchors[character]=Anchors[character] or {}

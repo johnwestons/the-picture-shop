@@ -1,5 +1,8 @@
 local Test={}
 function Test.run(check)
+    require('src.commute.tests.kei_steering_test').run(check)
+    require('src.commute.tests.truck_braking_test').run(check)
+    require('src.commute.tests.kei_turntable_scale_test').run(check)
     local touch=require('src.commute.touch_controls')
     local profile=require('src.commute.bindings').defaults()
     profile.layout.touch3={x=.84,y=.72} -- Prior phone layout, retained across upgrades.

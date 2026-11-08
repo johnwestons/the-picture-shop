@@ -36,7 +36,7 @@ function Test.run(context, check)
     presentation:accept(current)
     local model = presentation:model(state, current)
     check("cutter_presentation_uses_host_ticket_without_mutating_it",
-        model.paper.orientation == 90 and source.orientation == 0
+        model.paper.orientation == 90 and source.orientation == 90
         and model.paper.currentSize.width == 13 and model.paper.artworkKey == source.artworkKey
         and model.paper ~= source and model.paper.currentSize ~= source.currentSize)
     current.paper.activeCut = 3
@@ -227,6 +227,7 @@ function Test.run(context, check)
     -- same incorrect feed offset or housing mask cannot silently pass parity.
     local stock = PaperWork.createStockPaper()
     stock.activeCut = 2
+    stock.orientation = stock.cuts[2].orientation
     local sceneRect = {x=400,y=78,width=520,height=347}
     local function seated(gauge, loaded)
         return pixels(function()
@@ -258,7 +259,7 @@ function Test.run(context, check)
     preview:release()
     check("remote_cutter_rendering_never_advances_local_machine_or_paper",
         Machine.step == machineStep and Machine.progress == machineProgress
-        and Machine.paper == machinePaper and source.orientation == 0 and #source.history == 0)
+        and Machine.paper == machinePaper and source.orientation == 90 and #source.history == 0)
     canvas:release()
     Remote.clear()
     assets.activatePack(previousPack)

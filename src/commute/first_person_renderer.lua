@@ -72,6 +72,10 @@ function View.shouldDrawActor(entry,localActor)
     return entry.localPlayer~=true and entry.actor~=localActor
 end
 function View.shouldDrawLocalActor(camera,entry)
+    -- Keep the player's motorcycle visible after they park it and drive a
+    -- truck. The first-person truck view omits the driven truck itself, while
+    -- shoulder view includes it; both should still show the parked bike.
+    if camera.localVehicle=='truck' and entry.localPlayer and entry.bikeOnly then return true end
     if camera.localVehicle=='ped' and entry.localPlayer and entry.bikeOnly then return true end
     if camera.includeLocalRider~=true or entry.localPlayer~=true then return false end
     return (entry.truck==true)==(camera.localVehicle=='truck')
@@ -92,8 +96,8 @@ end
 function View.new(renderer)
     local g=love.graphics
     local width,height=renderer.viewportWidth or 1280,renderer.viewportHeight or 880
-    -- This view uses the game's fixed 1280x880 coordinate space. Android
-    -- enables DPI scaling even when the desktop high-DPI flag is false, so
+    -- Scene sizes are in logical pixels, including the cab's wider viewport.
+    -- Android enables DPI scaling even when the desktop high-DPI flag is false, so
     -- inheriting the window scale here makes the rendered scene occupy only
     -- part of the canvas before it is composited into the game viewport.
     local self=setmetatable({meshes={},viewportWidth=width,viewportHeight=height,
@@ -201,10 +205,16 @@ function View:draw(renderer,camera,actor,actors,highlightStyle)
                 or p.h or renderer.world:supportHeight(p.x,p.z)
             local surfaceTop
             if entry.truck then
-                local support,kind=renderer.world:supportHeight(p.x,p.z)
-                local paved=kind=='road' or kind=='trail'
-                height=math.max(height,support+(paved and .04 or 0))
-                surfaceTop=renderer.truckArt:firstPersonOcclusionTop(p,camera,height,renderer.world)
+                if p.grounded~=false then
+                    local support,kind=renderer.world:supportHeight(p.x,p.z)
+                    local paved=kind=='road' or kind=='trail'
+                    height=math.max(height,support+(paved and .04 or 0))
+                    surfaceTop=renderer.truckArt:firstPersonOcclusionTop(p,camera,height,renderer.world)
+                else
+                    -- Preserve the physics height in flight; wheel contact
+                    -- correction is only for a truck resting on a surface.
+                    surfaceTop=nil
+                end
             elseif camera.includeLocalRider and not entry.gear and not entry.bikeOnly then
                 -- Suspension can place the chassis below the collision
                 -- surface. Register the art to the drawn road or terrain.
@@ -215,12 +225,14 @@ function View:draw(renderer,camera,actor,actors,highlightStyle)
             end
             local function drawActor(scale,silhouette)
                 local lockLocalHeading=camera.includeLocalRider and entry.localPlayer==true
-                    and (not camera.shoulderPerspective or entry.truck==true)
+                    and not camera.shoulderPerspective and not entry.truck
                 local calibrateShoulder=camera.shoulderPerspective and entry.localPlayer==true
                     and not entry.truck
                 local proxy=View.actorCamera(camera,p,scale,lockLocalHeading,calibrateShoulder)
-                proxy.localTruckChase=entry.truck and entry.localPlayer and camera.includeLocalRider
-                if entry.dismounting then
+                if entry.npcCharacter then
+                    require('src.commute.npc_character_art').draw(renderer.characterAssets,p,
+                        entry.characterId,proxy,renderer.world,renderer.clock)
+                elseif entry.dismounting then
                     local presentation=require('src.commute.presentation')
                     renderer.bikeArt:draw(p,proxy,renderer.world,true,entry.presentation)
                     presentation.world(renderer.characterAssets,entry.actionActor or p,proxy,renderer.world,

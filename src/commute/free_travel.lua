@@ -3,6 +3,7 @@
 local Residents=require('src.home_residents')
 local Gear=require('src.commute.gear')
 local Rider=require('src.commute.rider')
+local TruckService=require('src.commute.truck_service')
 local Free={}
 
 function Free.enter(state,player,world,run,players)
@@ -40,6 +41,8 @@ function Free.enter(state,player,world,run,players)
         local keiTruck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state),'kei',truck)
         if not keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
         keiTruck.fuel=truck.fuel
+        TruckService.applyFleet(truck,state.home.truckFleet)
+        TruckService.applyFleet(keiTruck,state.home.truckFleet)
         t={version=Trip.VERSION,mapVersion=require('src.commute.roads').VERSION,mapId=world.townId,
             token=state.home.revision+1,independent=true,purpose='outing',origin='warehouse',
             destination=state.home.apartmentId,participants={},truck=truck,keiTruck=keiTruck}
@@ -80,6 +83,7 @@ function Free.leave(state,player,token,destination,world)
     resident.bikeParkedAtHome=destination==state.home.apartmentId and r.transport~='truck'
     resident.sceneId=destination=='warehouse' and 'warehouse' or 'home'
     resident.revision=resident.revision+1
+    TruckService.syncFleet(state.home,Trip.trucks(t))
     for _,truck in ipairs(Trip.trucks(t)) do
         if truck.owner==id then truck.owner=nil;truck.driver=nil end
     end

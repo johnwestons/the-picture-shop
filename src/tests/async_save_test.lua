@@ -62,6 +62,31 @@ function Test.run(context,check)
     assert(runtime.saveCurrent(true))
     check("async_runtime_lifecycle_flush_writes_latest_shop",not save.pending() and save.load(slot).state.money==6060)
     save.delete(slot)
+
+    local queuedRetries=0
+    local notices={}
+    local retrySave={
+        queue=function() queuedRetries=queuedRetries+1;return true end,
+        poll=function() local current=notices;notices={};return current end,
+        flush=function() return true end,
+    }
+    local retryRuntime={App={},state=context.State.new(),Save=retrySave,
+        multiplayer={isClient=function() return false end,isHost=function() return false end},
+        World={snapshot=function() return {x=100,y=250,sceneId="commute"} end}}
+    retryRuntime.state.activeSlot=slot
+    require("src.runtime.game_state").install(retryRuntime)
+    notices={{directory=love.filesystem.getSaveDirectory(),slot=slot,okay=false,
+        reason="temporary_write_failed: disk full"}}
+    retryRuntime.pollSaves()
+    check("async_runtime_reports_save_failure_reason",
+        retryRuntime.state.message and retryRuntime.state.message:find("disk full",1,true)~=nil)
+    retryRuntime.updateCheckpoint(4.9,false)
+    check("async_runtime_waits_for_checkpoint_before_retry",queuedRetries==0)
+    retryRuntime.updateCheckpoint(.1,false)
+    check("async_runtime_retries_failed_checkpoint_after_five_seconds",queuedRetries==1)
+    notices={{directory=love.filesystem.getSaveDirectory(),slot=slot,okay=true}}
+    retryRuntime.pollSaves()
+    check("async_runtime_clears_warning_after_successful_retry",retryRuntime.state.message==nil)
     assert(save.shutdown())
 end
 return Test

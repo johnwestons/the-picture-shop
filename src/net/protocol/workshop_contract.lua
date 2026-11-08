@@ -36,6 +36,9 @@ function Component.install(Runtime)
         },
         office_computer = {
             request_pickup = "jobId",
+            request_player_delivery = "jobId",
+            set_employee_delivery = "jobId",
+            set_player_delivery = "jobId",
             office_action = "officeIntent",
         },
         work_phone = {

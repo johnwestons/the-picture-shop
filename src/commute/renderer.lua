@@ -255,6 +255,13 @@ function Renderer:buildRoadMeshes()
                 local separator=anchor.z+3.1
                 siteLine(site,{10.3,separator},{13.9,separator},.085,.07,layers.approach,mark)
             end
+            for _,stall in pairs(site.localTruckHomeStalls or {}) do
+                local x0,x1,z0,z1=stall.minX,stall.maxX,stall.minZ,stall.maxZ
+                siteLine(site,{x0,z0},{x1,z0},.10,.075,layers.approach,mark)
+                siteLine(site,{x1,z0},{x1,z1},.10,.075,layers.approach,mark)
+                siteLine(site,{x1,z1},{x0,z1},.10,.075,layers.approach,mark)
+                siteLine(site,{x0,z1},{x0,z0},.10,.075,layers.approach,mark)
+            end
         end
         if self.world.roads.destinations[id] then
             local a,b=site.threshold,site.parking
@@ -287,13 +294,14 @@ end
 function Renderer:depthSpan()
     return math.max(1,(self.world.size or 512)*100+(self.world.maxHeight or 84)*100)
 end
-function Renderer:updateTireTracks(id,bike,world,dt,visual)
-    return self.tireTracks:update(id,bike,world or self.world,dt,visual)
+function Renderer:updateTireTracks(id,vehicle,world,dt,visual,vehicleKind)
+    return self.tireTracks:update(id,vehicle,world or self.world,dt,visual,vehicleKind)
 end
 function Renderer:updateBikeParticles(entries,dt)
     self.bikeParticles:advance(dt)
     for _,entry in ipairs(entries) do
-        self.bikeParticles:emit(entry.id,entry.bike,self.world,dt,entry.visual,entry.engine,entry.mounted)
+        self.bikeParticles:emit(entry.id,entry.vehicle or entry.bike,self.world,dt,
+            entry.visual,entry.engine,entry.mounted,entry.vehicleKind)
     end
 end
 function Renderer:resizeViewport(width,height)
@@ -626,7 +634,13 @@ function Renderer:drawOutsideActor(entry,camera,highlightStyle)
         setSilhouetteMode(self.outsideSpriteShader,silhouette,highlightStyle)
         setSilhouetteMode(self.outsideColorwaysShader,silhouette,highlightStyle)
         setSilhouetteMode(self.outsideBikePaintShader,silhouette,highlightStyle)
-        if entry.truck then
+        if entry.npcCharacter then
+            local characterArt=require('src.commute.npc_character_art')
+            local shader=entry.characterId=='mechanic-raccoon'
+                and self.outsideSpriteShader or self.outsideColorwaysShader
+            shader:send('spriteDepth',spriteDepth);g.setShader(shader)
+            characterArt.draw(self.characterAssets,p,entry.characterId,camera,self.world,self.clock)
+        elseif entry.truck then
             self.outsideSpriteShader:send('spriteDepth',spriteDepth);g.setShader(self.outsideSpriteShader)
             self.truckArt:draw(p,camera,self.world,silhouette)
             if not silhouette then self.truckArt:drawSignals(p,camera,self.world,self.clock) end

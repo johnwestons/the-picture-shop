@@ -36,7 +36,7 @@ function Paint.build(world)
     -- Only shared coordinates create a junction. Decorative paint must not
     -- imply a connection between roads that merely cross at different heights.
     if modern then for _,path in ipairs(roads.paths)do
-        if path.role~='trail' then for _,p in ipairs(path.points)do
+        if path.role~='trail' and not path.truckOnly then for _,p in ipairs(path.points)do
             local key=('%.3f:%.3f:%.3f'):format(p.x,p.z,p.h)
             local previous=seen[key]
             if previous and previous~=path.id then junctions[key]=p else seen[key]=path.id end
@@ -48,7 +48,7 @@ function Paint.build(world)
     end
     local lastArrow={}
     for _,s in ipairs(roads.segments)do
-        if s.surface~='dirt' and not s.bridge then
+        if s.surface~='dirt' and not s.bridge and not s.truckOnly then
             local x,z=(s.a.x+s.b.x)/2,(s.a.z+s.b.z)/2
             if not throat(x,z)then
                 stats.segments=stats.segments+1

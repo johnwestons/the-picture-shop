@@ -4,11 +4,16 @@ local Component = {}
 
 function Component.install(Runtime)
     local checkpoint = require("src.save_checkpoint").new(5)
+    local saveFailureMessage
     function Runtime.saveCurrent(immediate)
         if Runtime.multiplayer:isClient() then return false,"multiplayer_client" end
         if not Runtime.state.activeSlot then return false,"no_active_slot" end
         local saved,reason = Runtime.Save.queue(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
         if saved and immediate then saved,reason=Runtime.Save.flush() end
+        if saved and immediate and saveFailureMessage then
+            if Runtime.state.message==saveFailureMessage then Runtime.state.message=nil end
+            saveFailureMessage=nil
+        end
         if saved then checkpoint:reset() end
         if saved and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty(true) end
         return saved,reason
@@ -16,10 +21,20 @@ function Component.install(Runtime)
 
     function Runtime.pollSaves()
         for _,result in ipairs(Runtime.Save.poll()) do
-            if not result.okay and result.slot==Runtime.state.activeSlot
+            if result.slot==Runtime.state.activeSlot
                 and result.directory==love.filesystem.getSaveDirectory() then
-                checkpoint.pending=true
-                Runtime.state.message="The shop could not be saved. Retrying shortly."
+                if not result.okay then
+                    checkpoint.pending=true
+                    local detail=result.reason and tostring(result.reason):gsub("[%c]+"," "):sub(1,120)
+                    saveFailureMessage="The shop could not be saved. Retrying shortly."
+                        ..(detail and detail~="" and (" ("..detail..")") or "")
+                    Runtime.state.message=saveFailureMessage
+                else
+                    if saveFailureMessage and Runtime.state.message==saveFailureMessage then
+                        Runtime.state.message=nil
+                    end
+                    saveFailureMessage=nil
+                end
             end
         end
     end
@@ -40,6 +55,7 @@ function Component.install(Runtime)
         end
         local applied, windmillSanitized = Runtime.State.applyLocalSave(Runtime.state, payload)
         if not applied then return false, "That shop save could not be opened safely." end
+        require('src.ai_watchdog').reset(Runtime.state)
         checkpoint:reset()
         Runtime.App.gameClockSpeed = 1
         Runtime.App.gameClockSyncClock = 0

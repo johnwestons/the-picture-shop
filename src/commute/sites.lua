@@ -33,24 +33,36 @@ Sites.designs={
 -- seeded towns retain their original fingerprints and road layouts.
 Sites.warehouseTruckLayout={
     truckParking={x=9.3,z=0},
+    -- Company trucks return to two marked stalls west of the delivery queue;
+    -- the dock anchor remains reserved for loading and unloading.
+    truckHomeParking={box={x=8.15,z=7.1},kei={x=8.15,z=14.9}},
+    truckHomeStalls={box=rect(6.3,10.0,3.5,10.7),kei=rect(6.5,9.8,11.8,18.0)},
     truckWaiting={x=12.1,z=6.2},
     truckQueueAnchors={{x=12.1,z=6.2},{x=12.1,z=12.4},{x=12.1,z=18.6}},
-    truckParkingArea=rect(6.2,15.4,-5.4,22),
-    truckApproach=rect(15.5,23.5,20,31),
-    truckAprons={rect(11.5,30,-10,-3),rect(23.5,30,-3,15),rect(18,29,13,21)},
-    -- Private circulation centre-lines. The public-road gates are placed from
-    -- each generated warehouse's frontage so every town gets its own loop.
-    truckEntryWaypoints={{x=0,z=25},{x=3,z=28},{x=9,z=29},{x=14,z=28},
-        {x=18,z=25},{x=20,z=21},{x=17,z=18.6},{x=12.1,z=18.6},
-        {x=12.1,z=12.4},{x=12.1,z=6.2},{x=12.1,z=3.4},{x=11.1,z=1.2},{x=9.3,z=0}},
-    truckExitWaypoints={{x=9.3,z=0},{x=11.1,z=-1.2},{x=12.1,z=-4},
-        {x=16,z=-6.2},{x=22,z=-6.2},{x=26,z=-3.5},{x=28,z=2},
-        {x=28,z=10},{x=26,z=15},{x=22,z=18},{x=18,z=20}},
+    truckParkingArea=rect(6.2,15.4,-5.4,18.6),
+    -- A broad private lot apron keeps the U-shaped truck circulation inside
+    -- the property, clear of the frontage street and the loading door.
+    truckApproach=rect(-13,6.2,15.4,18.6),
+    truckAprons={rect(-13,-7.2,-5.4,18.6),rect(-13,17.8,-11.5,-5.4),
+        rect(15.4,21.2,-5.4,18.6)},
+    -- The entry lane goes around the back and east side of the building, then
+    -- returns along the marked queue aisle to the dock. The exit lane follows
+    -- the east apron back to the second frontage gate.
+    truckEntryWaypoints={{x=-10.1,z=18.6},{x=-10.1,z=-5.4},{x=-7,z=-8.4},
+        {x=8,z=-8.4},{x=17.8,z=-5.4},{x=18.3,z=0},{x=18.3,z=14.5},
+        {x=15.5,z=18.6},{x=12.1,z=18.6},{x=12.1,z=12.4},
+        {x=12.1,z=6.2},{x=12.1,z=3.4},{x=11.1,z=1.2},{x=9.3,z=0}},
+    truckExitWaypoints={{x=9.3,z=0},{x=11.1,z=-1.2},{x=14.5,z=-4},
+        {x=18.3,z=-5.4},{x=18.3,z=14.5},{x=15.5,z=18.6}},
 }
 -- Eight motorcycle spaces share the front entrance apron. This runtime
 -- metadata stays outside saved building designs and town fingerprints.
-Sites.warehouseEmployeeParking={count=8,columns=4,rows=2,width=1.75,halfWidth=3.5,
-    center={x=.7,z=6.6},rowOffsets={-1.25,1.25},rowRear=-1.2,rowOpen=1.2}
+Sites.warehouseEmployeeParking={count=8,columns=8,rows=1,width=1.75,halfWidth=7,
+    center={x=.7,z=6.6},rowOffsets={0},rowRear=-1.2,rowOpen=1.2}
+-- Two small employee motorcycle stalls sit beside the gas station, away from
+-- the pump islands and the marked customer fueling bays.
+Sites.gasStationEmployeeParking={count=2,columns=2,rows=1,width=1.75,halfWidth=1.75,
+    center={x=6.65,z=2.5},rowOffsets={0},rowRear=-1.25,rowOpen=1.25,walkSide=1}
 local function service(id,label,width,depth,height,floors,entryX)
     entryX=entryX or 0
     Sites.designs[id]={style=id,label=label,width=width,depth=depth,height=height,floors=floors or 1,
@@ -272,7 +284,8 @@ local function placement(designs,p)
     self.localFootprints=design.footprints or {self.localFoundation}
     self.localObstacles=design.obstacles or {}
     local parking=design.parking
-    local employeeParking=self.style=='warehouse' and Sites.warehouseEmployeeParking or nil
+    local employeeParking=self.style=='warehouse' and Sites.warehouseEmployeeParking
+        or self.style=='gas-station' and Sites.gasStationEmployeeParking or nil
     local parkingCenter=employeeParking and employeeParking.center or parking
     local parkingHalfWidth=employeeParking and employeeParking.halfWidth or 4
     local parkingRear=employeeParking and math.abs(employeeParking.rowOffsets[1])+math.abs(employeeParking.rowRear)
@@ -285,6 +298,14 @@ local function placement(designs,p)
     self.localTruckParkingArea=design.truckParkingArea
     self.localTruckApproach=design.truckApproach
     self.localTruckWaiting=design.truckWaiting
+    self.localTruckHomeStalls=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckHomeStalls) or nil
+    self.truckHomeParking={}
+    if self.style=='warehouse' then
+        for model,anchor in pairs(Sites.warehouseTruckLayout.truckHomeParking) do
+            local x,z,h=self:toWorld(anchor.x,anchor.z,anchor.h or 0)
+            self.truckHomeParking[model]={x=x,z=z,h=h}
+        end
+    end
     self.localTruckAprons=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckAprons) or {}
     self.truckQueueAnchors=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckQueueAnchors) or {}
     self.localApproach=rect(math.min(design.threshold.x,parkingCenter.x-parkingHalfWidth)-1,

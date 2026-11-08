@@ -27,7 +27,23 @@ function Bays.point(site,side,forward,row)
         z+site.sin*side+site.front.z*forward
 end
 
+function Bays.heading(site)
+    local front=site and site.front
+    -- Parking stalls run along the local front axis; vehicles nose toward the
+    -- building, opposite the direction the driveway approaches from.
+    if front then return math.atan2(-front.z,-front.x) end
+    return site and site.yaw or 0
+end
+
+function Bays.slot(site,slot)
+    local layout=site and site.employeeParking
+    if not layout or not layout.count or layout.count<1 then return slot or 1 end
+    slot=math.floor(tonumber(slot) or 1)
+    return (slot-1)%layout.count+1
+end
+
 function Bays.side(slot,site)
+    slot=Bays.slot(site,slot)
     local layout=site and site.employeeParking
     local columns=layout and layout.columns or Bays.COUNT
     local column=layout and (slot-1)%columns+1 or slot
@@ -35,6 +51,7 @@ function Bays.side(slot,site)
 end
 
 function Bays.center(site,slot,forward)
+    slot=Bays.slot(site,slot)
     local layout=site and site.employeeParking
     if layout then
         local row=math.floor((slot-1)/layout.columns)+1

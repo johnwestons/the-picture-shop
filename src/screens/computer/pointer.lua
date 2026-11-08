@@ -446,6 +446,36 @@ function Component.install(Runtime)
             end
         end
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
+        if Runtime.ComputerScreen.tab == "active" and selected
+            and Runtime.contains(Runtime.PICKUP_EMPLOYEE,x,y)
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status == "passed" then
+            if selected.status == "ready_for_pickup" then
+                local okay, result = Runtime.JobService.setPickupDriverMode(state,selected.id,"employee")
+                if not okay then state.message=tostring(result);return {action="blocked"} end
+                state.message=selected.id.." is queued for an employee delivery. You can change the choice before loading."
+                return {action="pickup_mode_changed",job=selected,driverMode="employee"}
+            end
+            return {action="pickup_ready",job=selected,driverMode="employee"}
+        end
+        if Runtime.ComputerScreen.tab == "active" and selected
+            and Runtime.contains(Runtime.PICKUP_PLAYER,x,y)
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status == "passed" then
+            if selected.status == "ready_for_pickup" then
+                local okay, result = Runtime.JobService.setPickupDriverMode(state,selected.id,"player")
+                if not okay then state.message=tostring(result);return {action="blocked"} end
+                state.message=selected.id.." is reserved for your delivery. Use Plan Paper Deliveries at the warehouse entrance when ready."
+                return {action="pickup_mode_changed",job=selected,driverMode="player"}
+            end
+            return {action="pickup_ready",job=selected,driverMode="player"}
+        end
+        if Runtime.ComputerScreen.tab=="active" and selected
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status=="passed"
+            and (Runtime.contains(Runtime.COMPLETE,x,y)) then
+            return nil
+        end
         if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.COMPLETE, x, y) then
             if not Runtime.completionReady(selected) then
                 return { action = "completion_blocked", job = selected }

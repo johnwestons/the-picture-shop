@@ -10,6 +10,7 @@ local TownCharacters=require('src.commute.town_characters')
 local EmployeeCommuters=require('src.commute.employee_commute')
 local DrivingPath=require('src.commute.driving_path')
 local TrafficActorIndex=require('src.commute.traffic_actor_index')
+local AIWatchdog=require('src.ai_watchdog')
 local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_INBOUND_TRUCKS=3,TRUCK_CAPACITY=10}
 local stuckWatch=setmetatable({}, {__mode='k'})
 local ruleWatch=setmetatable({}, {__mode='k'})
@@ -257,7 +258,7 @@ local function laneTarget(points,index,vehicle,target,targetHeading,world,ruleSt
     local _,segment=roads:nearest(target.x,target.z,true)
     local side=TrafficRules.drivingSide(world.town)
     local leftBlend=leftTurnLaneBlend(points,index,vehicle,world)
-    local offset=TrafficRules.laneOffset(segment,side,false)
+    local offset=TrafficRules.laneOffset(segment,side,false,vehicle)
     if segment and segment.turnLane then offset=offset*leftBlend end
     local blend=junctionLaneBlend(world,target.x,target.z)
     ruleState.laneOffset=ruleState.laneOffset or 0
@@ -665,13 +666,19 @@ local function gatherDynamicActors(state,town,activeWorld)
         scheduled[#scheduled+1]=entry
     end
     for _,entry in ipairs(scheduled) do
-        local bike=entry.actor
-        bike.aiKind='motorcycle';bike.trafficKind='motorcycle';bike.trafficId=entry.id
-        pedestrians[#pedestrians+1]={actor=bike,radius=.50}
-        motorcycles[#motorcycles+1]=bike
-        trafficActors[#trafficActors+1]={actor=bike,id=entry.id,isPlayer=false,kind='bike',
-            radius=.50,halfLength=AIMotorcycleTraffic.HALF_LENGTH,
-            halfWidth=AIMotorcycleTraffic.HALF_WIDTH}
+        local actor=entry.actor
+        if entry.npcCharacter then
+            pedestrians[#pedestrians+1]={x=actor.x,z=actor.z,radius=.34}
+            trafficActors[#trafficActors+1]={actor=actor,id=entry.id,isPlayer=false,kind='pedestrian',
+                radius=.34,height=1.7}
+        else
+            actor.aiKind='motorcycle';actor.trafficKind='motorcycle';actor.trafficId=entry.id
+            pedestrians[#pedestrians+1]={actor=actor,radius=.50}
+            motorcycles[#motorcycles+1]=actor
+            trafficActors[#trafficActors+1]={actor=actor,id=entry.id,isPlayer=false,kind='bike',
+                radius=.50,halfLength=AIMotorcycleTraffic.HALF_LENGTH,
+                halfWidth=AIMotorcycleTraffic.HALF_WIDTH}
+        end
     end
     local entries=deliveryEntries(state)
     local _,groups=transportGroups(entries)
@@ -968,7 +975,7 @@ local function routeSpeedLimit(vehicle,points,index,waypointDistance,remaining,h
         2*TrafficRules.brakeDeceleration(vehicle)*remaining)))
 end
 
-local function driveVehicle(vehicle,points,dt,world,targetName)
+local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
     if not points or #points<2 then return false end
     if vehicle.pathTarget~=targetName then
         local startIndex=vehicle.pathTarget==nil and vehicle.pathIndex or nil
@@ -1072,7 +1079,10 @@ local function driveVehicle(vehicle,points,dt,world,targetName)
     local watch=stuckWatch[vehicle]
     local routeKey=targetName..':'..index
     if not watch or watch.routeKey~=routeKey then
-        watch={routeKey=routeKey,windowTime=0,windowMoved=0,stalled=0,cooldown=0,reverseTime=0}
+        if watch then AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Route stage advanced'}) end
+        watch={routeKey=routeKey,windowTime=0,windowMoved=0,stalled=0,cooldown=0,
+            reverseTime=0,recoveryAttempts=0,
+            issueId='road-driver:'..tostring(vehicle.trafficId or vehicle.pathTarget or targetName)}
         stuckWatch[vehicle]=watch
     end
     if watch.reverseTime>0 then
@@ -1096,11 +1106,46 @@ local function driveVehicle(vehicle,points,dt,world,targetName)
         recoverMotorcycle(vehicle,watch,steer,dt,world)
         return false
     end
-    local moved=updateTrafficVehicle(vehicle,steer,desired,hold,dt,world)
+    local operationIssueId=watch.issueId..':controller'
+    local operationOkay,moved=AIWatchdog.protect(watchdogState,operationIssueId,{
+        system='Road traffic',subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
+        scope='world-simulation',x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false},
+        function()
+            return updateTrafficVehicle(vehicle,steer,desired,hold,dt,world)
+        end,
+        function(operationError)
+            world.activeTruck=nil;world.activeTrafficBike=nil
+            local kind=(vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle'
+            local rescueOkay,rescued,rescueReason=pcall(function()
+                if kind=='bike' then return Bike.rescue(vehicle,world) end
+                return Truck.command(vehicle,'rescue',world)
+            end)
+            if not rescueOkay then rescueReason=tostring(rescued);rescued=false end
+            if rescued then
+                vehicle.pathTarget=nil
+                updateTrafficActorIndex(world,vehicle,kind)
+                return {ok=true,action='Moved to a collision-checked clear road position and replanned',
+                    detail='Controller error: '..operationError}
+            end
+            -- Keep the rest of the simulation running while the route-level
+            -- watchdog retries. Do not leave a partially updated controller
+            -- marked as the active vehicle or holding a junction reservation.
+            vehicle.speed=0;vehicle.throttle=0;vehicle.brake=1;vehicle.steering=0
+            pcall(releaseJunctionClaim,vehicle,ruleState,world)
+            pcall(updateTrafficActorIndex,world,vehicle,kind)
+            return {ok=false,action='Stopped the faulty vehicle controller; route recovery will retry',
+                detail=tostring(rescueReason or 'Safe road recovery was unavailable')}
+        end)
+    if not operationOkay then
+        pcall(releaseJunctionClaim,vehicle,ruleState,world)
+        return false
+    end
     releaseJunctionClaim(vehicle,ruleState,world)
     watch.cooldown=math.max(0,watch.cooldown-dt)
     if final or desired<1.2 or stopHold or localYield then
         watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
+        if final then AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Route waypoint reached',
+            x=vehicle.x,z=vehicle.z}) end
     else
         if watch.windowTime==0 then watch.windowStartDistance=remaining end
         watch.windowTime=watch.windowTime+dt
@@ -1108,14 +1153,45 @@ local function driveVehicle(vehicle,points,dt,world,targetName)
         if watch.windowTime>=1 then
             local madeProgress=watch.windowStartDistance-remaining>=.25
             if watch.windowMoved<.75 or not madeProgress then watch.stalled=watch.stalled+watch.windowTime
-            else watch.stalled=0 end
+            else
+                watch.stalled=0;watch.recoveryAttempts=0
+                AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Vehicle resumed route progress',
+                    x=vehicle.x,z=vehicle.z})
+            end
             watch.windowTime,watch.windowMoved=0,0
         end
         if watch.stalled>=4.5 and watch.cooldown<=0 then
-            -- Back away from the obstruction with a small counter-steer, then
-            -- rejoin the same route cursor. The truck controller still owns
-            -- acceleration, steering and every collision check.
-            watch.reverseTime=1.6;watch.stalled=0
+            watch.recoveryAttempts=watch.recoveryAttempts+1
+            local action='Backed away from the obstruction and retried the same route'
+            local rescued,rescueReason=false,nil
+            if watch.recoveryAttempts>=3 then
+                if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
+                    rescued,rescueReason=Bike.rescue(vehicle,world)
+                else
+                    rescued,rescueReason=Truck.command(vehicle,'rescue',world)
+                end
+                if rescued then
+                    action='Moved to a collision-checked clear road position and replanned'
+                    watch.reverseTime=0;watch.reverseFinishing=false;watch.cooldown=2
+                    watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
+                    vehicle.pathTarget=nil
+                    local kind=(vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle'
+                    updateTrafficActorIndex(world,vehicle,kind)
+                else
+                    action='Safe road recovery was blocked; backing away and retrying'
+                    watch.reverseTime=1.6;watch.stalled=0
+                end
+            else
+                -- The vehicle controller still owns acceleration, steering,
+                -- and every collision check during the reverse maneuver.
+                watch.reverseTime=1.6;watch.stalled=0
+            end
+            AIWatchdog.note(watchdogState,watch.issueId,{status=rescued and 'RECOVERING' or 'STALLED',
+                system='Road traffic',subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
+                reason='No safe route progress for 4.5 seconds',action=action,
+                detail=rescueReason,x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,
+                scope='world-simulation'})
+            if rescued then return false end
         end
     end
     if final and vehicle.speed<.3 then return true end
@@ -1125,9 +1201,9 @@ end
 -- Shared route follower for autonomous delivery traffic. Keeping this entry
 -- point public lets terrain smoke tests exercise the exact production driver
 -- against every generated town address instead of a test-only steering copy.
-Network.driveRoute=function(vehicle,points,dt,world,targetName)
+Network.driveRoute=function(vehicle,points,dt,world,targetName,watchdogState)
     trafficClock=trafficClock+math.max(0,finite(dt) and dt or 0)
-    return driveVehicle(vehicle,points,dt,world,targetName)
+    return driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
 end
 
 local function firstOrder(state,shipment)
@@ -1288,18 +1364,26 @@ end
 
 function Network.update(state,town,now,epoch,activeWorld)
     if type(state)~='table' then return false end
+    local companyTruck=require('src.company_delivery_driver')
+    local companyState=state.employment and state.employment.companyTruck
+    local companyActive=companyState and (companyState.deliveryRun~=nil
+        or companyState.status=='refueling' or companyState.departureStage~=nil)
     local shipments=state.procurement and state.procurement.shipments or {}
     local jobs=state.jobs
     local activeJobs=jobs and jobs.active or {}
     local completedJobs=jobs and jobs.completed or {}
-    if #shipments==0 and #activeJobs==0 and #completedJobs==0 then return false end
+    if #shipments==0 and #activeJobs==0 and #completedJobs==0 and not companyActive then return false end
     local route=townWorld(town,activeWorld)
     if not route then return false end
     now=finite(now) and now or Calendar.absoluteHours(state)
     epoch=finite(epoch) and epoch or os.time()
     local durationHours=route.length/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
     local outboundDurationHours=route.outboundLength/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
-    local changed=false
+    local changed=companyTruck.updateExterior(state,route.world,epoch,now)
+    if companyActive then
+        changed=companyTruck.update(state,now,true) or changed
+        companyTruck.syncTripVehicle(state)
+    end
     for _,shipment in ipairs(shipments) do
         local delivery=shipment.delivery
         local expected=delivery and tonumber(delivery.expectedAtHours)
@@ -1389,7 +1473,7 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
             end
             for _,p in ipairs(route.outward) do appendPoint(points,p.x,p.z,p.h,p) end
         end
-        if driveVehicle(vehicle,points,step,world,'outbound') then
+        if driveVehicle(vehicle,points,step,world,'outbound',state) then
             vehicle.phase='offmap';vehicle.speed=0;outbound.arrivedAtEpoch=epoch;changed=true
         elseif vehicle.speed>.02 then vehicle.phase='departing' end
     else
@@ -1454,8 +1538,37 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
         end
         local base=vehicle.localManeuver and {{x=vehicle.x,z=vehicle.z,h=vehicle.h}} or route.inward
         points=deliveryPath(route,vehicle,target,base,anchor)
+        if not points then
+            AIWatchdog.observe(state,vehicle,{issueId='delivery-route-plan:'..tostring(vehicle.trafficId),
+                system='Road traffic',subject=vehicle.trafficId or 'Delivery truck',
+                stage='route_to_'..tostring(target),dt=step,timeout=3,retryDelay=3,
+                reason='The route planner could not connect the vehicle to its next delivery waypoint',
+                x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,scope='world-simulation',
+                recover=function(attempt)
+                    maneuverPaths[vehicle]=nil;yardPaths[vehicle]=nil
+                    vehicle.pathTarget=nil;vehicle.pathIndex=2
+                    if attempt>=3 then
+                        local rescued,rescueReason
+                        if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
+                            rescued,rescueReason=Bike.rescue(vehicle,world)
+                        else
+                            rescued,rescueReason=Truck.command(vehicle,'rescue',world)
+                        end
+                        if not rescued then
+                            return {ok=false,action='Could not find a clear road recovery point',
+                                detail=tostring(rescueReason or 'Route will be retried')}
+                        end
+                        local kind=(vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle'
+                        updateTrafficActorIndex(world,vehicle,kind)
+                        return {ok=true,action='Moved to a collision-checked road point and rebuilt the route'}
+                    end
+                    return {ok=true,action='Cleared cached route data and retried route planning'}
+                end})
+        else
+            AIWatchdog.clear(state,vehicle,'Next delivery route became available')
+        end
         if vehicle.phase~='at_bay' and vehicle.phase~='waiting_bay' then
-            local parked=points and driveVehicle(vehicle,points,step,world,target) or false
+            local parked=points and driveVehicle(vehicle,points,step,world,target,state) or false
             if parked then
                 vehicle.speed=0;vehicle.phase=blocked and 'waiting_bay' or 'at_bay'
                 vehicle.heading=blocked and (site.yaw-math.pi*.5) or site.yaw
@@ -1510,7 +1623,10 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
         world.trafficActorIndex=TrafficActorIndex.shouldUse(#trafficActors)
             and TrafficActorIndex.new(trafficActors) or nil
         installVehicleCollision(world,trafficActors,world.trafficActorIndex)
-        local bikeChanged,bikeMoving=AIMotorcycleTraffic.update(commute,world,step,driveVehicle)
+        local function driveRoute(vehicle,points,driveDt,driveWorld,targetName)
+            return driveVehicle(vehicle,points,driveDt,driveWorld,targetName,state)
+        end
+        local bikeChanged,bikeMoving=AIMotorcycleTraffic.update(commute,world,step,driveRoute,state)
         changed=bikeChanged or changed
         moving=bikeMoving
         eachDelivery(state,function(id,delivery)
@@ -1655,6 +1771,9 @@ function Network.actors(state,town,now,epoch,activeWorld)
         result[#result+1]=entry
     end
     for _,entry in ipairs(EmployeeCommuters.actors(state,town,now,activeWorld)) do
+        result[#result+1]=entry
+    end
+    for _,entry in ipairs(require('src.company_delivery_driver').actors(state,route.world,epoch)) do
         result[#result+1]=entry
     end
     return result

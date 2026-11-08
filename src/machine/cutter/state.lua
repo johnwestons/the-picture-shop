@@ -194,6 +194,7 @@ function Component.run(Context)
                 if not transitioned then Context.message(state, transitionError); return false end
             end
             Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = selected.paper, selected.pallet, selected.job
+            Context.PaperWork.prepareFirstCut(Context.Machine.paper)
             Context.Machine.legacyPaper = false
             Context.ensureLiftProgress(selected.pallet)
             if wasWarehouse and state and state.inventory then

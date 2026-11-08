@@ -78,9 +78,21 @@ function Test.run(check)
     check('shoulder_local_rider_heading_stays_rear_facing_when_eye_is_offset',
         truckCamera.shoulderView and localView.viewHeading==truck.heading
         and math.abs(localView.viewHeading-offsetView.viewHeading)>.01)
-    check('truck_shoulder_view_includes_only_the_driven_truck_from_local_vehicles',
-        View.shouldDrawLocalActor(truckCamera.shoulderView,{localPlayer=true,truck=true})
-        and not View.shouldDrawLocalActor(truckCamera.shoulderView,{localPlayer=true,bikeOnly=true}))
+    local parkedBike={localPlayer=true,bikeOnly=true}
+    local drivenTruck={localPlayer=true,truck=true}
+    check('truck_shoulder_view_shows_parked_motorcycle_and_driven_truck',
+        View.shouldDrawLocalActor(truckCamera.shoulderView,drivenTruck)
+        and View.shouldDrawLocalActor(truckCamera.shoulderView,parkedBike))
+    local truckEye={firstPerson=true,localVehicle='truck',includeLocalRider=false}
+    check('truck_first_person_shows_parked_motorcycle_without_drawing_cab_sprite',
+        View.shouldDrawLocalActor(truckEye,parkedBike)
+        and not View.shouldDrawLocalActor(truckEye,drivenTruck))
+    local bothTruckModels=true
+    for _,model in ipairs({'kei','box'}) do
+        bothTruckModels=bothTruckModels and View.shouldDrawLocalActor(truckEye,
+            {localPlayer=true,bikeOnly=true,model=model})
+    end
+    check('parked_motorcycle_stays_visible_for_both_truck_models',bothTruckModels)
     local touchButtons=require('src.commute.touch_controls').actionButtons(1280,880,Bindings.defaults(),
         {mounted=true,vehicle='truck',engine=true,headlight=false,headlightHighBeam=false,
             gearTransition=false,cameraMenu=false},

@@ -12,6 +12,8 @@ Catalog.profiles={
         cutterSkill=65,pressSkill=0,wrappingSkill=25,drivingSkill=38,attention=75,reliability=90,requestedWage=2200,minimumWage=2000,shiftPreference="day"},
     {id="tinker-fox",name="Tinker Fox",character="tinker-fox-worker",residenceKind="city",residenceId="Millhaven",paintId="red",
         cutterSkill=76,pressSkill=45,wrappingSkill=65,drivingSkill=68,attention=80,reliability=86,requestedWage=2300,minimumWage=2100,shiftPreference="flexible"},
+    {id="medic-fox",name="Medic Fox",character="medic-fox-worker",residenceKind="town",residenceId="corner",paintId="purple",
+        cutterSkill=82,pressSkill=72,wrappingSkill=68,drivingSkill=62,attention=88,reliability=92,requestedWage=2350,minimumWage=2150,shiftPreference="flexible"},
 }
 -- Retained only so older employment records can still load. New applicants
 -- come from the unique, named roster above.

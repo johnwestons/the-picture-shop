@@ -107,6 +107,10 @@ function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
         Preload.wait();love.graphics.pop();return
     end
     openingFrame=false
+    if state.screen=="home_activity" then
+        local FoodArt=require("src.home_food_art")
+        Preload.want("food",FoodArt.prewarm)
+    end
     shaders()
     local entry=Layout.get(state)
     meshes(state.home.apartmentId,entry,art.floor)

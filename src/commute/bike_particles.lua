@@ -2,6 +2,8 @@
 -- No saved state, shared RNG, generated textures, or emission while paused.
 local M=require('src.commute.vendor.mathx')
 local Bike=require('src.commute.motorcycle')
+local Truck=require('src.commute.delivery_truck')
+local Footprint=require('src.commute.truck_footprint')
 local FP=require('src.commute.first_person_camera')
 local Particles={MAX_PARTICLES=192,MAX_EMITTERS=8}
 Particles.__index=Particles
@@ -75,7 +77,7 @@ local function surface(world,x,z)
     end
     return 'dirt'
 end
-function Particles:emit(id,bike,world,dt,visual,engine,mounted)
+function Particles:emit(id,bike,world,dt,visual,engine,mounted,vehicleKind)
     dt=math.min(.1,math.max(0,dt or 0))
     if not bike or not M.finite(bike.x) or not M.finite(bike.z) or dt==0 then return end
     local e=self.emitters[id]
@@ -92,32 +94,50 @@ function Particles:emit(id,bike,world,dt,visual,engine,mounted)
     local h=value(bike,visual,'h',support)
     local contact=value(bike,visual,'grounded',true) and math.abs(h-support)<.4
     local continuous=moved<=math.max(1.8,speed*dt*3+.5)
-    local slip=math.max(value(bike,visual,'slip',0),value(bike,visual,'tireSlip',0))
+    local slip=math.max(value(bike,visual,'slip',0),value(bike,visual,'tireSlip',0),
+        vehicleKind=='truck' and math.abs(value(bike,visual,'slipAngle',0)) or 0)
     local loose=surface(world,bike.x,bike.z)=='dirt'
     local active=mounted~=false and contact and speed>.7 and moved>.0001 and continuous
     if active then
-        local step=loose and .32 or (slip>.18 and .85 or 2.6)
-        local strength=loose and .62 or (slip>.18 and .25 or .12)
+        local braking=value(bike,visual,'brake',0)>=.7 and speed>=2.2
+        local isTruck=vehicleKind=='truck'
+        local truckPaved=isTruck and not loose and (slip>.18 or braking)
+        local emitting=loose or truckPaved or vehicleKind~='truck'
+        local aggressive=isTruck and (slip>.18 or braking) or slip>.18
+        local step=loose and .32 or (aggressive and .85 or 2.6)
+        local strength=loose and .62 or (aggressive and .25 or .12)
         if e.dustStep~=step then e.dustDistance=0;e.dustStep=step end
-        local old=e.dustDistance;local total=old+moved
-        local count=math.min(8,math.floor(total/step))
-        for n=1,count do
-            local along=M.clamp((n*step-old)/moved,0,1)
-            local x,z=e.x+dx*along-c*Bike.WHEELBASE*.5,e.z+dz*along-s*Bike.WHEELBASE*.5
-            local ground=world:supportHeight(x,z)
-            self:add('dust',x,z,ground+.055,dx/dt*.10,dz/dt*.10,strength,ground)
-        end
-        e.dustDistance=total%step
+        if emitting then
+            local old=e.dustDistance;local total=old+moved
+            local count=math.min(8,math.floor(total/step))
+            local halfWheelbase=isTruck and Truck.profile(bike).wheelbase*.5 or Bike.WHEELBASE*.5
+            local halfTrack=isTruck and Footprint.dimensions(bike).halfWidth*.78 or 0
+            for n=1,count do
+                local along=M.clamp((n*step-old)/moved,0,1)
+                local baseX,baseZ=e.x+dx*along,e.z+dz*along
+                local sides=isTruck and {-halfTrack,halfTrack} or {0}
+                for _,side in ipairs(sides) do
+                    local x,z=baseX-c*halfWheelbase-s*side,baseZ-s*halfWheelbase+c*side
+                    local ground=world:supportHeight(x,z)
+                    self:add(truckPaved and 'tireSmoke' or 'dust',x,z,ground+.055,
+                        dx/dt*.10,dz/dt*.10,strength,ground)
+                end
+            end
+            e.dustDistance=total%step
+        else e.dustDistance=0 end
     else e.dustDistance=0 end
     if engine then
         local throttle=M.clamp(value(bike,visual,'throttle',0),0,1)
         e.exhaustTime=e.exhaustTime+dt*(6+8*throttle)
         local count=math.min(2,math.floor(e.exhaustTime));e.exhaustTime=e.exhaustTime-count
-        local back,side=-.80,.27 -- Physical right tailpipe; never mirrored with the view.
+        local isTruck=vehicleKind=='truck'
+        local dims=isTruck and Footprint.dimensions(bike) or nil
+        local back,side=isTruck and -dims.halfLength*.74 or -.80,
+            isTruck and dims.halfWidth*.42 or .27 -- Physical tailpipe; never mirrored with the view.
         local x,z=bike.x+c*back-s*side,bike.z+s*back+c*side
-        local height=h+.83+math.sin(value(bike,visual,'pitch',0))*back
+        local height=h+(isTruck and .46 or .83)+math.sin(value(bike,visual,'pitch',0))*back
         local vx,vz=continuous and dx/dt*.12 or 0,continuous and dz/dt*.12 or 0
-        local sick=require('src.commute.bike_service').rough(bike)
+        local sick=not isTruck and require('src.commute.bike_service').rough(bike) or 0
         local kind=sick>.12 and 'soot' or 'exhaust'
         for _=1,count do self:add(kind,x,z,height,vx-c*.30,vz-s*.30,.40+.10*throttle+.25*sick,h) end
     else e.exhaustTime=0 end
@@ -152,7 +172,10 @@ function Particles:draw(camera,radius,depthSpan)
         self.shader:send('particleDepth',first and FP.depthValue(v.depth) or -v.sort/depthSpan)
         self.shader:send('particlePhase',p.phase+p.age*.45)
         self.shader:send('particleFog',first and M.smooth((v.distance-radius*.74)/(radius*.26)) or 0)
-        if p.kind=='dust' then g.setColor(.77,.66,.46,alpha) elseif p.kind=='soot' then g.setColor(.09,.08,.075,alpha) else g.setColor(.76,.79,.78,alpha) end
+        if p.kind=='dust' then g.setColor(.77,.66,.46,alpha)
+        elseif p.kind=='tireSmoke' then g.setColor(.65,.65,.62,alpha*.72)
+        elseif p.kind=='soot' then g.setColor(.09,.08,.075,alpha)
+        else g.setColor(.76,.79,.78,alpha) end
         g.draw(self.quad,v.x,v.y,first and camera.roll or 0,size,size*.82)
     end
     g.pop()

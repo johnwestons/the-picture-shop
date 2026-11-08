@@ -139,12 +139,65 @@ function Component.install(Runtime)
                             perform = function(_, _, arguments)
                                 local job = Runtime.findActiveJob(arguments.jobId)
                                 if not job then return false, "job_not_found", "That active job no longer exists." end
-                                local succeeded, result = Runtime.JobService.requestPickup(Runtime.state, job, os.time())
+                                local succeeded, result = Runtime.JobService.requestPickup(Runtime.state, job, os.time(),"employee")
                                 if not succeeded then
                                     return false, "pickup_blocked", "Could not request pickup: " .. tostring(result)
                                 end
                                 Runtime.saveCurrent()
-                                return true, "pickup_requested", job.id .. " is awaiting customer pickup.", {}
+                                return true, "pickup_requested", job.id .. " is queued for an employee delivery.", {}
+                            end,
+                        },
+                        request_player_delivery = {
+                            normalize = function(arguments)
+                                local jobId=type(arguments)=="table" and arguments.jobId
+                                if not Runtime.exactArguments(arguments,{"jobId"})
+                                    or type(jobId)~="string" or #jobId<1 or #jobId>64
+                                    or not jobId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$") then
+                                    return nil,"invalid_job","Choose a valid active job."
+                                end
+                                return {jobId=jobId}
+                            end,
+                            perform = function(_,_,arguments)
+                                local job=Runtime.findActiveJob(arguments.jobId)
+                                if not job then return false,"job_not_found","That active job no longer exists." end
+                                local succeeded,result=Runtime.JobService.requestPickup(Runtime.state,job,os.time(),"player")
+                                if not succeeded then return false,"pickup_blocked","Could not reserve player delivery: "..tostring(result) end
+                                Runtime.saveCurrent()
+                                return true,"player_delivery_reserved",job.id.." is reserved for your delivery.",{}
+                            end,
+                        },
+                        set_employee_delivery = {
+                            normalize = function(arguments)
+                                local jobId=type(arguments)=="table" and arguments.jobId
+                                if not Runtime.exactArguments(arguments,{"jobId"})
+                                    or type(jobId)~="string" or #jobId<1 or #jobId>64
+                                    or not jobId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$") then
+                                    return nil,"invalid_job","Choose a valid active job."
+                                end
+                                return {jobId=jobId}
+                            end,
+                            perform = function(_,_,arguments)
+                                local okay,result=Runtime.JobService.setPickupDriverMode(Runtime.state,arguments.jobId,"employee")
+                                if not okay then return false,"pickup_blocked",tostring(result) end
+                                Runtime.saveCurrent()
+                                return true,"delivery_mode_changed",arguments.jobId.." is queued for an employee delivery.",{}
+                            end,
+                        },
+                        set_player_delivery = {
+                            normalize = function(arguments)
+                                local jobId=type(arguments)=="table" and arguments.jobId
+                                if not Runtime.exactArguments(arguments,{"jobId"})
+                                    or type(jobId)~="string" or #jobId<1 or #jobId>64
+                                    or not jobId:match("^[A-Za-z0-9][A-Za-z0-9_.%-]*$") then
+                                    return nil,"invalid_job","Choose a valid active job."
+                                end
+                                return {jobId=jobId}
+                            end,
+                            perform = function(_,_,arguments)
+                                local okay,result=Runtime.JobService.setPickupDriverMode(Runtime.state,arguments.jobId,"player")
+                                if not okay then return false,"pickup_blocked",tostring(result) end
+                                Runtime.saveCurrent()
+                                return true,"delivery_mode_changed",arguments.jobId.." is reserved for your delivery.",{}
                             end,
                         },
                     },

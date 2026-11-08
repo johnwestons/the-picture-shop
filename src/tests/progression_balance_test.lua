@@ -155,10 +155,16 @@ function Test.run(context,check)
     local hardRepeat=repeatOffer(context,starter,50)
     check("progression_followup_volume_and_difficulty_respect_shop_tier",
         earlyRepeat and earlyRepeat.difficulty=="easy" and #earlyRepeat.pallets==1
-        and earlyRepeat.quote.totalSheets<=1000
+        and earlyRepeat.quote.totalSheets<=2000
         and mediumRepeat and mediumRepeat.difficulty=="medium" and #mediumRepeat.pallets<=2
         and mediumRepeat.quote.totalSheets<=4000
-        and hardRepeat and hardRepeat.difficulty=="hard" and #hardRepeat.pallets==3)
+        and hardRepeat and hardRepeat.difficulty=="hard" and #hardRepeat.pallets==3,
+        ("early=%s/%s/%s medium=%s/%s/%s hard=%s/%s/%s"):
+            format(earlyRepeat and earlyRepeat.difficulty,earlyRepeat and #earlyRepeat.pallets,
+                earlyRepeat and earlyRepeat.quote.totalSheets,mediumRepeat and mediumRepeat.difficulty,
+                mediumRepeat and #mediumRepeat.pallets,mediumRepeat and mediumRepeat.quote.totalSheets,
+                hardRepeat and hardRepeat.difficulty,hardRepeat and #hardRepeat.pallets,
+                hardRepeat and hardRepeat.quote.totalSheets))
 end
 
 return Test

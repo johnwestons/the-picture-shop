@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local CustomerDemand = require("src.customer_demand")
+local Progression = require("src.job_progression")
 
 function Component.install(Runtime)
     function Runtime.ensureEmails(state)
@@ -93,6 +94,9 @@ function Component.install(Runtime)
             local allowance = completedJob.press and math.max(50, math.ceil(suppliedSheets * 0.03)) or 0
             requestedCopies[index] = suppliedSheets - allowance
         end
+        sheetCounts, requestedCopies = Progression.scaleSheetCounts(sheetCounts, requestedCopies,
+            1, Progression.liftBudget(state), Runtime.Jobs.MAX_PALLETS,
+            Progression.hasProductionTeam(state))
         local source = Runtime.copy(completedJob.sourceSize)
         local finished = Runtime.copy(completedJob.finishedSize)
         if emailNumber % 2 == 0 and source.width ~= source.height then
@@ -113,10 +117,11 @@ function Component.install(Runtime)
             finishedSize = finished,
             sheetCounts = sheetCounts,
             packaging = emailNumber % 2 == 0 and "boxed" or "flat",
-            difficulty = tier <= 1 and "easy"
+            difficulty = Progression.capDifficulty(state, tier <= 1 and "easy"
                 or tier == 2 and (emailNumber % 3 == 0 and "medium" or "easy")
                 or tier == 3 and ({ "easy", "medium", "hard" })[(emailNumber - 1) % 3 + 1]
                 or ({ "medium", "hard", "hard" })[(emailNumber - 1) % 3 + 1],
+                completedJob.press and "press" or "cutter"),
             artworkKey = artworkKey,
             artwork = Runtime.artworkRecord(artworkKey, artworkSize),
             stockSpec = stockSpec,

@@ -92,6 +92,17 @@ function Screen.mousepressed(state,ui,x,y,command,readOnly)
     end
     local w,index,all=selected(state,ui)
     if ui.team then
+        if hit("workerPrev") or hit("workerNext") then
+            local truck=Employees.ensure(state).companyTruck
+            local currentIndex=0
+            for i,worker in ipairs(all) do
+                if worker.id==truck.preferredDriverEmployeeId then currentIndex=i;break end
+            end
+            local count=#all+1
+            local target=(currentIndex+(hit("workerPrev") and -1 or 1))%count
+            local employeeId=target==0 and "auto" or all[target].id
+            return send({kind="set_delivery_driver",employeeId=employeeId})
+        end
         local team=Schedule.team(state)
         if hit("run") then return send({kind="set_team_schedule",enabled=not team.enabled}) end
         for _,view in ipairs({"queue","add","history"}) do if hit(view) then
@@ -260,10 +271,26 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
     panel(626,326,238,280)
     short(ui.team and "ONE SHOP SCHEDULE  |  DAY + NIGHT" or w.activity,
         320,196,535,{.62,.79,.67,1})
-    short(ui.team and ("ALL WORKERS  |  DAY + NIGHT SHIFTS  |  "..#all.." employed")
-        or w.name.."  |  "..index.."/"..#all,154,234,420)
-    short(ui.team and "The next available worker takes the next ready job. Night shift continues where day shift stopped."
-        or Contracts.summary(w.contract,twelveHourTime),154,253,420,{.58,.73,.65,1})
+    if not ui.team then
+        short(w.name.."  |  "..index.."/"..#all,154,234,420)
+        short(Contracts.summary(w.contract,twelveHourTime),154,253,420,{.58,.73,.65,1})
+    end
+    if ui.team then
+        local truck=Employees.ensure(state).companyTruck
+        local driver=truck.preferredDriverEmployeeId and Employees.worker(state,truck.preferredDriverEmployeeId)
+        button("workerPrev","<",x,y,#all==0)
+        button("workerNext",">",x,y,#all==0)
+        if truck.preferredDriverEmployeeId and driver and not driver.terminationRequested then
+            short(string.format("DELIVERY DRIVER: %s  |  DRIVING %d/100",driver.name,driver.drivingSkill or 55),154,234,420,{1,.86,.43,1})
+            short("Appointed driver finishes current work, then dispatches ready shipments.",154,253,420,{.58,.73,.65,1})
+        elseif truck.preferredDriverEmployeeId then
+            short("DELIVERY DRIVER: APPOINTED EMPLOYEE UNAVAILABLE",154,234,420,{1,.65,.48,1})
+            short("Use < or > to choose a current employee or automatic selection.",154,253,420,{.58,.73,.65,1})
+        else
+            short("DELIVERY DRIVER: AUTO  |  HIGHEST AVAILABLE DRIVING SKILL",154,234,420,{1,.86,.43,1})
+            short("Use < or > to appoint; AUTO picks the highest skill after current work.",154,253,420,{.58,.73,.65,1})
+        end
+    end
     button("run",q.enabled and "PAUSE SCHEDULE" or "RESUME SCHEDULE",x,y,readOnly)
     button("queue","SCHEDULED JOBS ("..#q.items..")",x,y,false,ui.view=="queue")
     button("add","ADD JOB",x,y,readOnly,ui.view=="add")

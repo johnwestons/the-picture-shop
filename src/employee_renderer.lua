@@ -5,6 +5,8 @@ local Speech=require("src.employee_speech")
 local Config=require("src.config")
 local Jack=require("src.pallet_jack")
 local MotionArt=require("src.employee_motion_art")
+local medicFoxArt=require("src.medic_fox_worker_art")
+for character,hands in pairs(medicFoxArt.hands) do MotionArt.hands[character]=hands end
 local WorkPresentation=require("src.employee_work_presentation")
 local EmployeeHighFive=require("src.employee_high_five")
 local Renderer={}
@@ -60,6 +62,7 @@ function Renderer.pose(entry,characterAssets)
             local workAction=Catalog.workAction(entry)
             if workAction then
                 local expanded=require("src.worker_work_art").paths[character]
+                    or require("src.medic_fox_worker_art").paths[character]
                 local frames=expanded and expanded[workAction] and {1,2,workAction=="work_wrapping" and 3 or 4,workAction=="work_wrapping" and 5 or 6} or {1,2,3,4}
                 action,frame=workAction,frames[math.max(1,math.min(4,a.workFrame or 1))]
                 mirror=(character=="ferret-engineer-worker" and -1 or 1)*(a.intentX<0 and -1 or 1)
@@ -99,6 +102,7 @@ end
 local function highFiveFur(character)
     if character=="cat-worker" then return .24,.23,.22 end
     if character=="tinker-fox-worker" then return .78,.39,.17 end
+    if character=="medic-fox-worker" then return .91,.78,.58 end
     return .57,.50,.40
 end
 

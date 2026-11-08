@@ -97,6 +97,9 @@ local function run(context,check)
             tostring(R.World.truck.speed),tostring(R.World.bayDoor.state),tostring(job.delivery.status),
             tostring(state.home.weekend.phase),tostring(state.message)}," / "))
     check("weekend_runtime_can_call_friday_pickup",R.JobService.requestPickup(state,readyJob,os.time()))
+    check("weekend_runtime_pickup_defaults_to_employee_driver",readyJob.pickup.driverMode=="employee")
+    -- Exercise the older warehouse-truck pickup path used by existing saves.
+    readyJob.pickup.driverMode=nil
     R.App.update(.1)
     check("weekend_runtime_schedules_pickup_while_closing",R.World.truck.mode=="pickup"
         and readyJob.status=="pickup_in_progress",R.World.truck.state)

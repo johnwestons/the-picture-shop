@@ -53,10 +53,13 @@ local function eligible(job)
     return true
 end
 
-function Run.availableJobs(state,world)
+function Run.availableJobs(state,world,driverMode,now)
     local result={}
     for _,job in ipairs(state.jobs and state.jobs.active or {}) do
-        if eligible(job) then
+        local mode=job.pickup and job.pickup.driverMode
+        local dispatchAt=tonumber(job.pickup and job.pickup.dispatchAtHours) or 0
+        if eligible(job) and (not driverMode or mode==driverMode)
+            and (mode~='employee' or not now or now>=dispatchAt) then
             local count=0
             for _,pallet in ipairs(job.pallets or {}) do
                 if pallet.status~='spoiled_discarded' then count=count+1 end

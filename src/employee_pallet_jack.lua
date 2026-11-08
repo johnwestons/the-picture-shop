@@ -7,6 +7,7 @@ local Config = require("src.config")
 local Storage = require("src.pallet_storage")
 local Procurement = require("src.procurement")
 local Fleet = require("src.pallet_jack_fleet")
+local AIWatchdog = require("src.ai_watchdog")
 local Transport = {}
 
 function Transport.owns(state, worker)
@@ -24,25 +25,46 @@ local function align(state, worker)
 end
 
 function Transport.move(state, worker, goal, dt, context)
+    local watchdogState=state
     state=Fleet.employeeView(state,worker)
     local jack = Jack.ensure(state, Config.palletJack)
     local actor = worker._jackNavigator
     if not actor then actor = {}; worker._jackNavigator = actor end
     actor.x, actor.y = jack.x, jack.y
+    local navigation=context.jackNavigation(worker,jack.carriedPalletId)
     local elapsed = math.max(0, math.min(.1, dt * (context.motionScale or 1)))
     local speed = jack.carriedPalletId and Config.palletJack.loadedSpeed or Config.palletJack.speed
     local multiplier = Gait.sample(Jack.animationDistance(state, Config.palletJack), {
         walkPixelsPerFrame = Config.palletJack.gaitPixelsPerFrame or 20,
         gaitSpeedMultipliers = Config.player.gaitSpeedMultipliers,
         gaitAccelerationMultipliers = Config.player.gaitAccelerationMultipliers })
-    local reached, _, _, blocked = Navigator.travel(actor, goal, speed * multiplier * elapsed,
-        elapsed, context.jackNavigation(worker, jack.carriedPalletId))
+    local reached, _, moved, blocked = Navigator.travel(actor, goal, speed * multiplier * elapsed,
+        elapsed, navigation)
+    local subject=worker.name or ('Employee '..tostring(worker.id or 'unknown'))
+    local targetKey=worker._jackTarget and worker._jackTarget.key or worker._jackParkingTarget and 'park'
+        or table.concat({tostring(worker.activity or 'pallet jack route'),('%.1f'):format(goal.x),('%.1f'):format(goal.y)},':')
+    AIWatchdog.observe(watchdogState,actor,{issueId='pallet-jack:'..tostring(worker.id or worker),
+        system='Employee transport',subject=subject,
+        stage=tostring(targetKey),progressed=reached or moved>=.2,dt=elapsed,timeout=12,retryDelay=12,
+        reason=blocked and 'Pallet jack route is blocked' or 'Pallet jack did not change position',
+        x=actor.x,y=actor.y,visible=worker.visible~=false,
+        recover=function()
+            local okay,point=Navigator.recover(actor,navigation,goal)
+            if not okay then
+                Navigator.reset(actor)
+                return {ok=false,action='Reset the pallet jack route; keep the pallet assignment queued',detail=point}
+            end
+            Jack.followNavigation(state,actor.x,actor.y,0,Config.palletJack)
+            return {ok=true,action='Moved the jack and its load to nearby collision-safe floor and replanned',
+                detail=('Recovery point %.1f, %.1f'):format(point.x,point.y)}
+        end})
     Jack.followNavigation(state, actor.x, actor.y, elapsed, Config.palletJack)
     align(state, worker)
     return reached, blocked
 end
 
 function Transport.release(state, worker, context)
+    AIWatchdog.clear(state,worker._jackNavigator,'Employee released the pallet jack')
     worker._shippingPalletId=nil
     if not Transport.owns(state, worker) then return true end
     state=Fleet.employeeView(state,worker)

@@ -758,6 +758,10 @@ function Schedule.command(state,w,intent,now)
 end
 function Schedule.idleActivity(state,w)
     local q,team=Schedule.ensure(w),Schedule.team(state)
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.pendingDriverEmployeeId==w.id then
+        return "Delivery queued; finishing warehouse work"
+    end
     local teamActive=team and team.enabled and #team.items>0
     if not q.enabled and not teamActive then return "Work schedule paused" end
     if (#q.items>0 or teamActive) and w._scheduleBlockedReason then return w._scheduleBlockedReason end
@@ -765,10 +769,6 @@ function Schedule.idleActivity(state,w)
     return "No jobs on the schedule"
 end
 function Schedule.advance(state,w,now,canClaim)
-    if w.contract and w.contract.role=="driver" then
-        w.activity="Awaiting delivery orders"
-        return false
-    end
     local q=Schedule.ensure(w)
     local team=Schedule.team(state)
     local hasTeamMirror=false
@@ -776,6 +776,12 @@ function Schedule.advance(state,w,now,canClaim)
     if w.status~="employed" or w.terminationRequested or w.stopRequested or w.assignment or w.training
         or not w.visible or not w.clockedIn or not Contracts.onShift(w.contract,now) then return false end
     if Payroll.balance(w,now,false)>0 then w.activity="Waiting for overdue wages";return false end
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.pendingDriverEmployeeId==w.id then
+        local activity="Delivery queued; finishing warehouse work"
+        if w.activity~=activity then w.activity=activity;return true end
+        return false
+    end
     if w._scheduleRetryAtHours and now<w._scheduleRetryAtHours then return false end
     w._scheduleBlockedReason=nil
     local releasedIneligible=returnIneligibleTeamJobs(state,w)

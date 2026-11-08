@@ -39,8 +39,10 @@ function Body.point(x,y)
     return a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,(x/Body.WIDTH-.5)*1.15
 end
 function Body.projectControls(camera,width,height,specs)
-    local view=Body.camera(camera);local scale=math.min(width/1280,height/880)
-    local ox,oy=(width-1280*scale)*.5,(height-880*scale)*.5
+    local view=Body.camera(camera)
+    local scaleX,scaleY=width/1280,height/880
+    local radiusScale=math.min(scaleX,scaleY)
+    local ox,oy=(width-1280*scaleX)*.5,(height-880*scaleY)*.5
     local result={}
     for _,spec in ipairs(specs) do
         local forward,elevation,right=Body.point(spec.firstPersonX,spec.firstPersonY)
@@ -48,8 +50,8 @@ function Body.projectControls(camera,width,height,specs)
         if depth>=FP.NEAR then
             local edgeForward,edgeElevation,edgeRight=Body.point(spec.firstPersonX+16,spec.firstPersonY)
             local edgeX,edgeY=FP.screen(view,edgeForward,edgeRight,edgeElevation)
-            local radius=math.sqrt((edgeX-x)^2+(edgeY-y)^2)*scale*.62
-            local sx,sy=ox+x*scale,oy+y*scale
+            local radius=math.sqrt((edgeX-x)^2+(edgeY-y)^2)*radiusScale*.62
+            local sx,sy=ox+x*scaleX,oy+y*scaleY
             if sx>=-40 and sy>=-40 and sx<=width+40 and sy<=height+40 then
                 result[#result+1]={action=spec.action,x=sx,y=sy,visualRadius=math.max(5,radius)}
             end
@@ -123,8 +125,8 @@ function Body:draw(camera,width,height,instruments,paintId)
     g.setBlendMode('alpha','premultiplied');g.setDepthMode('always',false);g.draw(self.instruments)
     g.pop()
     g.push('all');g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
-    local scale=math.min(width/1280,height/880)
-    g.draw(self.canvas,(width-1280*scale)*.5,(height-880*scale)*.5,0,scale)
+    local scaleX,scaleY=width/1280,height/880
+    g.draw(self.canvas,(width-1280*scaleX)*.5,(height-880*scaleY)*.5,0,scaleX,scaleY)
     g.pop()
 end
 function Body:release()

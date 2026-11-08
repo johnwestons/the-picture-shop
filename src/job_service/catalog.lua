@@ -53,7 +53,9 @@ function Component.install(Runtime)
         {
             difficulty = "hard",
             company = "Keystone Paper Supply",
-            sourceSize = { width = 25, height = 25 },
+            -- Minimum stock overage leaves only 0.25 inches on the tightest
+            -- hard-layout edge, so experienced operators need to hold gauge.
+            sourceSize = { width = 21, height = 13.5 },
             finishedSize = { width = 20, height = 12.5 },
             sheetCounts = { 3000, 3000, 2000 },
             packaging = "flat",
@@ -61,7 +63,7 @@ function Component.install(Runtime)
                 stockDescription = "Uncoated offset sheets",
                 dueDate = "Standard 7-business-day turnaround",
                 grainDirection = "Grain short",
-                notes = "Count and label every finished pallet separately.",
+                notes = "Count and label every finished pallet separately. Stock has only 1 in. of trim overage on each axis.",
             },
         },
     }

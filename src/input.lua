@@ -628,7 +628,7 @@ function Input.mousepressed(x, y, button, context)
             end
             state.screen = "world"
         end
-        if result.action ~= "blocked" then context.saveCurrent() end
+        if result.action ~= "blocked" and result.action ~= "page_changed" then context.saveCurrent() end
         return true
     end
     if state.screen == "machine" then
@@ -692,6 +692,7 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "cart_checked_out"
             or result.action == "quality_inspection"
             or result.action == "quality_rework"
+            or result.action == "pickup_mode_changed"
             or result.action == "employment_changed"
             or result.action == "home_changed"
         then
@@ -699,7 +700,7 @@ function Input.mousepressed(x, y, button, context)
         elseif result.action == "completion_blocked" then
             state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
         elseif result.action == "pickup_ready" then
-            local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time())
+            local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time(),result.driverMode)
             if scheduled then
                 state.message = result.job.id .. " is ready. Customer pickup is awaiting a truck."
                 context.saveCurrent()

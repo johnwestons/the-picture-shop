@@ -72,7 +72,8 @@ function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
     if type(state) ~= "table" or not SaveSchema.validPhysicalSource(saved) then return false end
     local home=require("src.home").normalize(saved.home,
-        type(saved.calendar)=="table" and saved.calendar.totalDays or 0)
+        type(saved.calendar)=="table" and saved.calendar.totalDays or 0,
+        BusinessCalendar.absoluteHours(saved))
     if not home then return false end
     local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
     if not employment then return false end

@@ -336,6 +336,10 @@ local function runJourney(context, check, printing)
         confirmed("pickup_requested_once",function()
             local x,y=Remote.sharedComputer.completeCenter(); click(x,y); click(x,y)
         end,true)
+        check("guest_journey_pickup_defaults_to_employee_driver",
+            state.jobs.active[1].pickup.driverMode=="employee")
+        -- Continue through the older dock pickup path for saved jobs without a driver choice.
+        state.jobs.active[1].pickup.driverMode=nil
         release(); context.world.load()
         context.world.update(context.config.truck.scheduleDelay+0.1,0,0,assets,state)
         context.world.update(context.config.loadingBay.duration+0.1,0,0,assets,state)

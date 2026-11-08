@@ -22,7 +22,7 @@ local function available(R)
     if not require('src.commute.runtime').enabled() then return {} end
     local world=deliveryWorld(R)
     if not world then return {} end
-    return require('src.commute.delivery_run').availableJobs(R.state,world)
+    return require('src.commute.delivery_run').availableJobs(R.state,world,'player')
 end
 
 local function selectedCount(planner)

@@ -25,7 +25,7 @@ function Rules.drivingSide(town)
     return side=='left' and 'left' or 'right'
 end
 
-function Rules.laneOffset(segment,drivingSide,leftTurn)
+function Rules.laneOffset(segment,drivingSide,leftTurn,vehicle)
     -- Bridge decks are narrow and have a hard rail immediately beyond the
     -- paved edge. Keep the vehicle centered there instead of carrying a road
     -- lane offset into the guardrail clearance.
@@ -33,8 +33,18 @@ function Rules.laneOffset(segment,drivingSide,leftTurn)
         or segment.surface=='dirt' or segment.role=='drive' then return 0 end
     local lanes=segment.lanes or 0
     local width=segment.width or 0
-    if lanes<2 or width<=0 then return 0 end
+    if width<=0 then return 0 end
     if segment.turnLane and leftTurn then return 0 end
+    if lanes<2 then
+        local motorcycle=vehicle and (vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle')
+        if motorcycle and not segment.oneWay and lanes==1 then
+            -- On an undivided two-way street, ride in the right half instead
+            -- of straddling the center. Keep a bike-width margin from the curb.
+            local offset=math.max(0,width*.5-Rules.dimensions(vehicle).halfWidth-.35)
+            return drivingSide=='left' and -offset or offset
+        end
+        return 0
+    end
     local laneWidth=width/lanes
     local centerOffset=lanes>=3 and laneWidth*(lanes-1)*.5 or laneWidth*.5
     return drivingSide=='left' and -centerOffset or centerOffset

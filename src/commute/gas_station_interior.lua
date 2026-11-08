@@ -2,6 +2,7 @@
 -- existing station panel; this room provides the shared indoor controls.
 local Animation=require('src.character_animation')
 local Config=require('src.config')
+local WalkMotion=require('src.player_walk_motion')
 local Loader=require('src.image_loader')
 local Fonts=require('src.screens.title_fonts')
 local Room={}
@@ -108,21 +109,6 @@ function Room.new(R)
         velocityX=0,velocityY=0},clock=0,closed=false,path=nil,pathAction=nil,
         images={},pending={},ready=false,presented=false}
 end
-local function move(view,dx,dy)
-    local p=view.pose;local oldX,oldY=p.x,p.y
-    local distance=math.sqrt(dx*dx+dy*dy);local steps=math.max(1,math.ceil(distance/3))
-    for _=1,steps do
-        local nx,ny=p.x+dx/steps,p.y+dy/steps
-        if Room.walkable(nx,ny) then p.x,p.y=nx,ny
-        else
-            if Room.walkable(nx,p.y) then p.x=nx end
-            if Room.walkable(p.x,ny) then p.y=ny end
-        end
-    end
-    local moved=math.sqrt((p.x-oldX)^2+(p.y-oldY)^2)
-    p.moving=moved>.01;p.animationDistance=p.animationDistance+moved
-    if p.moving then p.intentX,p.intentY=(p.x-oldX)/moved,(p.y-oldY)/moved end
-end
 local function nearestHotspot(p)
     local best,distance
     for _,hotspot in ipairs(Room.hotspots) do
@@ -161,12 +147,10 @@ function Room.update(view,R,dt)
     end
     dx,dy=dx or 0,dy or 0
     local magnitude=math.sqrt(dx*dx+dy*dy)
-    if magnitude>.01 then view.path=nil;view.pathAction=nil;dx,dy=dx/magnitude*145*dt,dy/magnitude*145*dt
-    elseif view.path and #view.path>0 then
-        local goal=view.path[1];dx,dy=goal.x-view.pose.x,goal.y-view.pose.y;magnitude=math.sqrt(dx*dx+dy*dy)
-        if magnitude<=145*dt then table.remove(view.path,1) else dx,dy=dx/magnitude*145*dt,dy/magnitude*145*dt end
-    end
-    move(view,dx,dy)
+    if magnitude>.01 then view.path=nil;view.pathAction=nil
+    else dx,dy=WalkMotion.pathInput(view.pose,view.path) end
+    WalkMotion.update(view.pose,dx,dy,dt,Room.walkable,R.state)
+    WalkMotion.consumeReached(view.pose,view.path)
     if view.pathAction and (not view.path or #view.path==0) then
         local target
         for _,hotspot in ipairs(Room.hotspots) do if hotspot.id==view.pathAction then target=hotspot;break end end

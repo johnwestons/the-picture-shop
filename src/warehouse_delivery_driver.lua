@@ -4,6 +4,7 @@ local Driver={WAIT_SECONDS=120,SIGNATURE_RADIUS=80,RETRY_DELAY_HOURS=.5}
 local Registration=require("src.warehouse_registration")
 local Animation=require("src.character_animation")
 local Pose=require("src.delivery_driver_pose")
+local AIWatchdog=require("src.ai_watchdog")
 local actors=setmetatable({},{__mode="k"})
 local sideDoor=Registration.exit
 -- Use the same clear apron point as the truck interaction. The old point at
@@ -13,8 +14,9 @@ local truckSide=Registration.truck.interaction
 local signaturePoint={x=151,y=236}
 local deliveryRecord
 
-local function newActor(x,y,phase)
+local function newActor(x,y,phase,deliveryId)
     return {visible=true,x=x,y=y,sceneId="warehouse",intentX=1,intentY=0,
+        watchdogLabel=deliveryId and ('Delivery driver '..tostring(deliveryId)) or nil,
         moving=false,distance=0,animationDistance=0,idleClock=0,interactionClock=0,phase=phase}
 end
 
@@ -39,12 +41,12 @@ local function ensureActor(state,value)
     local actor=actors[state]
     if actor then return actor end
     if value.status=="approaching" then
-        actor=newActor(truckSide.x,truckSide.y,"approach_door")
+        actor=newActor(truckSide.x,truckSide.y,"approach_door",value.deliveryId)
     elseif value.status=="waiting" then
-        actor=newActor(signaturePoint.x,signaturePoint.y,"waiting")
+        actor=newActor(signaturePoint.x,signaturePoint.y,"waiting",value.deliveryId)
     elseif value.status=="signed" or value.status=="missed" then
         if value.driverReturned then return nil end
-        actor=newActor(signaturePoint.x,signaturePoint.y,"exit_door")
+        actor=newActor(signaturePoint.x,signaturePoint.y,"exit_door",value.deliveryId)
     else return nil end
     actors[state]=actor
     return actor
@@ -65,7 +67,7 @@ function Driver.start(state,deliveryId,mode)
     end
     state.deliveryDriver={version=1,deliveryId=deliveryId,mode=mode,status="approaching",
         waitSeconds=0,driverReturned=false,penaltyApplied=false}
-    actors[state]=newActor(truckSide.x,truckSide.y,"approach_door")
+    actors[state]=newActor(truckSide.x,truckSide.y,"approach_door",deliveryId)
     state._deliveryDriverPose=nil
     return true
 end
@@ -265,18 +267,36 @@ function Driver.update(state,dt,context)
         end
     elseif actor.phase=="exit_cab" then
         local returnPoint=actor.returnPoint or truckSide
-        direction(actor,returnPoint.x,returnPoint.y)
-        local reached=AI.move(actor,returnPoint,dt,context)
+        local nearCab=(actor.x-truckSide.x)^2+(actor.y-truckSide.y)^2<=22^2
+        local reached=false
+        if not nearCab then
+            direction(actor,returnPoint.x,returnPoint.y)
+            reached=AI.move(actor,returnPoint,dt,context)
+        end
         -- If furniture or another actor blocks every nearby apron point, do
         -- not hold the truck and shipment indefinitely. The driver exits the
         -- scene after a bounded retry window so the completed delivery can
         -- continue through its normal departure flow.
-        if reached or actor.returnSeconds>=18 then
+        if nearCab or reached or actor.returnSeconds>=18 then
+            if not nearCab and not reached then
+                AIWatchdog.clear(state,actor,'Delivery driver exit timeout accepted')
+                AIWatchdog.note(state,'delivery-driver:'..tostring(value.deliveryId),{
+                    status='RECOVERED',system='Warehouse delivery',subject=actor.watchdogLabel,
+                    stage='return_to_truck',reason='Driver could not reach the truck before the exit timeout',
+                    action='Removed the blocked driver actor and released the truck departure',
+                    x=actor.x,y=actor.y,visible=actor.visible})
+            end
             actor.visible=false;actor.moving=false;actor.phase="gone"
             value.driverReturned=true;changed=true
         end
     end
     if actor.phase=="exit_door" and actor.returnSeconds>=18 then
+        AIWatchdog.clear(state,actor,'Delivery driver exit timeout accepted')
+        AIWatchdog.note(state,'delivery-driver:'..tostring(value.deliveryId),{
+            status='RECOVERED',system='Warehouse delivery',subject=actor.watchdogLabel,
+            stage='return_to_door',reason='Driver could not reach the side door before the exit timeout',
+            action='Removed the blocked driver actor and released the truck departure',
+            x=actor.x,y=actor.y,visible=actor.visible})
         actor.visible=false;actor.moving=false;actor.phase="gone"
         value.driverReturned=true;changed=true
     end
@@ -367,7 +387,7 @@ function Driver.presentation(state)
     return actorFor(state)
 end
 
-function Driver.draw(actor,sourceImage,sourceQuad)
+function Driver.draw(actor,sourceImage,sourceQuad,scaleMultiplier)
     if not actor or actor.visible==false then return false end
     local direction=Animation.authoredDirection(actor.intentX,actor.intentY)
     local action=actor.moving and "walk" or "idle"
@@ -383,7 +403,7 @@ function Driver.draw(actor,sourceImage,sourceQuad)
     local quad=sourceQuad(path,frame,512,512)
     if not quad then return false end
     love.graphics.setColor(1,1,1,1)
-    local scale=76.8/385
+    local scale=76.8/385*(tonumber(scaleMultiplier) or 1)
     love.graphics.draw(image,quad,actor.x,actor.y,0,scale,scale,256,458)
     return true
 end

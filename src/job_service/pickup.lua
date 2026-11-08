@@ -33,7 +33,7 @@ function Component.install(Runtime)
         return true
     end
 
-    function Runtime.JobService.requestPickup(state, job, timestamp)
+    function Runtime.JobService.requestPickup(state, job, timestamp, driverMode)
         if type(state) ~= "table" or type(job) ~= "table" then return false, "state and job are required" end
         local active = Runtime.activeJob(state, job.id)
         if active ~= job then return false, "job is not active" end
@@ -50,13 +50,32 @@ function Component.install(Runtime)
                 return false, "quality inspection found a defect; rework the affected pallet before pickup"
             end
         end
+        driverMode = driverMode == "player" and "player" or "employee"
         job.status = "ready_for_pickup"
         job.pickup = {
             status = "awaiting_schedule",
             requestedAt = timestamp,
+            driverMode = driverMode,
+            -- Give the owner time to change the delivery choice in the active
+            -- job ticket before an employee reserves and loads the truck.
+            dispatchAtHours = Runtime.BusinessCalendar.absoluteHours(state) + .25,
         }
         job.pickupRequestedAtHours = Runtime.BusinessCalendar.absoluteHours(state)
         Feedback.record(job, "ready_to_ship", job.pickupRequestedAtHours, "Quality inspection passed")
+        return true, job
+    end
+
+    function Runtime.JobService.setPickupDriverMode(state, jobId, driverMode)
+        if driverMode ~= "employee" and driverMode ~= "player" then
+            return false, "Choose employee delivery or player delivery."
+        end
+        local job = Runtime.activeJob(state, jobId)
+        if not job or job.status ~= "ready_for_pickup" or type(job.pickup) ~= "table"
+            or job.pickup.status ~= "awaiting_schedule" then
+            return false, "Delivery choice can only be changed before a driver loads the job."
+        end
+        job.pickup.driverMode = driverMode
+        job.pickup.dispatchAtHours = Runtime.BusinessCalendar.absoluteHours(state) + .25
         return true, job
     end
 
@@ -129,8 +148,10 @@ function Component.install(Runtime)
         for _, job in ipairs(state.jobs.active) do
             local pickupStatus = job.pickup and job.pickup.status
             if job.status == "ready_for_pickup"
+                and not (job.pickup and job.pickup.driverMode)
                 or (job.status == "pickup_in_progress" and pickupStatus ~= "completed"
-                    and pickupStatus ~= "player_delivery")
+                    and pickupStatus ~= "player_delivery"
+                    and not (job.pickup and job.pickup.driverMode))
             then
                 return job
             end

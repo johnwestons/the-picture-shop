@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "status": "art_candidate_contact_sheets_not_runtime_wired",
+  "status": "runtime_normalized_candidate",
   "vehicle": {
     "class": "Japanese kei-class cab-over utility truck",
     "body": "single cab, empty drop-side flatbed",
     "targetRelativeSize": {
       "lengthVsBoxTruck": 0.64,
-      "widthVsBoxTruck": 0.70
+      "widthVsBoxTruck": 0.7
     }
   },
   "angles": {
@@ -22,10 +22,42 @@
       "frameCount": 64,
       "framesPerPage": 16,
       "pages": [
-        { "file": "isometric-64-1.png", "firstFrame": 1, "lastFrame": 16, "canvas": [1254, 1254] },
-        { "file": "isometric-64-2.png", "firstFrame": 17, "lastFrame": 32, "canvas": [1254, 1254] },
-        { "file": "isometric-64-3.png", "firstFrame": 33, "lastFrame": 48, "canvas": [1254, 1254] },
-        { "file": "isometric-64-4.png", "firstFrame": 49, "lastFrame": 64, "canvas": [1254, 1254] }
+        {
+          "file": "isometric-64-1.png",
+          "firstFrame": 1,
+          "lastFrame": 16,
+          "canvas": [
+            1254,
+            1254
+          ]
+        },
+        {
+          "file": "isometric-64-2.png",
+          "firstFrame": 17,
+          "lastFrame": 32,
+          "canvas": [
+            1254,
+            1254
+          ]
+        },
+        {
+          "file": "isometric-64-3.png",
+          "firstFrame": 33,
+          "lastFrame": 48,
+          "canvas": [
+            1254,
+            1254
+          ]
+        },
+        {
+          "file": "isometric-64-4.png",
+          "firstFrame": 49,
+          "lastFrame": 64,
+          "canvas": [
+            1254,
+            1254
+          ]
+        }
       ]
     },
     {
@@ -34,10 +66,42 @@
       "frameCount": 64,
       "framesPerPage": 16,
       "pages": [
-        { "file": "chase-64-1.png", "firstFrame": 1, "lastFrame": 16, "canvas": [1619, 971] },
-        { "file": "chase-64-2.png", "firstFrame": 17, "lastFrame": 32, "canvas": [1619, 971] },
-        { "file": "chase-64-3.png", "firstFrame": 33, "lastFrame": 48, "canvas": [1620, 971] },
-        { "file": "chase-64-4.png", "firstFrame": 49, "lastFrame": 64, "canvas": [1619, 971] }
+        {
+          "file": "chase-64-1.png",
+          "firstFrame": 1,
+          "lastFrame": 16,
+          "canvas": [
+            1619,
+            971
+          ]
+        },
+        {
+          "file": "chase-64-2.png",
+          "firstFrame": 17,
+          "lastFrame": 32,
+          "canvas": [
+            1619,
+            971
+          ]
+        },
+        {
+          "file": "chase-64-3.png",
+          "firstFrame": 33,
+          "lastFrame": 48,
+          "canvas": [
+            1620,
+            971
+          ]
+        },
+        {
+          "file": "chase-64-4.png",
+          "firstFrame": 49,
+          "lastFrame": 64,
+          "canvas": [
+            1619,
+            971
+          ]
+        }
       ]
     }
   ],
@@ -45,16 +109,57 @@
     "tool": "built-in ImageGen",
     "styleReference": "assets/commute/truck/turntables/isometric-64-1.png and chase-64-1.png",
     "alphaRequested": true,
-    "atlasLayout": "4 columns by 4 rows per page; contact sheets require crop and size normalization before runtime use"
+    "atlasLayout": "4 columns by 4 rows per page; immutable source contact sheets are normalized into fixed-size runtime cells"
+  },
+  "normalization": {
+    "tool": "tools/commute_lab/normalize_kei_turntables.mjs",
+    "audit": "normalization-audit.json",
+    "sourceSheetsPreserved": true,
+    "runtimeCellSizes": {
+      "isometric": [
+        314,
+        314
+      ],
+      "chase": [
+        405,
+        243
+      ]
+    },
+    "method": "Uniform per-frame scale to a fixed visible roof-to-tire height; horizontal bounds center and tire baseline registered to a common ground anchor. No heading-dependent area or scale correction.",
+    "alphaCutoff": 128,
+    "roofToTirePixels": {
+      "isometric": 144,
+      "chase": 180
+    }
   },
   "validation": {
     "viewCountsMatch": true,
     "eachViewContainsFourPagesOfSixteenFrames": true,
-    "runtimeReady": false,
-    "remainingArtWork": [
-      "normalize page and cell dimensions to the runtime truck atlas contract",
-      "inspect and clean edge fringing",
-      "verify orientation continuity and all 64 frame crops"
+    "runtimeReady": true,
+    "allRuntimePagesHaveUniformGridCells": true,
+    "continuity": [
+      {
+        "kind": "isometric",
+        "frameCount": 64,
+        "selectedFrameCount": 40,
+        "minHeight": 144,
+        "maxHeight": 144,
+        "maxHeightError": 0,
+        "maxGroundAnchorError": 0.5,
+        "maxSelectedHeightStep": 0,
+        "includesWrapSeam": true
+      },
+      {
+        "kind": "chase",
+        "frameCount": 64,
+        "selectedFrameCount": 39,
+        "minHeight": 180,
+        "maxHeight": 180,
+        "maxHeightError": 0,
+        "maxGroundAnchorError": 0.5,
+        "maxSelectedHeightStep": 0,
+        "includesWrapSeam": true
+      }
     ]
   }
 }

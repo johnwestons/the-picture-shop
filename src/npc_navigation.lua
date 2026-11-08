@@ -239,6 +239,32 @@ function Navigator.status(actor)
     local route=routes[actor]
     return route and route.status or "idle",route and route.failures or 0
 end
+function Navigator.recover(actor,context,goal)
+    if type(actor)~='table' or type(context)~='table' or type(context.obstacles)~='function' then
+        return false,'Movement context is unavailable.'
+    end
+    local obstacles=ObstacleIndex.new(context.obstacles(actor),context.obstacleIndexScratch)
+    local best,bestScore
+    for _,radius in ipairs({10,18,28,40}) do
+        for index=0,15 do
+            local angle=index*math.pi/8
+            local x,y=actor.x+math.cos(angle)*radius,actor.y+math.sin(angle)*radius
+            if Navigation.isWalkable(context.assets,x,y,obstacles)
+                and Navigation.canTraverse(context.assets,actor.x,actor.y,x,y,obstacles,true) then
+                local score=radius
+                if goal then score=score+distance({x=x,y=y},goal)*.2 end
+                if not bestScore or score<bestScore then
+                    best,bestScore={x=x,y=y},score
+                end
+            end
+        end
+        if best then break end
+    end
+    if not best then return false,'No collision-safe walking space found nearby.' end
+    actor.x,actor.y=best.x,best.y
+    routes[actor]=nil
+    return true,best
+end
 function Navigator.findReachablePoint(actor, goals, context)
     local points,goal=Navigator.findPath(actor,goals,context)
     if not points then return nil end

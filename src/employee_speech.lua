@@ -31,6 +31,7 @@ addMessage("EMPLOYEE_HIGH_FIVE_REQUEST", "Hey, boss! Can I get a high five?")
 addMessage("EMPLOYEE_HIGH_FIVE_THANKS", "Thanks for the high five!")
 addMessage("EMPLOYEE_LATE_OPENING", "You're late! We've been waiting to open.")
 addMessage("EMPLOYEE_BLADE_DULL", "The paper cutter blade is getting dull.")
+addMessage("EMPLOYEE_GOING_ON_DELIVERY", "Going on a delivery.")
 Speech.MAX_CODE=customCode
 function Speech.reason(activity)
     local value=string.lower(tostring(activity or ""))

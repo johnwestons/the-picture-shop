@@ -5,6 +5,7 @@ local Loader=require('src.image_loader')
 local Fonts=require('src.screens.title_fonts')
 local Animation=require('src.character_animation')
 local Config=require('src.config')
+local WalkMotion=require('src.player_walk_motion')
 local Interior={}
 local shopName=require('src.commute.sites').MECHANIC_NAME:upper()
 Interior.hotspots={{id='counter',x=700,y=430,radius=48,label='Talk to the mechanic',action='catalog'},
@@ -101,21 +102,6 @@ local function loadNext(view)
     end
     view.loadIndex=view.loadIndex+1;view.ready=view.loadIndex>#view.requests
 end
-local function move(view,dx,dy)
-    local p=view.pose;local oldX,oldY=p.x,p.y
-    local distance=math.sqrt(dx*dx+dy*dy);local steps=math.max(1,math.ceil(distance/3))
-    for _=1,steps do
-        local nx,ny=p.x+dx/steps,p.y+dy/steps
-        if Interior.walkable(nx,ny)then p.x,p.y=nx,ny
-        else
-            if Interior.walkable(nx,p.y)then p.x=nx end
-            if Interior.walkable(p.x,ny)then p.y=ny end
-        end
-    end
-    local moved=math.sqrt((p.x-oldX)^2+(p.y-oldY)^2)
-    p.moving=moved>.01;p.animationDistance=p.animationDistance+moved
-    if p.moving then p.intentX,p.intentY=(p.x-oldX)/moved,(p.y-oldY)/moved end
-end
 function Interior.update(view,R,dt)
     if view.closed then return end
     dt=math.max(0,math.min(.1,dt or 0));view.clock=view.clock+dt;view.pose.idleClock=view.clock
@@ -135,12 +121,10 @@ function Interior.update(view,R,dt)
     end
     dx,dy=dx or 0,dy or 0
     local magnitude=math.sqrt(dx*dx+dy*dy)
-    if magnitude>.01 then view.path=nil;dx,dy=dx/magnitude*145*dt,dy/magnitude*145*dt
-    elseif view.path and #view.path>0 then
-        local goal=view.path[1];dx,dy=goal.x-view.pose.x,goal.y-view.pose.y;magnitude=math.sqrt(dx*dx+dy*dy)
-        if magnitude<=145*dt then table.remove(view.path,1)else dx,dy=dx/magnitude*145*dt,dy/magnitude*145*dt end
-    end
-    move(view,dx,dy)
+    if magnitude>.01 then view.path=nil
+    else dx,dy=WalkMotion.pathInput(view.pose,view.path) end
+    WalkMotion.update(view.pose,dx,dy,dt,Interior.walkable,R.state)
+    WalkMotion.consumeReached(view.pose,view.path)
 end
 function Interior.pointer(view,R,x,y)
     if view.closed then return nil end

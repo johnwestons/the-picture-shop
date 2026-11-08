@@ -7,6 +7,16 @@ function Component.install(Runtime)
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading()
             and key~="escape" and key~="back" then return end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.keypressed(key, Runtime.CharacterAssets); return end
+        local riding=Runtime.state.screen=='world' and Runtime.World.player
+            and Runtime.World.player.sceneId=='commute'
+        local editingMotorcycle=Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor~=nil
+        if key=='f10' and not riding and not editingMotorcycle
+            and Runtime.state.screen~='title' and Runtime.state.screen~='lan'
+            and Runtime.state.screen~='direct' and Runtime.state.screen~='asset_error' then
+            if Runtime.state.screen~='options' then Runtime.openOptions() end
+            Runtime.OptionsScreen.openDebugPanel()
+            return true
+        end
         if require('src.screens.hud_visibility').keypressed(Runtime,key) then return true end
         if Runtime.state.screen == "asset_error" then
             if key == "escape" or key == "q" then love.event.quit() end

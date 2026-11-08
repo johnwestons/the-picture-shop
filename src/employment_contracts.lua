@@ -111,8 +111,7 @@ function Contracts.summary(t,twelveHour)
     local names={"Mon","Tue","Wed","Thu","Fri","Sat","Sun"}
     local days={}
     for i,name in ipairs(names) do if Contracts.hasDay(t.days,i) then days[#days+1]=name end end
-    local role=t.role=="driver" and "Delivery driver" or "Production cutter"
-    return string.format("%s | $%.2f/hr | %s | %s-%s%s | Pay %dw",role,t.wageCents/100,table.concat(days," "),
+    return string.format("Employee | $%.2f/hr | %s | %s-%s%s | Pay %dw",t.wageCents/100,table.concat(days," "),
         Contracts.formatHour(t.startHour,twelveHour),Contracts.formatHour(t.endHour,twelveHour),
         t.endHour<t.startHour and " (+1 day)" or "",t.payWeeks)
 end

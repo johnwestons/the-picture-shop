@@ -54,6 +54,35 @@ function Component.install(Runtime)
                     or layout
                 Runtime.Settings.save(Runtime.App.settings)
             end,
+            getDebugInfo = function()
+                local state=Runtime.state
+                local player=Runtime.World and Runtime.World.player or {}
+                local gameHours
+                if Runtime.BusinessCalendar and Runtime.BusinessCalendar.absoluteHours then
+                    local okay,value=pcall(Runtime.BusinessCalendar.absoluteHours,state)
+                    if okay then gameHours=tonumber(value) end
+                end
+                local multiplayer={}
+                if Runtime.multiplayer and Runtime.multiplayer.debugInfo then
+                    local okay,value=pcall(Runtime.multiplayer.debugInfo,Runtime.multiplayer)
+                    if okay and type(value)=='table' then multiplayer=value end
+                end
+                local assetPack
+                if Runtime.Assets and Runtime.Assets.activePackName then
+                    local okay,value=pcall(Runtime.Assets.activePackName)
+                    if okay then assetPack=value end
+                end
+                return {
+                    screen=state.optionsReturnScreen or state.screen,
+                    scene=player.sceneId,
+                    activeSlot=state.activeSlot,
+                    player={x=player.x,y=player.y},
+                    gameHours=gameHours,
+                    assetPack=assetPack,
+                    multiplayer=multiplayer,
+                    sessionSeconds=multiplayer.connectedForSeconds,
+                }
+            end,
             applyPlayerColorways = Runtime.App.syncPlayerColorways,
             onClose = Runtime.closeOptions,
         })

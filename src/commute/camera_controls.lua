@@ -19,9 +19,10 @@ function Controls.release(state,button)
     if state.button~=button then return false end
     Controls.cancel(state);return true
 end
-function Controls.move(state,camera,dx,dy,scale)
+function Controls.move(state,camera,dx,dy,scaleX,scaleY)
     if not state.mode or not camera then return false end
-    scale=math.max(.001,scale or 1);dx,dy=dx/scale,dy/scale
+    scaleX=math.max(.001,scaleX or 1);scaleY=math.max(.001,scaleY or scaleX)
+    dx,dy=dx/scaleX,dy/scaleY
     -- Outside drags manipulate the world; rider-eye drags turn the head.
     -- Screen Y grows downward, while positive head pitch looks upward.
     if camera.firstPerson then camera:orbit(dx*.45,-dy*.25)

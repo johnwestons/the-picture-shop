@@ -54,7 +54,7 @@ function PaperWork.create(job, pallet, difficulty, seed)
         finishedSize = { width = finished.width, height = finished.height },
         currentSize = { width = source.width, height = source.height },
         margins = { left = left, right = right, top = top, bottom = bottom },
-        orientation = 0,
+        orientation = cuts[1].orientation or 0,
         activeCut = 1,
         cuts = cuts,
         status = "uncut",
@@ -67,9 +67,39 @@ function PaperWork.currentCut(paper)
     return paper and paper.cuts and paper.cuts[paper.activeCut]
 end
 
+function PaperWork.prepareFirstCut(paper)
+    if not paper or type(paper.cuts) ~= "table" or (paper.activeCut or 1) ~= 1
+        or #(paper.history or {}) > 0 or not paper.cuts[1]
+    then return false end
+    paper.orientation = paper.cuts[1].orientation or 0
+    return true
+end
+
+-- Positive rotation is clockwise in the cutter's screen-space presentation.
+-- Follow the same quarter-turn direction as the programmed cut sequence so a
+-- single click after each cut presents the next edge to the blade.
+function PaperWork.rotationDirection(paper)
+    local cuts = paper and paper.cuts
+    if type(cuts) ~= "table" or #cuts < 2 then return -1 end
+    local active = math.max(1, math.floor(tonumber(paper.activeCut) or 1))
+    local fromIndex, toIndex
+    if active > 1 and cuts[active - 1] and cuts[active] then
+        fromIndex, toIndex = active - 1, active
+    elseif cuts[active] and cuts[active + 1] then
+        fromIndex, toIndex = active, active + 1
+    else
+        return -1
+    end
+    local from = tonumber(cuts[fromIndex].orientation) or 0
+    local to = tonumber(cuts[toIndex].orientation) or from
+    local delta = (to - from + 540) % 360 - 180
+    if math.abs(delta) < 0.001 then return -1 end
+    return delta > 0 and 1 or -1
+end
+
 function PaperWork.rotate(paper)
     if not paper or paper.status == "complete" then return false end
-    paper.orientation = ((tonumber(paper.orientation) or 0) + 90) % 360
+    paper.orientation = ((tonumber(paper.orientation) or 0) + 90 * PaperWork.rotationDirection(paper)) % 360
     return true
 end
 
@@ -155,7 +185,7 @@ function PaperWork.resetForNextLift(paper)
         width = paper.sourceSize.width,
         height = paper.sourceSize.height,
     }
-    paper.orientation = 0
+    paper.orientation = paper.cuts and paper.cuts[1] and paper.cuts[1].orientation or 0
     paper.activeCut = 1
     paper.status = "uncut"
     paper.offSpec = nil

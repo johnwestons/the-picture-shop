@@ -373,8 +373,8 @@ function Renderer.drawConstructionWorker(worker,state)
         love.graphics.printf(label,worker.x-35,worker.y+7,70,"center")
     end
 end
-function Renderer.drawDeliveryDriver(actor)
-    return require("src.warehouse_delivery_driver").draw(actor,sourceImage,sourceQuad)
+function Renderer.drawDeliveryDriver(actor,scaleMultiplier)
+    return require("src.warehouse_delivery_driver").draw(actor,sourceImage,sourceQuad,scaleMultiplier)
 end
 
 function Renderer.drawDeliverySignatureHint(actor)

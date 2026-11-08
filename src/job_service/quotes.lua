@@ -1,6 +1,7 @@
 -- Quote terms, reputation effects, and email estimates.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local Progression = require("src.job_progression")
 
 function Component.install(Runtime)
     function Runtime.completedRelationship(state, company)
@@ -35,9 +36,29 @@ function Component.install(Runtime)
             or tier == 0 and "A small trial order because the shop has no track record yet."
             or tier < 0 and "A small recovery order because prior spoilage damaged the shop's reputation."
             or "Normal commercial client expectations."
-        offer.quote.totalPrice = math.max(1, math.floor(offer.quote.totalPrice * multiplier + 0.5))
-        offer.quote.servicePrice = offer.quote.totalPrice
-        offer.quote.totalPrice,offer.quote.employeeBudget=Runtime.Labor.price(state,offer,offer.quote.servicePrice)
+        offer.qualityStandard = Progression.qualityStandard(tier)
+        offer.qualityStandardLabel = string.format("%d%% minimum finished quality",
+            math.floor(offer.qualityStandard * 100 + 0.5))
+        offer.details = offer.details or {}
+        offer.details.notes = (offer.details.notes or "") .. string.format(
+            " Quality target: %d%%.",
+            math.floor(offer.qualityStandard * 100 + 0.5))
+
+        local servicePrice = math.max(1, math.floor(offer.quote.totalPrice * multiplier + 0.5))
+        local laborPrice, budget = Runtime.Labor.price(state, offer, servicePrice)
+        local discount = Progression.volumeDiscount(offer.quote.totalLifts)
+        local discountedPrice = math.floor(laborPrice * (1 - discount) + 0.5)
+        if budget then
+            local lifts = math.max(1, math.floor(tonumber(offer.quote.totalLifts) or 1))
+            local finances = require("src.staff_finances").summary(state)
+            discountedPrice = math.max(discountedPrice,
+                math.floor(budget.minimumCuttingCharge * (1 - discount) + 0.5),
+                math.floor(finances.pricePerLift * lifts * (1 - discount) + 0.5))
+        end
+        offer.quote.servicePrice = servicePrice
+        offer.quote.volumeDiscountRate = discount
+        offer.quote.totalPrice = math.max(1, discountedPrice)
+        offer.quote.employeeBudget = budget
         offer.quote.recommendedPrice = offer.quote.totalPrice
         return offer
     end
@@ -58,6 +79,14 @@ function Component.install(Runtime)
                 local finances=require("src.staff_finances").summary(state)
                 local lifts=math.max(1,math.floor(tonumber(job.quote.totalLifts) or 1))
                 base=math.max(base,math.ceil(finances.pricePerLift*lifts*100-1e-7)/100)
+            end
+            local discount = tonumber(job.quote.volumeDiscountRate)
+            if discount == nil then discount = Progression.volumeDiscount(job.quote.totalLifts) end
+            discount = math.max(0, math.min(0.15, discount))
+            base = math.floor(base * (1 - discount) + 0.5)
+            if budget then
+                base = math.max(base,
+                    math.floor(budget.minimumCuttingCharge * (1 - discount) + 0.5))
             end
         end
         amount = math.max(1, math.floor(tonumber(amount) or base))

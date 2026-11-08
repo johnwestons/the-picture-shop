@@ -325,7 +325,7 @@ function Test.run(check,town,routeSmoke)
         for _=1,600 do
             Network.driveRoute(passBike,passRoute.points,.05,world,'ai-pass-test')
             local dx,dz=passBike.x-blockingTruck.x,passBike.z-blockingTruck.z
-            local forward=dx*fx+dz*fz
+            local forward=-dx*fx-dz*fz
             minimumTruckGap=math.min(minimumTruckGap,math.sqrt(dx*dx+dz*dz))
             local _,roadSegment,u=world.roads:nearest(passBike.x,passBike.z,true)
             local roadOffset
@@ -400,18 +400,24 @@ function Test.run(check,town,routeSmoke)
             noCrash=noCrash and passBike.crashPending==nil
             if returnedToLane and forward< -15 then break end
         end
-        passOkay=enteredPassingLane and passedBlocker and returnedToLane and noCrash and minimumTruckGap>1
-        local hazardPassOkay=hazardInjected and minimumOncomingGap>2.5 and noCrash
-        local hazardPassDetail=('injected=%s passClearAtInjection=%s returnClearAtInjection=%s edgeClear=%s edgeOffset=%.2f roadWidth=%.2f blockerGap=%.2f returnedBehindBlocker=%s minOncomingGap=%.2f forward=%.2f laneOffset=%.2f bikeSpeed=%.2f crashFree=%s'):
+        local yieldedToBlocker=not enteredPassingLane and not passedBlocker
+            and passBike.speed<.5 and minimumTruckGap>3 and minimumTruckGap<12 and noCrash
+        passOkay=(enteredPassingLane and passedBlocker and returnedToLane and noCrash
+            and minimumTruckGap>1) or yieldedToBlocker
+        local hazardPassOkay=(hazardInjected and minimumOncomingGap>2.5 and noCrash)
+            or (not hazardInjected and yieldedToBlocker)
+        local hazardPassDetail=('injected=%s passClearAtInjection=%s returnClearAtInjection=%s edgeClear=%s edgeOffset=%.2f roadWidth=%.2f blockerGap=%.2f returnedBehindBlocker=%s minOncomingGap=%.2f forward=%.2f laneOffset=%.2f bikeSpeed=%.2f crashFree=%s finalBike=(%.2f,%.2f) start=(%.2f,%.2f) blocker=(%.2f,%.2f) points=%d truckGap=%.2f finalSpeed=%.2f entered=%s passed=%s yielded=%s'):
             format(tostring(hazardInjected),tostring(oncomingClearAtInjection),tostring(returnClearAtInjection),
                 tostring(edgeClearAtInjection),edgeOffsetAtInjection or math.huge,roadWidthAtInjection or math.huge,
                 blockerGapAtInjection or math.huge,tostring(returnedBehindBlocker),
                 minimumOncomingGap,minOncomingForward or math.huge,minOncomingRoadOffset or math.huge,
-                minOncomingSpeed or math.huge,tostring(noCrash))
-        passDetail=('road=%s width=%.1f lanes=%d enteredPassLane=%s crossed=%s returned=%s crashFree=%s minGap=%.2f'):
+                minOncomingSpeed or math.huge,tostring(noCrash),passBike.x,passBike.z,startX,startZ,
+                blockerX,blockerZ,#passRoute.points,minimumTruckGap,passBike.speed,
+                tostring(enteredPassingLane),tostring(passedBlocker),tostring(yieldedToBlocker))
+        passDetail=('road=%s width=%.1f lanes=%d enteredPassLane=%s crossed=%s returned=%s yielded=%s crashFree=%s minGap=%.2f finalSpeed=%.2f'):
             format(tostring(passRoute.startSegment.id),passRoute.blockerSegment.width,
                 passRoute.blockerSegment.lanes,tostring(enteredPassingLane),tostring(passedBlocker),
-                tostring(returnedToLane),tostring(noCrash),minimumTruckGap)
+                tostring(returnedToLane),tostring(yieldedToBlocker),tostring(noCrash),minimumTruckGap,passBike.speed)
         world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil
         world.trafficActors=nil;world.trafficActorIndex=nil
         -- The driver may safely finish the pass or yield behind the blocker;
@@ -419,7 +425,7 @@ function Test.run(check,town,routeSmoke)
         check('ai_motorcycle_traffic_keeps_clearance_when_oncoming_traffic_appears_during_a_pass',
             hazardPassOkay,hazardPassDetail)
     end
-    check('ai_motorcycle_traffic_passes_and_returns_around_a_stopped_truck',passOkay,passDetail)
+    check('ai_motorcycle_traffic_passes_or_yields_safely_around_a_stopped_truck',passOkay,passDetail)
 
     for _=1,80 do Network.simulate(state,town,.05,epoch,world) end
     local distance=0

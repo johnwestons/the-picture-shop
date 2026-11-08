@@ -10,14 +10,16 @@ function Menu.hasTruckSeatPad(camera,rider)
 end
 function Menu.seatPad(button)
     local last=Menu.row(button,#Menu.modes)
-    local frame={x=last.x,y=last.y+last.height+5,width=last.width,height=98}
-    local center=frame.x+frame.width*.5
-    local size=36
+    local frame={x=last.x-35,y=last.y+last.height+5,width=210,height=102}
+    local center=frame.x+67
+    local size=30
     return frame,{
         up={x=center-size*.5,y=frame.y+22,width=size,height=22},
-        left={x=frame.x+30,y=frame.y+46,width=size,height=22},
-        right={x=frame.x+frame.width-30-size,y=frame.y+46,width=size,height=22},
+        left={x=center-size-1,y=frame.y+46,width=size,height=22},
+        right={x=center+1,y=frame.y+46,width=size,height=22},
         down={x=center-size*.5,y=frame.y+70,width=size,height=22},
+        forward={x=frame.x+132,y=frame.y+31,width=68,height=27},
+        back={x=frame.x+132,y=frame.y+64,width=68,height=27},
     }
 end
 function Menu.adjustmentAt(button,x,y,camera,rider)
@@ -56,15 +58,19 @@ function Menu.draw(button,camera,rider)
     if Menu.hasTruckSeatPad(camera,rider) then
         local frame,buttons=Menu.seatPad(button)
         g.setColor(.06,.10,.09,.97);g.rectangle('fill',frame.x,frame.y,frame.width,frame.height,4)
-        g.setColor(.72,.79,.72,1);g.printf('CAB SEAT POSITION',frame.x+4,frame.y+4,frame.width-8,'center')
+        g.setColor(.72,.79,.72,1);g.printf('CAB VIEW POSITION',frame.x+4,frame.y+4,frame.width-8,'center')
         for direction,rect in pairs(buttons) do
             g.setColor(.14,.21,.17,1);g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,4)
             g.setColor(.92,.91,.80,1)
-            local cx,cy=rect.x+rect.width*.5,rect.y+rect.height*.5
-            if direction=='up' then g.polygon('fill',cx,cy-6,cx-6,cy+4,cx+6,cy+4)
-            elseif direction=='down' then g.polygon('fill',cx,cy+6,cx-6,cy-4,cx+6,cy-4)
-            elseif direction=='left' then g.polygon('fill',cx-7,cy,cx+4,cy-6,cx+4,cy+6)
-            else g.polygon('fill',cx+7,cy,cx-4,cy-6,cx-4,cy+6) end
+            if direction=='forward' or direction=='back' then
+                g.printf(direction=='forward' and 'FWD' or 'BACK',rect.x,rect.y+5,rect.width,'center')
+            else
+                local cx,cy=rect.x+rect.width*.5,rect.y+rect.height*.5
+                if direction=='up' then g.polygon('fill',cx,cy-6,cx-6,cy+4,cx+6,cy+4)
+                elseif direction=='down' then g.polygon('fill',cx,cy+6,cx-6,cy-4,cx+6,cy-4)
+                elseif direction=='left' then g.polygon('fill',cx-7,cy,cx+4,cy-6,cx+4,cy+6)
+                else g.polygon('fill',cx+7,cy,cx-4,cy-6,cx-4,cy+6) end
+            end
         end
     end
     g.pop()

@@ -30,6 +30,10 @@ function Presentation.reset(actor)
 end
 function Presentation.clip(character,action,contactFrame)
     local expanded=Art.paths[character] and Art.paths[character][action]
+    if not expanded then
+        local medicFox=require("src.medic_fox_worker_art").paths
+        expanded=medicFox[character] and medicFox[character][action]
+    end
     if not expanded then return {action=action,frameCount=4,secondsPerFrame=.12} end
     local wrapping=action=="work_wrapping"
     return {action=action,frameCount=8,readyFrame=1,secondsPerFrame=.12,

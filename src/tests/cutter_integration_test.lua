@@ -595,7 +595,7 @@ function Test.run(context, check, jobs)
     check("cutter_enter_commits_typed_gauge", context.machineScreen.keypressed(cutterState, "return")
         and math.abs(context.machine.gauge - trackedPaper.cuts[1].gauge) < 0.001)
     local rotationSequence = {}
-    for _, expected in ipairs({ 90, 180, 270, 0 }) do
+    for _, expected in ipairs({ 0, 270, 180, 90 }) do
         local rotated = context.machine.keypressed("q", cutterState)
         rotationSequence[#rotationSequence + 1] = rotated and trackedPaper.orientation == expected
     end

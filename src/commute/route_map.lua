@@ -14,15 +14,52 @@ local function bounds(world)
     return {x0=x0,z0=z0,x1=math.max(x0+1,x1),z1=math.max(z0+1,z1)}
 end
 Map.bounds=bounds
-function Map.layout(rect,count)
-    local pad=16;local contentHeight=math.max(80,rect.height-96)
-    local rows=math.max(1,math.floor(contentHeight/24))
-    local columns=math.max(1,math.ceil((count or 0)/rows))
-    local keyWidth=math.min(rect.width*.58,math.max(250,columns*210))
-    return {panel=rect,map={x=rect.x+pad,y=rect.y+47,width=rect.width-keyWidth-pad*3,height=contentHeight},
-        key={x=rect.x+rect.width-keyWidth-pad,y=rect.y+47,width=keyWidth,height=contentHeight},
-        columns=columns,rows=rows,rowHeight=contentHeight/rows,columnWidth=keyWidth/columns,
-        footerY=rect.y+rect.height-35}
+function Map.layout(rect,count,options)
+    options=options or {}
+    local mobile=options.mobile==true
+    local compact=rect.width<740 or (options.headerRight and options.headerRight-(rect.x+172)<320) or false
+    local showPlaces=mobile and options.showPlaces==true or (not mobile and options.showPlaces~=false)
+    local pad=mobile and 14 or 18
+    local headerHeight=compact and (mobile and 116 or 110) or (mobile and 66 or 62)
+    local footerHeight=mobile and 38 or 48
+    local contentTop=rect.y+headerHeight
+    local footerY=rect.y+rect.height-footerHeight
+    local availableHeight=math.max(80,footerY-contentTop-pad)
+    local key,map,rows,columns,rowHeight,columnWidth,pageSize,pageCount
+    if mobile then
+        local mapHeight=showPlaces and math.max(120,availableHeight*.57) or availableHeight
+        mapHeight=math.min(availableHeight,mapHeight)
+        map={x=rect.x+pad,y=contentTop,width=rect.width-pad*2,height=mapHeight}
+        if showPlaces then
+            local keyY=map.y+map.height+8
+            key={x=rect.x+pad,y=keyY,width=rect.width-pad*2,
+                height=math.max(42,footerY-keyY-6)}
+            local listHeight=math.max(24,key.height-46)
+            rows=math.max(1,math.min(3,math.floor(listHeight/48)))
+            columns=2;rowHeight=listHeight/rows;columnWidth=key.width/columns
+            pageSize=rows*columns
+            pageCount=math.max(1,math.ceil((count or 0)/pageSize))
+        else
+            rows=1;columns=1;rowHeight=0;columnWidth=0;pageSize=0;pageCount=1
+        end
+    else
+        local contentHeight=availableHeight
+        rows=math.max(1,math.floor(math.max(36,contentHeight-46)/40))
+        columns=math.max(1,math.ceil((count or 0)/rows))
+        if options.paginatePlaces then columns=math.min(3,columns) end
+        local keyWidth=options.showPlaces==false and 0 or math.min(rect.width*.48,math.max(320,columns*220))
+        map={x=rect.x+pad,y=contentTop,width=rect.width-keyWidth-(keyWidth>0 and pad*3 or pad*2),height=contentHeight}
+        if keyWidth>0 then key={x=rect.x+rect.width-keyWidth-pad,y=contentTop,width=keyWidth,height=contentHeight} end
+        rowHeight=math.max(36,contentHeight-46)/rows;columnWidth=keyWidth>0 and keyWidth/columns or 0
+        pageSize=options.paginatePlaces and rows*columns or (count or 0)
+        pageCount=options.paginatePlaces and math.max(1,math.ceil((count or 0)/pageSize)) or 1
+    end
+    local page=math.max(1,math.min(pageCount,math.floor(options.placesPage or 1)))
+    return {panel=rect,map=map,key=key,columns=columns,rows=rows,rowHeight=rowHeight,
+        columnWidth=columnWidth,footerY=footerY,footerHeight=footerHeight,
+        headerHeight=headerHeight,mobile=mobile,showPlaces=showPlaces,page=page,
+        pageSize=pageSize,pageCount=pageCount,keyHeaderHeight=42,
+        headerRight=options.headerRight,compact=compact}
 end
 local function fitted(world,rect)
     local b=bounds(world);local scale=math.min(rect.width/(b.x1-b.x0),rect.height/(b.z1-b.z0))
@@ -37,7 +74,8 @@ local compass={'E','SE','S','SW','W','NW','N','NE'}
 function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/(math.pi/4))%8+1]end
 function Map.new(world)
     local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
-        mapBounds=bounds(world),miniLevel=2,miniFollow=true},Map)
+        mapBounds=bounds(world),miniLevel=2,miniFollow=true,numbersVisible=true,
+        desktopPlacesOpen=true,mobilePlacesOpen=false,placesPage=1},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
         local destination=destinations[site.id]
@@ -48,9 +86,14 @@ function Map.new(world)
     for i,entry in ipairs(self.entries)do entry.index=i end
     return self
 end
+function Map:uiOptions(mobile,headerRight)
+    return {mobile=mobile==true,showPlaces=mobile and self.mobilePlacesOpen or
+        (not mobile and self.desktopPlacesOpen),placesPage=self.placesPage,
+        showNumbers=self.numbersVisible,headerRight=headerRight,paginatePlaces=true}
+end
 function Map:snapshot(rect,actor,options)
     options=options or {};actor=actor or {}
-    local layout=Map.layout(rect,#self.entries)
+    local layout=Map.layout(rect,#self.entries,options)
     local x,y,viewport=Map.project(self.world,layout.map,finite(actor.x,0),finite(actor.z,0))
     local heading=finite(actor.heading,0);local dx,dz=math.cos(heading),math.sin(heading)
     local result={layout=layout,viewport=viewport,marker={x=x,y=y,heading=heading,dx=dx,dz=dz,
@@ -75,11 +118,28 @@ function Map:snapshot(rect,actor,options)
             end
         end
         placed[#placed+1]={x=bx,y=by}
-        local column=math.floor((i-1)/layout.rows);local row=(i-1)%layout.rows
+        local column,row
+        if layout.mobile or layout.pageCount>1 then
+            local ordinal=i-(layout.page-1)*layout.pageSize
+            if ordinal>=1 and ordinal<=layout.pageSize then
+                if layout.mobile then
+                    column=(ordinal-1)%layout.columns;row=math.floor((ordinal-1)/layout.columns)
+                else
+                    column=math.floor((ordinal-1)/layout.rows);row=(ordinal-1)%layout.rows
+                end
+            end
+        elseif layout.key then
+            column=math.floor((i-1)/layout.rows);row=(i-1)%layout.rows
+        end
+        local keyRect
+        if layout.key and column and row then
+            local keyY=layout.key.y+(layout.mobile and layout.keyHeaderHeight or 0)
+            keyRect={x=layout.key.x+column*layout.columnWidth+3,
+                y=keyY+row*layout.rowHeight+2,width=layout.columnWidth-6,height=layout.rowHeight-4}
+        end
         result.buildings[i]={id=entry.id,index=i,label=entry.label,x=bx,y=by,anchorX=ax,anchorY=ay,
             destination=entry.id==options.destination,home=entry.id==options.home,
-            keyRect={x=layout.key.x+column*layout.columnWidth,y=layout.key.y+row*layout.rowHeight,
-                width=layout.columnWidth-7,height=layout.rowHeight-2}}
+            keyRect=keyRect}
     end
     if options.bike then
         local bx,by=Map.project(self.world,layout.map,options.bike.x,options.bike.z)
@@ -97,7 +157,7 @@ end
 local miniScales={1,1.5,2,2.5}
 
 local function miniButtonSize(rect)
-    return math.min(28,(rect.height-44)/3)
+    return math.max(1,math.min(38,(rect.height-32)/3))
 end
 function Map.miniZoomButton(rect,direction)
     local size=miniButtonSize(rect)
@@ -180,9 +240,12 @@ function Map:hit(rect,x,y,actor,options)
     local nearest,best
     for _,entry in ipairs(s.buildings) do
         local k=entry.keyRect
-        if x>=k.x and x<=k.x+k.width and y>=k.y and y<=k.y+k.height then return entry.id end
-        local distance=(x-entry.x)^2+(y-entry.y)^2
-        if distance<=15*15 and (not best or distance<best) then nearest,best=entry.id,distance end
+        if k and x>=k.x and x<=k.x+k.width and y>=k.y and y<=k.y+k.height then return entry.id end
+        local mx,my=options and options.showNumbers==false and entry.anchorX or entry.x,
+            options and options.showNumbers==false and entry.anchorY or entry.y
+        local distance=(x-mx)^2+(y-my)^2
+        local radius=options and options.mobile and 23 or 18
+        if distance<=radius*radius and (not best or distance<best) then nearest,best=entry.id,distance end
     end
     return nearest
 end
@@ -235,14 +298,64 @@ function Map:prepare()
     end end
     g.pop();terrain:release();self.backgroundBuilds=self.backgroundBuilds+1
 end
-local function badge(g,x,y,index,color,font)
-    g.setColor(.025,.05,.05,.98);g.circle('fill',x,y,9)
-    g.setColor(color);g.setLineWidth(1.5);g.circle('line',x,y,9)
-    g.setFont(font);g.printf(tostring(index),x-10,y-font:getHeight()/2,20,'center')
+local function badge(g,x,y,index,color,font,radius)
+    radius=radius or 11
+    g.setColor(.025,.05,.05,.98);g.circle('fill',x,y,radius)
+    g.setColor(color);g.setLineWidth(1.5);g.circle('line',x,y,radius)
+    g.setFont(font);g.printf(tostring(index),x-radius,y-font:getHeight()/2,radius*2,'center')
 end
 function Map:font(size)
     if not self.fonts[size]then self.fonts[size]=love.graphics.newFont(size)end
     return self.fonts[size]
+end
+local function contains(rect,x,y)
+    return rect and x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height
+end
+function Map:controlRects(rect,layout)
+    local mobile=layout.mobile
+    local closeReserve=mobile and 158 or 156
+    local firstX=layout.compact and rect.x+16 or rect.x+172
+    local lastX=layout.compact and rect.x+rect.width-16
+        or layout.headerRight or rect.x+rect.width-closeReserve
+    local gap=8
+    local available=math.max(1,lastX-firstX-gap)
+    local labelsWidth,placesWidth
+    if available<210 then
+        labelsWidth=available*.54;placesWidth=available-labelsWidth
+    else
+        labelsWidth=math.min(mobile and 166 or 150,available*.54)
+        placesWidth=math.min(mobile and 166 or 150,available-labelsWidth)
+    end
+    local height=mobile and 46 or 42
+    local y=rect.y+(layout.compact and 58 or 9)
+    local controls={labels={x=firstX,y=y,width=labelsWidth,height=height},
+        places={x=firstX+labelsWidth+gap,y=y,width=placesWidth,height=height}}
+    if layout.key and layout.pageCount>1 then
+        local py=layout.key.y+3
+        controls.previous={x=layout.key.x+layout.key.width-107,y=py,width=48,height=34}
+        controls.next={x=layout.key.x+layout.key.width-53,y=py,width=48,height=34}
+    end
+    return controls
+end
+function Map:pressControl(rect,x,y,mobile,headerRight)
+    local ui=self:uiOptions(mobile,headerRight)
+    local layout=Map.layout(rect,#self.entries,ui)
+    local controls=self:controlRects(rect,layout)
+    if contains(controls.labels,x,y) then self.numbersVisible=not self.numbersVisible;return true end
+    if contains(controls.places,x,y) then
+        if mobile then self.mobilePlacesOpen=not self.mobilePlacesOpen
+        else self.desktopPlacesOpen=not self.desktopPlacesOpen end
+        local nextLayout=Map.layout(rect,#self.entries,self:uiOptions(mobile,headerRight))
+        self.placesPage=math.min(self.placesPage,nextLayout.pageCount)
+        return true
+    end
+    if contains(controls.previous,x,y) then
+        self.placesPage=math.max(1,self.placesPage-1);return true
+    end
+    if contains(controls.next,x,y) then
+        self.placesPage=math.min(layout.pageCount,self.placesPage+1);return true
+    end
+    return false
 end
 function Map:draw(rect,actor,options)
     if self.released then return end
@@ -250,9 +363,26 @@ function Map:draw(rect,actor,options)
     local s=self:snapshot(rect,actor,options);local g=love.graphics;local v=s.viewport
     g.push('all');g.setShader();g.setColor(.025,.05,.047,.98);g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,8)
     g.setColor(.43,.57,.51,1);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,8)
-    g.setFont(self:font(17));g.setColor(.98,.87,.52,1);g.print('TOWN MAP',rect.x+16,rect.y+13)
-    g.setFont(self:font(12));g.setColor(.79,.86,.81,1)
-    g.printf(options.closeHint or 'North up',rect.x+185,rect.y+16,rect.width-205,'right')
+    local mobile=s.layout.mobile
+    local controls=self:controlRects(rect,s.layout)
+    g.setFont(self:font(mobile and 23 or 25));g.setColor(.98,.87,.52,1);g.print('TOWN MAP',rect.x+16,rect.y+14)
+    local function button(b,label,active)
+        if not b then return end
+        g.setColor(active and {.15,.30,.22,1} or {.10,.16,.15,1})
+        g.rectangle('fill',b.x,b.y,b.width,b.height,6)
+        g.setColor(active and {.65,.94,.62,1} or {.48,.62,.56,1})
+        g.setLineWidth(1.5);g.rectangle('line',b.x,b.y,b.width,b.height,6)
+        local font=self:font(mobile and 17 or 16)
+        g.setFont(font);g.setColor(.96,.97,.90,1)
+        g.printf(label,b.x+4,b.y+(b.height-font:getHeight())/2,b.width-8,'center')
+    end
+    button(controls.labels,self.numbersVisible and 'NUMBERS: ON' or 'NUMBERS: OFF',self.numbersVisible)
+    local placesOpen=mobile and self.mobilePlacesOpen or (not mobile and self.desktopPlacesOpen)
+    button(controls.places,placesOpen and 'HIDE PLACES' or 'PLACES',placesOpen)
+    if controls.previous then
+        button(controls.previous,'<',s.layout.page>1)
+        button(controls.next,'>',s.layout.page<s.layout.pageCount)
+    end
     g.setColor(1,1,1);g.draw(self.background,v.x,v.y,0,v.width/512,v.height/512)
     g.setColor(.44,.56,.51,1);g.rectangle('line',v.x,v.y,v.width,v.height)
     if options.route and options.route.points then
@@ -263,50 +393,77 @@ function Map:draw(rect,actor,options)
         end
         if #points>=4 then g.setColor(.98,.65,.20,.9);g.setLineWidth(3);g.line(points)end
     end
-    local numberFont=self:font(11);local labelFont=self:font(s.layout.columns>2 and 10 or 12)
+    if s.layout.key then
+        g.setColor(.035,.065,.06,.98);g.rectangle('fill',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
+        g.setColor(.37,.52,.46,1);g.setLineWidth(1);g.rectangle('line',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
+    end
+    local numberFont=self:font(mobile and 15 or 14)
+    local labelFont=self:font(mobile and 17 or (s.layout.columns>2 and 14 or 16))
     for _,entry in ipairs(s.buildings)do
         local color=entry.destination and {1,.73,.24,1} or entry.home and {.55,.91,.61,1} or {.81,.89,.85,1}
-        g.setColor(color);g.setLineWidth(1);g.line(entry.anchorX,entry.anchorY,entry.x,entry.y)
-        if entry.destination or entry.home then g.circle('line',entry.anchorX,entry.anchorY,12)end
-        badge(g,entry.x,entry.y,entry.index,color,numberFont)
         local key=entry.keyRect
-        if entry.destination or entry.home then g.setColor(color[1],color[2],color[3],.10);g.rectangle('fill',key.x,key.y,key.width,key.height,3)end
-        badge(g,key.x+11,key.y+key.height/2,entry.index,color,numberFont)
-        g.setFont(labelFont);g.setColor(color)
-        local available=key.width-28;local _,lines=labelFont:getWrap(entry.label,available)
-        local font=labelFont
-        if #lines*font:getHeight()>key.height then font=self:font(10);g.setFont(font);_,lines=font:getWrap(entry.label,available)end
-        g.printf(entry.label,key.x+26,key.y+math.max(0,(key.height-#lines*font:getHeight())/2),available,'left')
+        if options.showNumbers~=false then
+            g.setColor(color);g.setLineWidth(1.5);g.line(entry.anchorX,entry.anchorY,entry.x,entry.y)
+            if entry.destination or entry.home then g.circle('line',entry.anchorX,entry.anchorY,14)end
+            badge(g,entry.x,entry.y,entry.index,color,numberFont,13)
+        else
+            g.setColor(.015,.04,.04,.98);g.circle('fill',entry.anchorX,entry.anchorY,7)
+            g.setColor(color);g.circle('fill',entry.anchorX,entry.anchorY,5)
+            if entry.destination or entry.home then g.setLineWidth(2);g.circle('line',entry.anchorX,entry.anchorY,11)end
+        end
+        if key then
+            g.setColor(.055,.09,.085,.96);g.rectangle('fill',key.x,key.y,key.width,key.height,4)
+            if entry.destination or entry.home then g.setColor(color[1],color[2],color[3],.14);g.rectangle('fill',key.x,key.y,key.width,key.height,4)end
+            local left=key.x+10
+            if options.showNumbers~=false then
+                badge(g,left+11,key.y+key.height/2,entry.index,color,numberFont,11)
+                left=left+29
+            end
+            local available=math.max(24,key.x+key.width-left-8)
+            local font=labelFont;local _,lines=font:getWrap(entry.label,available)
+            if #lines*font:getHeight()>key.height then font=self:font(mobile and 14 or 12);_,lines=font:getWrap(entry.label,available)end
+            g.setFont(font);g.setColor(color)
+            g.printf(entry.label,left,key.y+math.max(0,(key.height-#lines*font:getHeight())/2),available,'left')
+        end
+    end
+    if s.layout.key then
+        g.setFont(self:font(mobile and 16 or 17));g.setColor(.94,.90,.75,1)
+        if s.layout.pageCount>1 then
+            g.print(('DESTINATIONS  ·  %d / %d'):format(s.layout.page,s.layout.pageCount),s.layout.key.x+12,s.layout.key.y+8)
+        elseif mobile then
+            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+8)
+        else
+            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+9)
+        end
     end
     for _,area in ipairs(s.recreation)do
         g.setColor(.055,.15,.09,1);g.circle('fill',area.x,area.y,9)
         g.setColor(.65,.95,.67,1);g.setLineWidth(1.5);g.circle('line',area.x,area.y,9)
-        g.setFont(self:font(11));g.printf(area.kind=='camp' and 'C' or 'P',area.x-9,area.y-6,18,'center')
+        g.setFont(self:font(13));g.printf(area.kind=='camp' and 'C' or 'P',area.x-9,area.y-7,18,'center')
         local label=area.label or (area.kind=='camp' and 'Campsite' or area.kind=='park' and 'Park' or 'Picnic area')
-        local width=math.min(148,self:font(10):getWidth(label)+6)
+        local font=self:font(13);local width=math.min(180,font:getWidth(label)+12)
         local x=clamp(area.x+12,v.x+2,v.x+v.width-width-2)
-        local y=clamp(area.y-7,v.y+2,v.y+v.height-16)
-        g.setColor(.025,.06,.04,.96);g.rectangle('fill',x,y,width,15,3)
-        g.setColor(.75,.95,.70);g.setFont(self:font(10));g.printf(label,x+3,y+1,width-6,'left')
+        local y=clamp(area.y-9,v.y+2,v.y+v.height-20)
+        g.setColor(.025,.06,.04,.96);g.rectangle('fill',x,y,width,19,3)
+        g.setColor(.75,.95,.70);g.setFont(font);g.printf(label,x+5,y+1,width-10,'left')
     end
     if s.bike then
         g.setColor(.93,.91,.71,1);g.setLineWidth(2);g.rectangle('line',s.bike.x-4,s.bike.y-4,8,8)
-        g.setFont(self:font(10));g.print('BIKE',clamp(s.bike.x-28,v.x+2,v.x+v.width-30),clamp(s.bike.y+8,v.y+2,v.y+v.height-12))
+        g.setFont(self:font(13));g.print('BIKE',clamp(s.bike.x-34,v.x+2,v.x+v.width-42),clamp(s.bike.y+9,v.y+2,v.y+v.height-16))
     end
     local m=s.marker;local points={m.tipX,m.tipY,m.x-m.dx*8-m.dz*7,m.y-m.dz*8+m.dx*7,
         m.x-m.dx*4,m.y-m.dz*4,m.x-m.dx*8+m.dz*7,m.y-m.dz*8-m.dx*7}
     g.setColor(.01,.04,.05,1);g.setLineWidth(4);g.polygon('line',points)
     g.setColor(.24,1,.94,1);g.polygon('fill',points)
-    local lx,ly=clamp(m.x+15,v.x+3,v.x+v.width-38),clamp(m.y-23,v.y+3,v.y+v.height-18)
-    g.setColor(.02,.06,.06,.95);g.rectangle('fill',lx-2,ly-1,35,17,3)
-    g.setColor(.24,1,.94,1);g.setFont(self:font(12));g.print('YOU',lx,ly)
-    g.setColor(.93,.94,.84,1);g.setLineWidth(2);g.line(v.x+17,v.y+33,v.x+17,v.y+13)
-    g.polygon('fill',v.x+17,v.y+9,v.x+13,v.y+17,v.x+21,v.y+17);g.print('N',v.x+12,v.y+36)
-    g.setFont(self:font(12));g.setColor(.24,1,.94,1)
-    g.print('YOU  /  Heading '..m.label,rect.x+16,s.layout.footerY)
-    g.setColor(1,.73,.24,1);g.print('Gold: destination',rect.x+218,s.layout.footerY)
-    g.setColor(.55,.91,.61,1);g.print('Green: your home',rect.x+370,s.layout.footerY)
-    g.setColor(.79,.86,.81,1);g.printf(#s.recreation>0 and 'Brown: trails · P/C: park / camp' or 'Numbers identify buildings',rect.x+540,s.layout.footerY,rect.width-556,'right')
+    local lx,ly=clamp(m.x+15,v.x+3,v.x+v.width-42),clamp(m.y-25,v.y+3,v.y+v.height-20)
+    g.setColor(.02,.06,.06,.95);g.rectangle('fill',lx-3,ly-2,42,20,4)
+    g.setColor(.24,1,.94,1);g.setFont(self:font(14));g.print('YOU',lx,ly)
+    local footerFont=mobile and 15 or 16
+    g.setFont(self:font(footerFont));g.setColor(.24,1,.94,1)
+    g.print('YOU  ·  Heading '..m.label,rect.x+16,s.layout.footerY)
+    g.setColor(.79,.86,.81,1)
+    g.printf(options.closeHint or 'Tap a marker or place to set a route',rect.x+rect.width*.42,
+        s.layout.footerY,rect.width*.56,'right')
     g.pop()
     return s
 end
@@ -317,7 +474,7 @@ function Map:drawMini(rect,actor,options)
     g.push('all');g.setShader();g.setColor(.025,.05,.047,.96)
     g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,7)
     g.setColor(.43,.57,.51,.96);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,7)
-    g.setFont(self:font(11));g.setColor(.98,.87,.52,1)
+    g.setFont(self:font(13));g.setColor(.98,.87,.52,1)
     local title='NAV  ·  '..(self:label(options.destination) or 'Town map')
     if options.route and options.route.length then title=title..('  ·  %dm'):format(math.floor(options.route.length+.5)) end
     local titleScale=math.min(1,(rect.width-16)/math.max(1,g.getFont():getWidth(title)))
@@ -411,17 +568,20 @@ function Map:drawMini(rect,actor,options)
         local enabled=direction>0 and self.miniLevel<#miniScales or direction<0 and self.miniLevel>1
         local x,y=b.x+b.width*.5,b.y+b.height*.5
         g.setColor(.12,.18,.16);g.rectangle('fill',b.x,b.y,b.width,b.height,4)
+        g.setColor(.48,.62,.56,1);g.setLineWidth(1.2);g.rectangle('line',b.x,b.y,b.width,b.height,4)
         if enabled then g.setColor(.87,.91,.79) else g.setColor(.40,.46,.42) end
-        g.setLineWidth(2);g.line(x-5,y,x+5,y)
-        if direction>0 then g.line(x,y-5,x,y+5) end
+        local mark=math.min(16,b.width*.38)
+        g.setLineWidth(3);g.line(x-mark,y,x+mark,y)
+        if direction>0 then g.line(x,y-mark,x,y+mark) end
     end
     local follow=Map.miniFollowButton(rect)
     local fx,fy=follow.x+follow.width*.5,follow.y+follow.height*.5
     g.setColor(self.miniFollow==false and {.12,.18,.16,1} or {.20,.34,.25,1})
     g.rectangle('fill',follow.x,follow.y,follow.width,follow.height,4)
+    g.setColor(.48,.62,.56,1);g.setLineWidth(1.2);g.rectangle('line',follow.x,follow.y,follow.width,follow.height,4)
     g.setColor(self.miniFollow==false and {.72,.79,.70,1} or {.65,1,.69,1})
-    local radius,arm=math.min(5,follow.width*.2),math.min(8,follow.width*.29)
-    g.setLineWidth(1.6);g.circle('line',fx,fy,radius);g.circle('fill',fx,fy,1.6)
+    local radius,arm=math.min(7,follow.width*.2),math.min(13,follow.width*.32)
+    g.setLineWidth(2.2);g.circle('line',fx,fy,radius);g.circle('fill',fx,fy,2)
     g.line(fx-arm,fy,fx-radius,fy);g.line(fx+radius,fy,fx+arm,fy)
     g.line(fx,fy-arm,fx,fy-radius);g.line(fx,fy+radius,fx,fy+arm)
     g.pop()

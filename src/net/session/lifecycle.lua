@@ -168,6 +168,7 @@ function Component.install(Runtime)
         self.lastMachineTicks = {}
         self.shopDirty = false
         self.connectedAt = nil
+        self.sessionStartedAt = nil
         self.ready = false
         self.requireHostApproval = false
         self.clientConnectTimeout = Runtime.CONNECT_TIMEOUT
@@ -199,6 +200,17 @@ function Component.install(Runtime)
         self.residentId,self.residentToken=nil,nil
         self.rtt = nil
         self.pendingPing = {}
+        self.pingAccumulator = 0
+        self.pingNonce = 0
+        self.pingSentCount = 0
+        self.pingReceivedCount = 0
+        self.pingLostCount = 0
+        self.pingSendFailures = 0
+        self.pingMinMs = nil
+        self.pingMaxMs = nil
+        self.pingAverageMs = nil
+        self.lastPingSentAt = nil
+        self.lastPongAt = nil
         self.terminal = false
     end
 
@@ -207,6 +219,7 @@ function Component.install(Runtime)
         self.terminal = true
         self.ready = false
         self.connectedAt = nil
+        self.pendingPing = {}
         self.status = tostring(message or "The multiplayer connection ended.")
         self:_queue("disconnected", { message = self.status })
         return true
@@ -263,6 +276,7 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "host"
+        self.sessionStartedAt=self.clock()
         self.networkKind = options.networkKind == "direct" and "direct"
             or options.networkKind == "server" and "server" or "lan"
         self.dedicatedServer = options.dedicatedServer == true
@@ -326,6 +340,7 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "client"
+        self.sessionStartedAt=self.clock()
         self.networkKind = options.networkKind == "direct" and "direct"
             or options.networkKind == "server" and "server" or "lan"
         self.clientConnectTimeout = self.networkKind == "direct"

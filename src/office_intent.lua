@@ -38,6 +38,7 @@ local fields = {
     send_employee_home = { employeeId = "token" }, pay_wages = {},
     train_employee = { employeeId="token",skill="employee_skill" },
     cancel_employee_training = { employeeId="token" },
+    set_delivery_driver = { employeeId="driver_assignment" },
     queue_employee_job = { employeeId="token",jobId="token",machineId="token" },
     set_employee_schedule = { employeeId="token",enabled="boolean" },
     queue_team_job = { jobId="token",machineId="token" },
@@ -107,6 +108,9 @@ function Intent.normalize(value)
         elseif rule == "employee_role" then
             if item==nil then item="cutter" end
             if item~="cutter" and item~="driver" then return nil,"Choose production cutter or delivery driver." end
+        elseif rule == "driver_assignment" then
+            if type(item)~="string" or #item<1 or #item>64
+                or not item:match("^[%w_.%-]+$") then return nil,"Choose an employee or automatic driver selection." end
         elseif rule == "player_wage" then
             if not integer(item,100,10000) then return nil,"Choose $1-$100 per hour." end
         elseif rule == "days" then

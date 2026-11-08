@@ -32,8 +32,8 @@ local controls={
 }
 
 local function transform(width,height)
-    local scale=math.min(width/1280,height/880)
-    return (width-1280*scale)*.5,(height-880*scale)*.5,scale
+    local scaleX,scaleY=width/1280,height/880
+    return (width-1280*scaleX)*.5,(height-880*scaleY)*.5,scaleX,scaleY
 end
 
 -- Unproject the authored forward view onto a plane fixed to the cab.
@@ -54,6 +54,7 @@ local function cabEye(camera)
         -- is centered for a motorcycle, so preserve the truck's lateral seat
         -- offset when projecting the cab around that eye.
         if camera.localVehicle=='truck' then
+            eye.centerX=(eye.centerX or 0)+(camera.truckCabForward or 0)
             eye.centerZ=camera.truckCabSide or FP.TRUCK_SEAT_SIDE
         end
         eye.viewCenterX,eye.viewCenterY=camera.viewCenterX,camera.viewCenterY
@@ -160,8 +161,9 @@ local function drawArrow(g,x,y,direction,lit)
     g.line(tip,y,tip-direction*4,y-4)
     g.line(tip,y,tip-direction*4,y+4)
 end
-local function drawAligned(g,image,sourceX,sourceY,targetX,targetY,angle)
-    g.draw(image,targetX,targetY,angle,1,1,sourceX,sourceY)
+local function drawAligned(g,image,sourceX,sourceY,targetX,targetY,angle,scale)
+    scale=scale or 1
+    g.draw(image,targetX,targetY,angle,scale,scale,sourceX,sourceY)
 end
 
 local function drawInterior(view,camera,width,height)
@@ -173,10 +175,10 @@ local function drawInterior(view,camera,width,height)
     end
     -- Draw the closed cab from far to near so each turn reveals the right wall.
     table.sort(visible,function(a,b)return a.depth>b.depth end)
-    local g=love.graphics;local x,y,scale=transform(width,height)
+    local g=love.graphics;local x,y,scaleX,scaleY=transform(width,height)
     -- Cab panels are full-view meshes drawn through the commute's nested
     -- scale transform; clear the inherited screen-space scissor first.
-    g.push('all');g.setScissor();g.translate(x,y);g.scale(scale)
+    g.push('all');g.setScissor();g.translate(x,y);g.scale(scaleX,scaleY)
     g.setMeshCullMode('none');g.setDepthMode('always',false);g.setBlendMode('alpha')
     g.setColor(1,1,1,1);FP.send(eye,view.interiorShader);g.setShader(view.interiorShader)
     for _,item in ipairs(visible) do g.draw(item.entry.mesh) end
@@ -185,7 +187,8 @@ end
 
 function Cockpit.controls(width,height,camera,state)
     state=state or {}
-    local x0,y0,scale=transform(width,height)
+    local x0,y0,scaleX,scaleY=transform(width,height)
+    local radiusScale=math.min(scaleX,scaleY)
     local result={}
     local eye=camera and camera.firstPerson and cabEye(camera)
     local radio=require('src.jukebox')
@@ -195,11 +198,11 @@ function Cockpit.controls(width,height,camera,state)
         if eye then
             local forward,up,right=cabPoint(spec.assetX/Cockpit.WIDTH,spec.assetY/Cockpit.HEIGHT)
             x,y,depth=FP.screen(eye,forward,right,up)
-            x,y=x0+x*scale,y0+y*scale
+            x,y=x0+x*scaleX,y0+y*scaleY
         else
             local index=#result
-            x=x0+(510+index*66)*scale
-            y=y0+764*scale
+            x=x0+(510+index*66)*scaleX
+            y=y0+764*scaleY
         end
         local active=(spec.action=='ignition' and state.engine==true)
             or (spec.action=='headlight' and state.headlight==true)
@@ -210,7 +213,7 @@ function Cockpit.controls(width,height,camera,state)
             or (spec.action=='radioMute' and radio.muted==true)
         if (not radioControl or eye) and (not eye or depth>=FP.NEAR and x>=0 and x<=width and y>=0 and y<=height) then
             result[#result+1]={action=spec.action,label=spec.label,icon=spec.icon,x=x,y=y,
-            visualRadius=15*scale,hitRadius=26*scale,active=active}
+            visualRadius=15*radiusScale,hitRadius=26*radiusScale,active=active}
         end
     end
     return result
@@ -304,13 +307,16 @@ function Cockpit:draw(truck,width,height,camera)
     -- Their top pivots remain fixed while the plates press in response to input.
     drawAligned(g,self.brake,624,765,480,765-self.displayBrake*2,-self.displayBrake*.11)
     drawAligned(g,self.accelerator,644,765,644,765-self.displayThrottle*2,-self.displayThrottle*.11)
-    drawAligned(g,self.wheel,480,568,480,568,self.displaySteering*.76)
+    -- Keep the wheel below the instrument cluster instead of letting its top
+    -- rim cover the fuel and engine gauges.
+    drawAligned(g,self.wheel,480,568,480,620,self.displaySteering*.76,.82)
     g.pop()
     g.pop()
     drawInterior(self,camera,width,height)
     g.push('all');g.setScissor()
-    x,y,scale=transform(width,height)
-    g.translate(x,y);g.scale(scale)
+    local scaleX,scaleY
+    x,y,scaleX,scaleY=transform(width,height)
+    g.translate(x,y);g.scale(scaleX,scaleY)
     g.setColor(1,1,1);g.setMeshCullMode('none');g.setDepthMode('always',false)
     g.setBlendMode('alpha','premultiplied')
     FP.send(cabEye(camera),self.shader);g.setShader(self.shader);g.draw(self.mesh)

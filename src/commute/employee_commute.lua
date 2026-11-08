@@ -3,6 +3,7 @@ local Bike=require('src.commute.motorcycle')
 local Bays=require('src.commute.parking_bays')
 local Contracts=require('src.employment_contracts')
 local Routes=require('src.commute.commuter_routes')
+local NpcJourney=require('src.commute.npc_journey')
 local Commuters={TRAVEL_HOURS=1}
 
 local function finite(value)return type(value)=='number' and value==value and math.abs(value)<math.huge end
@@ -62,6 +63,16 @@ function Commuters.validState(value,profile)
         and value.arriveAtHours-value.departAtHours==Commuters.TRAVEL_HOURS
         and value.departAtHours>=day*24 and value.departAtHours<=(day+2)*24
 end
+function Commuters.journey(profile,phase,departAtHours)
+    if type(profile)~='table' or not finite(departAtHours) then return nil end
+    local toWork=phase=='commuting_to_work'
+    if not toWork and phase~='commuting_home' then return nil end
+    local residence=residenceId(profile)
+    return {phase=phase,day=math.floor(math.max(0,departAtHours)/24),
+        fromId=toWork and residence or profile.workSiteId,
+        toId=toWork and profile.workSiteId or residence,
+        departAtHours=departAtHours,arriveAtHours=departAtHours+Commuters.TRAVEL_HOURS}
+end
 function Commuters.advance(state,hours)
     if not state or not state.employment or not finite(hours) then return false end
     local changed=false
@@ -79,32 +90,49 @@ end
 function Commuters.actors(state,town,hours,activeWorld)
     local result={}
     if not state or not state.employment or not finite(hours) then return result end
-    local employeeParkingIndex=0
+    local parkingSlots={};local employeeParkingIndex=0
+    for _,worker in ipairs(state.employment.staff or {}) do
+        if worker.status=='employed' and worker.commuteProfile then
+            employeeParkingIndex=employeeParkingIndex+1
+            parkingSlots[worker]=9-employeeParkingIndex
+        end
+    end
     for _,worker in ipairs(state.employment.staff or {}) do
         local profile=worker.commuteProfile
         local journey=worker.commuteState
         if worker.status=='employed' and profile and journey then
             if journey.phase=='commuting_to_work' or journey.phase=='commuting_home' then
-                local duration=journey.arriveAtHours-journey.departAtHours
-                local progress=math.max(0,math.min(1,(hours-journey.departAtHours)/duration))
+                local world=activeWorld and activeWorld.sites and activeWorld.sites.byId
+                    and activeWorld or Routes.world(town,activeWorld)
                 local route=Routes.route(town,journey.fromId,journey.toId,activeWorld)
-                local pose=Routes.sample(route,progress)
-                if pose then
+                local homeSlot=profile.residenceKind=='town' and 1 or nil
+                local workSlot=parkingSlots[worker]
+                local fromSlot=journey.fromId==profile.workSiteId and workSlot or homeSlot
+                local toSlot=journey.toId==profile.workSiteId and workSlot or homeSlot
+                local trip=NpcJourney.sample(journey,hours,world,route,fromSlot,toSlot)
+                if trip and trip.bike then
+                    local pose=trip.bike
                     local bike=Bike.new(pose.x,pose.z,pose.heading)
-                    bike.paintId=profile.paintId;bike.speed=7.2
-                    bike.distance=(route.length or 0)*progress
+                    bike.paintId=profile.paintId;bike.speed=pose.parked and 0 or 7.2
+                    bike.distance=(route.length or 0)*(pose.progress or 0)
                     bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                     bike.trafficId='employee-'..worker.id
-                    result[#result+1]={id='employee-'..worker.id,actor=bike,bike=true,deliveryBike=true,
-                        employeeCommuter=true,phase='commuting',
+                    result[#result+1]={id='employee-'..worker.id,actor=bike,bike=true,
+                        bikeOnly=pose.parked==true,deliveryBike=true,
+                        employeeCommuter=true,phase='commuting',npcStage=trip.stage,
+                        parked=pose.parked==true,
                         label=worker.name..' · '..journey.fromId..' → '..journey.toId,
                         characterId=worker.character,rosterId=profile.rosterId,destinationId=journey.toId}
+                    if trip.walker then
+                        result[#result+1]={id='employee-'..worker.id..'-walker',actor=trip.walker,
+                            npcCharacter=true,characterId=worker.character,employeeCommuter=true,
+                            phase=trip.stage,rosterId=profile.rosterId,label=worker.name}
+                    end
                 end
             else
                 local siteId,slot
                 if journey.phase=='at_work' then
-                    employeeParkingIndex=employeeParkingIndex+1
-                    siteId=profile.workSiteId;slot=9-employeeParkingIndex
+                    siteId=profile.workSiteId;slot=parkingSlots[worker]
                 elseif journey.phase=='home' and profile.residenceKind=='town' then
                     siteId=profile.residenceId;slot=1
                 end
@@ -115,7 +143,7 @@ function Commuters.actors(state,town,hours,activeWorld)
                     local site=routeSites and routeSites[siteId]
                     if site then
                         local x,z=Bays.center(site,slot)
-                        local bike=Bike.new(x,z,site.yaw or 0)
+                        local bike=Bike.new(x,z,Bays.heading(site))
                         bike.paintId=profile.paintId;bike.speed=0
                         bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                         bike.trafficId='employee-'..worker.id
@@ -124,6 +152,103 @@ function Commuters.actors(state,town,hours,activeWorld)
                             label=worker.name..' · parked',characterId=worker.character,
                             rosterId=profile.rosterId}
                     end
+                end
+            end
+        end
+    end
+    local applicantParkingSlots={};local applicantIndex=0
+    for _,application in ipairs(state.employment.applications or {}) do
+        local commute=application.commuteState
+        if application.status~='hired' and application.commuteProfile and commute
+            and commute.phase~='home' then
+            applicantIndex=applicantIndex+1
+            applicantParkingSlots[application]=8-employeeParkingIndex-applicantIndex
+        end
+    end
+    for _,application in ipairs(state.employment.applications or {}) do
+        local profile=application.commuteProfile
+        local journey=application.commuteState
+        if application.status~='hired' and profile and journey then
+            local homeSlot=profile.residenceKind=='town' and 1 or nil
+            if journey.phase=='commuting_to_work' or journey.phase=='commuting_home' then
+                if hours>=journey.arriveAtHours then
+                    local siteId,slot
+                    if journey.phase=='commuting_to_work' then
+                        siteId=profile.workSiteId;slot=applicantParkingSlots[application]
+                    elseif profile.residenceKind=='town' then
+                        siteId=profile.residenceId;slot=homeSlot
+                    end
+                    local routeWorld=activeWorld and activeWorld.sites and activeWorld.sites.byId
+                        and activeWorld or Routes.world(town,activeWorld)
+                    local site=routeWorld and routeWorld.sites.byId[siteId]
+                    if site then
+                        local x,z=Bays.center(site,slot)
+                        local bike=Bike.new(x,z,Bays.heading(site))
+                        bike.paintId=profile.paintId;bike.speed=0
+                        bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
+                        bike.trafficId='applicant-'..application.id
+                        result[#result+1]={id='applicant-'..application.id,actor=bike,bike=true,
+                            bikeOnly=true,deliveryBike=true,applicantCommuter=true,phase='parked',
+                            parked=true,characterId=application.character,rosterId=profile.rosterId,
+                            label=application.name..' · parked'}
+                    end
+                else
+                    local routeWorld=activeWorld and activeWorld.sites and activeWorld.sites.byId
+                        and activeWorld or Routes.world(town,activeWorld)
+                    local route=Routes.route(town,journey.fromId,journey.toId,activeWorld)
+                    local fromSlot=journey.fromId==profile.workSiteId
+                        and applicantParkingSlots[application] or homeSlot
+                    local toSlot=journey.toId==profile.workSiteId
+                        and applicantParkingSlots[application] or homeSlot
+                    local trip=NpcJourney.sample(journey,hours,routeWorld,route,fromSlot,toSlot)
+                    if trip and trip.bike then
+                        local pose=trip.bike
+                        local bike=Bike.new(pose.x,pose.z,pose.heading)
+                        bike.paintId=profile.paintId;bike.speed=pose.parked and 0 or 7.2
+                        bike.distance=(route.length or 0)*(pose.progress or 0)
+                        bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
+                        bike.trafficId='applicant-'..application.id
+                        result[#result+1]={id='applicant-'..application.id,actor=bike,bike=true,
+                            bikeOnly=pose.parked==true,deliveryBike=true,applicantCommuter=true,
+                            phase='commuting',npcStage=trip.stage,parked=pose.parked==true,
+                            characterId=application.character,rosterId=profile.rosterId,
+                            label=application.name..' · '..journey.fromId..' → '..journey.toId}
+                        if trip.walker then
+                            result[#result+1]={id='applicant-'..application.id..'-walker',actor=trip.walker,
+                                npcCharacter=true,applicantCommuter=true,characterId=application.character,
+                                phase=trip.stage,rosterId=profile.rosterId,label=application.name}
+                        end
+                    end
+                end
+            elseif journey.phase=='at_work' then
+                local routeWorld=activeWorld and activeWorld.sites and activeWorld.sites.byId
+                    and activeWorld or Routes.world(town,activeWorld)
+                local site=routeWorld and routeWorld.sites.byId[profile.workSiteId]
+                if site then
+                    local x,z=Bays.center(site,applicantParkingSlots[application])
+                    local bike=Bike.new(x,z,Bays.heading(site))
+                    bike.paintId=profile.paintId;bike.speed=0
+                    bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
+                    bike.trafficId='applicant-'..application.id
+                    result[#result+1]={id='applicant-'..application.id,actor=bike,bike=true,
+                        bikeOnly=true,deliveryBike=true,applicantCommuter=true,phase='parked',
+                        parked=true,characterId=application.character,rosterId=profile.rosterId,
+                        label=application.name..' · parked'}
+                end
+            elseif journey.phase=='home' and homeSlot then
+                local routeWorld=activeWorld and activeWorld.sites and activeWorld.sites.byId
+                    and activeWorld or Routes.world(town,activeWorld)
+                local site=routeWorld and routeWorld.sites.byId[profile.residenceId]
+                if site then
+                    local x,z=Bays.center(site,homeSlot)
+                    local bike=Bike.new(x,z,Bays.heading(site))
+                    bike.paintId=profile.paintId;bike.speed=0
+                    bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
+                    bike.trafficId='applicant-'..application.id
+                    result[#result+1]={id='applicant-'..application.id,actor=bike,bike=true,
+                        bikeOnly=true,deliveryBike=true,applicantCommuter=true,phase='parked',
+                        parked=true,characterId=application.character,rosterId=profile.rosterId,
+                        label=application.name..' · parked'}
                 end
             end
         end

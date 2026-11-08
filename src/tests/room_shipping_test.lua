@@ -108,7 +108,11 @@ local function job(s,id,scene)
         p.location,p.status,p.wrapped,p.remainingSheets="warehouse","wrapped",true,0
         p.world={x=400+(n-1)*160,y=500,sceneId=scene or "warehouse",direction="northwest",spawnProgress=1}
     end
-    assert(Service.requestPickup(s,j,100));return j
+    assert(Service.requestPickup(s,j,100))
+    assert(j.pickup.driverMode=="employee")
+    -- These room fixtures exercise the warehouse dock flow of older saved jobs.
+    j.pickup.driverMode=nil
+    return j
 end
 local function purchases(context,check)
     local s=shop();local money=s.money

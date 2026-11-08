@@ -75,7 +75,7 @@ local actionRows={.76,.62,.62,.76,.90,.90}
 function B.defaults()
     local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80},cameraStick={x=.90,y=.34}},
         layoutVersion=4,showTouch=false,outsideCamera='fixed',
-        truckCabView={side=-.34,up=.26}}
+        truckCabView={side=-.34,up=.26,forward=.35}}
     for _,a in ipairs(B.actions) do
         p.keyboard[a.id]=a.key or '';p.mouse[a.id]=a.mouse or ''
         p.controller[a.id]=a.pad or '';p.touch[a.id]=a.touch or ''
@@ -99,10 +99,11 @@ function B.normalize(value)
     p.showTouch=value.showTouch==true
     if value.outsideCamera=='follow' or value.outsideCamera=='shoulder' then p.outsideCamera=value.outsideCamera end
     local truckCabView=type(value.truckCabView)=='table' and value.truckCabView or {}
-    local side,up=tonumber(truckCabView.side),tonumber(truckCabView.up)
+    local side,up,forward=tonumber(truckCabView.side),tonumber(truckCabView.up),tonumber(truckCabView.forward)
     if not side or side~=side then side=-.34 end
     if not up or up~=up then up=.26 end
-    p.truckCabView={side=clamp(side,-.72,.72),up=clamp(up,-.05,.45)}
+    if not forward or forward~=forward then forward=.35 end
+    p.truckCabView={side=clamp(side,-.72,.72),up=clamp(up,-.05,.45),forward=clamp(forward,-.55,.95)}
     local oldLayout=tonumber(value.layoutVersion) or 1
     for id,point in pairs(p.layout) do
         local sourceId=id=='cameraStick' and 'cameraStick' or id

@@ -17,6 +17,8 @@ local EmployeeHighFive=require("src.employee_high_five")
 local Navigator=require("src.npc_navigation")
 local GaitMotion=require("src.gait_motion")
 local CompanyTruck=require("src.company_delivery_driver")
+local EmployeeCommuters=require("src.commute.employee_commute")
+local AIWatchdog=require("src.ai_watchdog")
 local entrance=Config.customer.route[1]
 local reception=Config.warehouse.roomScenes and require("src.warehouse_registration").reception or {x=759,y=358}
 local applicantWaitSeconds=60
@@ -41,6 +43,12 @@ local function afterShiftGame(state,w,day)
 end
 local motion=require("src.worker_catalog").motion
 local speeds=setmetatable({},{__mode="k"})
+local taskWatchKeys=setmetatable({},{__mode='k'})
+local function taskWatchKey(w)
+    local key=taskWatchKeys[w]
+    if not key then key={};taskWatchKeys[w]=key end
+    return key
+end
 local function stop(a)
     PlayerController.stop(a);speeds[a]=nil;a.moving=false
 end
@@ -53,16 +61,54 @@ function AI.findReachablePoint(actor,goals,context)
 end
 function AI.move(a,goal,dt,context)
     if context.forActor then context=context.forActor(a) end
+    local subject=a.watchdogLabel or (a.id and ('Employee '..tostring(a.id))) or a.name or 'Autonomous walker'
+    local watchdogId='walking:'..tostring(subject)..':'..tostring(a)
+    local stage=tostring(a.phase or a.activity or 'walking')..(' -> %.1f,%.1f'):format(goal.x,goal.y)
     if (a.x-goal.x)^2+(a.y-goal.y)^2<.0001
         and (not context.assets or Navigation.isWalkable(context.assets,a.x,a.y,
             context.obstacles and context.obstacles(a) or {})) then
-        stop(a);return true,false
+        stop(a);AIWatchdog.clear(context.state,a,'Reached movement goal');return true,false
     end
     local motionDt=math.max(0,math.min(.1,dt*(tonumber(context.motionScale) or 1)))
     local gaitSpeed,gaitAcceleration=GaitMotion.sample(a.distance or 0,motion)
     speeds[a]=math.min(motion.speed*gaitSpeed,
         (speeds[a] or 0)+motion.acceleration*gaitAcceleration*motionDt)
-    local reached,_,moved,blocked=Navigator.travel(a,goal,speeds[a]*motionDt,motionDt,context)
+    local navOkay,reached,_,moved,blocked=AIWatchdog.protect(context.state,watchdogId,{
+        system='Walking AI',subject=subject,stage=stage,scope='warehouse',
+        x=a.x,y=a.y,visible=a.visible~=false},
+        function()
+            return Navigator.travel(a,goal,speeds[a]*motionDt,motionDt,context)
+        end,
+        function()
+            local okay,point=Navigator.recover(a,context,goal)
+            if okay then
+                speeds[a]=0
+                return {ok=true,action='Moved to a nearby collision-safe point and replanned',
+                    detail=('Recovery point %.1f, %.1f'):format(point.x,point.y)}
+            end
+            return {ok=false,action='Could not safely recover the walker; reset its route and retry',
+                detail=point}
+        end)
+    if not navOkay then
+        stop(a)
+        Navigator.reset(a)
+        return false,true
+    end
+    AIWatchdog.observe(context.state,a,{issueId=watchdogId,system='Walking AI',
+        subject=subject,
+        stage=stage,progressed=reached or moved>=.2,dt=motionDt,timeout=10,retryDelay=10,
+        reason=blocked and 'No reachable path through the current obstacles' or 'Actor did not change position',
+        x=a.x,y=a.y,visible=a.visible~=false,
+        recover=function()
+            local okay,point=Navigator.recover(a,context,goal)
+            if okay then
+                speeds[a]=0
+                return {ok=true,action='Moved to a nearby collision-safe point and replanned',
+                    detail=('Recovery point %.1f, %.1f'):format(point.x,point.y)}
+            end
+            Navigator.reset(a)
+            return {ok=false,action='Reset the path planner; waiting to retry',detail=point}
+        end})
     a.distance=(a.distance or 0)+moved;a.animationDistance=a.distance
     a.moving=moved>.0001
     a.gaitSpeedMultiplier,a.gaitAccelerationMultiplier=gaitSpeed,gaitAcceleration
@@ -81,7 +127,16 @@ local function applications(state,dt,now,context)
     local changed=false
     for _,a in ipairs(e.applications) do
         local actor=a.actor
+        local commute=a.commuteState
+        if commute and commute.phase=="commuting_to_work" and now>=commute.arriveAtHours then
+            a.commuteState={phase="at_work",day=math.floor(math.max(0,now)/24)}
+            commute=a.commuteState;changed=true
+        elseif commute and commute.phase=="commuting_home" and now>=commute.arriveAtHours then
+            a.commuteState={phase="home"}
+            commute=a.commuteState;changed=true
+        end
         if a.status=="visiting" and not actor.visible and not present
+            and (not commute or commute.phase=="at_work")
             and not context.receptionBusy() and not Calendar.isWeekend(state) then
             actor.visible=true;actor.phase="entering";actor.x,actor.y=entrance.x,entrance.y
             present=a;state.message=a.name.." is applying for a job. Talk to them before they leave in one minute."
@@ -101,6 +156,10 @@ local function applications(state,dt,now,context)
                 end
             elseif actor.phase=="leaving" and AI.move(actor,entrance,dt,context) then
                 actor.visible=false;actor.phase="hidden";stop(actor)
+                if a.commuteProfile then
+                    a.commuteState=EmployeeCommuters.journey(a.commuteProfile,"commuting_home",now)
+                end
+                changed=true
             end
         end
     end
@@ -203,6 +262,29 @@ function AI.worker(state,w,dt,now,context)
     if EmployeeHighFive.get(w.id) then
         w.moving=false
         return false
+    end
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.driverEmployeeId==w.id
+        and companyTruck.departureStage=="warehouse_exit" then
+        if (w.sceneId or "warehouse")~="warehouse" and context.travelScene then
+            w.activity="Going on a delivery"
+            w.greetingKind=Speech.EMPLOYEE_GOING_ON_DELIVERY
+            local _,changed=context.travelScene(w,"warehouse",dt)
+            return changed
+        end
+        w.visible=true;w.clockedIn=true;w.phase="walking";w.sceneId="warehouse"
+        w.awayForDelivery=nil;w.activity="Going on a delivery"
+        local goal=context.deliveryExitPoint and context.deliveryExitPoint(w) or require("src.warehouse_registration").Map.exit
+        local reached,blocked=AI.move(w,goal,dt,context)
+        if blocked then w.activity="Delivery route blocked near side door" end
+        if reached then
+            w.visible=false;w.phase="hidden";w.sceneId=nil;w.awayForDelivery=true;w.moving=false
+            companyTruck.departureStage="outside_walk"
+            companyTruck.departureStartedAtEpoch=os.time()
+            companyTruck.revision=companyTruck.revision+1
+            w.activity="Going on a delivery"
+        end
+        return true
     end
     if w.awayForDelivery then
         w.visible=false;w.clockedIn=true;w.phase="hidden";w.sceneId=nil;w.moving=false
@@ -341,7 +423,9 @@ function AI.worker(state,w,dt,now,context)
             w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 3 or 1))
             return progressed
         else
-            if not w.assignment then
+            companyTruck=state.employment and state.employment.companyTruck
+            local pendingDelivery=companyTruck and companyTruck.pendingDriverEmployeeId==w.id
+            if not w.assignment and not pendingDelivery then
                 local shipping,changed=require("src.employee_shipping").update(state,w,dt,context)
                 if shipping then return changed end
             end
@@ -386,13 +470,22 @@ function AI.worker(state,w,dt,now,context)
                 end
                 if w.phase=="working" then w.idleClock=w.idleClock+dt end
                 local deferred=false
+                local blockedWorkId
                 if blockedReason=="Machine access is blocked" and w.assignment
                     and not w.assignment.scheduleItemId and Work.safe(w,state) then
+                    local blockedAssignment=w.assignment.jobId or w.assignment.id or 'unscheduled job'
                     Work.release(state,w)
                     w.assignment=nil
                     w._scheduleRetryAtHours=now+.1
+                    AIWatchdog.clear(state,w,'Blocked unscheduled assignment was released')
+                    AIWatchdog.note(state,'employee-task:'..tostring(w.id),{
+                        status='RECOVERED',system='Employee work',subject=w.name or ('Employee '..tostring(w.id)),
+                        stage='machine_access:'..tostring(blockedAssignment),reason=blockedReason,
+                        action='Released the blocked unscheduled assignment for a later retry',
+                        x=w.x,y=w.y,visible=w.visible})
                 end
                 if blockedReason and w.assignment and w.assignment.scheduleItemId then
+                    blockedWorkId=w.assignment.scheduleItemId
                     w._blockedWorkHours=(w._blockedWorkHours or 0)+hours
                     local q=Schedule.ensure(w)
                     local row=q.items[1]
@@ -402,17 +495,44 @@ function AI.worker(state,w,dt,now,context)
                     if w._blockedWorkHours>=.1 and hasNext and Work.safe(w,state) then
                         if Work.release(state,w) and Schedule.deferBlocked(state,w) then
                             stop(w);deferred=true
+                            AIWatchdog.clear(state,w,'Blocked scheduled task was deferred')
+                            AIWatchdog.note(state,'employee-task:'..tostring(w.id),{
+                                status='RECOVERED',system='Employee work',subject=w.name or ('Employee '..tostring(w.id)),
+                                stage='scheduled_work:'..tostring(blockedWorkId),
+                                reason=blockedReason,
+                                action='Deferred the blocked queue item and advanced to the next scheduled item',
+                                x=w.x,y=w.y,visible=w.visible})
                         end
                     end
                 else
                     w._blockedWorkHours=0
                 end
+                local workWatchKey=taskWatchKey(w)
+                if deferred then
+                    AIWatchdog.clear(state,workWatchKey,'Blocked work item was deferred')
+                elseif blockedReason and w.assignment then
+                    AIWatchdog.observe(state,workWatchKey,{
+                        issueId='employee-work:'..tostring(w.id),system='Employee work',
+                        subject=w.name or ('Employee '..tostring(w.id)),
+                        stage=tostring(blockedWorkId or w.assignment.jobId or w.assignment.id or 'active assignment')
+                            ..':'..tostring(blockedReason),
+                        dt=dt,timeout=30,retryDelay=30,reason=blockedReason,x=w.x,y=w.y,visible=w.visible,
+                        recover=function()
+                            Navigator.reset(w)
+                            return {ok=false,action='Reset the worker route; task remains queued',
+                                detail='No safe alternate queue stage is available'}
+                        end})
+                else
+                    AIWatchdog.clear(state,workWatchKey,'Employee work constraint cleared')
+                end
                 w.fatigue=math.min(100,w.fatigue+hours*(w.phase=="working" and 8 or 3))
                 w.focus=math.max(0,w.focus-hours*(w.phase=="working" and 6 or 2))
                 return changed or scheduleChanged or deferred
             else
-                    local stocking,stockChanged=Transport.storeSupplies(state,w,dt,context)
-                    if stocking then return scheduleChanged or stockChanged end
+                    if not pendingDelivery then
+                        local stocking,stockChanged=Transport.storeSupplies(state,w,dt,context)
+                        if stocking then return scheduleChanged or stockChanged end
+                    end
                 local moveContext=context.forActor and context.forActor(w) or context
                 local moveObstacles=moveContext~=context and moveContext.obstacles and moveContext.obstacles()
                 local point=context.idlePoint(w)
@@ -502,6 +622,7 @@ function AI.update(state,dt,context)
         return true
     end)
     if schedulesChanged then changed=true end
+    if CompanyTruck.reserveNextDriver(state,now) then changed=true end
     -- Time only advances with the active shop, never from real-world offline
     -- elapsed time. Small slices keep arrivals, breaks, and wage clipping exact.
     local secondsPerHour=Calendar.secondsPerDay(state)/24
@@ -513,6 +634,7 @@ function AI.update(state,dt,context)
         local realDt=(nextAt-at)*secondsPerHour
         if applications(state,realDt,nextAt,context) then changed=true end
         for _,w in ipairs(e.staff) do
+            if CompanyTruck.reserveNextDriver(state,nextAt) then changed=true end
             local oldClocked=w.clockedIn
             Payroll.accrue(w,at,nextAt,not Work.safe(w,state),state)
             if AI.worker(state,w,realDt,nextAt,context) or oldClocked~=w.clockedIn then changed=true end

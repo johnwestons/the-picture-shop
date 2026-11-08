@@ -43,9 +43,10 @@ function FP.update(camera,actor,dt,visual)
     local truck=camera.localVehicle=='truck'
     local seatSide=truck and (camera.truckCabSide or FP.TRUCK_SEAT_SIDE) or 0
     local seatUp=truck and (camera.truckCabUp or FP.TRUCK_SEAT_UP) or 0
+    local seatForward=truck and (camera.truckCabForward or 0) or 0
     local rightX,rightZ=-math.sin(camera.bikeHeading),math.cos(camera.bikeHeading)
-    camera.centerX=actor.x+camera.eyeForward*math.cos(camera.bikeHeading)+rightX*seatSide
-    camera.centerZ=actor.z+camera.eyeForward*math.sin(camera.bikeHeading)+rightZ*seatSide
+    camera.centerX=actor.x+(camera.eyeForward+seatForward)*math.cos(camera.bikeHeading)+rightX*seatSide
+    camera.centerZ=actor.z+(camera.eyeForward+seatForward)*math.sin(camera.bikeHeading)+rightZ*seatSide
     smooth('eyeHeight',camera.focusHeight+FP.EYE_HEIGHT*math.cos(pitch)+seatUp,.18)
     smooth('ridePitch',pitch,FP.PITCH_SMOOTH_TIME)
     local landing=Landing.target(camera.world,actor,visual)
@@ -112,7 +113,7 @@ function FP.screen(camera,x,z,h)
     local right,up,depth=FP.coordinates(camera,x,z,h)
     -- Markers behind the eye must never flip across the viewport.
     if depth<FP.NEAR then return -10000,-10000,depth end
-    local centerX=(camera.viewportWidth or 1280)*.5
+    local centerX=camera.viewCenterX or (camera.viewportWidth or 1280)*.5
     local centerY=camera.viewCenterY or (camera.viewportHeight or 880)*.5
     return centerX+right*camera.focal/depth,centerY-up*camera.focal/depth,depth
 end

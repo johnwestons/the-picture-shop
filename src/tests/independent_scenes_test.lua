@@ -150,17 +150,26 @@ function Test.run(context,check)
         pallet.location,pallet.status,pallet.wrapped,pallet.remainingSheets='warehouse','wrapped',true,0
         pallet.world={x=400,y=500,sceneId='warehouse',direction='northwest',spawnProgress=1}
     end
-    assert(Service.requestPickup(state,job,100))
+    assert(Service.requestPickup(state,job,100,'player'))
     p4.sceneId='warehouse';entrance(p4)
     assert(guests[3]:requestInteraction('homeTravel','delivery:'..job.id));pump()
     local driver=t.participants[guests[3].residentId]
     check('independent_guest_plans_delivery_without_group_travel',driver and t.deliveryDriver==guests[3].residentId
         and hp.sceneId=='warehouse' and host.players[2].sceneId=='home' and host.players[3].sceneId=='commute')
+    local bay=world.sites.byId.warehouse
+    local parking=bay.design.truckParking
+    t.truck.x,t.truck.z=bay:toWorld(parking.x,parking.z,0)
+    t.truck.speed=0
+    check('independent_delivery_truck_reaches_loading_bay',Trip.truckAtLoadingBay(world,t.truck))
     driver.rider.ped.x,driver.rider.ped.z=t.truck.x,t.truck.z
     C.syncPlayer(p4,driver)
     assert(guests[3]:requestInteraction('commute','load_delivery:'..token));pump()
     check('independent_driver_loads_shared_manifest',received[3].interaction_result.accepted
-        and t.deliveryRun.status=='driving' and job.pickup.status=='player_delivery')
+        and t.deliveryRun.status=='driving' and job.pickup.status=='player_delivery',
+        ('accepted=%s run=%s pickup=%s mode=%s'):format(
+            tostring(received[3].interaction_result.accepted),
+            tostring(t.deliveryRun and t.deliveryRun.status),tostring(job.pickup.status),
+            tostring(job.pickup.driverMode)))
     assert(guests[3]:requestInteraction('commute','truck:'..token));pump()
     local truckX,truckZ=t.truck.x,t.truck.z
     contexts[3].inputY=-1;pump(6);contexts[3].inputY=0

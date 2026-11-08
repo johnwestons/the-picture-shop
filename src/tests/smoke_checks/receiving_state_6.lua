@@ -70,11 +70,17 @@ function Component.run(Context)
     Context.check("paperwork_offer_created", Context.serviceOffer
         and Context.serviceOffer.id == "JOB-0001"
         and Context.serviceOffer.company == "Blue Ridge Packaging"
-        and Context.serviceOffer.quote.totalPrice == 660
+        and Context.serviceOffer.quote.totalPrice == 1254
         and #Context.serviceOffer.pallets == 2
         and Context.serviceOffer.deliveryService.id == "express"
         and Context.serviceOffer.deliveryService.delayHours >= 2
-        and Context.serviceOffer.deliveryService.delayHours <= 6)
+        and Context.serviceOffer.deliveryService.delayHours <= 6,
+        Context.serviceOffer and string.format("id=%s company=%s quote=%s pallets=%s service=%s",
+            tostring(Context.serviceOffer.id),tostring(Context.serviceOffer.company),
+            tostring(Context.serviceOffer.quote and Context.serviceOffer.quote.totalPrice),
+            tostring(#Context.serviceOffer.pallets),
+            tostring(Context.serviceOffer.deliveryService and Context.serviceOffer.deliveryService.id))
+            or "offer=nil")
     Context.acceptX, Context.acceptY = Context.context.jobOfferScreen.buttonCenter("accept")
     Context.check("paperwork_accept_hit_target", Context.context.jobOfferScreen.hitTest(Context.acceptX, Context.acceptY) == "accept")
     Context.check("paperwork_ignores_outside_click", Context.context.jobOfferScreen.hitTest(10, 10) == nil)

@@ -4,12 +4,14 @@ local Bike=require('src.commute.motorcycle')
 local Damage=require('src.commute.bike_damage')
 local Routes=require('src.commute.routes')
 local DrivingPath=require('src.commute.driving_path')
+local AIWatchdog=require('src.ai_watchdog')
 local Traffic={MAX_BIKES=2,MAX_ROUTE_PAIRS=2,HALF_LENGTH=.65,HALF_WIDTH=.38,HEIGHT=1.55,
     CRASH_RECOVERY_DELAY=1.25}
 
 -- Keep generated route geometry only while its road graph is in use. Town IDs
 -- are strings and would otherwise retain every rerolled town's route points.
 local routeCache=setmetatable({}, {__mode='k'})
+local rescueFailures=setmetatable({}, {__mode='k'})
 local BIKE_FIELDS={'x','z','heading','speed','distance','h','pitch','lean','steering',
     'throttle','brake','gear','transmission','reverse','damage','collisionContact',
     'collisionKind','collisionId','impactPulse','impactStrength','rescueCount',
@@ -262,19 +264,34 @@ local function nearestRouteIndex(points,x,z)
     end
     return nearestIndex
 end
-local function recoverCrashedAgent(agent,route,world,dt)
+local function recoverCrashedAgent(agent,route,world,dt,watchdogState)
     local bike=agent.bike
     agent.recoveryTime=math.max(0,(agent.recoveryTime>0 and agent.recoveryTime
         or Traffic.CRASH_RECOVERY_DELAY)-dt)
-    local rescued=false
+    local rescued,rescueReason=false,nil
     if agent.recoveryTime<=0 then
-        rescued=Bike.rescue(bike,world)
+        rescued,rescueReason=Bike.rescue(bike,world)
         if rescued then
             agent.pathIndex=nearestRouteIndex(route.points,bike.x,bike.z)
             bike.pathIndex=agent.pathIndex;bike.pathTarget=nil
             agent.recoveryTime=0
+            rescueFailures[bike]=0
+            AIWatchdog.note(watchdogState,'motorcycle-crash:'..tostring(agent.id),{
+                status='RECOVERED',system='Road traffic',subject='AI motorcycle '..tostring(agent.id),
+                stage='crash_recovery',reason='Motorcycle could not continue after a crash',
+                action='Placed at a collision-checked clear road point and resumed its route',
+                x=bike.x,z=bike.z,visible=bike.visible~=false,scope='world-simulation'})
         else
             agent.recoveryTime=Traffic.CRASH_RECOVERY_DELAY
+            rescueFailures[bike]=(rescueFailures[bike] or 0)+1
+            if rescueFailures[bike]==1 or rescueFailures[bike]%3==0 then
+                AIWatchdog.note(watchdogState,'motorcycle-crash:'..tostring(agent.id),{
+                    status='STALLED',system='Road traffic',subject='AI motorcycle '..tostring(agent.id),
+                    stage='crash_recovery',reason='No collision-safe road position was available',
+                    action='Kept the rider stopped and scheduled another safe recovery attempt',
+                    detail=tostring(rescueReason or 'Recovery area remained blocked'),
+                    x=bike.x,z=bike.z,visible=bike.visible~=false,scope='world-simulation'})
+            end
         end
     end
     if world.trafficActorIndex then world.trafficActorIndex:update(bike) end
@@ -306,7 +323,7 @@ function Traffic.routes(world)
     return pairRoutes(world)
 end
 
-function Traffic.update(commute,world,dt,driveRoute)
+function Traffic.update(commute,world,dt,driveRoute,watchdogState)
     if type(commute)~='table' or not world or type(driveRoute)~='function' then return false,false end
     local changed=Traffic.ensure(commute,world)
     local routes=pairRoutes(world)
@@ -318,7 +335,7 @@ function Traffic.update(commute,world,dt,driveRoute)
         bike.pathIndex=agent.pathIndex
         bike.trafficId='ai-'..agent.id
         if bike.crashPending then
-            changed=recoverCrashedAgent(agent,routes[agent.routeId],world,dt) or changed
+            changed=recoverCrashedAgent(agent,routes[agent.routeId],world,dt,watchdogState) or changed
         elseif agent.dwell>0 then
             agent.recoveryTime=0
             world.activeTrafficBike=bike

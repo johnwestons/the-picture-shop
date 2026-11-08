@@ -68,7 +68,7 @@ function Component.install(Runtime)
 
     function Runtime.World.employeeContext(state,assets)
         local options=Runtime.World._employeeOptions or {}
-        local context={assets=Runtime.WarehouseGameplay.assets(assets,state)}
+        local context={assets=Runtime.WarehouseGameplay.assets(assets,state),state=state}
         assets=context.assets
         local function players()
             local result={Runtime.World.player}
@@ -97,7 +97,7 @@ function Component.install(Runtime)
             -- throughout that move; the next actor move gets a fresh snapshot
             -- after this actor's position has changed.
             local obstacles=context.obstacles(actor)
-            return {assets=require("src.shop_rooms").assets(assets,actor.sceneId or "warehouse",state),
+            return {assets=require("src.shop_rooms").assets(assets,actor.sceneId or "warehouse",state),state=state,
                 motionScale=context.motionScale,obstacles=function() return obstacles end,
                 obstacleIndexScratch=obstacleIndexScratch}
         end
@@ -183,6 +183,15 @@ function Component.install(Runtime)
             goal=goal or primary
             exitContacts[worker]={goal=goal,retry=.75}
             return goal
+        end
+        function context.deliveryExitPoint(worker)
+            local door=require("src.warehouse_registration").exit
+            local obstacles=context.obstacles(worker)
+            if Runtime.Navigation.isWalkable(assets,door.x,door.y,obstacles) then return door end
+            return Runtime.EmployeeAI.findReachablePoint(worker,{
+                {x=door.x+24,y=door.y},{x=door.x-24,y=door.y},
+                {x=door.x,y=door.y-24},{x=door.x,y=door.y+24}},context)
+                or door
         end
         function context.canClaim(machineId)
             local pose=Runtime.MachineFleet.byId(state,machineId)

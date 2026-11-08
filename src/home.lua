@@ -4,6 +4,7 @@ local Calendar=require("src.business_calendar")
 local Town=require("src.commute.town")
 local PortablePay=require('src.portable_pay')
 local TownCharacters=require("src.commute.town_characters")
+local TruckService=require('src.commute.truck_service')
 local Home={}
 local function integer(n,minimum,maximum)
     return type(n)=="number" and n==n and n==math.floor(n) and n>=minimum and n<=maximum
@@ -35,6 +36,7 @@ function Home.new(options,day)
     if due-day<7 then due=nextMonth(due) end
     local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,town=Town.copy(town),
         townCharacters=TownCharacters.defaultState(town),
+        truckFleet=TruckService.defaultFleet(),
         shopId=PortablePay.newShopId(),portableClaims={},
         balanceCents=Catalog.ALLOWANCE_CENTS,allowanceGranted=true,payPercent=25,
         weekend=require("src.weekend_flow").new(day*24),
@@ -64,6 +66,7 @@ function Home.valid(home)
         or not require("src.household_finances").valid(home.finance)
         or not require("src.home_residents").valid(home.residents)
         or not require('src.commute.trip').valid(home.commute,home)
+        or not TruckService.validFleet(home.truckFleet)
         or not require("src.home_shopping").valid(home.shopping)
         or not require("src.home_chores").valid(home.chores)
         or not require("src.home_furniture").valid(home.furniture) then return false end
@@ -101,19 +104,26 @@ function Home.valid(home)
     return first.day==1 and upcoming.day==1 and lease.firstDueDay==expectedFirst
         and (upcoming.year-first.year)*12+upcoming.month-first.month==lease.invoiceCount
 end
-function Home.normalize(home,day)
+function Home.normalize(home,day,hours)
     if home==nil then return Home.new(nil,day) end
     if not Home.valid(home) then return nil,"Invalid household or apartment lease." end
     local result=copy(home);require("src.home_furniture").ensure({home=result})
+    result.truckFleet=TruckService.normalizeFleet(result.truckFleet)
     result.shopId=result.shopId or PortablePay.newShopId()
     result.portableClaims=result.portableClaims or {}
     require('src.home_residents').ensure({home=result})
     -- Existing shops keep their original geography. Saved layouts are copied,
     -- never regenerated from a seed when generator code changes.
     if not result.town then result.town=Town.legacy() end
-    result.townCharacters=TownCharacters.normalize(result.townCharacters,result.town)
+    result.townCharacters=TownCharacters.normalize(result.townCharacters,result.town,hours)
     if not result.townCharacters then return nil,"Invalid saved town character roster." end
-    if result.commute then result.commute=require('src.commute.trip').snapshot(result.commute) end
+    if result.commute then
+        result.commute=require('src.commute.trip').snapshot(result.commute)
+        local trucks={}
+        if result.commute.truck then trucks[#trucks+1]=result.commute.truck end
+        if result.commute.keiTruck then trucks[#trucks+1]=result.commute.keiTruck end
+        TruckService.syncFleet(result,trucks)
+    end
     result.chores=result.chores or require("src.home_chores").new((day or 0)*24)
     result.dining=result.dining or require("src.home_dining").new()
     for _,resident in pairs(result.residents or {}) do

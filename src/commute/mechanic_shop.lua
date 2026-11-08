@@ -3,6 +3,8 @@ local Upgrades=require('src.commute.bike_upgrades')
 local Paint=require('src.commute.bike_paint')
 local Repairs=require('src.commute.bike_repairs')
 local Tires=require('src.commute.bike_tires')
+local TruckService=require('src.commute.truck_service')
+local TruckMechanic=require('src.commute.truck_mechanic')
 local Residents=require('src.home_residents')
 local Fonts=require('src.screens.title_fonts')
 local Station=require('src.commute.gas_station')
@@ -12,6 +14,22 @@ local shopName=require('src.commute.sites').MECHANIC_NAME:upper()
 local function interior() return require('src.commute.mechanic_interior') end
 local function gasInterior() return require('src.commute.gas_station_interior') end
 local function view(R) return R._commute and R._commute.mechanicOffer end
+local function syncGroceryGate(v)
+    if not v or v.interiorKind~='grocery' then return end
+    local Grocery=require('src.commute.grocery_interior')
+    local interior=v.interior
+    v.cartPushed=interior and interior.cartPose and interior.cartPose.pushed==true or false
+    v.atGroceryRegister=interior and Grocery.atCheckout(interior.pose) or false
+end
+local function requestGroceryCart(R,v,action)
+    local pushed=action=='cartpush_on'
+    local okay=require('src.commute.runtime').request(R,('cartpush:%d:%d'):format(v.token,pushed and 1 or 0))
+    if not okay and v.interior then
+        v.interior.cartPose.pushed=not pushed
+        v.interior.pose.cartPushing=not pushed
+    end
+    return okay
+end
 local function stationArgs(R)
     local C=require('src.commute.runtime')
     local part=C.localPart(R)
@@ -53,6 +71,17 @@ function Shop.tireQuote(R,id)
     return part and Tires.quote(R.state,part.rider.bike.service,id)
 end
 local function quote(R,v)
+    if v.vehicleKind=='truck' then
+        local trip=R.state.home.commute
+        local okay,_,_,truck=TruckMechanic.canVisit(R.state,R.World.player,trip,
+            require('src.commute.runtime').world(R),v.truckModel)
+        if not okay then return nil end
+        if v.service=='truck_repair' then return TruckMechanic.quote(R.state,truck,'repair') end
+        if v.service=='truck_maintenance' then
+            return TruckMechanic.quote(R.state,truck,'maintenance',v.selectedTruckMaintenance)
+        end
+        return TruckMechanic.quote(R.state,truck,'upgrade',v.selectedTruckUpgrade)
+    end
     if v.service=='repair' then return Shop.repairQuote(R) end
     if v.service=='paint' then return Shop.paintQuote(R,v.selectedPaintId) end
     if v.service=='tires' then return Shop.tireQuote(R,v.selectedTireId) end
@@ -69,14 +98,26 @@ function Shop.close(R,silent)
 end
 function Shop.open(R)
     local C=require('src.commute.runtime')
-    local okay,reason=Upgrades.canVisit(R.state,R.World.player,R.state.home.commute,C.world(R))
-    if not okay then R.state.message=reason;return false end
+    local bikeOkay,bikeReason=Upgrades.canVisit(R.state,R.World.player,R.state.home.commute,C.world(R))
+    local truckOkay,truckReason,_,truck=TruckMechanic.canVisit(R.state,R.World.player,
+        R.state.home.commute,C.world(R))
+    if not bikeOkay and not truckOkay then R.state.message=truckReason or bikeReason;return false end
+    local part=C.localPart(R)
+    local useTruck=truckOkay
+    if truckOkay and bikeOkay and part then
+        local ped=part.rider.ped;local bike=part.rider.bike
+        local truckDistance=(ped.x-truck.x)^2+(ped.z-truck.z)^2
+        local bikeDistance=(ped.x-bike.x)^2+(ped.z-bike.z)^2
+        useTruck=truckDistance<=bikeDistance
+    end
     Shop.close(R);C.cancelCameraDrag(R)
     local resident=current(R)
     R._commute.mechanicOffer={token=R.state.home.commute.token,page='lobby',service='performance',
         selectedCategory='engine',selected=math.min(Upgrades.MAX_LEVEL,(resident.ridingUpgradeLevel or 0)+1),
         selectedPaintId=resident.ridingPaintId or Paint.DEFAULT,
-        selectedTireId=C.localPart(R).rider.bike.service.tire,previewFrame=5,
+        selectedTireId=part.rider.bike.service.tire,previewFrame=5,
+        vehicleKind=useTruck and 'truck' or 'bike',truckModel=useTruck and truck.model or nil,
+        selectedTruckMaintenance='oil',selectedTruckUpgrade='engine',
         interior=interior().new(R),elapsed=0}
     return true
 end
@@ -172,6 +213,16 @@ function Shop.repair(R)
     v.service='repair';v.page='catalog';v.notice=nil;v.review=nil;return true
 end
 local function browse(R)
+    local v=view(R)
+    if v and v.vehicleKind=='truck' then
+        local trip=R.state.home.commute
+        local okay,_,_,truck=TruckMechanic.canVisit(R.state,R.World.player,trip,
+            require('src.commute.runtime').world(R),v.truckModel)
+        if not okay then v.notice='Park the truck in the mechanic area before ordering service.';return false end
+        v.service=((truck.damage or 0)>0 or truck.service.mechanicalFailure)
+            and 'truck_repair' or 'truck_maintenance'
+        v.page='truck_catalog';v.notice=nil;v.review=nil;return true
+    end
     if (current(R).ridingDamage or 0)>0 then return Shop.repair(R) end
     return Shop.catalog(R)
 end
@@ -180,8 +231,53 @@ function Shop.selectPaint(R,id)
     if not v or v.pending or v.page=='install' or not Paint.valid(id) then return false end
     v.service='paint';v.page='catalog';v.selectedPaintId=id;v.notice=nil;v.review=nil;return true
 end
+local function confirmTruck(R,v)
+    local q=quote(R,v);if not q then return false end
+    if q.status~='available' then
+        v.notice=q.status=='healthy' and 'This truck service is not due.'
+            or q.status=='maxed' and 'This component is already fully upgraded.'
+            or ('You need '..money(q.shortfallCents or 0)..' more in household funds.')
+        return false
+    end
+    if v.page~='truck_confirm' or not v.review then
+        v.review={service=v.service,model=v.truckModel,revision=q.revision,
+            item=v.selectedTruckMaintenance,category=v.selectedTruckUpgrade,
+            level=q.level,damage=q.damage,failed=q.failed}
+        v.page='truck_confirm';v.notice=nil;return true
+    end
+    local review=v.review
+    if review.service~=v.service or review.model~=v.truckModel or review.revision~=q.revision
+        or v.service=='truck_repair' and (review.damage~=q.damage or review.failed~=q.failed)
+        or v.service=='truck_maintenance' and review.item~=v.selectedTruckMaintenance
+        or v.service=='truck_upgrades' and (review.category~=v.selectedTruckUpgrade or review.level~=q.level) then
+        v.page='truck_catalog';v.review=nil
+        v.notice='The truck changed after this quote. Review the current service before paying.'
+        return false
+    end
+    local command,pending
+    if v.service=='truck_repair' then
+        pending={kind='repair',previous=q.revision,damage=q.damage,failed=q.failed,
+            name='Truck repairs',elapsed=0}
+        command=('truckrepair:%d:%s:%d:%d:%d'):format(v.token,v.truckModel,q.revision,q.damage,q.failed and 1 or 0)
+    elseif v.service=='truck_maintenance' then
+        pending={kind='maintenance',previous=q.revision,item=v.selectedTruckMaintenance,
+            name=q.item.name,elapsed=0}
+        command=('truckservice:%d:%s:%d:%s'):format(v.token,v.truckModel,q.revision,v.selectedTruckMaintenance)
+    else
+        pending={kind='upgrade',previous=q.revision,category=v.selectedTruckUpgrade,level=q.level,
+            name=q.offer.name,elapsed=0}
+        command=('truckupgrade:%d:%s:%s:%d:%d:%d'):format(v.token,v.truckModel,v.selectedTruckUpgrade,
+            q.revision,q.currentLevel,q.level)
+    end
+    v.pending=pending
+    local okay=require('src.commute.runtime').request(R,command)
+    if not okay then v.pending=nil;v.notice=R.state.message;v.page='truck_catalog';return false end
+    v.notice='Waiting for the mechanic to confirm your order...'
+    return true
+end
 function Shop.confirm(R)
     local v=view(R);if not v or v.pending or v.page=='install' then return false end
+    if v.vehicleKind=='truck' then return confirmTruck(R,v) end
     local q=quote(R,v);if not q then return false end
     if q.status~='available' then
         v.notice=q.status=='healthy' and 'Your bike is in full working order.'
@@ -252,17 +348,52 @@ function Shop.update(R,dt)
     local trip=R.state.home.commute
     if not trip or trip.token~=v.token then Shop.close(R);return false end
     if v.page=='store' then
+        syncGroceryGate(v)
         local resident=current(R)
         TownStore.update(v,R.state,dt,resident and resident.bikeInventory)
         return true
     end
     dt=math.max(0,math.min(.1,dt or 0));v.elapsed=v.elapsed+dt
     if v.interiorKind=='grocery' then
-        local action=require('src.commute.grocery_interior').update(v.interior,R,dt)
-        if action then TownStore.category(v,action);v.notice=nil;v.review=nil end
+        local Grocery=require('src.commute.grocery_interior')
+        v.interior.cartCount=TownStore.cartCount(v.cart)
+        v.interior.cartTotalCents=TownStore.cartTotal(v.cart) or 0
+        v.interior.cartItems=v.cart
+        syncGroceryGate(v)
+        local action=Grocery.update(v.interior,R,dt)
+        if action then
+            syncGroceryGate(v)
+            if TownStore.category(v,action) then v.notice=nil;v.review=nil end
+        end
         return true
     end
     interior().update(v.interior,R,dt)
+    if v.vehicleKind=='truck' then
+        local pending=v.pending
+        if pending then
+            pending.elapsed=pending.elapsed+dt
+            local okay,_,_,truck=TruckMechanic.canVisit(R.state,R.World.player,trip,
+                require('src.commute.runtime').world(R),v.truckModel)
+            local done=false
+            if okay and pending.kind=='repair' then
+                done=truck.repairRevision==pending.previous+1 and truck.damage==0
+                    and not truck.service.mechanicalFailure
+            elseif okay and pending.kind=='maintenance' then
+                local field=({oil='oilMiles',oil_filter='oilFilterMiles',air_filter='airFilterMiles',
+                    spark_plugs='sparkPlugMiles',coolant='coolantMiles',tires='tireMiles',brakes='brakeMiles'})[pending.item]
+                done=field and truck.service.revision>pending.previous and truck.service[field]==0
+            elseif okay and pending.kind=='upgrade' then
+                done=truck.service.upgrades[pending.category]>=pending.level
+            end
+            if done then
+                v.notice=pending.name..' completed.';v.pending=nil;v.page='truck_catalog';v.review=nil
+            elseif pending.elapsed>=5 then
+                v.pending=nil;v.page='truck_catalog'
+                v.notice='No service confirmation received. Review your balance and try again.'
+            end
+        end
+        return true
+    end
     if v.pending then
         local p=v.pending;local resident=current(R);p.elapsed=p.elapsed+dt
         local confirmed=resident and (p.kind=='paint'
@@ -312,6 +443,7 @@ function Shop.keypressed(R,key)
         return true
     end
     if v.page=='store' then
+        syncGroceryGate(v)
         local C=require('src.commute.runtime')
         local resident=current(R)
         v.bikeInventoryRevision=resident and resident.bikeInventory and resident.bikeInventory.revision or 0
@@ -341,8 +473,20 @@ function Shop.keypressed(R,key)
     end
     if v.interiorKind=='grocery' and v.page=='groceryFloor' then
         local action=require('src.commute.grocery_interior').keypressed(v.interior,key)
-        if action and action~='exit' then TownStore.category(v,action);v.notice=nil;v.review=nil
+        if action=='cartpush_on' or action=='cartpush_off' then requestGroceryCart(R,v,action)
+        elseif action and action~='exit' then
+            syncGroceryGate(v)
+            if TownStore.category(v,action) then v.notice=nil;v.review=nil end
         elseif action=='exit' then Shop.close(R) end
+        return true
+    end
+    if v.vehicleKind=='truck' and (key=='escape' or key=='back') then
+        if v.page=='lobby' then Shop.close(R)
+        elseif not v.pending then
+            if v.page=='truck_confirm' then v.page='truck_catalog';v.review=nil
+            else v.page='lobby' end
+            v.notice=nil
+        end
         return true
     end
     if key=='escape' or key=='back' then
@@ -354,6 +498,27 @@ function Shop.keypressed(R,key)
     if v.page=='lobby' then
         local action=interior().keypressed(v.interior,R,key)
         if action=='catalog' then browse(R) elseif action=='exit' then Shop.close(R) end
+    elseif v.vehicleKind=='truck' and v.page=='truck_catalog' then
+        if key=='tab' then
+            v.service=v.service=='truck_repair' and 'truck_maintenance'
+                or v.service=='truck_maintenance' and 'truck_upgrades' or 'truck_repair'
+            v.notice=nil;v.review=nil
+        elseif key=='return' or key=='e' or key=='kpenter' then Shop.confirm(R)
+        elseif v.service=='truck_maintenance' then
+            local items=TruckService.MAINTENANCE;local index=1
+            for i,item in ipairs(items) do if item.id==v.selectedTruckMaintenance then index=i;break end end
+            local n=tonumber(key)
+            if n and n>=1 and n<=#items then v.selectedTruckMaintenance=items[n].id;v.notice=nil;v.review=nil
+            elseif key=='up' or key=='left' then v.selectedTruckMaintenance=items[math.max(1,index-1)].id;v.notice=nil;v.review=nil
+            elseif key=='down' or key=='right' then v.selectedTruckMaintenance=items[math.min(#items,index+1)].id;v.notice=nil;v.review=nil end
+        elseif v.service=='truck_upgrades' then
+            local order={'engine','tires','brakes','suspension','durability'};local index=1
+            for i,id in ipairs(order) do if id==v.selectedTruckUpgrade then index=i;break end end
+            local n=tonumber(key)
+            if n and n>=1 and n<=#order then v.selectedTruckUpgrade=order[n];v.notice=nil;v.review=nil
+            elseif key=='up' or key=='left' then v.selectedTruckUpgrade=order[math.max(1,index-1)];v.notice=nil;v.review=nil
+            elseif key=='down' or key=='right' then v.selectedTruckUpgrade=order[math.min(#order,index+1)];v.notice=nil;v.review=nil end
+        end
     elseif v.page=='receipt' then
         if key=='return' or key=='e' or key=='kpenter' then
             v.page='lobby';v.selected=math.min(3,(current(R).ridingUpgradeLevel or 0)+1)
@@ -399,6 +564,10 @@ local buttons={back={x=96,y=574,w=205,h=44},buy={x=570,y=574,w=292,h=44},
     performance={x=430,y=114,w=130,h=44},tires={x=568,y=114,w=88,h=44},
     paint={x=664,y=114,w=88,h=44},repair={x=760,y=114,w=102,h=44},
     previous={x=500,y=396,w=44,h=40},next={x=678,y=396,w=44,h=40}}
+local truckTabs={repair={x=96,y=130,w=150,h=42},maintenance={x=254,y=130,w=190,h=42},
+    upgrades={x=452,y=130,w=160,h=42}}
+local truckUpgradeOrder={'engine','tires','brakes','suspension','durability'}
+local function truckRow(index) return {x=96,y=187+(index-1)*54,w=250,h=48} end
 local function categoryRow(index) return {x=96,y=170+(index-1)*49,w=238,h=45} end
 local function swatch(index)
     return {x=96+(index-1)%2*124,y=170+math.floor((index-1)/2)*92,w=114,h=80}
@@ -425,6 +594,7 @@ function Shop.pointer(R,x,y)
         return true
     end
     if v.page=='store' then
+        syncGroceryGate(v)
         local C=require('src.commute.runtime')
         local resident=current(R)
         v.bikeInventoryRevision=resident and resident.bikeInventory and resident.bikeInventory.revision or 0
@@ -455,7 +625,10 @@ function Shop.pointer(R,x,y)
     end
     if v.interiorKind=='grocery' and v.page=='groceryFloor' then
         local action=require('src.commute.grocery_interior').pointer(v.interior,R,x,y)
-        if action and action~='exit' then TownStore.category(v,action);v.notice=nil;v.review=nil
+        if action=='cartpush_on' or action=='cartpush_off' then requestGroceryCart(R,v,action)
+        elseif action and action~='exit' then
+            syncGroceryGate(v)
+            if TownStore.category(v,action) then v.notice=nil;v.review=nil end
         elseif action=='exit' then Shop.close(R) end
         return true
     end
@@ -466,6 +639,23 @@ function Shop.pointer(R,x,y)
     end
     x,y=x*960/R.Config.baseWidth,y*678/R.Config.baseHeight
     if v.pending or v.page=='install' then return true end
+    if v.vehicleKind=='truck' then
+        if contains(buttons.back,x,y) then Shop.keypressed(R,'escape');return true end
+        if v.page=='truck_catalog' then
+            if contains(buttons.buy,x,y) then Shop.confirm(R);return true end
+            if contains(truckTabs.repair,x,y) then v.service='truck_repair';v.notice=nil;v.review=nil
+            elseif contains(truckTabs.maintenance,x,y) then v.service='truck_maintenance';v.notice=nil;v.review=nil
+            elseif contains(truckTabs.upgrades,x,y) then v.service='truck_upgrades';v.notice=nil;v.review=nil
+            elseif v.service=='truck_maintenance' then
+                for n,item in ipairs(TruckService.MAINTENANCE) do if contains(truckRow(n),x,y) then
+                    v.selectedTruckMaintenance=item.id;v.notice=nil;v.review=nil;break end end
+            elseif v.service=='truck_upgrades' then
+                for n,id in ipairs(truckUpgradeOrder) do if contains(truckRow(n),x,y) then
+                    v.selectedTruckUpgrade=id;v.notice=nil;v.review=nil;break end end
+            end
+        end
+        return true
+    end
     if contains(buttons.back,x,y) then Shop.keypressed(R,'escape');return true end
     if contains(buttons.buy,x,y) then
         if v.page=='receipt' then Shop.keypressed(R,'return') else Shop.confirm(R) end
@@ -666,6 +856,89 @@ local function drawReceipt(R,v)
     else text('The same bike is waiting outside.',390,501,446,18,nil,'center') end
     button(buttons.back,'SHOP FLOOR',not working);button(buttons.buy,'BACK TO THE SHOP',not working)
 end
+local function drawTruckCatalog(R,v)
+    local g=love.graphics
+    text(shopName..' / TRUCK SERVICE',96,82,766,27,{1,.85,.47,1})
+    text('Household funds: '..money(R.state.home.balanceCents),96,105,330,18)
+    button(truckTabs.repair,'REPAIRS',v.service=='truck_repair')
+    button(truckTabs.maintenance,'MAINTENANCE',v.service=='truck_maintenance')
+    button(truckTabs.upgrades,'UPGRADES',v.service=='truck_upgrades')
+    local trip=R.state.home.commute
+    local _,_,_,truck=TruckMechanic.canVisit(R.state,R.World.player,trip,
+        require('src.commute.runtime').world(R),v.truckModel)
+    if not truck then
+        text('Bring the truck back to the mechanic parking area to continue.',96,208,760,22,{1,.85,.47,1})
+        button(buttons.back,'SHOP FLOOR / ESC',true)
+        return
+    end
+    local q=quote(R,v)
+    g.setColor(.025,.06,.055,1);g.rectangle('fill',96,184,260,360,7)
+    text(v.truckModel=='kei' and 'KEI TRUCK' or 'BOX TRUCK',108,190,236,20,{1,.85,.47,1})
+    local failureName=({oil_pressure='Oil pressure',overheating='Cooling system',
+        ignition_misfire='Ignition misfire'})[truck.service.failureType] or 'None'
+    if v.service=='truck_repair' then
+        local repair=TruckMechanic.quote(R.state,truck,'repair')
+        text(('Condition  %d%%'):format(100-(truck.damage or 0)),108,226,236,18)
+        g.setColor(.16,.21,.19,1);g.rectangle('fill',118,260,216,12,4)
+        local fill=216*(100-(truck.damage or 0))/100
+        if fill>0 then g.setColor(.66,.83,.56,1);g.rectangle('fill',118,260,fill,12,math.min(4,fill/2)) end
+        text(('Collision damage  %d%%'):format(truck.damage or 0),108,292,236,18)
+        text('Engine condition  '..failureName,108,322,236,18)
+        text('Repairs restore safe running condition.',108,370,236,18,{.68,.78,.72,1})
+        if repair.status=='healthy' then text('No repairs are needed.',108,410,236,18,{.68,.78,.72,1}) end
+    elseif v.service=='truck_maintenance' then
+        for n,item in ipairs(TruckService.MAINTENANCE) do
+            local b=truckRow(n);local selected=item.id==v.selectedTruckMaintenance
+            local itemQuote=TruckMechanic.quote(R.state,truck,'maintenance',item.id)
+            g.setColor(selected and .16 or .075,selected and .25 or .12,selected and .21 or .11,1)
+            g.rectangle('fill',b.x,b.y,b.w,b.h,5,5)
+            text(item.name,b.x+9,b.y+5,b.w-18,15)
+            local status=itemQuote.status=='healthy'
+                and ('%d%% TO INTERVAL'):format(math.min(100,math.floor(100*itemQuote.usedMiles/itemQuote.interval+.5)))
+                or itemQuote.status=='unaffordable' and 'DUE'
+                or 'SERVICE DUE'
+            text(status,b.x+9,b.y+28,b.w-18,12,{.68,.78,.72,1})
+        end
+    else
+        for n,id in ipairs(truckUpgradeOrder) do
+            local b=truckRow(n);local selected=id==v.selectedTruckUpgrade
+            local entry=TruckService.UPGRADES[id];local level=truck.service.upgrades[id]
+            g.setColor(selected and .16 or .075,selected and .25 or .12,selected and .21 or .11,1)
+            g.rectangle('fill',b.x,b.y,b.w,b.h,5,5)
+            text(entry.name,b.x+9,b.y+5,b.w-18,16)
+            text(('LEVEL %d / 3'):format(level),b.x+9,b.y+28,b.w-18,12,{.68,.78,.72,1})
+        end
+    end
+    text(v.page=='truck_confirm' and 'CONFIRM TRUCK SERVICE' or 'SERVICE ESTIMATE',390,194,450,25,{1,.85,.47,1})
+    if q then
+        if v.service=='truck_repair' then
+            text(('Collision damage   %d%%'):format(q.damage),390,256,442,19)
+            text('Mechanical fault   '..(q.failed and failureName or 'None'),390,294,442,19)
+            text('Parts and labor   '..money(q.priceCents),390,340,442,20,{1,.85,.47,1})
+        elseif v.service=='truck_maintenance' then
+            text(q.item.name,390,250,442,22)
+            text(('Current use  %.1f / %.0f mi'):format(q.usedMiles,q.interval),390,290,442,19)
+            text('Parts and labor   '..money(q.priceCents),390,330,442,20,{1,.85,.47,1})
+        elseif q.status=='maxed' then
+            text(q.category.name..' is fully upgraded.',390,250,442,22)
+        else
+            text(q.offer.name,390,250,442,22)
+            text(('Installed level  %d / 3'):format(q.currentLevel),390,290,442,19)
+            text('Parts and labor   '..money(q.priceCents),390,330,442,20,{1,.85,.47,1})
+        end
+    end
+    local note=v.notice or (v.page=='truck_confirm' and 'Approve the quote to authorize this service.'
+        or q and q.status=='unaffordable' and ('Need '..money(q.shortfallCents)..' more in household funds.')
+        or q and q.status=='healthy' and 'This maintenance item is not due yet.'
+        or q and q.status=='maxed' and 'This component is already at its highest level.'
+        or 'Select a service, review the estimate, then approve the order.')
+    text(note,390,440,440,42,{1,.85,.47,1})
+    button(buttons.back,'SHOP FLOOR / ESC',not v.pending)
+    local label=v.pending and 'AWAITING CONFIRMATION' or v.page=='truck_confirm'
+        and ('PAY '..money(q and q.priceCents or 0)) or q and q.status=='available'
+        and ('REVIEW '..money(q.priceCents)) or 'NO SERVICE NEEDED'
+    button(buttons.buy,label,q and q.status=='available' and not v.pending)
+end
 function Shop.draw(R)
     local v=view(R);if not v then return false end
     if v.page=='station' then
@@ -674,8 +947,7 @@ function Shop.draw(R)
     end
     if v.page=='stationFloor' then
         local drawn=gasInterior().draw(v.interior,R)
-        if R.mobileControls and R.mobileControls:isEnabled()
-            and require('src.screens.hud_visibility').isVisible(R) then R.mobileControls:draw() end
+        if R.mobileControls and R.mobileControls:isEnabled() then R.mobileControls:draw() end
         return drawn
     end
     if v.page=='store' then
@@ -689,14 +961,20 @@ function Shop.draw(R)
     if v.interiorKind=='grocery' and v.page=='groceryFloor' then
         v.interior.cartCount=TownStore.cartCount(v.cart)
         v.interior.cartTotalCents=TownStore.cartTotal(v.cart) or 0
+        v.interior.cartItems=v.cart
         local drawn=require('src.commute.grocery_interior').draw(v.interior,R)
-        if R.mobileControls and R.mobileControls:isEnabled()
-            and require('src.screens.hud_visibility').isVisible(R) then R.mobileControls:draw() end
+        if R.mobileControls and R.mobileControls:isEnabled() then R.mobileControls:draw() end
         return drawn
     end
     interior().draw(v.interior,R)
     if v.page=='lobby' then return true end
     local g=love.graphics;g.push('all');g.scale(R.Config.baseWidth/960,R.Config.baseHeight/678)
+    if v.vehicleKind=='truck' then
+        g.setColor(0,0,0,.68);g.rectangle('fill',0,0,960,678)
+        g.setColor(.035,.065,.065,.98);g.rectangle('fill',72,62,816,574,10,10)
+        g.setColor(.44,.56,.45,1);g.rectangle('line',72,62,816,574,10,10)
+        drawTruckCatalog(R,v);g.pop();return true
+    end
     g.setColor(0,0,0,.68);g.rectangle('fill',0,0,960,678)
     g.setColor(.035,.065,.065,.98);g.rectangle('fill',72,62,816,574,10,10)
     g.setColor(.44,.56,.45,1);g.rectangle('line',72,62,816,574,10,10)

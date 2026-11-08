@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "character": "medic-fox-worker",
+  "animations": {
+    "walk_north": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_north": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_northeast": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_northeast": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_east": {
+      "path": "assets/generated/characters/medic-fox-worker/walk.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_east": {
+      "path": "assets/generated/characters/medic-fox-worker/idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_southeast": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_southeast": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_south": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_south": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_southwest": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_southwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_southwest": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_southwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_west": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_west": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_west.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_northwest": {
+      "path": "assets/generated/characters/medic-fox-worker/walk_northwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait"
+    },
+    "idle_northwest": {
+      "path": "assets/generated/characters/medic-fox-worker/idle_northwest.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "work_cutter": {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_cutter.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "work"
+    },
+    "work_press": {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_press.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "work"
+    },
+    "work_wrapping": {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_wrapping.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "work"
+    },
+    "push": {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "push"
+    },
+    "push_northeast": {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "push"
+    },
+    "push_north": {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "push"
+    },
+    "push_southeast": {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "push"
+    },
+    "push_south": {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "push"
+    },
+    "break_eat": {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_eat.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "break"
+    },
+    "break_drink": {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "break"
+    },
+    "break_idle": {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_idle.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "break"
+    },
+    "break_water": {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "break"
+    },
+    "break_coffee": {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 4,
+      "loop": true,
+      "role": "break"
+    }
+  },
+  "directions": {
+    "north": {
+      "walk_animation": "walk_north",
+      "idle_animation": "idle_north",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": false
+    },
+    "east": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south",
+      "idle_animation": "idle_south",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southwest",
+      "idle_animation": "idle_southwest",
+      "mirror_x": false
+    },
+    "west": {
+      "walk_animation": "walk_west",
+      "idle_animation": "idle_west",
+      "mirror_x": false
+    },
+    "northwest": {
+      "walk_animation": "walk_northwest",
+      "idle_animation": "idle_northwest",
+      "mirror_x": false
+    }
+  },
+  "gait": {
+    "pose_order": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "pixels_per_frame": 13,
+    "base_speed": 72,
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 8,
+    "center_tolerance": 14
+  },
+  "notes": {
+    "baseCharacter": "Medic Fox animation and identity from Mouse Frontier 8.10; outfit restyled to rust-orange utility vest over dark navy overalls.",
+    "directionCoverage": "All eight walk and idle views are authored; no mirroring is used for walking.",
+    "backgroundCleanup": "The image generator embedded a neutral checkerboard matte in 20 source sheets. Exact original outputs are archived at assets/source/medic-fox-worker/generated-originals; staged copies normalize near-neutral checker squares (RGB minimum >=220 and channel spread <=28) to white, then the runtime packer removes the connected background. Speck components below 12 source pixels were removed from staged copies only."
+  }
+}

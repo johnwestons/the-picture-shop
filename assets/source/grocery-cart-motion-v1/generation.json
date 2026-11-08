@@ -1,0 +1,16 @@
+{
+  "asset": "grocery-cart-directions-refined-source.png",
+  "generator": "built-in image_gen",
+  "source_reference": "assets/generated/grocery-interior-v1/grocery-store-concept.png",
+  "prompt": "Use case: stylized-concept. Asset type: production sprite atlas for a 2D grocery store game. Input image: Image 1 is the existing grocery store interior and is a style and camera reference only. Primary request: a small empty standard grocery shopping cart with a red handle, wire basket and four caster wheels, in five distinct travel directions with a subtle rolling animation. Layout: exactly 4 columns by 5 rows, 20 equal square cells; each cell is one centered cart on a 256 by 256 transparent canvas. Rows from top to bottom are north, northeast, east, southeast, south. Within each row, show four consecutive rolling frames with only tiny wheel rotation and a restrained 1-2 pixel body settle; keep the cart's silhouette, orientation, scale and placement consistent across its four frames. Camera: match the warm, slightly elevated three-quarter view of the grocery interior reference. Direction views must be clearly distinct and readable: north is rear view with the red handle nearest the viewer, northeast and southeast are corresponding three-quarter views, east is side view, south is front view. Materials: slim chrome wire frame, muted metal basket, small dark rubber casters, simple red handle grip; hand-painted game illustration with clean contours, warm soft shading and detail that remains legible when drawn about 64 pixels wide. Align the lowest wheel contact points at y=220 and center each cart horizontally in its cell. Keep all content inside each cell with generous transparent clearance. Constraints: empty basket, exactly one cart per cell, true transparent background. No people, groceries, floor, cast shadow, labels, grid lines, dividers, lettering, logo, watermark, extra objects, or background.",
+  "normalization": {
+    "canvas": [128, 128],
+    "rolling_frame_count": 4,
+    "authored_directions": ["north", "northeast", "east", "southeast", "south"],
+    "mirrored_directions": ["northwest", "west", "southwest"],
+    "shared_wheel_baseline_y": 112,
+    "matte_alpha_cutoff": 180,
+    "source_preserved": true
+  },
+  "rolling_animation_refinement": "The original sheet repeated wheel poses. A targeted built-in image_gen edit changed only the four caster poses per row to distinct quarter-turn states while preserving cart placement and direction."
+}

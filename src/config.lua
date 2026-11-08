@@ -31,7 +31,9 @@ local Config = {
         deceleration = 1350,
         maxFrameTime = 0.10,
         maxStepDistance = 5,
-        walkPixelsPerFrame = 20,
+        -- Shared on-foot cadence across warehouse, commute, and interior scenes.
+        -- A longer stride interval slows the animation without changing movement speed.
+        walkPixelsPerFrame = 28,
         -- One value per gait pose: contact, weight-down, passing, knee-up,
         -- then the mirrored four-pose step. Both curves average to 1.0 so
         -- gait weight transfer does not change the player's overall pace.
@@ -720,4 +722,12 @@ end
 local commuteWalkerArt=require("src.commute.walker_art")
 Config.characters["suited-rider"]=commuteWalkerArt.paths["suited-rider"]
 Config.workerFrameSizes["suited-rider"]=256
+local medicFoxArt=require("src.medic_fox_worker_art")
+local medicFox="medic-fox-worker"
+Config.characters[medicFox]=medicFoxArt.paths[medicFox]
+Config.workerFrameSizes[medicFox]=medicFoxArt.frameSize
+Config.workerActionFrameSizes[medicFox]={}
+for action in pairs(Config.characters[medicFox]) do
+    Config.workerActionFrameSizes[medicFox][action]=medicFoxArt.frameSize
+end
 return Config

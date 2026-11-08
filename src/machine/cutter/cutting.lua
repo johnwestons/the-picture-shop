@@ -26,7 +26,10 @@ function Component.run(Context)
         else
             Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
             Context.syncProgram()
-            Context.message(state, "Cut complete. Rotate 90 degrees, set the next gauge, and reposition.")
+            local direction = Context.PaperWork.rotationDirection(Context.Machine.paper) > 0
+                and "clockwise" or "counterclockwise"
+            Context.message(state, "Cut complete. Set the next gauge, rotate " .. direction
+                .. " 90 degrees, and reposition.")
         end
         return true
     end

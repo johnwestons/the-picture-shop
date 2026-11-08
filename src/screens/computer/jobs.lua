@@ -122,6 +122,9 @@ function Component.install(Runtime)
                 and string.format("SPOIL %d%%", math.floor(preview.spoilRate * 100 + 0.5))
             or preview.reworkSheets > 0
                 and string.format("REWORK %s • DELIVERY COMPLETE", Runtime.commaNumber(preview.reworkSheets))
+            or preview.qualityRequirementMet == false
+                and string.format("BELOW CLIENT TARGET %d%%",
+                    math.floor((preview.qualityStandard or 0) * 100 + 0.5))
             or preview.hasPrintQuality and preview.printQuality <= preview.edgeQuality
                 and preview.printQuality < 0.999
                 and string.format("PRINT QUALITY %d%%", math.floor(preview.printQuality * 100 + 0.5))
@@ -425,14 +428,35 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.tab ~= "active" then return end
         local ready = Runtime.completionReady(selected)
-        local hovered = ready and pointerX and Runtime.contains(Runtime.COMPLETE, pointerX, pointerY)
         local inspection = selected.inspection or {}
         local buttonLabel = ready and (inspection.status == "passed" and "SCHEDULE CUSTOMER PICKUP"
             or inspection.status == "held" and "REWORK AFFECTED PALLETS"
             or "INSPECT FINISHED JOB") or "PRODUCTION NOT COMPLETE"
-        if selected.status == "ready_for_pickup" then buttonLabel = "PICKUP AWAITING TRUCK"
+        if selected.status == "ready_for_pickup" and inspection.status == "passed"
+            and selected.pickup and selected.pickup.status == "awaiting_schedule" then
+            local mode=selected.pickup.driverMode or 'employee'
+            local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
+            local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
+            Runtime.drawComputerButton(Runtime.PICKUP_EMPLOYEE,
+                mode=='employee' and 'EMPLOYEE ✓' or 'EMPLOYEE',
+                employeeHover and 'primaryHover' or mode=='employee' and 'primary' or 'secondary')
+            Runtime.drawComputerButton(Runtime.PICKUP_PLAYER,
+                mode=='player' and 'I WILL DELIVER ✓' or 'I WILL DELIVER',
+                playerHover and 'primaryHover' or mode=='player' and 'primary' or 'secondary')
+            return
+        elseif selected.status == "ready_for_pickup" then buttonLabel = "DELIVERY IN PROGRESS"
         elseif selected.status == "pickup_in_progress" then buttonLabel = "PICKUP IN PROGRESS"
         elseif selected.status == "completed" then buttonLabel = "PAID AND COMPLETED" end
+        if ready and inspection.status == 'passed' and selected.status == 'in_production' then
+            local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
+            local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
+            Runtime.drawComputerButton(Runtime.PICKUP_EMPLOYEE,'EMPLOYEE DRIVER',
+                employeeHover and 'primaryHover' or 'primary')
+            Runtime.drawComputerButton(Runtime.PICKUP_PLAYER,'I WILL DELIVER',
+                playerHover and 'primaryHover' or 'secondary')
+            return
+        end
+        local hovered = ready and pointerX and Runtime.contains(Runtime.COMPLETE, pointerX, pointerY)
         Runtime.drawComputerButton(Runtime.COMPLETE, buttonLabel,
             not ready and "disabled" or hovered and "primaryHover" or "primary")
     end

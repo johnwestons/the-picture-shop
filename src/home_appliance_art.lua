@@ -71,12 +71,12 @@ function Art.drawFridge(x,y,scale,opening,contents,kind)
             local ix,iy=x+slot[1]*scale,y+slot[2]*scale
             if food then FoodArt.draw(food.sprite,ix,iy,29) end
             if entry.count>1 then
-                badgeFont=badgeFont or love.graphics.newFont(12)
+                badgeFont=badgeFont or love.graphics.newFont(10)
                 love.graphics.setFont(badgeFont)
                 love.graphics.setColor(.025,.045,.055,.92)
-                love.graphics.rectangle("fill",ix+8,iy+5,23,16,4)
+                love.graphics.rectangle("fill",ix+12,iy+9,20,14,4)
                 love.graphics.setColor(1,.96,.78,1)
-                love.graphics.printf(tostring(entry.count),ix+8,iy+6,23,"center")
+                love.graphics.printf(tostring(entry.count),ix+12,iy+9,20,"center")
             end
         end
         if #stored>#asset.slots then
@@ -92,7 +92,7 @@ function Art.drawFridge(x,y,scale,opening,contents,kind)
     local hingeX,hingeY=asset.hingeX,asset.hingeY
     love.graphics.setColor(1,1,1,1)
     love.graphics.draw(asset.image,asset.door,
-        x+hingeX*scale,y+hingeY*scale,-.92*eased,
+        x+hingeX*scale,y+hingeY*scale,0,
         scale*(1-.82*eased),scale,hingeX,hingeY)
     love.graphics.pop()
     return true

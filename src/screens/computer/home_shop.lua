@@ -3,8 +3,9 @@ local Shopping=require("src.home_shopping")
 local Art=require("src.home_food_art")
 local Calendar=require("src.business_calendar")
 local Component={}
-local function productArt(product,x,y,size)
+local function productArt(productId,product,x,y,size)
     if product.furnitureId then require("src.home_furniture_art").icon(product.furnitureId,x,y,size)
+    elseif product.group=="groceries" then require("src.commute.grocery_ui_art").drawProduct(productId,x,y,size)
     else Art.draw(product.sprite,x,y,size) end
 end
 local buttons={previous={x=104,y=554,width=125,height=44},next={x=244,y=554,width=125,height=44},
@@ -97,7 +98,7 @@ function Component.install(Runtime)
             local q=Shopping.quote(confirmation.productId,confirmation.quantity)
             local ordered=recorded(state)
             text("HOUSEHOLD CHECKOUT",104,208,700,{1,.86,.41,1})
-            productArt(q.product,248,352,190)
+            productArt(confirmation.productId,q.product,248,352,190)
             text(q.product.name,414,252,424)
             text(string.format("%d serving(s)/item(s)\nItems: $%.2f   Delivery: $%.2f\nTOTAL FROM HOUSEHOLD: $%.2f",
                 q.servings,q.subtotalCents/100,q.shippingCents/100,q.totalCents/100),414,282,424)
@@ -149,7 +150,7 @@ function Component.install(Runtime)
             local id=list[(page-1)*4+i];local p=id and Catalog.PRODUCTS[id]
             if p then
                 local y=298+(i-1)*58
-                productArt(p,128,y+22,52)
+                productArt(id,p,128,y+22,52)
                 text(p.name,166,y+2,365)
                 text(p.furnitureId and p.dimensions.." · 8 directions · "..p.minutes.." game min" or p.servings.." serving(s)/item(s) · "..p.minutes.." game min delivery",166,y+24,440,{.62,.78,.76,1})
                 text(string.format("$%.2f",p.priceCents/100),602,y+13,90)

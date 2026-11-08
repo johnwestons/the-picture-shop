@@ -530,7 +530,14 @@ function Component.install(Runtime)
         elseif envelope.type == "pong" then
             local sentAt = self.pendingPing and self.pendingPing[payload.nonce]
             if sentAt then
-                self.rtt = math.max(0, (self.clock() - sentAt) * 1000)
+                local now=self.clock()
+                self.rtt = math.max(0, (now - sentAt) * 1000)
+                self.lastPongAt=now
+                self.pingReceivedCount=(self.pingReceivedCount or 0)+1
+                self.pingMinMs=not self.pingMinMs and self.rtt or math.min(self.pingMinMs,self.rtt)
+                self.pingMaxMs=not self.pingMaxMs and self.rtt or math.max(self.pingMaxMs,self.rtt)
+                self.pingAverageMs=not self.pingAverageMs and self.rtt
+                    or self.pingAverageMs*.8+self.rtt*.2
                 self.pendingPing[payload.nonce] = nil
             end
         elseif envelope.type == "leave" then

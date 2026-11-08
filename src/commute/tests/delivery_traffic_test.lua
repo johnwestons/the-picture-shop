@@ -17,29 +17,46 @@ end
 
 function Test.run(check)
     local actor={x=0,z=0,h=0}
-    check('truck_free_camera_keeps_isometric_art_above_lowest_tilt',
+    check('truck_free_camera_keeps_isometric_art_at_every_tilt',
         TruckArt.viewKind({tilt=30},actor,0)=='isometric'
-            and TruckArt.viewKind({tilt=Camera.TILT_MIN},actor,0)=='chase')
-    check('truck_free_camera_uses_chase_art_when_player_is_close_to_a_parked_truck',
+            and TruckArt.viewKind({tilt=Camera.TILT_MIN},actor,0)=='isometric')
+    check('truck_free_camera_keeps_isometric_art_near_a_parked_truck',
         TruckArt.viewKind({tilt=55,centerX=0,centerZ=0,lastActor={x=0,z=0}},
-            {x=3,z=0,h=0},0)=='chase')
+            {x=3,z=0,h=0},0)=='isometric')
     check('truck_first_person_and_shoulder_keep_chase_art',
-        TruckArt.viewKind({localTruckChase=true},actor,0)=='chase'
+        TruckArt.viewKind({firstPerson=true},actor,0)=='chase'
             and TruckArt.viewKind({projectionCamera={includeLocalRider=true,shoulderPerspective=true}},actor,0)=='chase')
-    check('truck_perspective_close_angle_keeps_chase_art',
-        TruckArt.viewKind({projectionCamera={includeLocalRider=true,centerX=0,centerZ=0,eyeHeight=2}},actor,0)=='isometric'
-            and TruckArt.viewKind({projectionCamera={includeLocalRider=true,centerX=0,centerZ=3,eyeHeight=2}},actor,0)=='chase')
+    check('truck_follow_camera_ignores_legacy_chase_hint_and_low_elevation',
+        TruckArt.viewKind({outsideMode='follow',tilt=Camera.TILT_MIN,localTruckChase=true},actor,0)=='isometric'
+            and TruckArt.viewKind({firstPerson=true,projectionCamera={includeLocalRider=true,
+                outsideMode='follow',centerX=0,centerZ=3,eyeHeight=2}},actor,0)=='isometric')
     local aligned=true
     local outside={firstPerson=false,yaw=0}
     local firstPerson={firstPerson=true,viewHeading=.73}
     for index=0,63 do
         local step=index*math.pi*2/64
         aligned=aligned and TruckArt.frame(outside,-math.pi/2+step,'box')==index+1
-            and TruckArt.frame(outside,-math.pi/2+step,'kei')==index+1
             and TruckArt.frame(firstPerson,.73+step,'box')==index+1
-            and TruckArt.frame(firstPerson,.73+step,'kei')==index+1
     end
-    check('kei_and_box_truck_turntables_stay_aligned_across_all_64_views',aligned)
+    check('box_truck_retains_uniform_64_view_calibration',aligned)
+    for _,kind in ipairs({'isometric','chase'}) do
+        local expected=kind=='isometric' and {1,14,33,43} or {1,15,33,43}
+        for index=0,3 do
+            local angle=index*math.pi/2
+            check('kei_'..kind..'_cardinal_'..index,
+                TruckArt.frame(outside,angle-math.pi/2,'kei',kind)==expected[index+1]
+                and TruckArt.frame(firstPerson,.73+angle,'kei',kind)==expected[index+1])
+        end
+        check('kei_'..kind..'_rear_diagonal_uses_diagonal_not_repeated_rear',
+            TruckArt.frame(outside,math.rad(315)-math.pi/2,'kei',kind)==53)
+        local pages=require('src.commute.kei_turntable_pages')
+        local wrapped=true
+        for degrees=-720,720 do
+            local angle=math.rad(degrees)
+            wrapped=wrapped and pages.frame(angle,kind)==pages.frame(angle+math.pi*2,kind)
+        end
+        check('kei_'..kind..'_heading_wraps_without_changing_sprite',wrapped)
+    end
 
     local town=assert(Town.generate(712345))
     local world=Town.world(town)

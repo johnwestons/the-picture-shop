@@ -74,6 +74,9 @@ Authority.ACTIONS = {
     },
     office_computer = {
         request_pickup = true,
+        request_player_delivery = true,
+        set_employee_delivery = true,
+        set_player_delivery = true,
         office_action = true,
     },
     cutter = {

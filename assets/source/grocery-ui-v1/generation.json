@@ -1,0 +1,21 @@
+{
+  "generator": "built-in image_gen",
+  "product_source": "grocery-product-icons-transparent-source.png",
+  "emblem_source": "grocery-ui-emblem-transparent-source.png",
+  "products_prompt": "Create a 4 by 2 transparent sprite atlas of eight cohesive hand-painted grocery icons: produce bag, bread loaf, cereal box, wrapped sandwich, bottled drink, microwave meal tray, ceramic mug, and four-meal multipack. One centered object per equal square cell, no text, brands, dividers, labels, or background.",
+  "emblem_prompt": "Create a transparent decorative Town Grocery interface emblem showing a red-handled chrome wire shopping cart with produce, bread, and a blue bottle, framed by a restrained green leaf wreath and cream/sage circular badge, with no text.",
+  "normalization": {
+    "icon_canvas": [128, 128],
+    "icon_atlas": [4, 2],
+    "product_fit_pixels": 104,
+    "emblem_canvas": [128, 128],
+    "alpha_bounds_threshold": 32,
+    "source_preserved": true
+  },
+  "menu_alignment": {
+    "source_files": ["src/commute/town_store.lua", "src/home_food_catalog.lua"],
+    "buyable_products": ["vegetables", "bread", "cereal", "sandwich", "drink", "meal", "cup", "meal_pack"],
+    "cereal_product_name": "Cereal box"
+  },
+  "checkerboard_cleanup": "Both source sheets were refined with transparent output enabled; the original non-transparent generations remain in this directory as *-source.png."
+}

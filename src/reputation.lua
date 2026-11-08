@@ -231,6 +231,11 @@ local function qualityRating(job)
     else
         rating = 5
     end
+    local qualityStandard = tonumber(job.qualityStandard)
+    local qualityRequirementMet = qualityStandard == nil or quality >= qualityStandard
+    if qualityStandard and not qualityRequirementMet then
+        rating = math.max(1, rating - 1)
+    end
     return rating, {
         edgeQuality = edgeQuality,
         printQuality = printQuality,
@@ -240,6 +245,8 @@ local function qualityRating(job)
         spoiledSheets = spoiledSheets,
         spoilRate = spoilRate,
         reworkSheets = math.max(0, tonumber(job.feedback and job.feedback.reworkSheets) or 0),
+        qualityStandard = qualityStandard,
+        qualityRequirementMet = qualityRequirementMet,
     }
 end
 
@@ -255,6 +262,9 @@ function Reputation.qualityPreview(job)
         factor = string.format("%d%% spoilage", math.floor(details.spoilRate * 100 + 0.5))
     elseif details.reworkSheets > 0 then
         factor = string.format("Reworked %s sheets • delivered quantity complete", tostring(details.reworkSheets))
+    elseif not details.qualityRequirementMet then
+        factor = string.format("Below client quality target %d%%",
+            math.floor((details.qualityStandard or 0) * 100 + 0.5))
     elseif details.hasPrintQuality and details.printQuality <= details.edgeQuality
         and details.printQuality < 0.999 then
         factor = string.format("Print quality %d%%", math.floor(details.printQuality * 100 + 0.5))
@@ -276,6 +286,8 @@ function Reputation.qualityPreview(job)
         spoiledSheets = details.spoiledSheets,
         spoilRate = details.spoilRate,
         reworkSheets = details.reworkSheets,
+        qualityStandard = details.qualityStandard,
+        qualityRequirementMet = details.qualityRequirementMet,
     }
 end
 

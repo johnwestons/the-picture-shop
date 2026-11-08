@@ -51,10 +51,10 @@ function Finances.summary(state,proposed,skill)
         end
     end
     for _,w in ipairs(state.employment and state.employment.staff or {}) do
-        if w.status=="employed" and not w.terminationRequested then budget(w,w.contract.role~="driver") end
+        if w.status=="employed" and not w.terminationRequested then budget(w,true) end
     end
     if proposed and Contracts.validTerms(proposed) then
-        budget({id="EMP-PREVIEW",name="Proposed employee",contract=proposed,cutterSkill=skill or 60,focus=80},proposed.role~="driver")
+        budget({id="EMP-PREVIEW",name="Proposed employee",contract=proposed,cutterSkill=skill or 60,focus=80},true)
     end
     -- Workers sharing the same hours still need separate installed cutters.
     -- Overnight shifts anchor their weekday to the day they start.

@@ -139,7 +139,9 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='independent-scenes' then
+        if focus=='save-reliability' then
+            require('src.tests.async_save_test').run(context,check)
+        elseif focus=='independent-scenes' then
             require('src.tests.independent_scenes_test').run(context,check)
             require('src.tests.independent_scenes_runtime_test').run(context,check)
             require('src.tests.sound_test').run(context,check)
@@ -158,6 +160,10 @@ function Smoke.start(context)
             require('src.commute.tests.grass_fields_test').run(check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='delivery-manifest' then
+            require('src.tests.delivery_manifest_test').run(context,check)
+        elseif focus=='ai-watchdog' then
+            require('src.tests.ai_watchdog_test').run(context,check)
         elseif focus=='home-guide' then
             require('src.tests.home_guide_test').run(context,check)
         elseif focus=='network-protocol' then
@@ -226,6 +232,12 @@ function Smoke.start(context)
             end
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.tests.save_contract_test').run(context,check)
+        elseif focus=='truck-rendering' then
+            for _,name in ipairs({'delivery_traffic','first_person','truck_cab','cab_viewport',
+                'mobile_vehicle','camera','follow_camera','direction'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.truck_render_runtime_test').run(context,check)
         elseif focus=='delivery-traffic' then
             require('src.commute.tests.delivery_traffic_test').run(check)
             require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
@@ -267,6 +279,8 @@ function Smoke.start(context)
             end
         elseif focus=='weekend-playthrough' then
             require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=='domain-tail' then
+            Suites.runDomainTail(context,check)
         elseif focus=='recent-features' then
             require('src.commute.tests.sprint_test').run(check)
             require('src.commute.tests.structure_geometry_test').run(check)

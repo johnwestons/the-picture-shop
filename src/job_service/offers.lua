@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local Procurement = require("src.procurement")
+local Progression = require("src.job_progression")
 
 function Component.install(Runtime)
     local function receptionPrintCount(state)
@@ -45,24 +46,13 @@ function Component.install(Runtime)
         return position < pressCount
     end
 
-    local function scaleTemplateVolume(template, machineCount)
-        local counts = template.sheetCounts or {}
-        local copies = template.press and template.press.requestedCopies or counts
-        local multiplier = math.max(1, math.floor(tonumber(machineCount) or 1))
-        local maximum = Runtime.Jobs.MAX_PALLETS
-        if multiplier <= 1 or #counts == 0 or #counts >= maximum then return end
-
-        local expandedCounts, expandedCopies = {}, {}
-        for _ = 1, multiplier do
-            for index, sheets in ipairs(counts) do
-                if #expandedCounts >= maximum then break end
-                expandedCounts[#expandedCounts + 1] = sheets
-                expandedCopies[#expandedCopies + 1] = copies[index] or sheets
-            end
-            if #expandedCounts >= maximum then break end
-        end
-        template.sheetCounts = expandedCounts
-        if template.press then template.press.requestedCopies = expandedCopies end
+    local function scaleTemplateVolume(template, state, machineCount)
+        local counts, copies = Progression.scaleSheetCounts(template.sheetCounts or {},
+            template.press and template.press.requestedCopies or nil, machineCount,
+            Progression.liftBudget(state), Runtime.Jobs.MAX_PALLETS,
+            Progression.hasProductionTeam(state))
+        template.sheetCounts = counts
+        if template.press then template.press.requestedCopies = copies or counts end
     end
 
     function Runtime.JobService.createNextOffer(state, timestamp)
@@ -90,7 +80,12 @@ function Component.install(Runtime)
                 pressIndex = order[printCount % #order + 1]
             end
             template = Runtime.copy(Runtime.pressTemplates[pressIndex])
-            scaleTemplateVolume(template, pressCount)
+            local capped = Progression.capDifficulty(state, template.difficulty, "press")
+            if capped ~= template.difficulty then
+                local templateIndex = capped == "easy" and 1 or capped == "medium" and 3 or 2
+                template = Runtime.copy(Runtime.pressTemplates[templateIndex])
+            end
+            scaleTemplateVolume(template, state, pressCount)
         elseif tier <= 0 then
             template = Runtime.copy(Runtime.starterTemplate)
         elseif tier == 1 then
@@ -103,7 +98,14 @@ function Component.install(Runtime)
             local order = { 2, 3, 1, 3 }
             template = Runtime.copy(Runtime.templates[order[(sequence - 1) % #order + 1]])
         end
-        if not pressJob then scaleTemplateVolume(template, cutterCount) end
+        if not pressJob then
+            local capped = Progression.capDifficulty(state, template.difficulty, "cutter")
+            if capped ~= template.difficulty then
+                local templateIndex = Progression.difficultyRank(capped)
+                template = Runtime.copy(Runtime.templates[templateIndex])
+            end
+            scaleTemplateVolume(template, state, cutterCount)
+        end
         if not pressJob and sequence > 5 then
             local companies = Runtime.additionalCuttingCompanies
             template.company = companies[(sequence - 6) % #companies + 1]

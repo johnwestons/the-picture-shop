@@ -2,6 +2,27 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function peerMetric(peer,methodName)
+    local okay,method=pcall(function() return peer and peer[methodName] end)
+    if not okay or type(method)~='function' then return nil end
+    local called,value=pcall(method,peer)
+    value=called and tonumber(value) or nil
+    return value and value==value and math.abs(value)<math.huge and value or nil
+end
+
+local function peerLink(slot,peer)
+    if not peer then return nil end
+    local state
+    local okay,method=pcall(function() return peer.state end)
+    if okay and type(method)=='function' then
+        local called,value=pcall(method,peer)
+        if called and (type(value)=='string' or type(value)=='number') then state=tostring(value):sub(1,24) end
+    end
+    local rtt=peerMetric(peer,'round_trip_time')
+    local variance=peerMetric(peer,'round_trip_time_variance')
+    return {slot=slot,state=state,rttMs=rtt,varianceMs=variance}
+end
+
 function Component.install(Runtime)
     function Runtime.Session:requestWorkshopCommand(action, arguments)
         local active = self.activeWorkshop
@@ -34,7 +55,9 @@ function Component.install(Runtime)
             or action == "remove_blade_bolt" or action == "service_target"
         then
             request.itemIndex = arguments.itemIndex
-        elseif action == "request_pickup" then request.jobId = arguments.jobId
+        elseif action == "request_pickup" or action == "request_player_delivery"
+            or action == "set_employee_delivery" or action == "set_player_delivery" then
+            request.jobId = arguments.jobId
         elseif action == "office_action" then request.officeIntent = arguments.officeIntent
         elseif action == "warehouse_action" then request.warehouseIntent = arguments.warehouseIntent
         elseif action == "phone_answer" or action == "phone_respond" or action == "phone_dismiss" then
@@ -225,6 +248,62 @@ function Component.install(Runtime)
             activeResourceId = self.activeWorkshop and self.activeWorkshop.resourceId or nil,
             pendingActivity = pendingActivity,
             workshopResources = workshopResources,
+        }
+    end
+
+    -- Diagnostic projection intentionally excludes addresses, names, session
+    -- tokens, invitation material, and peer objects.
+    function Runtime.Session:debugInfo()
+        local now=self.clock()
+        local active=self:isActive() and not self.terminal
+        local connected=active and self.ready==true
+        local status=not active and (self.terminal and 'DISCONNECTED' or 'OFFLINE')
+            or connected and (self:isHost() and 'HOSTING' or 'CONNECTED') or 'CONNECTING'
+        local kind=self.networkKind=='direct' and 'Direct Internet'
+            or self.networkKind=='server' and 'Private server' or 'LAN'
+        local peers={}
+        if self:isHost() then
+            for playerId,peer in pairs(self.idToPeer or {}) do
+                local row=peerLink('PLAYER '..tostring(playerId),peer)
+                if row then peers[#peers+1]=row end
+            end
+            table.sort(peers,function(a,b)return tostring(a.slot)<tostring(b.slot) end)
+        elseif self:isClient() then
+            local peer=self.transport and self.transport.peer
+            local row=peerLink('HOST',peer)
+            if row then peers[1]=row end
+        end
+        local pending=0
+        for _ in pairs(self.pendingPing or {}) do pending=pending+1 end
+        local pendingPeers=Runtime.countEntries(self.pendingPeers)
+        local pendingApprovals=Runtime.countEntries(self.approvalRequests)
+        local pingAge=Runtime.finite(now) and Runtime.finite(self.lastPongAt)
+            and math.max(0,now-self.lastPongAt) or nil
+        local startedAt=self.sessionStartedAt or self.connectedAt
+        local connectedFor=Runtime.finite(now) and Runtime.finite(startedAt)
+            and math.max(0,now-startedAt) or nil
+        return {
+            role=self.mode=='host' and 'Host' or self.mode=='client' and 'Client' or 'Offline',
+            status=status,networkKind=kind,connected=connected,
+            playerCount=Runtime.countEntries(self.players),maxPlayers=Runtime.Protocol.MAX_PLAYERS,
+            localSlot=tonumber(self.localId),pendingPeers=pendingPeers,pendingApprovals=pendingApprovals,
+            peerCount=#peers,peers=peers,
+            serverTick=self:isHost() and tonumber(self.serverTick) or nil,
+            lastServerTick=self:isClient() and tonumber(self.lastServerTick) or nil,
+            shopRevision=self:isHost() and tonumber(self.shopRevision) or nil,
+            lastShopRevision=self:isClient() and tonumber(self.lastShopRevision) or nil,
+            pendingInteraction=self.pendingInteraction~=nil,pendingWorkshop=self.pendingWorkshop~=nil,
+            pendingSafety=self.pendingWorkshopSafety~=nil,
+            protocolRejectingPeers=Runtime.countEntries(self.protocolRejectionAt),
+            transport=self.transport and 'ENet transport' or 'None',
+            channelCount=self.transport and tonumber(self.transport.channels) or Runtime.Protocol.CHANNEL_COUNT,
+            protocolVersion=Runtime.Protocol.VERSION,
+            rttMs=tonumber(self.rtt),rttAgeSeconds=pingAge,
+            rttMinMs=tonumber(self.pingMinMs),rttAverageMs=tonumber(self.pingAverageMs),
+            rttMaxMs=tonumber(self.pingMaxMs),
+            pingSent=tonumber(self.pingSentCount) or 0,pingReceived=tonumber(self.pingReceivedCount) or 0,
+            pingLost=tonumber(self.pingLostCount) or 0,pingSendFailures=tonumber(self.pingSendFailures) or 0,
+            pendingPings=pending,connectedForSeconds=connectedFor,
         }
     end
 end

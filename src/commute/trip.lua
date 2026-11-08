@@ -14,6 +14,7 @@ local Flow=require('src.weekend_flow')
 local M=require('src.commute.vendor.mathx')
 local Bays=require('src.commute.parking_bays')
 local Service=require('src.commute.bike_service')
+local TruckService=require('src.commute.truck_service')
 local Trip={VERSION=1}
 local function destinations(world) return world and world.roads and world.roads.destinations or Roads.destinations end
 local function door(world,id)
@@ -84,18 +85,15 @@ function Trip.truckParking(world,companyTruck,model,boxTruck)
     local site=world and world.sites and world.sites.byId.warehouse
     if not site then return nil end
     local heading=site.design.truckParking and site.yaw or math.atan2(site.front.z,site.front.x)
-    local candidates=site.design.truckParking and {{site.design.truckParking.x,site.design.truckParking.z}}
-        or {{-3.5,7.8},{-4.4,10.1},{-4.0,5.6}}
     model=model or 'box'
-    if model=='kei' and site.design.truckParking then
-        local anchor=site.design.truckParking
-        candidates={}
-        for _,offset in ipairs({-3.1,3.1,-3.6,3.6}) do
-            candidates[#candidates+1]={anchor.x,anchor.z+offset}
-        end
+    local anchor=site.truckHomeParking and site.truckHomeParking[model]
+    if not anchor then return nil end
+    local candidates={}
+    for _,offset in ipairs({{0,0},{-.35,0},{.35,0},{0,-.35},{0,.35}}) do
+        candidates[#candidates+1]={anchor.x+offset[1],anchor.z+offset[2]}
     end
-    for _,localPoint in ipairs(candidates) do
-        local x,z=site:toWorld(localPoint[1],localPoint[2],0)
+    for _,point in ipairs(candidates) do
+        local x,z=point[1],point[2]
         local h=world:supportHeight(x,z)
         local subject={model=model}
         local blocked=Truck.blocked(world,x,z,heading,subject)
@@ -105,6 +103,7 @@ function Trip.truckParking(world,companyTruck,model,boxTruck)
         end
         if not blocked then
             local truck=Truck.new(x,z,heading,model=='box' and 'picture_shop' or 'plain',model)
+            TruckService.apply(truck)
             truck.h=h;truck.homeX=x;truck.homeZ=z
             if model=='box' then require('src.company_delivery_driver').apply(companyTruck,truck) end
             return truck
@@ -122,10 +121,14 @@ function Trip.parking(world,id,slot)
         local x,z=Bays.center(site,slot,forward)
         -- Leave the pedestrian on the building-side walkway, clear of the
         -- parked motorcycle and the drive aisle.
-        local px,pz=x-front.x*1.45,z-front.z*1.45
+        local layout=site.employeeParking
+        local px,pz
+        if layout and layout.walkSide then
+            px,pz=x+site.cos*layout.walkSide*1.45,z+site.sin*layout.walkSide*1.45
+        else px,pz=x-front.x*1.45,z-front.z*1.45 end
         if Rider.clear(world,x,z,Bike.RADIUS) and Rider.clear(world,px,pz,Rider.RADIUS)
             and math.abs(world:supportHeight(x,z)-world:supportHeight(px,pz))<.45 then
-            return {x=x,z=z,h=pad.h,heading=math.atan2(front.z,front.x),pedX=px,pedZ=pz}
+            return {x=x,z=z,h=pad.h,heading=Bays.heading(site),pedX=px,pedZ=pz}
         end
     end
     return nil
@@ -180,6 +183,7 @@ function Trip.valid(t,home)
                 or not M.finite(p.interiorPose.intentY) or math.abs(p.interiorPose.intentY)>1
                 or not M.finite(p.interiorPose.animationDistance) or p.interiorPose.animationDistance<0
                 or p.interiorPose.animationDistance>1e12 or type(p.interiorPose.moving)~='boolean'
+                or p.interiorPose.cartPushing~=nil and type(p.interiorPose.cartPushing)~='boolean'
                 or not require('src.commute.grocery_interior').walkable(p.interiorPose.x,p.interiorPose.y))
             or p.interior==nil and p.interiorPose~=nil
             or type(p.rider)~='table' or not Gear.valid(p.rider.gear)
@@ -266,6 +270,8 @@ function Trip.start(state,players,token,world)
     t.keiTruck=Trip.truckParking(world,companyTruck,'kei',t.truck)
     if not t.keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
     t.keiTruck.fuel=t.truck.fuel
+    TruckService.applyFleet(t.truck,state.home.truckFleet)
+    TruckService.applyFleet(t.keiTruck,state.home.truckFleet)
     for _,player in ipairs(players) do
         local id=Residents.key(player);local resident=Residents.get(state,player)
         if not resident or t.participants[id] then return false,'Each traveler needs a distinct household resident.' end
@@ -333,16 +339,30 @@ function Trip.snapshot(t)
     end
     return result
 end
-function Trip.restore(t,world,companyTruck)
+function Trip.restore(t,world,companyTruck,truckFleet)
     if not t then return nil end
     if not Trip.valid(t) then return nil,'Invalid saved commute.' end
     if t.mapId and world.townId and t.mapId~=world.townId then return nil,'The saved trip belongs to another town.' end
     local result=Trip.snapshot(t)
     if t.mapVersion~=Roads.VERSION then result.aiMotorcycles={} end
-    if not result.truck or t.mapVersion~=Roads.VERSION then result.truck=Trip.truckParking(world,companyTruck) end
-    if not result.keiTruck or t.mapVersion~=Roads.VERSION then
+    local replaceTruck=not result.truck or t.mapVersion~=Roads.VERSION
+    local replaceKei=not result.keiTruck or t.mapVersion~=Roads.VERSION
+    if replaceTruck then result.truck=Trip.truckParking(world,companyTruck) end
+    if replaceKei then
         result.keiTruck=Trip.truckParking(world,companyTruck,'kei',result.truck)
         if result.keiTruck and result.truck then result.keiTruck.fuel=result.truck.fuel end
+    end
+    local function savedRecord(vehicle)
+        if vehicle and TruckService.validRecord({damage=vehicle.damage or 0,
+            repairRevision=vehicle.repairRevision or 0,service=vehicle.service}) then
+            return TruckService.record(vehicle)
+        end
+    end
+    if result.truck then
+        TruckService.apply(result.truck,savedRecord(t.truck) or truckFleet and truckFleet.box)
+    end
+    if result.keiTruck then
+        TruckService.apply(result.keiTruck,savedRecord(t.keiTruck) or truckFleet and truckFleet.kei)
     end
     if t.mapVersion~=Roads.VERSION and result.deliveryRun and result.deliveryRun.status=='offmap' then
         -- Re-enter the gate cinematic after a road-map migration instead of
@@ -541,9 +561,7 @@ function Trip.update(state,player,input,dt,world)
     if not part or part.arrived then return false end
     if part.interior then
         local dx,dz=input.walkX or 0,input.walkZ or 0
-        local length=math.sqrt(dx*dx+dz*dz)
-        if length>1 then dx,dz=dx/length,dz/length end
-        require('src.commute.grocery_interior').movePose(part.interiorPose,dx*145*math.min(.1,dt),dz*145*math.min(.1,dt))
+        require('src.commute.grocery_interior').movePose(part.interiorPose,dx,dz,dt,state)
         return false
     end
     local run=(not t.independent or t.deliveryDriver==Residents.key(player)) and t.deliveryRun
@@ -581,7 +599,9 @@ function Trip.update(state,player,input,dt,world)
     if part.rider.vehicle=='truck' then
         local truck=Trip.truckFor(part.rider,t)
         if not truck or truck.driver~=Residents.key(player) then return false end
-        changed=Truck.update(truck,input,dt,world)>0
+        local moved,conditionChanged=Truck.update(truck,input,dt,world)
+        changed=moved>0 or conditionChanged
+        if TruckService.syncFleet(state.home,Trip.trucks(t)) then changed=true end
         if require('src.company_delivery_driver').syncFromVehicle(
             require('src.company_delivery_driver').ensure(state),truck) then
             changed=true
@@ -642,6 +662,7 @@ function Trip.finish(state,host,token,bringEveryone)
     elseif t.destination=='warehouse' then okay,message=Flow.returnToWork(state,state.home.revision)
     else okay,message=Flow.depart(state,state.home.revision) end
     if not okay then return false,message end
+    TruckService.syncFleet(state.home,Trip.trucks(t))
     for id,part in pairs(t.participants) do
         local resident=state.home.residents[id]
         local gear=Gear.snapshot(part.rider.gear);gear.mounted=false;gear.engine=false
@@ -736,6 +757,7 @@ function Trip.cancel(state,host,token,world)
         resident.ridingGear=Gear.snapshot(part.rider.gear)
         resident.bikeParkedAtHome=t.origin==state.home.apartmentId
     end
+    TruckService.syncFleet(state.home,Trip.trucks(t))
     if t.purpose=='outing' then Flow.outingArrival(state,t.origin~='warehouse') end
     state.home.commute=nil;state.home.revision=state.home.revision+1
     return true,{destination=t.origin,participants=t.participants,message='Back inside. Your riding gear stays with you.'}

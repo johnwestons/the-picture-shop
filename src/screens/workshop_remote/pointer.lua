@@ -43,7 +43,13 @@ function Component.install(Runtime)
             if not Runtime.Screen.waiting and Runtime.Screen.guiState.message~=oldMessage then Runtime.Screen.status=Runtime.Screen.guiState.message end
             if result and result.action == "close" then return Runtime.Screen.canClose() and { action = "close" } or true end
             if result and result.action == "home_activity" then return Runtime.Screen.canClose() and result or true end
-            if result and result.action == "pickup_ready" then return Runtime.request(sendCommand, "request_pickup", { jobId = result.job.id }) end
+            if result and result.action == "pickup_ready" then
+                local action=result.driverMode=="player" and "request_player_delivery" or "request_pickup"
+                return Runtime.request(sendCommand,action,{jobId=result.job.id})
+            elseif result and result.action=="pickup_mode_changed" then
+                local action=result.driverMode=="player" and "set_player_delivery" or "set_employee_delivery"
+                return Runtime.request(sendCommand,action,{jobId=result.job.id})
+            end
             return result
         end
         if Runtime.Screen.resourceId == "work_phone" then

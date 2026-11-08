@@ -17,6 +17,9 @@ local OptionsScreen = {
     editBuffer = "",
     draggingControl = nil,
     draggingSensitivity = nil,
+    debugOffset = 0,
+    debugDragY = nil,
+    debugDragRemainder = 0,
     context = nil,
 }
 
@@ -29,13 +32,14 @@ local CLOSE = { x = 812, y = 20, width = 112, height = 42 }
 local MAIN_MENU = { x = 550, y = 20, width = 250, height = 42 }
 local MOTORCYCLE_MENU = { x = 710, y = 590, width = 180, height = 40 }
 local TABS = {
-    game = { x = 105, y = 90, width = 140, height = 48, label = "GAME" },
-    audio = { x = 255, y = 90, width = 140, height = 48, label = "AUDIO" },
-    controls = { x = 405, y = 90, width = 140, height = 48, label = "CONTROLS" },
-    character = { x = 555, y = 90, width = 140, height = 48, label = "PLAYER" },
-    cheats = { x = 705, y = 90, width = 140, height = 48, label = "CHEATS" },
+    game = { x = 106, y = 90, width = 118, height = 48, label = "GAME" },
+    audio = { x = 232, y = 90, width = 118, height = 48, label = "AUDIO" },
+    controls = { x = 358, y = 90, width = 118, height = 48, label = "CONTROLS" },
+    character = { x = 484, y = 90, width = 118, height = 48, label = "PLAYER" },
+    cheats = { x = 610, y = 90, width = 118, height = 48, label = "CHEATS" },
+    debug = { x = 736, y = 90, width = 118, height = 48, label = "DEBUG" },
 }
-local TAB_ORDER = { "game", "audio", "controls", "character", "cheats" }
+local TAB_ORDER = { "game", "audio", "controls", "character", "cheats", "debug" }
 local SLOT_RECTS = {
     { x = 286, y = 166, width = 116, height = 42 },
     { x = 422, y = 166, width = 116, height = 42 },
@@ -176,6 +180,9 @@ function OptionsScreen.enter(context)
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
     OptionsScreen.draggingSensitivity = nil
+    OptionsScreen.debugOffset=0
+    OptionsScreen.debugDragY=nil
+    OptionsScreen.debugDragRemainder=0
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
         and "Audio and game settings are local. Save cheats are host-only."
         or "Changes are saved immediately."
@@ -183,6 +190,19 @@ end
 
 function OptionsScreen.leave()
     return close()
+end
+
+function OptionsScreen.openDebugPanel()
+    OptionsScreen.motorcycleEditor=nil
+    OptionsScreen.tab="debug"
+    OptionsScreen.selectedRow=1
+    OptionsScreen.debugOffset=0
+    OptionsScreen.debugDragY=nil
+    return true
+end
+
+function OptionsScreen.isDebugPanel()
+    return OptionsScreen.tab=="debug" and OptionsScreen.motorcycleEditor==nil
 end
 
 function OptionsScreen.menuRect()
@@ -244,12 +264,15 @@ local function selectTab(tab)
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
     OptionsScreen.draggingSensitivity = nil
+    OptionsScreen.debugDragY=nil
+    if tab=='debug' then OptionsScreen.debugOffset=0 end
     OptionsScreen.message = tab == "controls"
         and "Drag each control to a comfortable position."
         or tab == "cheats"
         and (OptionsScreen.context.isNetworkClient and OptionsScreen.context.isNetworkClient()
             and "Save cheats are host-only in multiplayer."
             or "Developer tools: save changes are immediate.")
+        or tab == "debug" and "Live AI and multiplayer diagnostics for playtesting."
         or "Changes are saved immediately."
     return true
 end
@@ -402,6 +425,7 @@ local function rowsForTab()
     if OptionsScreen.tab == "audio" then return AUDIO_ROWS end
     if OptionsScreen.tab == "controls" then return {} end
     if OptionsScreen.tab == "character" then return {} end
+    if OptionsScreen.tab == "debug" then return {} end
     return (OptionsScreen.cheatPage=="resources" or OptionsScreen.cheatPage=="supplies")
         and SaveEditor.fields(OptionsScreen.cheatPage)
         or SaveEditor.actions(OptionsScreen.cheatPage)
@@ -541,6 +565,18 @@ function OptionsScreen.keypressed(key)
         for current, tab in ipairs(TAB_ORDER) do if tab == OptionsScreen.tab then index = current end end
         return selectTab(TAB_ORDER[index % #TAB_ORDER + 1])
     end
+    if OptionsScreen.tab=="debug" then
+        local panel=require("src.screens.ai_watchdog_panel")
+        local snapshot=require("src.ai_watchdog").snapshot(OptionsScreen.context.state)
+        local maximum=panel.maxOffset(snapshot)
+        if key=="up" or key=="w" or key=="pageup" then
+            OptionsScreen.debugOffset=math.max(0,OptionsScreen.debugOffset-(key=="pageup" and 2 or 1));return true
+        elseif key=="down" or key=="s" or key=="pagedown" then
+            OptionsScreen.debugOffset=math.min(maximum,OptionsScreen.debugOffset+(key=="pagedown" and 2 or 1));return true
+        elseif key=="home" then OptionsScreen.debugOffset=0;return true
+        elseif key=="end" then OptionsScreen.debugOffset=maximum;return true end
+        return false
+    end
     if OptionsScreen.tab == "controls" then
         if key=='m' then return OptionsScreen.openMotorcycleControls() end
         if key == "r" then return resetControls() end
@@ -628,6 +664,21 @@ function OptionsScreen.mousepressed(x, y, button)
     for tab, rect in pairs(TABS) do
         if Ui.contains(rect, x, y) then return selectTab(tab) end
     end
+    if OptionsScreen.tab=="debug" then
+        local panel=require("src.screens.ai_watchdog_panel")
+        local snapshot=require("src.ai_watchdog").snapshot(OptionsScreen.context.state)
+        local maximum=panel.maxOffset(snapshot)
+        local action=panel.hitTest(x,y)
+        if action=="newer" then
+            OptionsScreen.debugOffset=math.max(0,OptionsScreen.debugOffset-panel.PAGE_SIZE);return true
+        elseif action=="older" then
+            OptionsScreen.debugOffset=math.min(maximum,OptionsScreen.debugOffset+panel.PAGE_SIZE);return true
+        elseif action=="latest" then OptionsScreen.debugOffset=0;return true end
+        if x>=110 and x<=850 and y>=321 and y<=565 then
+            OptionsScreen.debugDragY=y;OptionsScreen.debugDragRemainder=0;return true
+        end
+        return false
+    end
     if OptionsScreen.tab == "cheats" then
         for slot, rect in ipairs(SLOT_RECTS) do
             if Ui.contains(rect, x, y) then
@@ -707,6 +758,7 @@ end
 
 function OptionsScreen.mousereleased(x, y, button)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousereleased(x,y,button) end
+    if button==1 and OptionsScreen.debugDragY then OptionsScreen.debugDragY=nil;return true end
     if button == 1 and OptionsScreen.draggingSensitivity then return finishSensitivityDrag() end
     if button == 1 and OptionsScreen.draggingControl then
         OptionsScreen.draggingControl = nil
@@ -721,6 +773,22 @@ end
 function OptionsScreen.mousemoved(x, y)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousemoved(x,y) end
     OptionsScreen.hover = { x = x, y = y }
+    if OptionsScreen.debugDragY then
+        local delta=y-OptionsScreen.debugDragY
+        OptionsScreen.debugDragY=y
+        OptionsScreen.debugDragRemainder=OptionsScreen.debugDragRemainder+delta
+        local panel=require("src.screens.ai_watchdog_panel")
+        local maximum=panel.maxOffset(require("src.ai_watchdog").snapshot(OptionsScreen.context.state))
+        while OptionsScreen.debugDragRemainder<=-40 do
+            OptionsScreen.debugOffset=math.min(maximum,OptionsScreen.debugOffset+1)
+            OptionsScreen.debugDragRemainder=OptionsScreen.debugDragRemainder+40
+        end
+        while OptionsScreen.debugDragRemainder>=40 do
+            OptionsScreen.debugOffset=math.max(0,OptionsScreen.debugOffset-1)
+            OptionsScreen.debugDragRemainder=OptionsScreen.debugDragRemainder-40
+        end
+        return true
+    end
     if OptionsScreen.draggingSensitivity then return moveSensitivity(x) end
     if OptionsScreen.draggingControl then return moveDraggedControl(x, y) end
 end
@@ -981,6 +1049,11 @@ function OptionsScreen.draw(mouseX, mouseY)
         drawButton(MOTORCYCLE_CONTROLS,'MOTORCYCLE CONTROLS',false,false)
     elseif OptionsScreen.tab == "character" then
         drawColorways()
+    elseif OptionsScreen.tab == "debug" then
+        local environment=OptionsScreen.context.getDebugInfo
+            and OptionsScreen.context.getDebugInfo() or {}
+        require("src.screens.ai_watchdog_panel").drawOptions(
+            OptionsScreen.context.state,environment,OptionsScreen.debugOffset)
     else
         for slot, rect in ipairs(SLOT_RECTS) do
             local context = OptionsScreen.context
@@ -1030,6 +1103,8 @@ function OptionsScreen.draw(mouseX, mouseY)
         and "Drag sliders for stick sensitivity  |  H: steering mode  |  M: motorcycle controls"
         or OptionsScreen.tab=="cheats"
         and "Tab: section  |  Q/E: cheat category  |  1-3: slot  |  Enter: edit/grant"
+        or OptionsScreen.tab=="debug"
+        and "Swipe/wheel or arrows to browse reports  |  Home: newest  |  F10 opens diagnostics on desktop"
         or (OptionsScreen.menuRect() and "Esc: resume  |  F9 / controller Y: main menu  |  Tab: section"
             or "Tab changes section  |  Arrows adjust  |  Enter edits  |  Esc closes"),
         116, 654, 728, "center")
@@ -1054,6 +1129,13 @@ function OptionsScreen.gamepadaxis(joystick,axis,value)
 end
 function OptionsScreen.wheelmoved(x,y)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:wheelmoved(x,y) end
+    if OptionsScreen.tab=="debug" and y~=0 then
+        local panel=require("src.screens.ai_watchdog_panel")
+        local maximum=panel.maxOffset(require("src.ai_watchdog").snapshot(OptionsScreen.context.state))
+        OptionsScreen.debugOffset=math.max(0,math.min(maximum,
+            OptionsScreen.debugOffset+(y<0 and 1 or -1)))
+        return true
+    end
     return false
 end
 return OptionsScreen

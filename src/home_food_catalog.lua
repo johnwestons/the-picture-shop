@@ -19,7 +19,7 @@ Catalog.PRODUCTS={
     meal={name="Ready meal",group="groceries",item="basic_meal",servings=1,priceCents=500,shippingCents=100,minutes=60,sprite=8},
     meal_pack={name="Four ready meals",group="groceries",item="basic_meal",servings=4,priceCents=1800,shippingCents=100,minutes=60,sprite=2},
     sandwich={name="Fresh sandwich",group="groceries",item="sandwich",servings=1,priceCents=300,shippingCents=100,minutes=60,sprite=10},
-    cereal={name="Prepared cereal bowl",group="groceries",item="cereal",servings=1,priceCents=200,shippingCents=100,minutes=60,sprite=12},
+    cereal={name="Cereal box",group="groceries",item="cereal",servings=1,priceCents=200,shippingCents=100,minutes=60,sprite=12},
     drink={name="Bottled drink",group="groceries",item="bottled_drink",servings=1,priceCents=200,shippingCents=100,minutes=60,sprite=16},
     cup={name="Basic ceramic cup",group="groceries",item="cup",servings=1,priceCents=250,shippingCents=100,minutes=60,sprite=15},
     pizza={name="Pizza — four servings",group="takeout",item="pizza_slice",servings=4,priceCents=1600,shippingCents=200,minutes=30,sprite=4},
