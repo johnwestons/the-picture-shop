@@ -73,6 +73,7 @@ function MobileControls.new(options)
         { x = 767, y = 518, radius = 36 },
     }
     self.controlLayout = copyLayout(options.layout)
+    self.layoutProvider = options.layoutProvider
     self.walkSensitivity = options.walkSensitivity or function() return 100 end
     self.bounds = { left = 0, top = 0, right = 960, bottom = 678, width = 960, height = 678 }
     self:setBounds(self.bounds)
@@ -98,7 +99,7 @@ end
 
 function MobileControls:setLayout(layout)
     self.controlLayout = copyLayout(layout)
-    self:setBounds(self.bounds)
+    self:_placeControls(self.bounds)
     return self:layout()
 end
 
@@ -110,13 +111,22 @@ local function place(button, point, bounds)
         math.min(bounds.bottom - margin, bounds.top + point.y * bounds.height))
 end
 
-function MobileControls:setBounds(bounds)
+function MobileControls:_placeControls(bounds)
     if not bounds then return end
-    self.bounds = bounds
     place(self.joystick, self.controlLayout.joystick, bounds)
     place(self.primary, self.controlLayout.primary, bounds)
     place(self.extra[1], self.controlLayout.extra1, bounds)
     place(self.extra[2], self.controlLayout.extra2, bounds)
+end
+
+function MobileControls:setBounds(bounds)
+    if not bounds then return end
+    self.bounds = bounds
+    if self.layoutProvider then
+        local okay, layout = pcall(self.layoutProvider)
+        if okay and type(layout) == "table" then self.controlLayout = copyLayout(layout) end
+    end
+    self:_placeControls(bounds)
 end
 
 function MobileControls:_updatePointer(screenX, screenY)

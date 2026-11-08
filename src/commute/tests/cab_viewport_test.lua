@@ -1,5 +1,6 @@
 local CabViewport=require('src.commute.cab_viewport')
 local Viewport=require('src.viewport')
+local MobileCamera=require('src.mobile_camera')
 local FP=require('src.commute.first_person_camera')
 local View=require('src.commute.first_person_renderer')
 local Cockpit=require('src.commute.truck_cockpit')
@@ -10,6 +11,7 @@ function Test.run(check)
     local g=love.graphics
     local dimensions=g.getDimensions
     local safeArea=love.window.getSafeArea
+    local platform=love.system.getOS
     local stackDepth=g.getStackDepth()
     local cab=Cockpit.new()
     local world={supportHeight=function()return 0 end}
@@ -84,9 +86,36 @@ function Test.run(check)
             end
             canvas:release();scene:release()
         end
+        love.system.getOS=function()return 'Android' end
+        g.getDimensions=function()return 2400,1080 end
+        local ox,oy,scale,sx,sy=Viewport.transform(960,678,false)
+        local bounds=Viewport.gameBounds(960,678,false)
+        check('android_viewport_keeps_square_pixels_and_full_height',near(sx,sy)
+            and near(scale,sx) and near(oy,0) and ox>0 and near(bounds.height,678))
+        check('android_wide_edges_map_to_extra_world_space',bounds.left<0 and bounds.right>960
+            and near(Viewport.toGame(0,540,960,678,false),bounds.left))
+        local camera=MobileCamera.new({enabled=true,baseWidth=960,baseHeight=678})
+        camera:setViewport(bounds.width,bounds.height,true)
+        camera:selectView('world',true)
+        check('android_world_camera_fills_width_without_stretch',near(camera.zoom,bounds.width/960)
+            and near(camera:screenToWorld(bounds.left,339),0)
+            and near(camera:screenToWorld(bounds.right,339),960))
+        camera:zoomBy(1/camera.zoom)
+        check('android_world_can_zoom_out',near(camera.zoom,1))
+        camera:zoomBy(bounds.width/960)
+        camera:setFollowTarget({x=20,y=339})
+        camera:update(.1)
+        check('android_world_follow_stays_within_scene_art',near(camera.centerX,480))
+        local ride,wide=CabViewport.forRuntime({Config={baseWidth=960,baseHeight=678},
+            App={officeUsesSafeArea=function()return false end}},
+            {firstPerson=false,viewCenterX=640,viewCenterY=440})
+        check('android_ride_extends_scenery_to_both_edges',wide.width>1280
+            and near(ride.viewCenterX+wide.x,640)
+            and near(ride.viewCenterY+wide.y,440))
     end,debug.traceback)
     while g.getStackDepth()>stackDepth do g.pop() end
-    g.getDimensions=dimensions;love.window.getSafeArea=safeArea;cab:release()
+    g.getDimensions=dimensions;love.window.getSafeArea=safeArea
+    love.system.getOS=platform;cab:release()
     assert(okay,err)
 end
 return Test

@@ -1,7 +1,7 @@
 -- Procedural doorway transition used by town businesses, apartments, and the
 -- warehouse. Each design is drawn from vector primitives so the same entrance
 -- can respond to its building style and current business hours.
-local Door={DURATION=1.92,CLOSED_DURATION=2.65}
+local Door={DURATION=1.92,CLOSED_DURATION=4.65}
 
 local function clamp(value,minimum,maximum)
     return math.max(minimum,math.min(maximum,value))

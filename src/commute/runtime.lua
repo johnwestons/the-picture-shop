@@ -25,7 +25,8 @@ local DOOR_PROMPT_RADIUS=3.0
 local function sceneTransform(R)
     local width,height=R.Config.baseWidth,R.Config.baseHeight
     if R.Viewport and R.Viewport.fullScreenDevice and R.Viewport.fullScreenDevice() then
-        return 0,0,width/1280,height/880
+        local scale=height/880
+        return (width-1280*scale)*.5,0,scale,scale
     end
     local scale=math.min(width/1280,height/880)
     return (width-1280*scale)*.5,(height-880*scale)*.5,scale,scale
@@ -35,6 +36,42 @@ function C.bindings(R)
     R.App=R.App or {};R.App.settings=R.App.settings or {}
     if not R.App.settings.motorcycleControls then R.App.settings.motorcycleControls=Bindings.defaults() end
     return R.App.settings.motorcycleControls
+end
+function C.touchControlView(R,part)
+    local offer=R and R._commute and R._commute.mechanicOffer
+    if offer then
+        if offer.interiorKind=='grocery' then return 'grocery' end
+        if offer.interiorKind=='station' then return 'gas_station' end
+        return 'mechanic_shop'
+    end
+    local player=R and R.World and R.World.player
+    if not player then return 'overworld' end
+    if player.sceneId=='commute' then
+        part=part or C.localPart(R)
+        local rider=part and part.rider
+        if rider and rider.vehicle=='truck' then return 'truck' end
+        if rider and rider.gear and rider.gear.mounted then return 'motorcycle' end
+        return 'overworld'
+    end
+    if player.sceneId=='warehouse' then return 'warehouse' end
+    if player.sceneId=='home' then return 'home' end
+    if player.sceneId=='grocery' then return 'grocery' end
+    if player.sceneId=='station' or player.sceneId=='gas_station' then return 'gas_station' end
+    if player.sceneId=='mechanic' or player.sceneId=='mechanic_shop' then return 'mechanic_shop' end
+    if player.sceneId=='front_left' or player.sceneId=='front_right' then return 'room' end
+    return 'walking'
+end
+function C.touchProfile(R,part)
+    local base=C.bindings(R)
+    local view=C.touchControlView(R,part)
+    local layout=require('src.settings').controlLayoutFor(R.App.settings,view)
+    local profile={}
+    for key,value in pairs(base) do profile[key]=value end
+    profile.layout={}
+    for key,point in pairs(layout or base.layout or {}) do
+        profile.layout[key]={x=point.x,y=point.y}
+    end
+    return profile
 end
 function C.applyCameraPreference(R,camera,rider)
     local mode=C.bindings(R).outsideCamera or 'fixed'
@@ -157,11 +194,13 @@ local function rideNotice(R,part)
     local stationWorld=R._commute and R._commute.world
     local parkedTruck=nearbyTruck(trip,part.rider) or trip and trip.truck
     if part.rider.vehicle=='truck' and Station.truckAtPump(parkedTruck,stationWorld) then
-        return 'Park at the marked gas pump · interact to exit and refuel'
+        return 'Park at the marked gas pump · '..Bindings.hint(C.bindings(R),'interact')..' to exit, then '
+            ..Bindings.hint(C.bindings(R),'worldAction')..' to refuel'
     elseif part.rider.gear.mounted and Station.bikeAtPump(part.rider,stationWorld) then
-        return 'Dismount beside the marked pump to refuel'
+        return Bindings.hint(C.bindings(R),'interact')..' to dismount, then '
+            ..Bindings.hint(C.bindings(R),'worldAction')..' to refuel'
     elseif Station.pumpMode(part.rider,parkedTruck,stationWorld) then
-        return Bindings.hint(C.bindings(R),'interact')..' / USE: Fuel pump'
+        return Bindings.hint(C.bindings(R),'worldAction')..' / ACTION: Fuel pump'
     end
     local doorNotice=R._commute and R._commute.closedDoorNotice
     if doorNotice and part.rider.ped then
@@ -173,21 +212,26 @@ local function rideNotice(R,part)
     if trip and trip.deliveryRun then
         local run=trip.deliveryRun;local stop=run.stops[run.stopIndex]
         if run.status=='loading' then
-            if part.rider.vehicle=='truck' then return 'Park in the marked loading bay, exit the truck, then interact to load pallets' end
-            return 'Interact beside the truck in the marked loading bay to load the selected pallets'
+            if part.rider.vehicle=='truck' then return 'Park in the marked loading bay, '
+                ..Bindings.hint(C.bindings(R),'interact')..' to exit, then '
+                ..Bindings.hint(C.bindings(R),'worldAction')..' to load pallets' end
+            return Bindings.hint(C.bindings(R),'worldAction')
+                ..' to load the selected pallets beside the truck in the marked bay'
         end
         if run.status=='offmap' then return 'Delivering in Millhaven · returning to the town gate shortly' end
         if run.status=='returning' or not stop then
-            return part.rider.vehicle=='truck' and 'Return to The Picture Shop · exit the truck and walk to the door'
+            return part.rider.vehicle=='truck' and ('Return to The Picture Shop · '
+                ..Bindings.hint(C.bindings(R),'interact')..' to exit, then walk to the door')
                 or 'Return the delivery truck to the warehouse'
         end
         local progress=('STOP %d/%d · '):format(run.stopIndex,#run.stops)
         if part.rider.vehicle=='truck' then
             local label=stop.kind=='city' and ('Drive to the Millhaven gate · '..stop.label)
                 or ('Drive to '..stop.label)
-            return progress..label..' · interact to get out'
+            return progress..label..' · '..Bindings.hint(C.bindings(R),'interact')..' to get out'
         end
-        if stop.kind=='town' then return progress..'Walk to '..stop.label..' and interact to hand off the pallets' end
+        if stop.kind=='town' then return progress..'Walk to '..stop.label..' and '
+            ..Bindings.hint(C.bindings(R),'worldAction')..' to hand off the pallets' end
         return progress..'Drive to the Millhaven gate for the off-map delivery'
     end
     if part.rider.vehicle=='truck' then
@@ -202,24 +246,26 @@ local function rideNotice(R,part)
                 ignition_misfire='ignition misfire'})[truck.service.failureType] or 'engine failure'
             return 'Truck '..fault..'  ·  take it to the mechanic'
         end
-        return 'Delivery truck  ·  steer, accelerate and brake  ·  interact to get out'
+        return 'Delivery truck  ·  steer, accelerate and brake  ·  '
+            ..Bindings.hint(C.bindings(R),'interact')..' to get out'
     end
     local truck=nearbyTruck(trip,part.rider)
     if truck and trip.origin=='warehouse' then
-        return (truck.model=='kei' and 'Kei truck nearby' or 'Delivery truck nearby')..'  ·  interact to drive it'
+        return (truck.model=='kei' and 'Kei truck nearby' or 'Delivery truck nearby')..'  ·  '
+            ..Bindings.hint(C.bindings(R),'interact')..' to get in'
     end
     if Station.atCounter(part.rider,R._commute and R._commute.world) then
-        return Bindings.hint(C.bindings(R),'interact')..' / USE: Gas station service counter'
+        return Bindings.hint(C.bindings(R),'worldAction')..' / ACTION: Gas station service counter'
     end
     if Station.nearCounter(part.rider,R._commute and R._commute.world) then
         return part.rider.gear.mounted and 'Dismount to use the gas station counter'
-            or Bindings.hint(C.bindings(R),'interact')..' / USE: Gas station service counter'
+            or Bindings.hint(C.bindings(R),'worldAction')..' / ACTION: Gas station service counter'
     end
     local storeId=TownStore.nearCounter(part.rider,R._commute and R._commute.world)
     if storeId then
         local label=storeId=='grocery' and 'Town grocery' or storeId=='diner' and 'Diner takeout' or 'General store'
         if part.rider.gear.mounted then return 'Dismount to shop at '..label end
-        return Bindings.hint(C.bindings(R),'interact')..(storeId=='grocery' and ' / ENTER: ' or ' / SHOP: ')..label
+        return Bindings.hint(C.bindings(R),'worldAction')..(storeId=='grocery' and ' / ENTER: ' or ' / SHOP: ')..label
     end
     return Cockpit.riderHint(part.rider,part.presentation) or R.state.message
 end
@@ -241,36 +287,39 @@ function C.controlContext(R,part,controlsTop)
         and rider.bike and M.length(rider.ped.x-rider.bike.x,rider.ped.z-rider.bike.z)<=3.2 or false
     local atFuelPump=rider and Station.pumpMode(rider,truck,world)~=nil or false
     local worldActionLabel
-    if part and not part.arrived and rider then
+    local vehicleActionLabel=nearTruck and 'GET IN TRUCK' or nearBike and 'MOUNT' or nil
+    if part and part.arrived then
+        worldActionLabel='FINISH'
+    elseif part and rider and not rider.gear.mounted and rider.vehicle~='truck' and not rider.ped.crash then
         local sites=world.sites.byId
         local function nearDoor(site)
             return site and site.door and M.length(rider.ped.x-site.door.x,rider.ped.z-site.door.z)<=DOOR_PROMPT_RADIUS
         end
         local run=trip and trip.deliveryRun
         local stop=run and run.stops[run.stopIndex]
+        local selectedTruck=Trip.truckFor(rider,trip)
         if stop and stop.kind=='town' and nearDoor(sites[stop.id]) then worldActionLabel='ENTER'
         elseif atFuelPump then worldActionLabel='FUEL'
-        elseif Station.atCounter(rider,world) then worldActionLabel='ENTER'
-        elseif nearTruck then worldActionLabel='TRUCK'
+        elseif nearDoor(sites['gas-station']) then worldActionLabel='ENTER'
         elseif nearDoor(sites.mechanic) then worldActionLabel='ENTER'
         else
             local storeId
-            if not rider.gear.mounted then
-                for _,id in ipairs({'grocery','general-store','diner'}) do
-                    if TownStore.counter(rider,world,id) then storeId=id;break end
-                end
+            for _,id in ipairs({'grocery','general-store','diner'}) do
+                if nearDoor(sites[id]) then storeId=id;break end
             end
             if storeId then
                 worldActionLabel=storeId=='grocery' and 'ENTER' or 'SHOP'
             elseif nearDoor(sites[part.destination or trip.destination]) then worldActionLabel='ENTER'
-            elseif nearDoor(sites[part.origin or trip.origin]) then worldActionLabel='ENTER' end
+            elseif nearDoor(sites[part.origin or trip.origin]) then worldActionLabel='ENTER'
+            elseif run and run.status=='loading' and nearTruck and Trip.truckAtLoadingBay(world,truck)
+                and (not selectedTruck or selectedTruck.model==truck.model) then worldActionLabel='LOAD' end
         end
     end
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
         vehicle=rider and rider.vehicle,nearTruck=nearTruck,nearBike=nearBike,
-        worldActionLabel=worldActionLabel,atFuelPump=atFuelPump,
+        vehicleActionLabel=vehicleActionLabel,worldActionLabel=worldActionLabel,atFuelPump=atFuelPump,
         engine=isTruck and truck.engine~=false or not isTruck and gear.engine==true,gearOutfit=gear.outfit,
         gearTransition=gear.transition~=nil,arrived=part and part.arrived==true,
         transmission=bike.transmission,reverse=bike.reverse==true,
@@ -1464,6 +1513,7 @@ function C.draw(R)
     local note=rideNotice(R,part)
     local mobile=C.mobileInputEnabled(R)
     local noteY,hintY,controlsTop=Cockpit.infoLayout(mobile,note)
+    local actionContext=C.controlContext(R,part,controlsTop)
     local infoRight=view.miniMapVisible~=false and C.miniMapRect(R).x-12 or R.Config.baseWidth-16
     if not mobile then
         g.setColor(.76,.83,.76)
@@ -1473,13 +1523,19 @@ function C.draw(R)
                 ..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')..' STEER  ·  '
                 ..Bindings.hint(bindings,'interact')..' EXIT  ·  drag to look'
         elseif not part.rider.gear.mounted then
-            hints=Bindings.hint(bindings,'boost')..' SPRINT  ·  '..Bindings.hint(bindings,'interact')
-                ..' USE / MOUNT  ·  drag to look'
+            hints=Bindings.hint(bindings,'boost')..' SPRINT'
+            if actionContext.vehicleActionLabel then
+                hints=hints..'  ·  '..Bindings.hint(bindings,'interact')..' '..actionContext.vehicleActionLabel
+            end
+            if actionContext.worldActionLabel then
+                hints=hints..'  ·  '..Bindings.hint(bindings,'worldAction')..' ACTION'
+            end
+            hints=hints..'  ·  drag to look'
         else
             hints=Bindings.hint(bindings,'accelerate')..' GO  ·  '..Bindings.hint(bindings,'brake')
                 ..' BRAKE/REV  ·  '..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')
                 ..' STEER  ·  '..Bindings.hint(bindings,'horn')..' HORN  ·  '..Bindings.hint(bindings,'beam')
-                ..' HI/LO  ·  drag to look'
+                ..' HI/LO  ·  '..Bindings.hint(bindings,'interact')..' GET OFF  ·  drag to look'
         end
         require('src.screens.player_status').printLine(hints,Cockpit.CARD_X,hintY,infoRight-Cockpit.CARD_X)
     end
@@ -1508,7 +1564,7 @@ function C.draw(R)
         view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
     end
     if not view.mapOpen then
-        C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,bindings,C.controlContext(R,part,controlsTop),
+        C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,C.touchProfile(R,part),actionContext,
             {mobile=mobile,showActions=true,camera=view.camera,
                 horizontalSteering=mobile and horizontalTouchSteering(R,part.rider)})
     end
@@ -1517,6 +1573,70 @@ function C.draw(R)
     g.setColor(1,1,1)
     return target.label,trip.purpose=='delivery' and 'CUSTOMER DELIVERY' or trip.purpose=='outing' and 'TOWN OUTING' or trip.destination=='warehouse' and 'RIDE TO WORK' or 'RIDE HOME'
 end
+local function performVehicleAction(R)
+    local trip=C.localTrip(R);local part=C.localPart(R)
+    if not trip or not part then return false end
+    if trip.deliveryRun and trip.deliveryRun.status=='offmap' then return true end
+    local rider=part.rider
+    if rider.vehicle=='truck' then return C.request(R,'truck:'..trip.token) end
+    if rider.gear.mounted then return C.request(R,'dismount:'..trip.token) end
+    local truck=nearbyTruck(trip,rider)
+    if truck and trip.origin=='warehouse' then return C.request(R,'truck:'..trip.token) end
+    if rider.bike and M.length(rider.ped.x-rider.bike.x,rider.ped.z-rider.bike.z)<=3.2 then
+        return C.request(R,'mount:'..trip.token)
+    end
+    return true
+end
+
+local function performWorldAction(R)
+    local trip=C.localTrip(R);local part=C.localPart(R)
+    if not trip or not part then return false end
+    if trip.deliveryRun and trip.deliveryRun.status=='offmap' then return true end
+    if part.arrived then
+        return beginDoorTransition(R,'finish',trip.token,part.destination or trip.destination)
+    end
+    local rider=part.rider;local world=C.world(R);local sites=world.sites.byId
+    if rider.gear.mounted or rider.gear.transition or rider.vehicle=='truck' or rider.ped.crash then return true end
+    local function near(site)
+        return site and site.door
+            and M.length(rider.ped.x-site.door.x,rider.ped.z-site.door.z)<=DOOR_PROMPT_RADIUS
+    end
+    local function onFootAtDoor(site)
+        return not rider.gear.mounted and not rider.gear.transition and rider.vehicle~='truck'
+            and not rider.ped.crash and near(site)
+    end
+    local run=trip.deliveryRun;local stop=run and run.stops[run.stopIndex]
+    if stop and stop.kind=='town' and near(sites[stop.id]) then
+        return beginDoorTransition(R,'deliver_stop',trip.token,stop.id)
+    end
+    local truck=nearbyTruck(trip,rider) or Trip.truckFor(rider,trip)
+    local mode=Station.pumpMode(rider,truck,world)
+    if mode then
+        C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open(mode);return true
+    end
+    if onFootAtDoor(sites['gas-station']) then
+        return beginDoorTransition(R,'station',trip.token,'gas-station')
+    end
+    if near(sites.mechanic) then return beginDoorTransition(R,'mechanic',trip.token,'mechanic') end
+    for _,id in ipairs({'grocery','general-store','diner'}) do
+        if onFootAtDoor(sites[id]) then
+            return beginDoorTransition(R,id,trip.token,id)
+        end
+    end
+    if run and run.status=='loading' and truck and Trip.truckAtLoadingBay(world,truck) then
+        local selected=Trip.truckFor(rider,trip)
+        if selected and selected.model~=truck.model then return true end
+        return C.request(R,'load_delivery:'..trip.token)
+    end
+    if near(sites[part.destination or trip.destination]) then
+        return beginDoorTransition(R,'arrive',trip.token,part.destination or trip.destination)
+    end
+    if near(sites[part.origin or trip.origin]) then
+        return beginDoorTransition(R,'cancel',trip.token,part.origin or trip.origin)
+    end
+    return true
+end
+
 function C.keypressed(R,key,semantic)
     if R.state.screen~='world' then return false end
     if not C.active(R) then
@@ -1538,7 +1658,8 @@ function C.keypressed(R,key,semantic)
     if R._commute.cameraMenu and (key=='escape' or key=='back') then R._commute.cameraMenu=false;return true end
     if R._commute and R._commute.loading and not part.interior and key~='escape' and key~='back' and key~='f10' then return true end
     if R._commute and R._commute.mechanicOffer then
-        if key==(semantic and 'e' or C.bindings(R).keyboard.interact) then key='e' end
+        if key==(semantic and 'e' or C.bindings(R).keyboard.interact)
+            or not semantic and key==C.bindings(R).keyboard.worldAction then key='e' end
         return require('src.commute.mechanic_shop').keypressed(R,key)
     end
     if R._commute and R._commute.mapOpen and (key=='escape' or key=='back') then
@@ -1555,6 +1676,7 @@ function C.keypressed(R,key,semantic)
         end
         local id=Bindings.action(C.bindings(R),'keyboard',key)
         if not id or Bindings.byId[id].held then return true end
+        if id=='interact' or id=='worldAction' then return C.perform(R,id) end
         key=Bindings.byId[id].main
         if not key or key=='' then return true end
     end
@@ -1580,40 +1702,7 @@ function C.keypressed(R,key,semantic)
     elseif key=='x' then C.request(R,'shiftup:'..t.token)
     elseif key=='u' then C.request(R,'rescue:'..t.token)
     elseif key=='f' then C.request(R,'force:'..t.token)
-    elseif key=='e' or key=='return' then
-        if part.arrived then beginDoorTransition(R,'finish',t.token,part.destination or t.destination)
-        elseif r.vehicle=='truck' then C.request(R,'truck:'..t.token)
-        elseif r.gear.mounted then C.request(R,'dismount:'..t.token)
-        else
-            local sites=C.world(R).sites.byId
-            local function near(p)return p and p.door and M.length(r.ped.x-p.door.x,r.ped.z-p.door.z)<=1.8 end
-            local run=t.deliveryRun;local stop=run and run.stops[run.stopIndex]
-            if stop and stop.kind=='town' and near(C.world(R).sites.byId[stop.id]) then
-                beginDoorTransition(R,'deliver_stop',t.token,stop.id)
-            elseif Station.pumpMode(r,nearbyTruck(t,r) or Trip.truckFor(r,t),C.world(R)) then
-                local mode=Station.pumpMode(r,nearbyTruck(t,r) or Trip.truckFor(r,t),C.world(R))
-                C.cancelCameraDrag(R);R._commute.mechanicOffer=Station.open(mode)
-            elseif Station.atCounter(r,C.world(R)) then
-                beginDoorTransition(R,'station',t.token,'gas-station')
-            elseif near(sites.mechanic) then beginDoorTransition(R,'mechanic',t.token,'mechanic')
-            elseif TownStore.counter(r,C.world(R),'grocery') then beginDoorTransition(R,'grocery',t.token,'grocery')
-            elseif TownStore.counter(r,C.world(R),'general-store') then beginDoorTransition(R,'general-store',t.token,'general-store')
-            elseif TownStore.counter(r,C.world(R),'diner') then beginDoorTransition(R,'diner',t.token,'diner')
-            elseif run and run.status=='loading' and nearbyTruck(t,r) then
-                local truck=nearbyTruck(t,r)
-                local selected=Trip.truckFor(r,t)
-                if selected and selected.model~=truck.model then
-                    C.request(R,'truck:'..t.token)
-                elseif Trip.truckAtLoadingBay(C.world(R),truck) then
-                    C.request(R,'load_delivery:'..t.token)
-                else
-                    C.request(R,'truck:'..t.token)
-                end
-            elseif t.origin=='warehouse' and nearbyTruck(t,r) then C.request(R,'truck:'..t.token)
-            elseif near(sites[part.destination or t.destination]) then beginDoorTransition(R,'arrive',t.token,part.destination or t.destination)
-            elseif near(sites[part.origin or t.origin]) then beginDoorTransition(R,'cancel',t.token,part.origin or t.origin)
-            else C.request(R,'mount:'..t.token) end
-        end
+    elseif key=='e' or key=='return' then return performVehicleAction(R)
     elseif key=='q' and camera then camera:orbit(-15,0)
     elseif key=='r' and camera then camera:orbit(15,0)
     elseif key=='t' and camera then camera:orbit(0,5)
@@ -1626,11 +1715,20 @@ function C.keypressed(R,key,semantic)
 end
 function C.perform(R,id)
     if id=='steeringMode' then return toggleMobileSteeringMode(R) end
+    if id=='interact' or id=='dismount' then
+        if R._commute and R._commute.mechanicOffer then
+            return require('src.commute.mechanic_shop').keypressed(R,'e')
+        end
+        return performVehicleAction(R)
+    elseif id=='worldAction' then
+        if R._commute and R._commute.mechanicOffer then
+            return require('src.commute.mechanic_shop').keypressed(R,'e')
+        end
+        return performWorldAction(R)
+    end
     if id=='mountBike' then
         local trip=C.localTrip(R)
         return trip and C.request(R,'mount:'..trip.token) or false
-    elseif id=='worldAction' then
-        return C.keypressed(R,'e',true)
     end
     if id=='radioPrevious' or id=='radioPlay' or id=='radioNext' or id=='radioMute' then
         local trip=C.localTrip(R)
@@ -1669,7 +1767,7 @@ function C.gearTouchButton(R)
     if not part or part.arrived or part.rider.gear.mounted or R._commute and R._commute.loading then return nil end
     local gear=part.rider.gear
     local width,height=R.Config.baseWidth,R.Config.baseHeight
-    for _,button in ipairs(Touch.actionButtons(width,height,C.bindings(R),C.controlContext(R,part),{mobile=true})) do
+    for _,button in ipairs(Touch.actionButtons(width,height,C.touchProfile(R,part),C.controlContext(R,part),{mobile=true})) do
         if button.action=='gear' then
             local diameter=button.hitRadius*2
             return {x=button.x-button.hitRadius,y=button.y-button.hitRadius,width=diameter,height=diameter,
@@ -1701,7 +1799,8 @@ function C.touchPressed(R,id,x,y)
     if C.mapPointer(R,x,y) then return true end
     local touch=C.touch(R)
     local part=C.localPart(R)
-    if touch:press(id,x,y,R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
+    local profile=C.touchProfile(R,part)
+    if touch:press(id,x,y,R.Config.baseWidth,R.Config.baseHeight,profile,
         function(action) C.perform(R,action) end,C.controlContext(R,part),
         {mobile=true,allowGrip=C.mobileInputEnabled(R),camera=R._commute and R._commute.camera,
             stickSensitivity=touchStickSensitivity(R,part.rider),
@@ -1714,7 +1813,7 @@ function C.touchMoved(R,id,x,y)
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     local part=C.localPart(R)
     if view and view.touchControls and view.touchControls:move(id,x,y,R.Config.baseWidth,R.Config.baseHeight,
-        C.bindings(R),touchStickSensitivity(R,part and part.rider)) then return true end
+        C.touchProfile(R,part),touchStickSensitivity(R,part and part.rider)) then return true end
     return C.cameraTouchMoved(R,id,x,y)
 end
 function C.touchReleased(R,id)
@@ -1736,7 +1835,7 @@ function C.pointer(R,x,y,source)
     local part=C.localPart(R)
     if not part then return false end
     local mobile=C.mobileInputEnabled(R)
-    local action=Touch.actionAt(x,y,R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
+    local action=Touch.actionAt(x,y,R.Config.baseWidth,R.Config.baseHeight,C.touchProfile(R,part),
         C.controlContext(R,part),{mobile=mobile,camera=R._commute and R._commute.camera,
             hiddenHud=not require('src.screens.hud_visibility').isVisible(R)})
     if action then

@@ -111,8 +111,13 @@ function Touch.actionButtons(width,height,p,context,options)
         x,y=touchPoint(p,'brake',width,height,left,right)
         addButton(buttons,'brake','BRAKE','brake',x,y,mainRadius,false,true,mainRadius+pad)
         x,y=touchPoint(p,'interact',width,height,left,right)
-        addButton(buttons,'interact',context.arrived and 'FINISH' or context.vehicle=='truck' and 'EXIT' or 'GET OFF','dismount',
+        addButton(buttons,'interact',context.vehicle=='truck' and 'EXIT' or 'GET OFF','dismount',
             x,y,actionRadius,false,not context.gearTransition,actionRadius+pad)
+        if context.worldActionLabel then
+            x,y=touchPoint(p,'worldAction',width,height)
+            addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
+                not context.gearTransition and not context.pedCrash)
+        end
         if context.vehicle~='truck' then
             x,y=touchPoint(p,'boost',width,height,left,right)
             local hit=actionRadius+pad
@@ -156,14 +161,13 @@ function Touch.actionButtons(width,height,p,context,options)
         end
     else
         local x,y=touchPoint(p,'interact',width,height)
-        local splitActions=context.nearBike and context.worldActionLabel and not context.arrived
-        local primaryAction=splitActions and 'mountBike' or 'interact'
-        local primaryLabel=splitActions and 'MOUNT' or context.arrived and 'FINISH'
-            or context.worldActionLabel or context.atFuelPump and 'FUEL' or context.nearTruck and 'TRUCK' or 'USE'
-        addButton(buttons,primaryAction,primaryLabel,
-            context.nearTruck and 'more' or 'dismount',
-            x,y,actionRadius,false,not context.gearTransition and not context.pedCrash)
-        if splitActions then
+        local vehicleActionAvailable=context.nearBike or context.nearTruck
+        local worldActionAvailable=context.worldActionLabel~=nil
+        if vehicleActionAvailable then
+            addButton(buttons,'interact',context.vehicleActionLabel or 'GET ON','dismount',
+                x,y,actionRadius,false,not context.gearTransition and not context.pedCrash)
+        end
+        if worldActionAvailable then
             x,y=touchPoint(p,'worldAction',width,height)
             addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)

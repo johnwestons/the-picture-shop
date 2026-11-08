@@ -25,6 +25,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.cameraTransformsUi()
+        -- Phone menus need their full authored height. A wide phone can show
+        -- surrounding scenery without zooming the menu out of reach.
+        if Runtime.Viewport.fullScreenDevice() then return false end
         return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and Runtime.state.screen ~= "world"
             and not Runtime.App.officeFitsScreen()
     end
@@ -44,7 +47,8 @@ function Component.install(Runtime)
     function Runtime.syncCamera()
         local bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
         if Runtime.App.mobileCamera then
-            Runtime.App.mobileCamera:setViewport(bounds.width, bounds.height)
+            Runtime.App.mobileCamera:setViewport(bounds.width, bounds.height,
+                Runtime.App.cameraTransformsWorld() and Runtime.Viewport.fullScreenDevice())
             if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi() then
                 Runtime.App.mobileCamera:selectView(Runtime.cameraViewKey(), Runtime.state.screen == "world")
             end
@@ -89,9 +93,10 @@ function Component.install(Runtime)
             screen = "machine_service"
         end
         local bounds
-        -- Only scenes drawn with the wide world camera extend into the side
-        -- margins. Ride Home and the mechanic use the clipped base canvas.
-        if screen == "world" and Runtime.App.cameraTransformsWorld()
+        -- On phones, world shortcuts can sit in the extra horizontal space
+        -- even when the scene artwork remains centered.
+        if screen == "world" and (Runtime.App.cameraTransformsWorld()
+            or Runtime.Viewport.fullScreenDevice())
             and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight)
         end

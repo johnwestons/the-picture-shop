@@ -1,11 +1,11 @@
--- Extend the world behind the cab to the physical display. The dashboard and
--- touch controls keep their authored 1280x880 coordinates and optical center.
+-- Extend the ride world to the physical display. Dashboard and touch controls
+-- keep their authored 1280x880 coordinates and optical center.
 local Viewport={}
 
 function Viewport.layout(width,height,bounds)
     local scaleX,scaleY
     if require('src.viewport').fullScreenDevice() then
-        scaleX,scaleY=width/1280,height/880
+        scaleX,scaleY=height/880,height/880
     else
         local scale=math.min(width/1280,height/880)
         scaleX,scaleY=scale,scale
@@ -25,7 +25,8 @@ function Viewport.camera(camera,layout)
 end
 
 function Viewport.forRuntime(R,camera)
-    if not camera.firstPerson or camera.localVehicle~='truck' then return camera end
+    if not require('src.viewport').fullScreenDevice()
+        and (not camera.firstPerson or camera.localVehicle~='truck') then return camera end
     local x,y,_,scaleX,scaleY=require('src.viewport').transform(R.Config.baseWidth,R.Config.baseHeight,
         R.App.officeUsesSafeArea and R.App.officeUsesSafeArea())
     local width,height=love.graphics.getDimensions()

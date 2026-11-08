@@ -6,6 +6,23 @@ local PaintArt=require('src.commute.bike_paint_art')
 local Body={};Body.__index=Body
 Body.PATH='assets/commute/cockpit/first-person-bike-fuel-v2.png'
 Body.WIDTH,Body.HEIGHT=1024,1536
+local fitWidth,fitHeight,fitScale
+local function widePhoneLateralScale()
+    if not love or not love.system or not love.system.getOS or love.system.getOS()~='Android'
+        or not love.graphics or not love.graphics.getDimensions then return 1 end
+    local width,height=love.graphics.getDimensions()
+    if width==fitWidth and height==fitHeight then return fitScale end
+    local aspect=width/math.max(1,height)
+    fitWidth,fitHeight=width,height
+    if aspect<=1.72 then fitScale=1;return fitScale end
+    -- The bike spans nearly the full authored 1280px first-person view. Keep
+    -- both grips inside the visible rider frame on wide Android displays.
+    fitScale=math.max(.78,1.72/aspect)
+    return fitScale
+end
+local function lateralPosition(x)
+    return (x/Body.WIDTH-.5)*1.15*widePhoneLateralScale()
+end
 Body.INSTRUMENTS={cx=511,cy=235,r=48,gearX=584,gearY=216,gearW=72,gearScale=.7,
     fuelX=410,fuelY=228,fuelR=24}
 -- Sprite row, distance ahead of the rider, height above the road.
@@ -26,7 +43,7 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
 #endif
 ]]
 local function barPoint(x,y)
-    return 1.13-y*.00045,1.58-y*.0012,(x/Body.WIDTH-.5)*1.15
+    return 1.13-y*.00045,1.58-y*.0012,lateralPosition(x)
 end
 function Body.point(x,y)
     if y<=350 then return barPoint(x,y) end
@@ -36,7 +53,7 @@ function Body.point(x,y)
         if y<=b[1] then break end
     end
     local t=(y-a[1])/(b[1]-a[1])
-    return a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,(x/Body.WIDTH-.5)*1.15
+    return a[2]+(b[2]-a[2])*t,a[3]+(b[3]-a[3])*t,lateralPosition(x)
 end
 function Body.projectControls(camera,width,height,specs)
     local view=Body.camera(camera)
@@ -60,7 +77,7 @@ function Body.projectControls(camera,width,height,specs)
     return result
 end
 local function wheelPoint(x,y)
-    return 1.5-y*.0016,.40+y/165*.30,(x/Body.WIDTH-.5)*1.15
+    return 1.5-y*.0016,.40+y/165*.30,lateralPosition(x)
 end
 function Body.new()
     local g=love.graphics

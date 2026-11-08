@@ -78,6 +78,39 @@ function Component.install(Runtime)
         Runtime.Settings.applyDisplay(Runtime.App.settings)
         Runtime.mobileControls = Runtime.MobileControls.new({
             layout = Runtime.App.settings.controlLayout,
+            layoutProvider = function()
+                local commute = require("src.commute.runtime")
+                local screen = Runtime.state.screen == "options"
+                    and Runtime.state.optionsReturnScreen or Runtime.state.screen
+                if screen ~= "world" then return Runtime.App.settings.controlLayout end
+                local player = Runtime.World and Runtime.World.player
+                local scene = player and player.sceneId
+                local view
+                if scene == "commute" then
+                    local part = commute.localPart(Runtime)
+                    local rider = part and part.rider
+                    if rider and rider.vehicle == "truck" then
+                        view = "truck"
+                    elseif rider and rider.gear and rider.gear.mounted then
+                        view = "motorcycle"
+                    else
+                        view = "overworld"
+                    end
+                elseif scene == "warehouse" then view = "warehouse"
+                elseif scene == "home" then view = "home"
+                elseif scene == "grocery" then view = "grocery"
+                elseif scene == "gas_station" or scene == "station" then view = "gas_station"
+                elseif scene == "mechanic_shop" or scene == "mechanic" then view = "mechanic_shop"
+                elseif scene == "front_left" or scene == "front_right" then view = "room"
+                else view = "walking" end
+                if commute.indoorControlsActive(Runtime) then
+                    local offer = Runtime._commute and Runtime._commute.mechanicOffer
+                    if offer and offer.interiorKind == "grocery" then view = "grocery"
+                    elseif offer and offer.interiorKind == "station" then view = "gas_station"
+                    elseif offer then view = "mechanic_shop" end
+                end
+                return Runtime.Settings.controlLayoutFor(Runtime.App.settings, view)
+            end,
             walkSensitivity = function()
                 return Runtime.App.settings and Runtime.App.settings.mobileWalkSensitivity
             end,

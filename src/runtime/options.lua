@@ -3,6 +3,14 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local function applySettings(nextSettings)
+        Runtime.App.settings = Runtime.App.settings or {}
+        local current = Runtime.App.settings
+        for key in pairs(current) do current[key] = nil end
+        for key, value in pairs(nextSettings) do current[key] = value end
+        return current
+    end
+
     function Runtime.closeOptions()
         local returnScreen = Runtime.state.optionsReturnScreen or "title"
         Runtime.state.optionsReturnScreen = nil
@@ -37,21 +45,27 @@ function Component.install(Runtime)
             onReturnToMenu = Runtime.returnToTitle,
             preferredSlot = returnScreen == "title" and (Runtime.TitleScreen.selected or 1)
                 or Runtime.state.activeSlot or Runtime.TitleScreen.selected or 1,
-            getControlLayout = function()
-                return Runtime.mobileControls and Runtime.mobileControls:layout()
-                    or Runtime.App.settings.controlLayout
+            getControlLayout = function(view)
+                return Runtime.Settings.controlLayoutFor(Runtime.App.settings, view)
             end,
-            setControlLayout = function(layout)
-                Runtime.App.settings.controlLayout = Runtime.mobileControls and Runtime.mobileControls:setLayout(layout)
-                    or Runtime.Settings.normalizeControlLayout(layout)
+            setControlLayout = function(layout, view, key)
+                applySettings(Runtime.Settings.setControlLayout(
+                    Runtime.App.settings, view, layout, key))
+                if Runtime.mobileControls then
+                    local activeView = view == "shared" and "shared" or view
+                    Runtime.mobileControls:setLayout(
+                        Runtime.Settings.controlLayoutFor(Runtime.App.settings, activeView))
+                end
             end,
             commitControlLayout = function()
                 Runtime.Settings.save(Runtime.App.settings)
             end,
-            resetControlLayout = function()
-                local layout = Runtime.MobileControls.defaultLayout()
-                Runtime.App.settings.controlLayout = Runtime.mobileControls and Runtime.mobileControls:setLayout(layout)
-                    or layout
+            resetControlLayout = function(view)
+                applySettings(Runtime.Settings.resetControlLayout(Runtime.App.settings, view))
+                if Runtime.mobileControls then
+                    Runtime.mobileControls:setLayout(Runtime.Settings.controlLayoutFor(
+                        Runtime.App.settings, view or "shared"))
+                end
                 Runtime.Settings.save(Runtime.App.settings)
             end,
             getDebugInfo = function()

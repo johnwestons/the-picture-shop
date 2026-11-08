@@ -4,15 +4,15 @@ local Screen={};Screen.__index=Screen
 local function inside(x,y,rx,ry,w,h) return x>=rx and y>=ry and x<=rx+w and y<=ry+h end
 local function layoutControls(self)
     local ids={'stick'}
-    for i=1,5 do
+    for i=1,6 do
         local id='touch'..i;local action=B.action(self:profile(),'touch',id)
-        if action=='accelerate' or action=='brake' or action=='boost' or action=='interact' then ids[#ids+1]=id end
+        if action=='accelerate' or action=='brake' or action=='boost' or action=='interact' or action=='worldAction' then ids[#ids+1]=id end
     end
     return ids
 end
 local function layoutLabel(self,id)
     if id=='stick' then return 'STEER' end
-    return ({accelerate='GO',brake='BRAKE',boost='BOOST',interact='USE'})[
+    return ({accelerate='GO',brake='BRAKE',boost='BOOST',interact='VEHICLE',worldAction='ACTION'})[
         B.action(self:profile(),'touch',id)] or ''
 end
 function Screen.new(settings,save,close)
@@ -28,7 +28,7 @@ function Screen:rows()
         if (not a.modifier or self.device=='keyboard') and (not a.mouseOnly or self.device=='mouse')
             and not (self.device=='mouse' and (a.mouseOnly or a.id=='zoomIn' or a.id=='zoomOut'))
             and not (self.device=='touch' and a.id~='accelerate' and a.id~='brake'
-                and a.id~='boost' and a.id~='interact') then
+                and a.id~='boost' and a.id~='interact' and a.id~='worldAction') then
             rows[#rows+1]=a
         end
     end
@@ -155,7 +155,7 @@ function Screen:draw()
             local label=layoutLabel(self,id)
             g.printf(label,70+p.x*760,158+p.y*380,60,'center')
         end
-        g.setColor(.9,.92,.85);g.print('Drag STEER, GO, BRAKE, BOOST or USE. Swipe open space to look; pinch to zoom.',100,140)
+        g.setColor(.9,.92,.85);g.print('Drag STEER, GO, BRAKE, BOOST, VEHICLE or ACTION. Swipe to look; pinch to zoom.',100,140)
     else
         for i=1,9 do local a=self:rows()[(self.page-1)*9+i]
             if a then
@@ -166,7 +166,7 @@ function Screen:draw()
         end
         g.setColor(.8,.85,.78);g.print(('Page %d / %d'):format(self.page,math.ceil(#self:rows()/9)),580,558)
         if self.device=='touch' then
-            g.setColor(.8,.85,.78);g.printf('Steer with the left pad. Bike and camera actions stay visible; drag open space to look.',75,565,500,'left')
+            g.setColor(.8,.85,.78);g.printf('Steer with the left pad. Vehicle and world action buttons appear when available; drag open space to look.',75,565,500,'left')
         end
         box(710,548,70,30,'<');box(810,548,80,30,'>')
     end

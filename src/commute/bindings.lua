@@ -8,8 +8,8 @@ B.actions={
  {id='right',label='Steer right',held=true,key='d',pad='axis:leftx+'},
  {id='handbrake',label='Additional brake',held=true,key='space',pad='b'},
  {id='boost',label='Boost',held=true,key='lshift',pad='rightshoulder',touch='touch3'},
- {id='interact',label='Mount / dismount / door',key='e',pad='a',touch='touch4',main='e',preview='e'},
- {id='worldAction',label='Contextual world action',touch='touch6',main='e',preview=''},
+ {id='interact',label='Mount / dismount vehicle',key='e',pad='a',touch='touch4',main='e',preview='e'},
+ {id='worldAction',label='Use / enter / world action',key='f',pad='x',touch='touch6',main='f',preview='f'},
  {id='ignition',label='Engine on / off',key='i',pad='back',main='i',preview='i'},
  {id='horn',label='Horn (hold)',held=true,key='k',main='k',preview='k'},
  {id='reverse',label='Forward / reverse',key='b',pad='leftstick',main='b',preview='b'},
@@ -21,13 +21,13 @@ B.actions={
  {id='transmission',label='Auto / manual gearbox',key='v',pad='dpup',main='v',preview='v'},
  {id='shiftDown',label='Shift down',key='z',pad='dpleft',main='z',preview='z'},
  {id='shiftUp',label='Shift up',key='x',pad='dpright',main='x',preview='x'},
- {id='gear',label='Put on / remove riding gear',key='g',pad='x',main='g',preview='g'},
+ {id='gear',label='Put on / remove riding gear',key='g',main='g',preview='g'},
  {id='rescue',label='Move the motorcycle to open ground',key='u',main='u',preview='u'},
  {id='recenter',label='Center camera',key='c',pad='dpdown',main='c',preview='c'},
  {id='orbitLeft',label='Rotate / look left',held=true,key='q',pad='axis:rightx-'},
  {id='orbitRight',label='Rotate / look right',held=true,key='t',pad='axis:rightx+'},
  {id='tiltUp',label='Tilt / look up',held=true,key='r',pad='axis:righty-'},
- {id='tiltDown',label='Tilt / look down',held=true,key='f',pad='axis:righty+'},
+ {id='tiltDown',label='Tilt / look down',held=true,key='pagedown',pad='axis:righty+'},
  {id='force',label='Bring party inside (host)',key='f6',main='f',preview=''},
  {id='orbit',label='Camera rotate / tilt drag',mouse='mouse3',mouseOnly=true},
  {id='pan',label='Camera pan drag',mouse='mouse2',mouseOnly=true},
@@ -74,7 +74,7 @@ B.TOUCH_LEFT,B.TOUCH_RIGHT=.87,.96
 local actionRows={.76,.62,.62,.76,.90,.90}
 function B.defaults()
     local p={keyboard={},mouse={},controller={},touch={},layout={stick={x=.10,y=.80},cameraStick={x=.90,y=.34}},
-        layoutVersion=4,showTouch=false,outsideCamera='fixed',
+        layoutVersion=4,bindingVersion=2,showTouch=false,outsideCamera='fixed',
         truckCabView={side=-.34,up=.26,forward=.35}}
     for _,a in ipairs(B.actions) do
         p.keyboard[a.id]=a.key or '';p.mouse[a.id]=a.mouse or ''
@@ -127,7 +127,20 @@ function B.normalize(value)
             end
         end
     end
-    p.layoutVersion=4
+    local oldBindingVersion=tonumber(value.bindingVersion) or 1
+    if oldBindingVersion<2 then
+        for _,device in ipairs({'keyboard','controller'}) do
+            local oldBindings=type(value[device])=='table' and value[device] or {}
+            if oldBindings.worldAction==nil or oldBindings.worldAction=='' then
+                local token=device=='keyboard' and 'f' or 'x'
+                p[device].worldAction=token
+                for _,a in ipairs(B.actions) do
+                    if a.id~='worldAction' and p[device][a.id]==token then p[device][a.id]='' end
+                end
+            end
+        end
+    end
+    p.layoutVersion=4;p.bindingVersion=2
     return p
 end
 function B.assign(p,device,id,token)

@@ -184,7 +184,7 @@ function Panel.drawOptions(state,environment,offset)
     g.push('all');g.setShader();g.setFont(font)
     g.setColor(.92,.95,.89,1);g.print('LIVE PLAYTEST DIAGNOSTICS',116,151)
     g.setColor(.61,.69,.66,1)
-    g.print(('Session time %s · live snapshot · no network addresses, player names, save contents, or credentials'):format(
+    g.print(('Session time %s · no IP addresses, player names, save data, or credentials shown'):format(
         ageText(environment.sessionSeconds)),116,169)
     g.setColor(.045,.061,.064,.98);g.rectangle('fill',110,185,740,132,5,5)
     g.setColor(.29,.37,.36,1);g.rectangle('line',110,185,740,132,5,5)

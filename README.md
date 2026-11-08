@@ -147,11 +147,12 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest public Android test installer is [Android 101](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.101/ThePictureShop-0.1.0-android.101-Install.apk).
-It is built from the same source as the PC game and includes the 64-angle cutter
-and Windmill, the complete 64-view machine art package, and the delivery-truck
-traffic and livery updates. Every multiplayer participant needs the same build
-and protocol. Android 68's handoff and device verification are in
+The latest Android test installer is [Android 103](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.103/ThePictureShop-0.1.0-android.103-Install.apk).
+It is built from the same source as the PC game. This update separates vehicle
+mounting from world actions, adds independent mobile buttons, improves touch
+layouts for wide phones, and adds update notes beside the playtest diagnostics
+in Options. Every multiplayer participant needs the same build and protocol.
+Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
 [the Android 66 release notes](docs/android_66_release.md) and

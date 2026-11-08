@@ -17,9 +17,14 @@ local OptionsScreen = {
     editBuffer = "",
     draggingControl = nil,
     draggingSensitivity = nil,
+    selectedControlView = "shared",
+    controlViewDropdownOpen = false,
     debugOffset = 0,
     debugDragY = nil,
     debugDragRemainder = 0,
+    debugPage = "watchdog",
+    debugNotesOffset = 0,
+    debugNotesDragY = nil,
     context = nil,
 }
 
@@ -72,6 +77,7 @@ local AUDIO_ROWS = {
     { id = "muted", label = "Mute all audio", kind = "toggle" },
 }
 local CONTROL_PREVIEW = { x = 205, y = 176, width = 550, height = 238 }
+local CONTROL_VIEW_SELECT = { x = 164, y = 143, width = 632, height = 30 }
 local RESET_CONTROLS = { x = 164, y = 548, width = 210, height = 42 }
 local MOBILE_STEERING_MODE = { x = 382, y = 548, width = 210, height = 42 }
 local MOTORCYCLE_CONTROLS = { x = 604, y = 548, width = 210, height = 42 }
@@ -91,6 +97,48 @@ local CONTROL_SPECS = {
     extra1 = { label = "ACTION 1", radius = 27 },
     extra2 = { label = "ACTION 2", radius = 27 },
 }
+local CONTROL_VIEW_OPTIONS = Settings.controlLayoutViews()
+
+local function selectedControlView()
+    for _, view in ipairs(CONTROL_VIEW_OPTIONS) do
+        if view.id == OptionsScreen.selectedControlView then return view end
+    end
+    return CONTROL_VIEW_OPTIONS[1]
+end
+
+local function selectedControlSpecs()
+    local view = selectedControlView()
+    if view.kind ~= "commute" then return CONTROL_SPECS end
+    local result = { stick = { label = view.id == "overworld" and "MOVE" or "STEER", radius = 35 } }
+    local profile = Settings.normalize(OptionsScreen.context.settings).motorcycleControls
+    local bindings = require("src.commute.bindings")
+    local allowed = view.id == "overworld"
+        and { interact = "USE", worldAction = "ACTION", boost = "SPRINT" }
+        or view.id == "truck"
+        and { accelerate = "GO", brake = "BRAKE", interact = "EXIT" }
+        or { accelerate = "GO", brake = "BRAKE", boost = "BOOST", interact = "GET OFF" }
+    for index = 1, 6 do
+        local key = "touch" .. index
+        local action = bindings.action(profile, "touch", key)
+        if allowed[action] then result[key] = { label = allowed[action], radius = 25 } end
+    end
+    return result
+end
+
+local function selectControlView(viewId)
+    for _, view in ipairs(CONTROL_VIEW_OPTIONS) do
+        if view.id == viewId then
+            OptionsScreen.selectedControlView = viewId
+            OptionsScreen.controlViewDropdownOpen = false
+            OptionsScreen.draggingControl = nil
+            OptionsScreen.message = viewId == "shared"
+                and "Editing common controls inherited by each view."
+                or ("Editing the " .. view.label .. " layout.")
+            return true
+        end
+    end
+    return false
+end
 
 local function rowRect(index, cheats)
     return { x = 164, y = (cheats and 264 or 202) + (index - 1) * (cheats and 40 or 52),
@@ -180,9 +228,14 @@ function OptionsScreen.enter(context)
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
     OptionsScreen.draggingSensitivity = nil
+    OptionsScreen.selectedControlView = "shared"
+    OptionsScreen.controlViewDropdownOpen = false
     OptionsScreen.debugOffset=0
     OptionsScreen.debugDragY=nil
     OptionsScreen.debugDragRemainder=0
+    OptionsScreen.debugPage="watchdog"
+    OptionsScreen.debugNotesOffset=0
+    OptionsScreen.debugNotesDragY=nil
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
         and "Audio and game settings are local. Save cheats are host-only."
         or "Changes are saved immediately."
@@ -198,6 +251,9 @@ function OptionsScreen.openDebugPanel()
     OptionsScreen.selectedRow=1
     OptionsScreen.debugOffset=0
     OptionsScreen.debugDragY=nil
+    OptionsScreen.debugPage="watchdog"
+    OptionsScreen.debugNotesOffset=0
+    OptionsScreen.debugNotesDragY=nil
     return true
 end
 
@@ -264,10 +320,16 @@ local function selectTab(tab)
     OptionsScreen.editField, OptionsScreen.editBuffer = nil, ""
     OptionsScreen.draggingControl = nil
     OptionsScreen.draggingSensitivity = nil
+    OptionsScreen.controlViewDropdownOpen = false
     OptionsScreen.debugDragY=nil
-    if tab=='debug' then OptionsScreen.debugOffset=0 end
+    OptionsScreen.debugNotesDragY=nil
+    if tab=='debug' then
+        OptionsScreen.debugOffset=0
+        OptionsScreen.debugPage="watchdog"
+        OptionsScreen.debugNotesOffset=0
+    end
     OptionsScreen.message = tab == "controls"
-        and "Drag each control to a comfortable position."
+        and "Choose a view, then drag the touch controls into place."
         or tab == "cheats"
         and (OptionsScreen.context.isNetworkClient and OptionsScreen.context.isNetworkClient()
             and "Save cheats are host-only in multiplayer."
@@ -437,7 +499,7 @@ end
 
 local function controlLayout()
     local context = OptionsScreen.context
-    return context and context.getControlLayout and context.getControlLayout()
+    return context and context.getControlLayout and context.getControlLayout(OptionsScreen.selectedControlView)
         or context and context.settings.controlLayout
         or Settings.DEFAULTS.controlLayout
 end
@@ -450,7 +512,7 @@ end
 
 local function controlAt(x, y)
     local best, bestDistance
-    for key, spec in pairs(CONTROL_SPECS) do
+    for key, spec in pairs(selectedControlSpecs()) do
         local centerX, centerY = controlCenter(key)
         local dx, dy = x - centerX, y - centerY
         local distanceSquared = dx * dx + dy * dy
@@ -467,7 +529,8 @@ local function moveDraggedControl(x, y)
     local key = OptionsScreen.draggingControl
     local context = OptionsScreen.context
     if not key or not context or not context.setControlLayout then return false end
-    local spec = CONTROL_SPECS[key]
+    local spec = selectedControlSpecs()[key]
+    if not spec then return false end
     local layout = controlLayout()
     local marginX, marginY = spec.radius / CONTROL_PREVIEW.width,
         spec.radius / CONTROL_PREVIEW.height
@@ -477,7 +540,7 @@ local function moveDraggedControl(x, y)
         y = math.max(marginY, math.min(1 - marginY,
             (y - CONTROL_PREVIEW.y) / CONTROL_PREVIEW.height)),
     }
-    context.setControlLayout(layout)
+    context.setControlLayout(layout, OptionsScreen.selectedControlView, key)
     OptionsScreen.message = "Positioning " .. spec.label .. "..."
     return true
 end
@@ -520,8 +583,10 @@ end
 local function resetControls()
     local context = OptionsScreen.context
     if not context or not context.resetControlLayout then return false end
-    context.resetControlLayout()
-    OptionsScreen.message = "Touch controls reset to their default positions."
+    context.resetControlLayout(OptionsScreen.selectedControlView)
+    OptionsScreen.message = OptionsScreen.selectedControlView == "shared"
+        and "Shared touch controls reset to their default positions."
+        or (selectedControlView().label .. " controls restored their inherited positions.")
     return true
 end
 
@@ -566,6 +631,24 @@ function OptionsScreen.keypressed(key)
         return selectTab(TAB_ORDER[index % #TAB_ORDER + 1])
     end
     if OptionsScreen.tab=="debug" then
+        if OptionsScreen.debugPage=="notes" then
+            local notes=require("src.screens.update_notes_panel")
+            if key=="backspace" or key=="b" then
+                OptionsScreen.debugPage="watchdog"
+                OptionsScreen.message="Live diagnostics for playtesting."
+                return true
+            end
+            local maximum=notes.maxOffset()
+            if key=="up" or key=="w" or key=="pageup" then
+                OptionsScreen.debugNotesOffset=math.max(0,OptionsScreen.debugNotesOffset
+                    -(key=="pageup" and 240 or 40));return true
+            elseif key=="down" or key=="s" or key=="pagedown" then
+                OptionsScreen.debugNotesOffset=math.min(maximum,OptionsScreen.debugNotesOffset
+                    +(key=="pagedown" and 240 or 40));return true
+            elseif key=="home" then OptionsScreen.debugNotesOffset=0;return true
+            elseif key=="end" then OptionsScreen.debugNotesOffset=maximum;return true end
+            return false
+        end
         local panel=require("src.screens.ai_watchdog_panel")
         local snapshot=require("src.ai_watchdog").snapshot(OptionsScreen.context.state)
         local maximum=panel.maxOffset(snapshot)
@@ -581,6 +664,14 @@ function OptionsScreen.keypressed(key)
         if key=='m' then return OptionsScreen.openMotorcycleControls() end
         if key == "r" then return resetControls() end
         if key == "h" then return toggleMobileSteeringMode() end
+        if key == "left" or key == "a" or key == "right" or key == "d" then
+            local index = 1
+            for current, view in ipairs(CONTROL_VIEW_OPTIONS) do
+                if view.id == OptionsScreen.selectedControlView then index = current end
+            end
+            local delta = (key == "left" or key == "a") and -1 or 1
+            return selectControlView(CONTROL_VIEW_OPTIONS[(index - 1 + delta) % #CONTROL_VIEW_OPTIONS + 1].id)
+        end
         return false
     end
     if OptionsScreen.tab == "character" then
@@ -665,6 +756,25 @@ function OptionsScreen.mousepressed(x, y, button)
         if Ui.contains(rect, x, y) then return selectTab(tab) end
     end
     if OptionsScreen.tab=="debug" then
+        local notes=require("src.screens.update_notes_panel")
+        local navigation=notes.hitTest(x,y,OptionsScreen.debugPage)
+        if navigation=="open" then
+            OptionsScreen.debugPage="notes"
+            OptionsScreen.debugNotesOffset=0
+            OptionsScreen.message="Browse the dated release notes."
+            return true
+        elseif navigation=="back" then
+            OptionsScreen.debugPage="watchdog"
+            OptionsScreen.message="Live diagnostics for playtesting."
+            return true
+        end
+        if OptionsScreen.debugPage=="notes" then
+            if notes.inViewport(x,y) then
+                OptionsScreen.debugNotesDragY=y
+                return true
+            end
+            return false
+        end
         local panel=require("src.screens.ai_watchdog_panel")
         local snapshot=require("src.ai_watchdog").snapshot(OptionsScreen.context.state)
         local maximum=panel.maxOffset(snapshot)
@@ -692,6 +802,28 @@ function OptionsScreen.mousepressed(x, y, button)
             if Ui.contains(cheatPageRect(index),x,y) then return selectCheatPage(page.id) end
         end
     elseif OptionsScreen.tab == "controls" then
+        if OptionsScreen.controlViewDropdownOpen then
+            for index, view in ipairs(CONTROL_VIEW_OPTIONS) do
+                local column = (index - 1) % 2
+                local row = math.floor((index - 1) / 2)
+                local rect = { x = 164 + column * 320, y = 179 + row * 29,
+                    width = 312, height = 26 }
+                if Ui.contains(rect, x, y) then return selectControlView(view.id) end
+            end
+            if not Ui.contains(CONTROL_VIEW_SELECT, x, y) then
+                OptionsScreen.controlViewDropdownOpen = false
+                local menuBottom = 178 + math.ceil(#CONTROL_VIEW_OPTIONS / 2) * 29 + 6
+                if x >= CONTROL_VIEW_SELECT.x and x <= CONTROL_VIEW_SELECT.x + CONTROL_VIEW_SELECT.width
+                    and y >= 178 and y <= menuBottom then return true end
+            else
+                OptionsScreen.controlViewDropdownOpen = false
+                return true
+            end
+        end
+        if Ui.contains(CONTROL_VIEW_SELECT, x, y) then
+            OptionsScreen.controlViewDropdownOpen = not OptionsScreen.controlViewDropdownOpen
+            return true
+        end
         if Ui.contains(MOTORCYCLE_CONTROLS,x,y) then return OptionsScreen.openMotorcycleControls() end
         if Ui.contains(MOBILE_STEERING_MODE,x,y) then return toggleMobileSteeringMode() end
         if Ui.contains(RESET_CONTROLS, x, y) then return resetControls() end
@@ -758,13 +890,19 @@ end
 
 function OptionsScreen.mousereleased(x, y, button)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousereleased(x,y,button) end
+    if button==1 and OptionsScreen.debugNotesDragY then
+        OptionsScreen.debugNotesDragY=nil
+        return true
+    end
     if button==1 and OptionsScreen.debugDragY then OptionsScreen.debugDragY=nil;return true end
     if button == 1 and OptionsScreen.draggingSensitivity then return finishSensitivityDrag() end
     if button == 1 and OptionsScreen.draggingControl then
         OptionsScreen.draggingControl = nil
         local context = OptionsScreen.context
-        if context and context.commitControlLayout then context.commitControlLayout() end
-        OptionsScreen.message = "Control layout saved."
+        if context and context.commitControlLayout then context.commitControlLayout(OptionsScreen.selectedControlView) end
+        OptionsScreen.message = selectedControlView().id == "shared"
+            and "Shared control layout saved on this device."
+            or (selectedControlView().label .. " layout saved on this device.")
         return true
     end
     return false
@@ -773,6 +911,14 @@ end
 function OptionsScreen.mousemoved(x, y)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:mousemoved(x,y) end
     OptionsScreen.hover = { x = x, y = y }
+    if OptionsScreen.debugNotesDragY then
+        local delta=y-OptionsScreen.debugNotesDragY
+        OptionsScreen.debugNotesDragY=y
+        local notes=require("src.screens.update_notes_panel")
+        OptionsScreen.debugNotesOffset=math.max(0,math.min(notes.maxOffset(),
+            OptionsScreen.debugNotesOffset-delta))
+        return true
+    end
     if OptionsScreen.debugDragY then
         local delta=y-OptionsScreen.debugDragY
         OptionsScreen.debugDragY=y
@@ -889,7 +1035,7 @@ local function drawControlPreview()
         love.graphics.line(CONTROL_PREVIEW.x + 10, y,
             CONTROL_PREVIEW.x + CONTROL_PREVIEW.width - 10, y)
     end
-    for key, spec in pairs(CONTROL_SPECS) do
+    for key, spec in pairs(selectedControlSpecs()) do
         local x, y = controlCenter(key)
         local dragged = OptionsScreen.draggingControl == key
         love.graphics.setColor(0.025, 0.055, 0.07, 0.88)
@@ -899,11 +1045,45 @@ local function drawControlPreview()
         love.graphics.setLineWidth(dragged and 4 or 3)
         love.graphics.circle("line", x, y, spec.radius)
         love.graphics.setColor(0.96, 0.98, 0.92, 1)
+        local textScale = spec.radius < 30 and 0.60 or 0.74
         love.graphics.printf(spec.label, x - spec.radius, y - 6,
-            spec.radius * 2, "center", 0, key:find("extra", 1, true) and 0.62 or 0.78,
-            key:find("extra", 1, true) and 0.62 or 0.78)
+            spec.radius * 2, "center", 0, textScale, textScale)
     end
     love.graphics.setLineWidth(1)
+end
+
+local function drawControlViewSelector()
+    local selected = selectedControlView()
+    local hovered = OptionsScreen.hover and Ui.contains(CONTROL_VIEW_SELECT,
+        OptionsScreen.hover.x, OptionsScreen.hover.y)
+    Ui.panel(CONTROL_VIEW_SELECT, { 0.09, 0.13, 0.12, 1 },
+        (hovered or OptionsScreen.controlViewDropdownOpen) and { 0.85, 0.70, 0.30, 1 }
+            or { 0.34, 0.43, 0.41, 1 }, 4, 1)
+    love.graphics.setColor(0.60, 0.69, 0.64)
+    love.graphics.print("VIEW", CONTROL_VIEW_SELECT.x + 12, CONTROL_VIEW_SELECT.y + 8)
+    love.graphics.setColor(0.96, 0.94, 0.83)
+    love.graphics.print(selected.label, CONTROL_VIEW_SELECT.x + 86, CONTROL_VIEW_SELECT.y + 8)
+    love.graphics.setColor(0.76, 0.83, 0.73)
+    love.graphics.printf(OptionsScreen.controlViewDropdownOpen and "▲" or "▼",
+        CONTROL_VIEW_SELECT.x + CONTROL_VIEW_SELECT.width - 34, CONTROL_VIEW_SELECT.y + 6, 22, "center")
+    if not OptionsScreen.controlViewDropdownOpen then return end
+    local rows = math.ceil(#CONTROL_VIEW_OPTIONS / 2)
+    local menu = { x = CONTROL_VIEW_SELECT.x, y = 178, width = CONTROL_VIEW_SELECT.width,
+        height = rows * 29 + 6 }
+    Ui.panel(menu, { 0.045, 0.065, 0.06, 0.98 }, { 0.55, 0.64, 0.56, 1 }, 4, 2)
+    for index, view in ipairs(CONTROL_VIEW_OPTIONS) do
+        local column = (index - 1) % 2
+        local row = math.floor((index - 1) / 2)
+        local rect = { x = 164 + column * 320, y = 181 + row * 29,
+            width = 312, height = 26 }
+        local active = view.id == OptionsScreen.selectedControlView
+        local hover = OptionsScreen.hover and Ui.contains(rect, OptionsScreen.hover.x, OptionsScreen.hover.y)
+        love.graphics.setColor(active and { 0.34, 0.32, 0.19, 1 }
+            or hover and { 0.15, 0.21, 0.18, 1 } or { 0.07, 0.10, 0.09, 1 })
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.setColor(active and { 1, 0.86, 0.40, 1 } or { 0.89, 0.92, 0.83, 1 })
+        love.graphics.print(view.label, rect.x + 10, rect.y + 6)
+    end
 end
 
 local function drawSensitivitySliders()
@@ -1034,14 +1214,14 @@ function OptionsScreen.draw(mouseX, mouseY)
             settings.ambientVolume .. "%", settings.muted and "ON" or "OFF",
         }, false)
     elseif OptionsScreen.tab == "controls" then
-        love.graphics.setColor(0.78, 0.81, 0.76)
-        love.graphics.printf("DRAG THE CONTROLS IN THE PREVIEW", 164, 150, 632, "center")
         drawControlPreview()
+        drawControlViewSelector()
         drawSensitivitySliders()
         love.graphics.setColor(0.58, 0.64, 0.61)
-        love.graphics.printf("Higher sensitivity responds sooner; full stick still reaches full speed.",
+        love.graphics.printf("Shared MOVE / USE positions carry across screens; move any other button per view. Layouts save on this device.",
             164, 528, 632, "center")
-        drawButton(RESET_CONTROLS, "RESET TO DEFAULT", false, false)
+        drawButton(RESET_CONTROLS, OptionsScreen.selectedControlView == "shared"
+            and "RESET SHARED" or "RESET THIS VIEW", false, false)
         local steering=OptionsScreen.context.settings.mobileVehicleSteering or 'radial'
         local steeringLabel=steering=='bike-horizontal' and 'BIKE: HORIZONTAL'
             or steering=='all-horizontal' and 'ALL: HORIZONTAL' or 'STICK: RADIAL'
@@ -1050,10 +1230,16 @@ function OptionsScreen.draw(mouseX, mouseY)
     elseif OptionsScreen.tab == "character" then
         drawColorways()
     elseif OptionsScreen.tab == "debug" then
-        local environment=OptionsScreen.context.getDebugInfo
-            and OptionsScreen.context.getDebugInfo() or {}
-        require("src.screens.ai_watchdog_panel").drawOptions(
-            OptionsScreen.context.state,environment,OptionsScreen.debugOffset)
+        if OptionsScreen.debugPage=="notes" then
+            OptionsScreen.debugNotesOffset=require("src.screens.update_notes_panel").drawOptions(
+                OptionsScreen.debugNotesOffset)
+        else
+            local environment=OptionsScreen.context.getDebugInfo
+                and OptionsScreen.context.getDebugInfo() or {}
+            require("src.screens.ai_watchdog_panel").drawOptions(
+                OptionsScreen.context.state,environment,OptionsScreen.debugOffset)
+            require("src.screens.update_notes_panel").drawOpenButton()
+        end
     else
         for slot, rect in ipairs(SLOT_RECTS) do
             local context = OptionsScreen.context
@@ -1103,6 +1289,8 @@ function OptionsScreen.draw(mouseX, mouseY)
         and "Drag sliders for stick sensitivity  |  H: steering mode  |  M: motorcycle controls"
         or OptionsScreen.tab=="cheats"
         and "Tab: section  |  Q/E: cheat category  |  1-3: slot  |  Enter: edit/grant"
+        or OptionsScreen.tab=="debug" and OptionsScreen.debugPage=="notes"
+        and "Scroll, swipe, or use arrows to browse  |  Home: newest  |  Backspace: diagnostics"
         or OptionsScreen.tab=="debug"
         and "Swipe/wheel or arrows to browse reports  |  Home: newest  |  F10 opens diagnostics on desktop"
         or (OptionsScreen.menuRect() and "Esc: resume  |  F9 / controller Y: main menu  |  Tab: section"
@@ -1130,6 +1318,12 @@ end
 function OptionsScreen.wheelmoved(x,y)
     if OptionsScreen.motorcycleEditor then return OptionsScreen.motorcycleEditor:wheelmoved(x,y) end
     if OptionsScreen.tab=="debug" and y~=0 then
+        if OptionsScreen.debugPage=="notes" then
+            local notes=require("src.screens.update_notes_panel")
+            OptionsScreen.debugNotesOffset=math.max(0,math.min(notes.maxOffset(),
+                OptionsScreen.debugNotesOffset+(y<0 and 60 or -60)))
+            return true
+        end
         local panel=require("src.screens.ai_watchdog_panel")
         local maximum=panel.maxOffset(require("src.ai_watchdog").snapshot(OptionsScreen.context.state))
         OptionsScreen.debugOffset=math.max(0,math.min(maximum,

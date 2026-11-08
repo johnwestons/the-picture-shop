@@ -12,7 +12,10 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
-        Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight, not (mobileWorld or mobileUi), Runtime.App.officeUsesSafeArea())
+        local wideCommute=Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
+            and Runtime.World.player.sceneId=='commute'
+        Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight,
+            not (mobileWorld or mobileUi or wideCommute), Runtime.App.officeUsesSafeArea())
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
             Runtime.CharacterAssets.endFrame()
@@ -22,6 +25,9 @@ function Component.install(Runtime)
         end
         if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery') then
             local destination,objective=require('src.commute.runtime').draw(Runtime)
+            if Runtime.World.player.sceneId=='grocery' then
+                Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
+            end
             if Runtime.controller and showHud then Runtime.controller:draw() end
             local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
             if showHud then
@@ -62,6 +68,7 @@ function Component.install(Runtime)
             love.graphics.printf("Loading...",402,319,180,"left")
             Runtime.WorldRenderer.endFrame()
             Runtime.CharacterAssets.endFrame()
+            Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
             Runtime.Viewport.endDraw()
             return
         elseif packReady==false then
@@ -94,6 +101,7 @@ function Component.install(Runtime)
             if mobileWorld then
                 local worldX, worldY = Runtime.App.mobileCamera:screenToWorld(mouseX, mouseY)
                 Runtime.App.mobileCamera:beginDraw()
+                Runtime.Viewport.drawWorldBackdrop(viewBounds,Runtime.App.mobileCamera)
                 Runtime.World.draw(Runtime.Assets, Runtime.CharacterAssets, Runtime.state, worldX, worldY, Runtime.multiplayer:remotePlayers())
                 Runtime.App.mobileCamera:endDraw()
             else
@@ -167,6 +175,9 @@ function Component.install(Runtime)
             and Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
         then
             Runtime.App.playerFeedback:drawToast(viewBounds, Runtime.state.screen)
+        end
+        if not mobileWorld and not mobileUi then
+            Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
         end
         Runtime.Ui.drawPressFeedback()
         if Runtime.controller and Runtime.state.screen~='delivery_signature'
