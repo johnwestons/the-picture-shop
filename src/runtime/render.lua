@@ -12,7 +12,8 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
-        local wideCommute=Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
+        local wideCommute=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
+            and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
             and Runtime.World.player.sceneId=='commute'
         Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight,
             not (mobileWorld or mobileUi or wideCommute), Runtime.App.officeUsesSafeArea())

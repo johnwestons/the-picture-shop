@@ -4,6 +4,10 @@ local Component = {}
 
 function Component.install(Runtime)
     local followJackTarget = { x = 0, y = 0 }
+    local function fullScreenDevice()
+        local viewport = Runtime.Viewport
+        return viewport and viewport.fullScreenDevice and viewport.fullScreenDevice() or false
+    end
 
     function Runtime.App.officeFitsScreen()
         return Runtime.state.screen == "computer"
@@ -27,7 +31,7 @@ function Component.install(Runtime)
     function Runtime.App.cameraTransformsUi()
         -- Phone menus need their full authored height. A wide phone can show
         -- surrounding scenery without zooming the menu out of reach.
-        if Runtime.Viewport.fullScreenDevice and Runtime.Viewport.fullScreenDevice() then return false end
+        if fullScreenDevice() then return false end
         return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and Runtime.state.screen ~= "world"
             and not Runtime.App.officeFitsScreen()
     end
@@ -48,8 +52,7 @@ function Component.install(Runtime)
         local bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
         if Runtime.App.mobileCamera then
             Runtime.App.mobileCamera:setViewport(bounds.width, bounds.height,
-                Runtime.App.cameraTransformsWorld() and Runtime.Viewport.fullScreenDevice
-                    and Runtime.Viewport.fullScreenDevice())
+                Runtime.App.cameraTransformsWorld() and fullScreenDevice())
             if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi() then
                 Runtime.App.mobileCamera:selectView(Runtime.cameraViewKey(), Runtime.state.screen == "world")
             end
@@ -96,8 +99,7 @@ function Component.install(Runtime)
         local bounds
         -- On phones, world shortcuts can sit in the extra horizontal space
         -- even when the scene artwork remains centered.
-        if screen == "world" and (Runtime.App.cameraTransformsWorld()
-            or Runtime.Viewport.fullScreenDevice and Runtime.Viewport.fullScreenDevice())
+        if screen == "world" and (Runtime.App.cameraTransformsWorld() or fullScreenDevice())
             and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight)
         end
