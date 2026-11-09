@@ -33,24 +33,54 @@ def run(serial, output, selected, overrides=()):
         put(serial,config,'live-device-config.lua')
         adb(serial,'shell','am','start','-W','-n',PACKAGE+'/org.love2d.android.GameActivity')
         print('START '+stage['id'],flush=True)
-        report='';timed_out=False;process_exited=False
+        report='';timed_out=False;process_exited=False;device_unavailable=False
+        render_resume_requested=False
         while time.monotonic()-start<stage['timeoutSeconds']*2:
             result=subprocess.run(['adb','-s',serial,'exec-out','run-as',PACKAGE,'cat',
                                    REMOTE+'/live-'+identifier+'.rpt'],capture_output=True,timeout=30)
-            if result.returncode==0: report=result.stdout.decode('utf-8','replace')
+            if result.returncode==0:
+                device_unavailable=False
+                report=result.stdout.decode('utf-8','replace')
             if '\nSMOKE_OK' in report or '\nFAIL ' in report: break
+            if '\nCHECKS_COMPLETE\n' in report and not render_resume_requested:
+                # A USB reconnect can leave Android's USB settings screen in
+                # front. Once the checks are complete, foreground the game so
+                # Love can draw the required final frames and flush SMOKE_OK.
+                resumed=subprocess.run(['adb','-s',serial,'shell','am','start','-W','-n',
+                                        PACKAGE+'/org.love2d.android.GameActivity'],
+                                       capture_output=True,timeout=30)
+                render_resume_requested=True
+                if resumed.returncode==0: device_unavailable=False
+                else: device_unavailable=True
             process=subprocess.run(['adb','-s',serial,'shell','pidof',PACKAGE],
                                    capture_output=True,timeout=30)
             if not process.stdout.strip():
+                if process.returncode!=0:
+                    # A brief USB/ADB transport drop can make pidof appear empty
+                    # while the game keeps running. Keep polling so the report
+                    # can arrive after the device reconnects.
+                    device_unavailable=True
+                    time.sleep(2)
+                    continue
                 # Completion may have been flushed between the report read and
                 # the process query. Re-read before classifying an early exit.
                 final=subprocess.run(['adb','-s',serial,'exec-out','run-as',PACKAGE,'cat',
                                       REMOTE+'/live-'+identifier+'.rpt'],capture_output=True,timeout=30)
-                if final.returncode==0: report=final.stdout.decode('utf-8','replace')
+                if final.returncode!=0:
+                    device_unavailable=True
+                    time.sleep(2)
+                    continue
+                device_unavailable=False
+                report=final.stdout.decode('utf-8','replace')
                 if '\nSMOKE_OK' in report or '\nFAIL ' in report: break
                 process_exited=True
-                (output/(stage['id']+'.exit-info.txt')).write_text(
-                    adb(serial,'shell','dumpsys','activity','exit-info',PACKAGE),encoding='utf-8')
+                try:
+                    exit_info=adb(serial,'shell','dumpsys','activity','exit-info',PACKAGE)
+                except (subprocess.CalledProcessError,subprocess.TimeoutExpired) as exc:
+                    detail=getattr(exc,'stderr',None)
+                    if isinstance(detail,bytes): detail=detail.decode('utf-8','replace')
+                    exit_info='Could not collect Android exit info; device may be disconnected.\n'+str(detail or exc)
+                (output/(stage['id']+'.exit-info.txt')).write_text(exit_info,encoding='utf-8')
                 break
             time.sleep(2)
         else: timed_out=True
@@ -60,6 +90,7 @@ def run(serial, output, selected, overrides=()):
         problems=[v for v in lines if v.startswith(('FAIL ','SMOKE_REPORT_ERROR'))]
         if timed_out: problems.append('Device stage timed out')
         if process_exited: problems.append('Android process exited before completion; see exit-info report')
+        if device_unavailable: problems.append('Android device disconnected or became unreachable; reconnect and rerun this stage')
         if len(checks)!=len(set(checks)): problems.append('Duplicate checks')
         if len(checks)<stage['minChecks']: problems.append('Insufficient checks')
         for marker in ('CHECKS_COMPLETE','PASS render_three_frames','SMOKE_OK'):

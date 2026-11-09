@@ -1,7 +1,10 @@
 THE PICTURE SHOP - ANDROID AND CROSS-DEVICE GAMEPLAY ACCEPTANCE
 November 9, 2026
 
-Status: final acceptance runs in progress. See the recorded summaries below.
+Status: desktop acceptance, the complete S25 Android smoke plan and PC-to-S25
+LAN journeys passed. All 10 Android stages completed with 17,319 checks. The
+normal app launcher was restored after testing, and the S25's temporary test
+identities and harness files were removed.
 
 Environment and method
 Physical Samsung Galaxy S25 Ultra, Android 17, arm64-v8a.
@@ -44,6 +47,34 @@ now explicitly use authored-pixel canvases. The native-DPI truck viewport check
 retains the phone's DPI and converts sample coordinates to actual image pixels;
 its corrected 57-check focused run passed on the S25. No gameplay render path
 was replaced or patched to obtain these results.
+
+Final smoke results
+- desktop-acceptance-final-r2/summary.json: all 19 plan stages and 37 feature
+  groups passed, with 34,634 checks. Source stayed unchanged during that run.
+  The updated core desktop/mobile stages were rerun and passed 11,017 checks each.
+- android-acceptance-complete/summary.json: all 10 Android stages passed with
+  17,319 checks: 11,016 core, 4,173 seeded recovery, 213 apartments, 60 outing,
+  six delivery-route, 457 services, 1,334 commute and 60 scene-exit checks.
+- android-route-final-verified/summary.json: all three seeded delivery routes,
+  every ordered town destination pair, map snapshot and final render markers passed.
+- android-services-commute-verified/summary.json: mobile service and commute
+  stages passed. android-scene-exit-verified/summary.json passed after the
+  reloaded apartment HUD rendered before the header-exit tap.
+- desktop-scene-exit-retest/summary.json: the corresponding desktop scene-exit
+  stage passed 60 checks.
+- Focused S25 retests for the Android viewport fixtures passed: camera follow
+  23 checks, computer viewport 37, and shop rooms 72.
+- The S25 ran signed debug APK 0.1.0-android.103, SHA-256
+  9557c7e43b2c6a2aade6b5bbf923bbe76d0e0ecff87a016ba6febeb4d2610cc2. The APK
+  installed and launched on the S25.
+- The Android runner retries transient ADB losses and foregrounds the game after
+  CHECKS_COMPLETE when Android has opened USB Settings, allowing the final render
+  checks to finish. The final three-seed route run passed through that runner.
+- The initial reconnected-phone route attempt exposed the runner's transient ADB
+  handling; its app-side report later completed. A subsequent standard-runner
+  route execution passed all checks. The first scene-exit attempt tapped before
+  the reloaded HUD was rendered; the fixture now waits for that header, and the
+  no-overlay S25 retest passed.
 
 Live journeys and evidence
 - network-final/summary.json: written estimate, delayed acceptance, stock
@@ -93,14 +124,16 @@ runs. The shared-activities journey also requires TPS_HOST_ENDPOINT set to the
 reachable PC address and port (for example, <pc-ip>:22122). The Android smoke runner
 accepts the selected serial through --serial.
 
-The physical-device scripts require the temporary private diagnostic entry point
-and controller, a live PC host, and the explicit rich starting fixture. They are
-developer acceptance tools, excluded from the APK. They are not a replacement for
-the normal launcher. Cleanup and final run totals are recorded below after the
-final acceptance runs finish.
+The physical-device scripts temporarily install a private diagnostic entry point
+and use isolated test identities, a live PC host and explicit rich starting
+fixtures. These developer acceptance tools are excluded from the APK. The final
+cleanup removed the temporary entry point, controller, reports, overlays and test
+identities, restored the embedded normal launcher, and left the three test slots
+fresh. The pre-existing slot1 backup remained unchanged; no save backup was made.
 
 Scope
-This establishes a repeatable gameplay baseline on this Windows PC and S25 over
-local Wi-Fi. Internet/cellular multiplayer, other Android models, iOS, prolonged
-thermal/performance soak and every possible player sequence are outside this run.
-The installed artifact is a signed debug playtest APK, not a production release.
+This establishes a repeatable desktop baseline, complete S25 Android smoke pass
+and PC-to-S25 local Wi-Fi multiplayer baseline. Internet/cellular multiplayer,
+other Android models, iOS, prolonged thermal/performance soak and every possible
+player sequence are outside this run. The installed artifact is a signed debug
+playtest APK, not a production release.

@@ -147,11 +147,11 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest Android test installer is [Android 103](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.103/ThePictureShop-0.1.0-android.103-Install.apk).
-It is built from the same source as the PC game. This update separates vehicle
-mounting from world actions, adds independent mobile buttons, improves touch
-layouts for wide phones, and adds update notes beside the playtest diagnostics
-in Options. Every multiplayer participant needs the same build and protocol.
+The latest Android test installer is [Android 104](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.104/ThePictureShop-0.1.0-android.104-Install.apk).
+Android 104 and the matching PC installer are built from the same clean source
+commit and share the same gameplay and multiplayer protocol. This update improves
+delivery loading and docking, repeat work orders, and machine maintenance
+reliability. Every multiplayer participant needs the same build and protocol.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
@@ -168,9 +168,9 @@ tickets and balance changes remain test-page-only. A source snapshot is kept in
 is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
-install. For this handoff, fresh test saves were requested: download the APK first,
-then uninstall only **The Picture Shop** without keeping its app data before
-installing. Installing over the old app instead keeps saves.
+install. Installing over the existing app keeps saves. Android requires the same
+signing identity for an in-place update; the Android 104 playtest package uses the
+project's current debug signing key and is intended for this private tester flow.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
 

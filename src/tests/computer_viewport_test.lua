@@ -33,7 +33,7 @@ function Test.run(context, check)
             and stagingClip[2] == math.floor(top)
             and stagingClip[3] == math.ceil(right) - math.floor(left)
             and stagingClip[4] == math.ceil(bottom) - math.floor(top))
-    local oldDimensions, oldSafeArea = love.graphics.getDimensions, love.window.getSafeArea
+    local oldDimensions, oldSafeArea, oldOS = love.graphics.getDimensions, love.window.getSafeArea, love.system.getOS
     local oldCamera, oldScreen, oldSlot = app.mobileCamera, state.screen, state.activeSlot
     local oldTab, oldDropdown = computer.tab, computer.tabDropdownOpen
     local oldResource = Remote.resourceId
@@ -45,6 +45,10 @@ function Test.run(context, check)
         { name = "tablet", width = 1536, height = 2048, area = {0, 24, 1536, 1988} },
     }
     local ok, message = xpcall(function()
+        -- This suite supplies synthetic desktop, phone and tablet safe areas.
+        -- Keep the test platform synthetic too; native Android intentionally
+        -- ignores orientation-dependent safe-area insets for the fitted office.
+        love.system.getOS = function() return "Windows" end
         for _, case in ipairs(cases) do
             love.graphics.getDimensions = function() return case.width, case.height end
             love.window.getSafeArea = function() return unpack(case.area) end
@@ -83,6 +87,7 @@ function Test.run(context, check)
         end
     end, debug.traceback)
     love.graphics.getDimensions, love.window.getSafeArea = oldDimensions, oldSafeArea
+    love.system.getOS = oldOS
     app.mobileCamera, state.screen, state.activeSlot = oldCamera, oldScreen, oldSlot
     computer.tab, computer.tabDropdownOpen, Remote.resourceId = oldTab, oldDropdown, oldResource
     assert(ok, message)

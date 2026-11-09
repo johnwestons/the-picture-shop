@@ -125,7 +125,10 @@ local function menuTests(context,state,test)
     state.screen="shop_rooms"
     test("room_menu_fits_mobile_screen_without_camera_pan",runtime.App.officeFitsScreen() and not runtime.App.cameraTransformsUi())
     local Viewport=require("src.viewport")
-    local dimensions,safeArea=love.graphics.getDimensions,love.window.getSafeArea
+    local dimensions,safeArea,osName=love.graphics.getDimensions,love.window.getSafeArea,love.system.getOS
+    -- The cases below emulate several display sizes and safe areas. Prevent
+    -- the connected Android host from changing their synthetic transform rules.
+    love.system.getOS=function() return "Windows" end
     for _,size in ipairs({{1920,1080},{1280,720},{844,390},{390,844}}) do
         love.graphics.getDimensions=function() return size[1],size[2] end
         love.window.getSafeArea=function() return 12,8,size[1]-24,size[2]-16 end
@@ -135,6 +138,7 @@ local function menuTests(context,state,test)
             and ox+960*scale<=size[1]-12 and oy+678*scale<=size[2]-8 and math.abs(x-350)<.001 and math.abs(y-258)<.001)
     end
     love.graphics.getDimensions,love.window.getSafeArea=dimensions,safeArea
+    love.system.getOS=osName
     state.screen,p.sceneId="world","front_right"
     test("breakroom_blocks_warehouse_vehicle_and_lift_shortcuts",
         Controls.keypressed("l",runtime) and Controls.keypressed("m",runtime))

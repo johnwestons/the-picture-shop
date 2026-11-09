@@ -140,8 +140,22 @@ function Test.run(context,check)
             and R.state.home.residents.owner.energy==47 and Calendar.absoluteHours(R.state)==savedHours
             and R.state.home.residents.owner.activity==nil)
         local homeX,homeY=R.World.player.x,R.World.player.y
+        local Hud=require('src.screens.hud')
+        local _,homeBounds=R.optionsAccessLayout()
+        local header=Hud.exitRect(homeBounds)
+        local headerReady=false
+        for _=1,120 do
+            R.App.update(0)
+            R.App.draw()
+            if Hud.hitTest(header.x+header.width*.5,header.y+header.height*.5)=='exit' then
+                headerReady=true;break
+            end
+        end
+        check('scene_exit_apartment_header_renders_after_reload',headerReady,
+            ('screen=%s assetsLoading=%s hudVisible=%s'):format(tostring(R.state.screen),
+                tostring(R.Assets.isLoading()),tostring(require('src.screens.hud_visibility').isVisible(R))))
         capture(R,'apartment-exit-header')
-        tap(require('src.screens.hud').exitRect(select(2,R.optionsAccessLayout())))
+        tap(Hud.exitRect(select(2,R.optionsAccessLayout())))
         local headerHomeSave=assert(R.Save.load(3))
         check('scene_exit_apartment_header_returns_to_menu_and_saves_home',R.state.screen=='title'
             and headerHomeSave.player.sceneId=='home' and headerHomeSave.player.x==homeX
