@@ -37,7 +37,7 @@ for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
 delivery truck at the loading dock. Employees automatically choose available
 jacks and can transport separate pallets at the same time. Each jack and its
 load survives saving; approach a free jack to operate it yourself. The current
-source uses multiplayer protocol **47**, so all players need the same build.
+source uses multiplayer protocol **71**, so all players need the same build.
 
 ## NPC workers and hiring
 
@@ -780,6 +780,12 @@ See [the integration checklist](docs/ride_home_completion_goal.md) and
 remaining physical-device checks.
 
 ## Project structure
+
+Before a gameplay playtest, run `RUN_GAMEPLAY_SMOKE_TEST.bat`. This executes the
+desktop/mobile readiness plan, seeded interruption campaigns and physical travel
+journeys, then writes a combined pass/fail report under `output/gameplay-smoke/`.
+See [the gameplay smoke test](docs/gameplay_smoke_test.txt) for coverage, pass rules,
+failure reproduction and verification limits.
 
 `main.lua` delegates every callback to `src/app.lua`. World simulation and rendering are separate,
 screens share `src/screens/ui.lua`, and domain/integration checks live under `src/tests/`. See

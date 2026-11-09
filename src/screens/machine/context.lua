@@ -28,6 +28,7 @@ function Component.install(Runtime)
         oilSession = nil,
         bladeStage = nil,
         bladeBolts = nil,
+        bladeBoltAnimations = nil,
         wrapperSession = nil,
         helpOpen = false,
         helpStep = 1,
@@ -147,6 +148,7 @@ function Component.install(Runtime)
         Runtime.Screen.oilSession = nil
         Runtime.Screen.bladeStage = nil
         Runtime.Screen.bladeBolts = nil
+        Runtime.Screen.bladeBoltAnimations = nil
         Runtime.Screen.wrapperSession = nil
         Runtime.Screen.helpOpen, Runtime.Screen.helpStep = false, 1
         Runtime.Screen.paperTurn = Runtime.CutterMotion.newPaperTurn()
@@ -164,7 +166,7 @@ function Component.install(Runtime)
         { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
         { "8 — TROUBLESHOOTING", "If the blade will not cycle, check: pallet loaded, transfer animation finished, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. The cutter intentionally permits off-size work—compare the selected program, rotation, and gauge to the ticket yourself." },
         { "9 — ROUTINE MAINTENANCE", "Unload the bed and return to IDLE. Open MAINTENANCE. Lubrication requires one delivered maintenance kit and an ordered lockout sequence: disconnect, keep the key and attach the tag. Clean and grease each marked point, inspect the gearbox sight glass, pump lubricant, then finish inspection." },
-        { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all four blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book Mara Mouse, the blade exchange courier. She collects the dull blade and fits a freshly sharpened replacement. Weekly service handles removal and sleeving for you. Never run with the blade removed." },
+        { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all five blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book Mara Mouse, the blade exchange courier. She collects the dull blade and fits a freshly sharpened replacement. Weekly service handles removal and sleeving for you. Never run with the blade removed." },
     }
 end
 

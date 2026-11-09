@@ -215,17 +215,14 @@ local function rideNotice(R,part)
     if trip and trip.deliveryRun then
         local run=trip.deliveryRun;local stop=run.stops[run.stopIndex]
         if run.status=='loading' then
-            if part.rider.vehicle=='truck' then return 'Park in the marked loading bay, '
-                ..Bindings.hint(C.bindings(R),'interact')..' to exit, then '
-                ..Bindings.hint(C.bindings(R),'worldAction')..' to load pallets' end
-            return Bindings.hint(C.bindings(R),'worldAction')
-                ..' to load the selected pallets beside the truck in the marked bay'
+            local loaded,total=require('src.commute.delivery_run').loadingProgress(R.state,run)
+            return ('DELIVERY · %d/%d pallets loaded · '):format(loaded or 0,total or run.palletCount)
+                ..(part.rider.vehicle=='truck' and 'Back the rear doors against the dock; load from inside the warehouse'
+                    or 'Load inside the warehouse or let employees load the truck')
         end
         if run.status=='offmap' then return 'Delivering in Millhaven · returning to the town gate shortly' end
         if run.status=='returning' or not stop then
-            return part.rider.vehicle=='truck' and ('Return to The Picture Shop · '
-                ..Bindings.hint(C.bindings(R),'interact')..' to exit, then walk to the door')
-                or 'Return the delivery truck to the warehouse'
+            return 'Delivery complete · You are free to continue your day'
         end
         local progress=('STOP %d/%d · '):format(run.stopIndex,#run.stops)
         if part.rider.vehicle=='truck' then
@@ -301,7 +298,7 @@ function C.controlContext(R,part,controlsTop)
         local run=trip and trip.deliveryRun
         local stop=run and run.stops[run.stopIndex]
         local selectedTruck=Trip.truckFor(rider,trip)
-        if stop and stop.kind=='town' and nearDoor(sites[stop.id]) then worldActionLabel='ENTER'
+        if run and run.status=='driving' and stop and stop.kind=='town' and nearDoor(sites[stop.id]) then worldActionLabel='DELIVER'
         elseif atFuelPump then worldActionLabel='FUEL'
         elseif nearDoor(sites['gas-station']) then worldActionLabel='ENTER'
         elseif nearDoor(sites.mechanic) then worldActionLabel='ENTER'
@@ -315,7 +312,7 @@ function C.controlContext(R,part,controlsTop)
             elseif nearDoor(sites[part.destination or trip.destination]) then worldActionLabel='ENTER'
             elseif nearDoor(sites[part.origin or trip.origin]) then worldActionLabel='ENTER'
             elseif run and run.status=='loading' and nearTruck and Trip.truckAtLoadingBay(world,truck)
-                and (not selectedTruck or selectedTruck.model==truck.model) then worldActionLabel='LOAD' end
+                and (not selectedTruck or selectedTruck.model==truck.model) then worldActionLabel='MANIFEST' end
         end
     end
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
@@ -1466,28 +1463,8 @@ function C.draw(R)
     end
     local activeTrip=C.localTrip(R)
     if activeTrip.deliveryRun and activeTrip.deliveryRun.status=='offmap' then
-        local w,h=R.Config.baseWidth,R.Config.baseHeight
-        local phase=love.timer.getTime();local left=math.max(0,
-            (activeTrip.deliveryRun.cutsceneEndsAtEpoch or os.time())-os.time())
-        local stop=activeTrip.deliveryRun.stops[activeTrip.deliveryRun.stopIndex]
-        g.push('all');g.setColor(.012,.022,.03,1);g.rectangle('fill',0,0,w,h)
-        g.setColor(.14,.19,.20,1);g.rectangle('fill',0,h*.62,w,h*.38)
-        g.setColor(.19,.29,.31,1);g.rectangle('fill',0,h*.50,w,h*.12)
-        for i=0,9 do
-            local x=i*170-(phase*260)%170
-            g.setColor(.88,.75,.45,.82);g.rectangle('fill',x,h*.78,78,5)
-        end
-        g.setColor(.06,.085,.09,1);g.rectangle('fill',w*.22,h*.43,w*.43,h*.19,7)
-        g.setColor(.78,.72,.58,1);g.rectangle('fill',w*.57,h*.48,w*.19,h*.14,7)
-        g.setColor(.08,.11,.12,1);g.rectangle('fill',w*.61,h*.50,w*.08,h*.075,4)
-        for _,x in ipairs({w*.31,w*.52,w*.66,w*.72}) do
-            g.setColor(.025,.03,.03,1);g.circle('fill',x,h*.63,h*.035)
-            g.setColor(.62,.59,.50,1);g.circle('fill',x,h*.63,h*.017)
-        end
-        g.setColor(.95,.91,.77,1);g.printf('DELIVERING IN '..(stop and stop.city or 'MILLHAVEN'),0,h*.20,w,'center')
-        g.setColor(.72,.80,.76,1);g.printf('A short run beyond the town gate · returning to the island',0,h*.27,w,'center')
-        g.setColor(.95,.81,.47,1);g.printf(('RETURNING IN %d'):format(math.ceil(left)),0,h*.86,w,'center')
-        g.pop();g.setColor(1,1,1,1);return
+        require('src.commute.city_delivery_scene').draw(R.Config.baseWidth,R.Config.baseHeight,activeTrip.deliveryRun)
+        g.setColor(1,1,1,1);return
     end
     if not view.mapOpen and not view.doorTransition then
         drawDoorBeacon(R,part,activeTrip,view)
@@ -1609,7 +1586,7 @@ local function performWorldAction(R)
             and not rider.ped.crash and near(site)
     end
     local run=trip.deliveryRun;local stop=run and run.stops[run.stopIndex]
-    if stop and stop.kind=='town' and near(sites[stop.id]) then
+    if run and run.status=='driving' and stop and stop.kind=='town' and near(sites[stop.id]) then
         return beginDoorTransition(R,'deliver_stop',trip.token,stop.id)
     end
     local truck=nearbyTruck(trip,rider) or Trip.truckFor(rider,trip)
@@ -1626,16 +1603,17 @@ local function performWorldAction(R)
             return beginDoorTransition(R,id,trip.token,id)
         end
     end
-    if run and run.status=='loading' and truck and Trip.truckAtLoadingBay(world,truck) then
-        local selected=Trip.truckFor(rider,trip)
-        if selected and selected.model~=truck.model then return true end
-        return C.request(R,'load_delivery:'..trip.token)
-    end
     if near(sites[part.destination or trip.destination]) then
         return beginDoorTransition(R,'arrive',trip.token,part.destination or trip.destination)
     end
     if near(sites[part.origin or trip.origin]) then
         return beginDoorTransition(R,'cancel',trip.token,part.origin or trip.origin)
+    end
+    if run and run.status=='loading' and truck and Trip.truckAtLoadingBay(world,truck)
+        and M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)<=5.5 then
+        local selected=Trip.truckFor(rider,trip)
+        if selected and selected.model~=truck.model then return true end
+        return C.request(R,'load_delivery:'..trip.token)
     end
     return true
 end

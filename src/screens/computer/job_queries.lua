@@ -192,6 +192,12 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.quoteText = base and tostring(math.floor(base)) or ""
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.quoteReplaceOnType = true
+        local deliveryTerms=email and email.job and Runtime.JobService.deliveryQuoteTerms(email.job)
+        Runtime.ComputerScreen.deliveryQuoteText = deliveryTerms
+            and tostring(math.floor(deliveryTerms.recommendedPrice)) or ""
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+        Runtime.ComputerScreen.includeDeliveryQuote = deliveryTerms ~= nil
     end
 
     function Runtime.currentPageJobs(state)

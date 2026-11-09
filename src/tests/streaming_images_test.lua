@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Test={}
 local Loader=require("src.image_loader")
 local function untilReady(step)
@@ -91,7 +92,7 @@ function Test.run(context,check)
     end
     check("streaming_strip_boundaries_preserve_source_alpha_and_colors",same)
     pixels:release()
-    local target=love.graphics.newCanvas(1024,768)
+    local target=PixelCanvas(1024,768)
     love.graphics.push("all");love.graphics.setCanvas(target);love.graphics.origin()
     love.graphics.setScissor();love.graphics.setStencilTest();love.graphics.setShader()
     love.graphics.clear(0,0,0,1);love.graphics.setColor(1,1,1,1)

@@ -2,7 +2,8 @@ local Codec = require("src.net.codec")
 local Config = require("src.config")
 local Intent = {}
 local fields = {
-    estimate = { id = "token", amount = "amount" }, decline = { id = "token" },
+    estimate = { id = "token", amount = "amount", deliveryAmount = "optional_amount",
+        includeDeliveryQuote = "optional_boolean" }, decline = { id = "token" },
     promotion = { id = "token", text = "text" }, archive = { id = "token" },
     archive_service = { id = "token" }, delete_email = { id = "token" },
     mark_email_read = { id = "token" }, sell = { id = "token" },
@@ -127,11 +128,15 @@ function Intent.normalize(value)
         elseif rule == "breakroom_fixture" then
             if not require("src.breakroom_games").IDS[item] then return nil, "Choose a break room game." end
         elseif rule == "optional_boolean" then
-            if item ~= nil and type(item) ~= "boolean" then return nil, "Invalid shelf warning confirmation." end
+            if item ~= nil and type(item) ~= "boolean" then return nil, "Invalid option." end
         elseif rule == "token" then
             if type(item) ~= "string" or #item < 1 or #item > 64 or not item:match("^[%w_.%-]+$") then return nil, "Invalid record ID." end
         elseif rule == "amount" then
             if not integer(item, 1, 10000000) then return nil, "Invalid estimate amount." end
+        elseif rule == "optional_amount" then
+            if item ~= nil and not integer(item, 1, 10000000) then
+                return nil, "Invalid delivery estimate amount."
+            end
         elseif rule == "machine_offer" then
             if not integer(item, 1, 16) then return nil, "Choose a listed machine." end
         elseif rule == "machine_channel" then

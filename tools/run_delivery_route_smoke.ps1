@@ -2,7 +2,7 @@ param(
     [ValidateRange(1,10)][int]$Runs = 3,
     [ValidateRange(1,1000)][int]$StartIndex = 1,
     [ValidateRange(60,1800)][int]$TimeoutSeconds = 600,
-    [ValidateSet('delivery-route-smoke','delivery-traffic','ai-motorcycle-traffic')]
+    [ValidateSet('delivery-route-smoke','delivery-traffic','delivery-docking','player-delivery','independent-scenes','delivery-manifest','room-shipping','ai-watchdog','parking','ai-motorcycle-traffic')]
     [string]$Focus = 'delivery-route-smoke',
     [ValidateRange(0,2147483646)][int]$Seed = 0,
     [string]$From = '',
@@ -87,8 +87,8 @@ try {
         if (-not $reportOkay) {
             throw "Delivery route smoke $tag exited without a successful smoke report."
         }
-        $passLine = Select-String -LiteralPath $report -Pattern '^PASS delivery_route_smoke_' | Select-Object -First 1
-        Write-Output ("{0} passed: {1}" -f $tag,$passLine.Line)
+        $checkCount = @(Select-String -LiteralPath $report -Pattern '^PASS ').Count
+        Write-Output ("{0} passed: {1} ({2} checks)" -f $tag,$Focus,$checkCount)
         $resultLines = Select-String -LiteralPath $stdout -Pattern '^DELIVERY_ROUTE_(SMOKE_RESULT|MAP_SNAPSHOT) '
         foreach ($resultLine in $resultLines) { Write-Output $resultLine.Line }
         $process = $null

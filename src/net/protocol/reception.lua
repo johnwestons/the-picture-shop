@@ -46,22 +46,34 @@ function Component.install(Runtime)
         local rows, seen = {}, {}
         for index = 1, #value do
             local rowLabel = label .. "[" .. index .. "]"
+            local source = value[index]
             local required = printJob
                 and { "number", "sheetCount", "requiredLifts", "requestedCopies", "spoilageAllowance" }
                 or { "number", "sheetCount", "requiredLifts", "price" }
-            local valid, shapeError = Runtime.shape(value[index], rowLabel, required)
+            if Runtime.Codec.isArray(source) then
+                if #source ~= #required then return nil, rowLabel .. " has an invalid tuple length" end
+                local expanded = {}
+                for key, item in pairs(source) do
+                    if type(key) ~= "number" or key % 1 ~= 0 or key < 1 or key > #required then
+                        return nil, rowLabel .. " has invalid tuple fields"
+                    end
+                    expanded[required[key]] = item
+                end
+                source = expanded
+            end
+            local valid, shapeError = Runtime.shape(source, rowLabel, required)
             if not valid then return nil, shapeError end
-            local number, fieldError = Runtime.integerInRange(value[index].number, 1, 5, rowLabel .. ".number")
+            local number, fieldError = Runtime.integerInRange(source.number, 1, 5, rowLabel .. ".number")
             if not number then return nil, fieldError end
             if seen[number] then return nil, label .. " contains a duplicate row number" end
             seen[number] = true
             local sheetCount
             sheetCount, fieldError = Runtime.integerInRange(
-                value[index].sheetCount, 1, 3000, rowLabel .. ".sheetCount")
+                source.sheetCount, 1, 3000, rowLabel .. ".sheetCount")
             if not sheetCount then return nil, fieldError end
             local requiredLifts
             requiredLifts, fieldError = Runtime.integerInRange(
-                value[index].requiredLifts, 1, 1000, rowLabel .. ".requiredLifts")
+                source.requiredLifts, 1, 1000, rowLabel .. ".requiredLifts")
             if not requiredLifts then return nil, fieldError end
             local row = {
                 number = number,
@@ -70,17 +82,17 @@ function Component.install(Runtime)
             }
             if printJob then
                 row.requestedCopies, fieldError = Runtime.integerInRange(
-                    value[index].requestedCopies, 1, 3000, rowLabel .. ".requestedCopies")
+                    source.requestedCopies, 1, 3000, rowLabel .. ".requestedCopies")
                 if not row.requestedCopies then return nil, fieldError end
                 row.spoilageAllowance, fieldError = Runtime.integerInRange(
-                    value[index].spoilageAllowance, 0, 3000, rowLabel .. ".spoilageAllowance")
+                    source.spoilageAllowance, 0, 3000, rowLabel .. ".spoilageAllowance")
                 if row.spoilageAllowance == nil then return nil, fieldError end
                 if row.requestedCopies + row.spoilageAllowance ~= sheetCount then
                     return nil, rowLabel .. " copy counts do not match sheetCount"
                 end
             else
                 row.price, fieldError = Runtime.numberInRange(
-                    value[index].price, 0, Runtime.MAX_WORKSHOP_AMOUNT, rowLabel .. ".price")
+                    source.price, 0, Runtime.MAX_WORKSHOP_AMOUNT, rowLabel .. ".price")
                 if row.price == nil then return nil, fieldError end
             end
             rows[#rows + 1] = row
@@ -97,7 +109,7 @@ function Component.install(Runtime)
             "jobId", "company", "sourceSize", "finishedSize", "stock", "packaging",
             "delivery", "artworkKey", "artworkName", "printJob", "quoteRows",
             "recommendedTotal",
-        }, { "colorCount", "colorSequence", "difficulty", "stockSource" })
+        }, { "colorCount", "colorSequence", "difficulty", "stockSource", "deliveryRequested" })
         if not valid then return nil, shapeError end
         local jobId, fieldError = Runtime.token(value.jobId, Runtime.MAX_TOKEN_BYTES, label .. ".jobId")
         if not jobId then return nil, fieldError end
@@ -137,6 +149,10 @@ function Component.install(Runtime)
         if stockSource == "house" and not value.printJob then
             return nil, label .. ".stockSource can be house only for print jobs"
         end
+        local deliveryRequested = value.deliveryRequested
+        if deliveryRequested ~= nil and type(deliveryRequested) ~= "boolean" then
+            return nil, label .. ".deliveryRequested must be boolean"
+        end
         if value.difficulty~=nil and value.difficulty~="easy"
             and value.difficulty~="medium" and value.difficulty~="hard" then
             return nil,label .. ".difficulty must be easy, medium, or hard"
@@ -168,6 +184,7 @@ function Component.install(Runtime)
             stockSource = stockSource,
             packaging = packaging,
             delivery = delivery,
+            deliveryRequested = deliveryRequested == true,
             artworkKey = artworkKey,
             artworkName = artworkName,
             printJob = value.printJob,

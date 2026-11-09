@@ -353,24 +353,24 @@ function Component.install(Runtime)
             or serviceStep == "blade_lift" or serviceStep == "blade_sleeve"
         if bladeActive then
             normalized.bladeBoltsDone, fieldError = Runtime.integerInRange(
-                value.bladeBoltsDone, 0, 4, label .. ".bladeBoltsDone")
+                value.bladeBoltsDone, 0, 5, label .. ".bladeBoltsDone")
             if normalized.bladeBoltsDone == nil then return nil, fieldError end
             if (serviceStep == "blade_lift" or serviceStep == "blade_sleeve")
-                and normalized.bladeBoltsDone ~= 4
+                and normalized.bladeBoltsDone ~= 5
             then
-                return nil, label .. ".bladeBoltsDone must be 4 after bolt removal"
-            elseif serviceStep == "blade_bolts" and normalized.bladeBoltsDone >= 4 then
-                return nil, label .. ".blade_bolts must advance after the fourth bolt"
+                return nil, label .. ".bladeBoltsDone must be 5 after bolt removal"
+            elseif serviceStep == "blade_bolts" and normalized.bladeBoltsDone >= 5 then
+                return nil, label .. ".blade_bolts must advance after the fifth bolt"
             end
         elseif value.bladeBoltsDone ~= nil then
             return nil, label .. ".bladeBoltsDone is only valid during blade service"
         end
         if value.bladeBoltMask ~= nil then
             if not bladeActive then return nil, "Blade display requires blade service." end
-            normalized.bladeBoltMask, fieldError = Runtime.integerInRange(value.bladeBoltMask,0,15,label..".bladeBoltMask")
+            normalized.bladeBoltMask, fieldError = Runtime.integerInRange(value.bladeBoltMask,0,31,label..".bladeBoltMask")
             if normalized.bladeBoltMask == nil then return nil,fieldError end
             local count=0
-            for index=0,3 do count=count+math.floor(normalized.bladeBoltMask/2^index)%2 end
+            for index=0,4 do count=count+math.floor(normalized.bladeBoltMask/2^index)%2 end
             if count~=normalized.bladeBoltsDone then return nil,"Blade display count mismatch." end
         end
         return normalized

@@ -28,6 +28,7 @@ function Truck.new(config)
 end
 
 function Instance:reset()
+    self.playerDelivery=nil
     self.state = "absent"
     self.sceneId = "warehouse"
     self.jobId = nil

@@ -311,28 +311,75 @@ function Component.install(Runtime)
                 Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 434, 414)
         end
         local terms = Runtime.JobService.quoteTerms(state, job, tonumber(Runtime.ComputerScreen.quoteText))
+        local deliveryRequested = job.outboundDelivery and job.outboundDelivery.requested == true
+        local deliveryTerms = deliveryRequested
+            and Runtime.JobService.deliveryQuoteTerms(job,
+                tonumber(Runtime.ComputerScreen.deliveryQuoteText)) or nil
         if terms and terms.employeeBudget and not job.press then
             love.graphics.setColor(.67,.78,.69,1)
-            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,434,392,"left")
+            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,426,392,"left")
         end
-        love.graphics.setColor(selected.discountedTotal and 0.54 or 0.58,
-            selected.discountedTotal and 0.84 or 0.67, selected.discountedTotal and 0.65 or 0.68)
-        love.graphics.print(selected.discountedTotal and "10% DISCOUNT APPLIED" or "YOUR ESTIMATE",
-            Runtime.EMAIL_QUOTE_INPUT.x, 454)
-        local quoteSummary = "Recommended " .. Runtime.money(terms and terms.recommendedPrice or job.quote.totalPrice)
-        if selected.discountedTotal then
-            quoteSummary = string.format("%s - %s = %s NEW TOTAL",
-                Runtime.money(selected.standardPrice), Runtime.money(selected.discountAmount), Runtime.money(selected.discountedTotal))
+        if deliveryRequested then
+            local included = Runtime.ComputerScreen.includeDeliveryQuote == true
+            local hovered = pointerX and Runtime.contains(Runtime.EMAIL_DELIVERY_TOGGLE, pointerX, pointerY)
+            Runtime.panel(Runtime.EMAIL_DELIVERY_TOGGLE,
+                included and { 0.07, 0.22, 0.18, 1 } or { 0.07, 0.09, 0.11, 1 },
+                hovered and { 0.39, 0.70, 0.57, 1 } or { 0.20, 0.38, 0.34, 1 }, 3, 1)
+            love.graphics.setColor(included and 0.74 or 0.70, included and 0.91 or 0.77,
+                included and 0.77 or 0.78)
+            love.graphics.print(included and "[✓] OFFER SHOP DELIVERY" or "[ ] CLIENT ARRANGES TRANSPORT",
+                Runtime.EMAIL_DELIVERY_TOGGLE.x + 9, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3)
+            love.graphics.setColor(0.68, 0.76, 0.76)
+            love.graphics.printf(included and "Client can accept or decline this fee separately"
+                or "No delivery fee will be quoted", 620, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3, 198, "right")
+        else
+            love.graphics.setColor(0.68, 0.76, 0.76)
+            love.graphics.print("CLIENT ARRANGES TRANSPORT", 434, 446)
         end
-        love.graphics.printf(quoteSummary, Runtime.EMAIL_QUOTE_INPUT.x + 170, 454, 222, "right")
+
+        love.graphics.setColor(0.58, 0.78, 0.72)
+        love.graphics.print(selected.discountedTotal and "PRODUCTION · COUPON" or "PRODUCTION",
+            Runtime.EMAIL_QUOTE_INPUT.x, 464)
+        love.graphics.setColor(0.58, 0.67, 0.68)
+        love.graphics.printf("Rec. " .. Runtime.money(terms and terms.recommendedPrice or job.quote.totalPrice),
+            Runtime.EMAIL_QUOTE_INPUT.x + 90, 464, Runtime.EMAIL_QUOTE_INPUT.width - 90, "right")
         Runtime.panel(Runtime.EMAIL_QUOTE_INPUT, { 0.045, 0.085, 0.10, 1 },
             Runtime.ComputerScreen.quoteFocused and { 0.32, 0.78, 0.73, 1 }
                 or { 0.20, 0.34, 0.39, 1 }, 3, 1)
         love.graphics.setColor(0.96, 0.96, 0.92)
-        love.graphics.print("$", Runtime.EMAIL_QUOTE_INPUT.x + 10, Runtime.EMAIL_QUOTE_INPUT.y + 13)
+        love.graphics.print("$", Runtime.EMAIL_QUOTE_INPUT.x + 8, Runtime.EMAIL_QUOTE_INPUT.y + 11)
         love.graphics.printf(Runtime.ComputerScreen.quoteText .. (Runtime.ComputerScreen.quoteFocused and "_" or ""),
-            Runtime.EMAIL_QUOTE_INPUT.x + 28, Runtime.EMAIL_QUOTE_INPUT.y + 13,
-            Runtime.EMAIL_QUOTE_INPUT.width - 38, "right")
+            Runtime.EMAIL_QUOTE_INPUT.x + 25, Runtime.EMAIL_QUOTE_INPUT.y + 11,
+            Runtime.EMAIL_QUOTE_INPUT.width - 32, "right")
+
+        if deliveryRequested then
+            love.graphics.setColor(0.58, 0.78, 0.72)
+            love.graphics.print("DELIVERY", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x, 464)
+            love.graphics.setColor(0.58, 0.67, 0.68)
+            love.graphics.printf("Rec. " .. Runtime.money(deliveryTerms and deliveryTerms.recommendedPrice or 0),
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 90, 464,
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 90, "right")
+            Runtime.panel(Runtime.EMAIL_DELIVERY_QUOTE_INPUT,
+                Runtime.ComputerScreen.includeDeliveryQuote and { 0.045, 0.085, 0.10, 1 }
+                    or { 0.07, 0.08, 0.09, 1 },
+                Runtime.ComputerScreen.deliveryQuoteFocused and { 0.32, 0.78, 0.73, 1 }
+                    or { 0.20, 0.34, 0.39, 1 }, 3, 1)
+            love.graphics.setColor(Runtime.ComputerScreen.includeDeliveryQuote and 0.96 or 0.48,
+                Runtime.ComputerScreen.includeDeliveryQuote and 0.96 or 0.53,
+                Runtime.ComputerScreen.includeDeliveryQuote and 0.92 or 0.54)
+            love.graphics.print("$", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 8,
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.y + 11)
+            love.graphics.printf(Runtime.ComputerScreen.deliveryQuoteText
+                .. (Runtime.ComputerScreen.deliveryQuoteFocused and "_" or ""),
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 25, Runtime.EMAIL_DELIVERY_QUOTE_INPUT.y + 11,
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 32, "right")
+        end
+        love.graphics.setColor(0.64, 0.72, 0.73)
+        local deliverySummary = Runtime.ComputerScreen.includeDeliveryQuote and deliveryTerms
+            and ("Quoted total if both accepted: " .. Runtime.money(terms.amount + deliveryTerms.amount))
+            or deliveryRequested and "Client will arrange its own transportation"
+            or "This client arranges its own transportation"
+        love.graphics.printf(deliverySummary, 434, 521, 392, "center")
 
         local function responseButton(rect, label, green)
             local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
@@ -340,14 +387,14 @@ function Component.install(Runtime)
                 and (hovered and "primaryHover" or "primary")
                 or (hovered and "dangerHover" or "danger"))
         end
-        responseButton(Runtime.EMAIL_DECLINE, "DECLINE REQUEST", false)
-        responseButton(Runtime.EMAIL_ACCEPT, "SEND ESTIMATE", true)
+        responseButton(Runtime.EMAIL_ESTIMATE_DECLINE, "DECLINE REQUEST", false)
+        responseButton(Runtime.EMAIL_ESTIMATE_SEND, "SEND ESTIMATE", true)
         if terms and terms.employeeBudget and terms.amount<terms.recommendedPrice then
             love.graphics.setColor(.98,.71,.35,1)
-            love.graphics.printf("Below staff cost target",434,514,190,"left")
+            love.graphics.printf("Below staff cost target",434,592,190,"left")
         end
         love.graphics.setColor(0.58, 0.67, 0.68)
-        love.graphics.printf("Estimate expires 3 days after it is sent.", 630, 518, 196, "center")
+        love.graphics.printf("The client replies within 3 days.", 630, 592, 196, "center")
     end
 end
 

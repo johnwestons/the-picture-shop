@@ -104,6 +104,19 @@ function Test.run(check)
         math.abs(spawnLocalX-homeLocalX)<.001
         and math.abs(spawnLocalZ-homeLocalZ)<.001
         and Truck.RADIUS>0)
+    local oldParking=Trip.snapshot(state.home.commute)
+    oldParking.truck.x,oldParking.truck.z=truckSite:toWorld(8.15,7.1,0)
+    oldParking.keiTruck.x,oldParking.keiTruck.z=truckSite:toWorld(8.15,14.9,0)
+    oldParking.truck.fuel=42
+    local relocated=assert(Trip.restore(oldParking,world))
+    check('commute_idle_trucks_migrate_from_retired_dockside_stalls',
+        relocated.truck.x==truckSite.truckHomeParking.box.x
+        and relocated.keiTruck.x==truckSite.truckHomeParking.kei.x
+        and relocated.truck.heading==truckSite.truckHomeParking.box.heading
+        and relocated.truck.fuel==42)
+    oldParking.truck.x=oldParking.truck.x+2
+    local manual=assert(Trip.restore(oldParking,world))
+    check('commute_parking_migration_preserves_trucks_parked_elsewhere',manual.truck.x==oldParking.truck.x)
     local truckX,truckZ=deliveryTruck.x,deliveryTruck.z
     local ownerRider=state.home.commute.participants.owner.rider
     -- The dock bay is intentionally separate from the motorcycle stalls, so

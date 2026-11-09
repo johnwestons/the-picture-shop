@@ -73,7 +73,9 @@ function Office.command(options)
                 ok,result=require('src.guest_payroll').command(staged,intent,player,
                     type(options.players)=='function' and options.players() or nil)
             elseif Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
-            elseif intent.kind == "estimate" then ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time())
+            elseif intent.kind == "estimate" then
+                ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time(),
+                    intent.deliveryAmount, intent.includeDeliveryQuote)
             elseif intent.kind == "decline" then ok, result = JobService.respondToEmail(staged, intent.id, "declined", os.time())
             elseif intent.kind == "promotion" then
                 local job

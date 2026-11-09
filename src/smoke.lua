@@ -136,10 +136,20 @@ function Smoke.start(context)
     Smoke.report = report
     Smoke.passed = {}
     writeLine("THE_PICTURE_SHOP_SMOKE version=3")
+    writeLine(('SMOKE_CONFIG focus=%s mobile=%s seed=%s identity=%s'):format(
+        os.getenv('PICTURE_SHOP_SMOKE_FOCUS') or 'full',
+        os.getenv('PICTURE_SHOP_MOBILE')=='1' and '1' or '0',
+        os.getenv('PICTURE_SHOP_GAMEPLAY_SEED') or 'none',love.filesystem.getIdentity()))
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='save-reliability' then
+        if focus=='softlock-campaign' then
+            require('src.tests.softlock_campaign_test').run(context,check)
+        elseif focus=='gameplay-recovery' then
+            for _,name in ipairs({'gameplay_journey_audit','recent_feature_regression'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
+        elseif focus=='save-reliability' then
             require('src.tests.async_save_test').run(context,check)
         elseif focus=='independent-scenes' then
             require('src.tests.independent_scenes_test').run(context,check)
@@ -160,6 +170,10 @@ function Smoke.start(context)
             require('src.commute.tests.grass_fields_test').run(check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='player-delivery' then
+            require('src.tests.player_delivery_test').run(context,check)
+        elseif focus=='guest-job-journey' then
+            require('src.tests.guest_job_journey_test').run(context,check)
         elseif focus=='delivery-manifest' then
             require('src.tests.delivery_manifest_test').run(context,check)
         elseif focus=='ai-watchdog' then
@@ -238,7 +252,10 @@ function Smoke.start(context)
                 require('src.commute.tests.'..name..'_test').run(check)
             end
             require('src.commute.tests.truck_render_runtime_test').run(context,check)
+        elseif focus=='delivery-docking' then
+            require('src.commute.tests.delivery_docking_test').run(check)
         elseif focus=='delivery-traffic' then
+            require('src.commute.tests.delivery_docking_test').run(check)
             require('src.commute.tests.delivery_traffic_test').run(check)
             require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
             require('src.commute.tests.delivery_traffic_density_test').run(check)
@@ -513,6 +530,7 @@ function Smoke.start(context)
             require("src.tests.keyboard_mobile_test").run(context,check)
             require("src.tests.options_test").run(context,check)
         else
+            assert(not focus or focus=='' or focus=='full','Unknown smoke focus: '..tostring(focus))
             runChecks(context)
             Suites.runDomain(context, check)
             Suites.verifyAuditCoverage(Smoke.passed, check)

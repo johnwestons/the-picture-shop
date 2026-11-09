@@ -95,11 +95,16 @@ function Component.install(Runtime)
     end
 
     function Runtime.updateTruck(dt, motionDt, state)
-        local saveNeeded = Runtime.scheduleTruck(state)
+        local saveNeeded = require('src.player_delivery_loading').sync(state,Runtime.World.truck,Runtime.World.bayDoor)
+        saveNeeded = Runtime.scheduleTruck(state) or saveNeeded
         local truckJobId, truckMode = Runtime.World.truck.jobId, Runtime.World.truck.mode
         local door=Runtime.World.doorForScene(Runtime.World.truck.sceneId)
         if not door then return saveNeeded end
         local event = Runtime.World.truck:update(dt, door.state, motionDt)
+        if Runtime.World.truck.playerDelivery then
+            return require('src.player_delivery_loading').sync(state,Runtime.World.truck,door)
+                or event~=nil or saveNeeded
+        end
         if not event then return saveNeeded end
         local job = Runtime.activeJobById(state, truckJobId)
         local purchase = Runtime.Procurement.orderById(state, truckJobId)
@@ -274,7 +279,7 @@ function Component.install(Runtime)
         local driverDeparted=DeliveryDriver.departIfReady(state,Runtime.World.truck)
         local feedbackChanged=JobFeedback.sync(state)
         local truck=Runtime.World.truck
-        if truck.mode=="pickup" and Runtime.JobService.remainingPickup(state,truck.jobId)==0
+        if truck.mode=="pickup" and not truck.playerDelivery and Runtime.JobService.remainingPickup(state,truck.jobId)==0
             and employeeContext.canLoadTruck() then
             if truck.state=="cargo_open" then truck:toggleCargoDoor();saveNeeded=true
             elseif truck.state=="parked_closed" and truck:depart() then
@@ -283,7 +288,8 @@ function Component.install(Runtime)
                 saveNeeded=true
             end
         end
-        return saveNeeded or employeeChanged or feedbackChanged or driverChanged or driverDeparted
+        local loadingChanged=require('src.player_delivery_loading').sync(state,truck,Runtime.World.bayDoor)
+        return saveNeeded or employeeChanged or feedbackChanged or driverChanged or driverDeparted or loadingChanged
     end
 
     -- Called before advancing the authoritative calendar. Flush old-minute

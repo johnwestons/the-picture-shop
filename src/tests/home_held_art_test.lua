@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Held = require("src.home_held_art")
 local Fixtures = require("src.tests.home_dining_test")
 local Residents = require("src.home_residents")
@@ -30,7 +31,7 @@ end
 
 function Test.run(context, check)
     local families = { "meal", "sandwich", "bottle" }
-    local canvas = love.graphics.newCanvas(960, 720)
+    local canvas = PixelCanvas(960, 720)
     love.graphics.push("all")
     love.graphics.setCanvas(canvas)
     love.graphics.clear(.035, .045, .06, 1)

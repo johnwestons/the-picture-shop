@@ -164,9 +164,11 @@ function Test.run(context,check)
             if d<.5 then break end
             ix,iy=dx/d,dz/d;R.App.update(.05)
         end
-        ix,iy=0,0;ticks(12);R.App.keypressed('e');ticks(2)
+        ix,iy=0,0;ticks(12);R.App.keypressed(C.bindings(R).keyboard.worldAction)
+        ticks(math.ceil(require('src.commute.door_transition').DURATION/.05)+2)
         check('commute_runtime_destination_entry_finishes_trip_'..label,R.state.home.commute==nil)
-        check('commute_runtime_destination_releases_outdoor_renderer_'..label,R._commute==nil)
+        check('commute_runtime_destination_releases_outdoor_renderer_'..label,
+            not R._commute or not R._commute.renderer and not R._commute.camera)
     end
     rideRoute('home')
     check('commute_runtime_arrives_home_geared',R.World.player.sceneId=='home' and R.state.home.weekend.phase=='home'

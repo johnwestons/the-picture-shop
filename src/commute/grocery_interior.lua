@@ -45,7 +45,8 @@ local obstacles={
     -- Only the footprints block walking; the player can step behind each display.
     {left=153,top=492,right=300,bottom=524},
     {left=670,top=470,right=870,bottom=510},
-    {left=404,top=493,right=556,bottom=518},
+    -- Leave a cart-width cross aisle between this display and the front wall.
+    {left=404,top=445,right=556,bottom=470},
     -- Preserve the front wall while leaving the open central doorway traversable.
     {left=48,top=570,right=390,bottom=642},
     {left=570,top=570,right=912,bottom=642},
@@ -55,7 +56,7 @@ Grocery.hotspots={
     {id='pantry',x=464,y=274,radius=34,label='Pantry aisle'},
     {id='chilled',x=270,y=276,radius=34,label='Chilled goods'},
     {id='household',x=726,y=276,radius=34,label='Household shelf'},
-    {id='specials',x=570,y=418,radius=34,label='Daily specials'},
+    {id='specials',x=570,y=370,radius=34,label='Daily specials'},
         {id='checkout',x=690,y=420,radius=42,label='Checkout / Register'},
 }
 local controls={browse={x=24,y=610,w=300,h=44},exit={x=730,y=610,w=206,h=44}}
@@ -90,41 +91,78 @@ local function nearest(x,y,extraPadding)
         if ax then return ax,ay end
     end
 end
-local function lineClear(ax,ay,bx,by,extraPadding)
+local function motionClear(x,y,dx,dy,cartPushing,padding)
+    if not Grocery.walkable(x,y,padding) then return false end
+    if not cartPushing then return true end
+    local direction=Animation.authoredDirection(dx,dy)
+    local offset=cartOffsets[direction] or cartOffsets.north
+    return Grocery.walkable(x+offset.x,y+offset.y,10+(padding or 0))
+end
+local function lineClear(ax,ay,bx,by,extraPadding,cartPushing)
     local count=math.max(1,math.ceil(math.sqrt((bx-ax)^2+(by-ay)^2)/3))
-    for i=1,count do if not Grocery.walkable(ax+(bx-ax)*i/count,ay+(by-ay)*i/count,extraPadding) then return false end end
+    for i=0,count do
+        if not motionClear(ax+(bx-ax)*i/count,ay+(by-ay)*i/count,
+            bx-ax,by-ay,cartPushing,extraPadding) then return false end
+    end
     return true
 end
-function Grocery.path(ax,ay,bx,by,extraPadding)
-    local sx,sy=nearest(ax,ay,extraPadding);local gx,gy=nearest(bx,by,extraPadding)
+function Grocery.path(ax,ay,bx,by,extraPadding,cartPushing,interactionRadius)
+    local nodePadding=extraPadding
+    local sx,sy=nearest(ax,ay,nodePadding);local gx,gy=nearest(bx,by,nodePadding)
+    if cartPushing then
+        -- Manual steering can stop between grid cells, close to a display.
+        -- Join the graph through a move that the real cart can make, rather
+        -- than assuming that the nearest cell is already the actor's position.
+        local cx,cy=cell(ax,ay);local best=math.huge
+        sx,sy=nil,nil
+        for dy=-10,10 do for dx=-10,10 do
+            local nx,ny=cx+dx,cy+dy
+            local px,py=(nx-.5)*GRID,(ny-.5)*GRID
+            local distance=(px-ax)^2+(py-ay)^2
+            if distance<best and free(nx,ny,nodePadding)
+                and lineClear(ax,ay,px,py,0,true) then sx,sy,best=nx,ny,distance end
+        end end
+    end
     if not sx or not gx then return nil end
     local function key(x,y)return (y-1)*COLUMNS+x end
     local start,goal=key(sx,sy),key(gx,gy)
+    if interactionRadius then goal=nil end
     local queue,head,previous={start},1,{[start]=false}
-    while head<=#queue and previous[goal]==nil do
+    while head<=#queue and (not goal or previous[goal]==nil) do
         local id=queue[head];head=head+1
         local x,y=(id-1)%COLUMNS+1,math.floor((id-1)/COLUMNS)+1
+        local px,py=(x-.5)*GRID,(y-.5)*GRID
+        if interactionRadius and (px-bx)^2+(py-by)^2<=(interactionRadius-8)^2 then
+            goal=id;break
+        end
         for _,direction in ipairs({{1,0},{-1,0},{0,1},{0,-1}}) do
             local nx,ny=x+direction[1],y+direction[2];local nextId=key(nx,ny)
-            if free(nx,ny,extraPadding) and previous[nextId]==nil and nextId~=start then
+            if free(nx,ny,nodePadding) and previous[nextId]==nil and nextId~=start
+                and lineClear(px,py,(nx-.5)*GRID,(ny-.5)*GRID,extraPadding,cartPushing) then
                 previous[nextId]=id;queue[#queue+1]=nextId
             end
         end
     end
-    if previous[goal]==nil then return nil end
+    if not goal or previous[goal]==nil then return nil end
     local reversed={};local id=goal
     while id and id~=start do
         reversed[#reversed+1]={x=((id-1)%COLUMNS+.5)*GRID,y=(math.floor((id-1)/COLUMNS)+.5)*GRID}
         id=previous[id]
     end
     local path={};local x,y=ax,ay;local index=#reversed
+    if cartPushing then
+        x,y=(sx-.5)*GRID,(sy-.5)*GRID
+        if (x-ax)^2+(y-ay)^2>1 then path[1]={x=x,y=y,arrivalRadius=1} end
+    end
     while index>0 do
         local chosen=index
         for candidate=1,index do
             local point=reversed[candidate]
-            if lineClear(x,y,point.x,point.y,extraPadding) then chosen=candidate;break end
+            if lineClear(x,y,point.x,point.y,extraPadding,cartPushing) then chosen=candidate;break end
         end
-        local point=reversed[chosen];path[#path+1]=point;x,y=point.x,point.y;index=chosen-1
+        local point=reversed[chosen]
+        if cartPushing then point.arrivalRadius=1 end
+        path[#path+1]=point;x,y=point.x,point.y;index=chosen-1
     end
     return path
 end
@@ -147,11 +185,9 @@ function Grocery.movePose(pose,inputX,inputY,dt,state)
     if directionX*directionX+directionY*directionY<.0001 then
         directionX,directionY=pose.intentX or 0,pose.intentY or -1
     end
-    local direction=Animation.authoredDirection(directionX,directionY)
-    local offset=cartOffsets[direction] or cartOffsets.north
     return WalkMotion.update(pose,inputX,inputY,dt,function(x,y)
-        if not Grocery.walkable(x,y) then return false end
-        if pose.cartPushing then return Grocery.walkable(x+offset.x,y+offset.y,10) end
+        if not motionClear(x,y,directionX,directionY,pose.cartPushing) then return false end
+        if pose.cartPushing then return true end
         return (x-520)^2+(y-548)^2>=28^2
     end,state)
 end
@@ -210,8 +246,13 @@ local function nearestHotspot(p)
     return best
 end
 local function setPath(view,x,y,hotspot)
-    view.path=Grocery.path(view.pose.x,view.pose.y,x,y,view.cartPose.pushed and 12 or 0)
+    -- Plan with the same directional cart footprint used by movement, and
+    -- approach the shelf's interaction area rather than driving into its face.
+    view.path=Grocery.path(view.pose.x,view.pose.y,x,y,view.cartPose.pushed and 4 or 0,
+        view.cartPose.pushed,hotspot and hotspot.radius+22)
     view.pathAction=hotspot and hotspot.id or nil
+    view.pathTarget={x=x,y=y,hotspot=hotspot}
+    view.pathStall=0
 end
 function Grocery.update(view,R,dt)
     if view.closed then return nil end
@@ -241,6 +282,24 @@ function Grocery.update(view,R,dt)
         Grocery.movePose(view.pose,dx,dy,dt,R.state)
         WalkMotion.consumeReached(view.pose,view.path)
     end
+    if view.path and #view.path>0 and view.pathTarget then
+        local moved=(view.pose.x-(view.pathProgressX or view.pose.x))^2
+            +(view.pose.y-(view.pathProgressY or view.pose.y))^2
+        view.pathStall=moved>.0001 and 0 or (view.pathStall or 0)+dt
+        if moved>.0001 then view.pathRetries=0 end
+        if view.pathStall>.35 then
+            -- Inertia/manual input can change which cart facing fits at a
+            -- corner. Reconnect the route from the authoritative current pose.
+            local target=view.pathTarget
+            view.pathRetries=(view.pathRetries or 0)+1
+            if view.pathRetries<=3 then setPath(view,target.x,target.y,target.hotspot)
+            else
+                view.path,view.pathAction=nil,nil
+                view.notice='The aisle is blocked. Move away from the display and choose your destination again.'
+            end
+        end
+    else view.pathStall=0;view.pathRetries=0 end
+    view.pathProgressX,view.pathProgressY=view.pose.x,view.pose.y
     if view.pathAction and (not view.path or #view.path==0) then
         local target
         for _,hotspot in ipairs(Grocery.hotspots) do if hotspot.id==view.pathAction then target=hotspot;break end end
@@ -265,6 +324,8 @@ local function openOrWalk(view,hotspot)
             view.notice='Take the shopping cart before collecting groceries or checking out.'
             return nil
         end
+        view.path,view.pathAction,view.pathTarget=nil,nil,nil
+        view.netInputX,view.netInputY=0,0
         view.notice=nil
         return hotspot.id
     end
@@ -275,6 +336,13 @@ function Grocery.pointer(view,R,x,y)
     x,y=x*960/R.Config.baseWidth,y*678/R.Config.baseHeight
     if inside(controls.exit,x,y) then return 'exit' end
     local p=view.pose
+    -- A pushed cart can overlap a display's target while browsing. The shelf
+    -- keeps its click target so reopening it cannot silently return the cart.
+    if view.cartPose.pushed then
+        for _,hotspot in ipairs(Grocery.hotspots) do
+            if (x-hotspot.x)^2+(y-hotspot.y)^2<=hotspot.radius^2 then return openOrWalk(view,hotspot) end
+        end
+    end
     local cartX,cartY=Grocery.cartPosition(view)
     if (x-cartX)^2+(y-cartY)^2<=34^2 then
         if view.cartPose.pushed then return parkCart(view)
@@ -400,8 +468,8 @@ local function drawSceneFixtures(g,view,playerY,front,lowerY)
         {key='counter',x=0,y=0,sx=sx,sy=sy,depth=507},
     }
     local shrink=.32
-    fixtures[#fixtures+1]={key='specials',centered=true,cx=480,cy=420,
-        sx=sx*shrink,sy=sy*shrink,depth=519}
+    fixtures[#fixtures+1]={key='specials',centered=true,cx=480,cy=372,
+        sx=sx*shrink,sy=sy*shrink,depth=471}
     table.sort(fixtures,function(a,b)return a.depth<b.depth end)
     for _,fixture in ipairs(fixtures) do
         if (fixture.depth>=playerY)==front and (not lowerY or fixture.depth>=lowerY) then
@@ -512,16 +580,21 @@ function Grocery.draw(view,R)
         label(view.error or 'OPENING TOWN GROCERY...',180,302,600,25,nil,'center')
         label(view.error and 'Return outside and try the store again.' or 'Preparing the grocery store',180,338,600,16,{.70,.78,.72,1},'center')
     end
-    g.setColor(.025,.045,.05,.92);g.rectangle('fill',0,0,960,67)
-    label('TOWN GROCERY',24,10,560,25,{1,.85,.49,1})
+    g.setColor(.025,.045,.05,.92);g.rectangle('fill',0,0,960,92)
+    label('TOWN GROCERY',24,10,310,25,{1,.85,.49,1})
+    local Calendar=require('src.business_calendar')
+    local date=Calendar.ensure(R.state)
+    label(('%s %s  /  HOUSEHOLD $%.2f'):format(Calendar.weekdayName(date.weekday),
+        Calendar.timeText(R.state,R.App and R.App.settings and R.App.settings.twelveHourTime),
+        (R.state.home.balanceCents or 0)/100),24,39,630,17,{.80,.87,.81,1})
     local mobile=R.mobileControls and R.mobileControls:isEnabled()
     local interactHint=require('src.commute.bindings').hint(
         require('src.commute.runtime').bindings(R),'interact')
     label(mobile and 'Move with the thumbstick. Tap the cart to take or park it; use INTERACT at a shelf or register.'
         or ('Move with WASD / arrows. Press %s at a shelf or checkout to interact; F parks your cart.'):format(interactHint),
-        24,41,900,15,{.80,.87,.81,1})
+        24,68,900,15,{.80,.87,.81,1})
     if view.cartCount then
-        label(('CART %d  /  $%.2f'):format(view.cartCount,(view.cartTotalCents or 0)/100),650,11,286,18,{1,.85,.49,1},'right')
+        label(('CART %d  /  $%.2f'):format(view.cartCount,(view.cartTotalCents or 0)/100),350,11,300,18,{1,.85,.49,1},'right')
     end
     local nearby=nearestHotspot(view.pose)
     local cartNearby=not view.cartPose.pushed and nearCart(view,view.pose.x,view.pose.y)

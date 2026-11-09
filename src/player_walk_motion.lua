@@ -11,9 +11,9 @@ function Motion.pathInput(player,path)
     if type(path)~="table" then return 0,0 end
     local speed=math.max(1,tonumber(Config.player.speed) or 1)
     local deceleration=math.max(1,tonumber(Config.player.deceleration) or 1)
-    local arrival=8
     while #path>0 do
         local goal=path[1]
+        local arrival=goal.arrivalRadius or 8
         local dx,dy,distance=distanceTo(player,goal)
         if distance<=arrival then
             table.remove(path,1)
@@ -39,7 +39,7 @@ function Motion.consumeReached(player,path)
     if type(path)~="table" then return end
     while #path>0 do
         local _,_,distance=distanceTo(player,path[1])
-        if distance>8 then break end
+        if distance>(path[1].arrivalRadius or 8) then break end
         table.remove(path,1)
     end
 end

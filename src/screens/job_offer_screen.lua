@@ -129,7 +129,11 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     -- Keep the artwork in its own narrow column. Long artwork names can wrap
     -- beneath it without covering the job fields.
     drawArtworkPreview(assets, job, 738, 122, 76)
-    line("Packaging", job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped" or "Flat on pallet, stretch-wrapped", 136, 246)
+    local packaging = job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped"
+        or "Flat on pallet, stretch-wrapped"
+    local transport = job.outboundDelivery and job.outboundDelivery.requested
+        and "Delivery quote requested" or "Client pickup"
+    line("Packaging / transport", packaging .. " · " .. transport, 136, 246)
     line("Stock arrival", job.remoteDelivery or JobService.deliverySummary(job), 136, 270)
 
     local tableX, tableY = 136, 294
@@ -209,6 +213,7 @@ function JobOfferScreen.fromNetwork(view)
         stockSpec={description=view.stock,suppliedBy=view.stockSource or "client"},packaging=view.packaging,remoteDelivery=view.delivery,
         artworkKey=view.artworkKey,artwork={key=view.artworkKey,displayName=view.artworkName},
         quote=quote,details={dueDate="Written details to follow",notes="Review the written specifications before estimating."},
+        outboundDelivery={requested=view.deliveryRequested==true,offered=false,transport="customer"},
         press=view.printJob and {colors=view.colorCount or 1,colorSequence={view.colorSequence or "see written specifications"}} or nil}
 end
 

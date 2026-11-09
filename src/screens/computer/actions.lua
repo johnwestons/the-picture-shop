@@ -30,6 +30,10 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.quoteText = ""
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.quoteReplaceOnType = true
+        Runtime.ComputerScreen.deliveryQuoteText = ""
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+        Runtime.ComputerScreen.includeDeliveryQuote = false
         Runtime.ComputerScreen.promoJobId = nil
         Runtime.ComputerScreen.promoText = ""
         Runtime.ComputerScreen.promoFocused = false
@@ -288,7 +292,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.emailButtonCenter(action)
-        local rect = action == "accept" and Runtime.EMAIL_ACCEPT or Runtime.EMAIL_DECLINE
+        local estimating = Runtime.ComputerScreen.tab == "estimating"
+        local rect = action == "accept"
+            and (estimating and Runtime.EMAIL_ESTIMATE_SEND or Runtime.EMAIL_ACCEPT)
+            or (estimating and Runtime.EMAIL_ESTIMATE_DECLINE or Runtime.EMAIL_DECLINE)
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 

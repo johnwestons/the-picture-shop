@@ -11,6 +11,7 @@ local DOMAIN_SUITES = {
     {run=function(_,check)require('src.tests.rabbit_colorways_shader_test').run(check)end},
     require('src.tests.independent_scenes_test'),
     require('src.tests.independent_scenes_runtime_test'),
+    require('src.tests.player_delivery_test'),
     require('src.tests.menu_exit_test'),
     require("src.tests.town_setup_test"),
     {run=function(_,check)require('src.commute.tests.island_variation_test').run(check)end},
@@ -22,6 +23,7 @@ local DOMAIN_SUITES = {
         require('src.commute.tests.truck_cab_test').run(check)
         require('src.commute.tests.cab_viewport_test').run(check)
         require('src.commute.tests.delivery_traffic_test').run(check)
+        require('src.commute.tests.delivery_docking_test').run(check)
         require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
         require('src.commute.tests.driving_path_test').run(check)
         require('src.commute.tests.traffic_actor_index_test').run(check)
@@ -199,6 +201,8 @@ local DOMAIN_SUITES = {
     require("src.tests.press_economics_test"),
     require("src.tests.windmill_integration_test"),
     require("src.tests.multiplayer_world_layers_test"),
+    require("src.tests.gameplay_journey_audit_test"),
+    require("src.tests.recent_feature_regression_test"),
 }
 
 function Suites.runDomain(context, check)

@@ -157,7 +157,10 @@ function Component.install(Runtime)
             local route=context.jackNavigation(worker,pallet.id,true)
             return Runtime.EmployeeAI.findReachablePoint(context.jackActor(worker),candidates,route)
         end
-        function context.canLoadTruck() return not options.canLoadTruck or options.canLoadTruck() end
+        function context.canLoadTruck()
+            return require('src.player_delivery_loading').canLoad(state,Runtime.World.truck)
+                and (not options.canLoadTruck or options.canLoadTruck())
+        end
         function context.loadPickup(worker,palletId)
             return Runtime.World.loadEmployeePickup(state,worker,palletId)
         end

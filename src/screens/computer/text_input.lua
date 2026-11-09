@@ -5,18 +5,28 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.ComputerScreen.keypressed(state, key)
         local focused = Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused
-            or (Runtime.ComputerScreen.tab == "estimating" and Runtime.ComputerScreen.quoteFocused)
+            or (Runtime.ComputerScreen.tab == "estimating" and (Runtime.ComputerScreen.quoteFocused
+                or Runtime.ComputerScreen.deliveryQuoteFocused))
         if not focused then return false end
         if key == "backspace" then
-            local value = Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoText or Runtime.ComputerScreen.quoteText
-            if not Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.quoteReplaceOnType then
+            local deliveryFocused = Runtime.ComputerScreen.tab == "estimating"
+                and Runtime.ComputerScreen.deliveryQuoteFocused
+            local value = Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoText
+                or deliveryFocused and Runtime.ComputerScreen.deliveryQuoteText
+                or Runtime.ComputerScreen.quoteText
+            local replaceOnType = deliveryFocused and Runtime.ComputerScreen.deliveryQuoteReplaceOnType
+                or not deliveryFocused and not Runtime.ComputerScreen.promoJobId
+                    and Runtime.ComputerScreen.quoteReplaceOnType
+            if not Runtime.ComputerScreen.promoJobId and replaceOnType then
                 value = ""
-                Runtime.ComputerScreen.quoteReplaceOnType = false
+                if deliveryFocused then Runtime.ComputerScreen.deliveryQuoteReplaceOnType = false
+                else Runtime.ComputerScreen.quoteReplaceOnType = false end
             else
                 local offset = Runtime.utf8.offset(value, -1)
                 value = offset and value:sub(1, offset - 1) or ""
             end
             if Runtime.ComputerScreen.promoJobId then Runtime.ComputerScreen.promoText = value
+            elseif deliveryFocused then Runtime.ComputerScreen.deliveryQuoteText = value
             else Runtime.ComputerScreen.quoteText = value end
             return true
         end
@@ -43,13 +53,25 @@ function Component.install(Runtime)
                 end
             end
             return true
+        elseif Runtime.ComputerScreen.tab == "estimating" and Runtime.ComputerScreen.deliveryQuoteFocused then
+            for character in text:gmatch(".") do
+                if character:match("%d") and #Runtime.ComputerScreen.deliveryQuoteText < 8 then
+                    if Runtime.ComputerScreen.deliveryQuoteReplaceOnType then
+                        Runtime.ComputerScreen.deliveryQuoteText = ""
+                        Runtime.ComputerScreen.deliveryQuoteReplaceOnType = false
+                    end
+                    Runtime.ComputerScreen.deliveryQuoteText = Runtime.ComputerScreen.deliveryQuoteText .. character
+                end
+            end
+            return true
         end
         return false
     end
 
     function Runtime.ComputerScreen.wantsTextInput()
         return Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused
-            or Runtime.ComputerScreen.tab == "estimating" and Runtime.ComputerScreen.quoteFocused
+            or Runtime.ComputerScreen.tab == "estimating" and (Runtime.ComputerScreen.quoteFocused
+                or Runtime.ComputerScreen.deliveryQuoteFocused)
     end
 end
 

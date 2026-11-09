@@ -1,5 +1,10 @@
 local Test={}
 function Test.run(check)
+    local pixelFixture=require('src.tests.support.pixel_canvas')(32,24)
+    local fixturePixels=pixelFixture:newImageData()
+    check('pixel_fixture_dimensions_do_not_inherit_phone_dpi',
+        fixturePixels:getWidth()==32 and fixturePixels:getHeight()==24)
+    fixturePixels:release();pixelFixture:release()
     require('src.commute.tests.kei_steering_test').run(check)
     require('src.commute.tests.truck_braking_test').run(check)
     require('src.commute.tests.kei_turntable_scale_test').run(check)
@@ -83,10 +88,14 @@ function Test.run(check)
     g.translate((phoneWidth-1280*phoneScale)*.5,(phoneHeight-880*phoneScale)*.5);g.scale(phoneScale)
     cab:draw(truck,1280,880,camera);g.pop()
     local phoneData=phoneCanvas:newImageData()
+    local pixelWidth,pixelHeight=phoneData:getDimensions()
     local quadrants={0,0,0,0}
     for y=8,phoneHeight-8,8 do
         for x=8,phoneWidth-8,8 do
-            local _,_,_,alpha=phoneData:getPixel(x,y)
+            -- Canvas coordinates are logical units; Android readback contains
+            -- physical pixels at the device DPI scale.
+            local _,_,_,alpha=phoneData:getPixel(math.floor(x*pixelWidth/phoneWidth),
+                math.floor(y*pixelHeight/phoneHeight))
             if alpha>.5 then
                 local quadrant=(y<phoneHeight*.5 and 0 or 2)+(x<phoneWidth*.5 and 1 or 2)
                 quadrants[quadrant]=quadrants[quadrant]+1

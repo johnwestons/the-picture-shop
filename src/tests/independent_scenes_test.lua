@@ -159,12 +159,22 @@ function Test.run(context,check)
     local bay=world.sites.byId.warehouse
     local parking=bay.design.truckParking
     t.truck.x,t.truck.z=bay:toWorld(parking.x,parking.z,0)
-    t.truck.speed=0
+    t.truck.speed=0;t.truck.heading=bay.yaw
     check('independent_delivery_truck_reaches_loading_bay',Trip.truckAtLoadingBay(world,t.truck))
     driver.rider.ped.x,driver.rider.ped.z=t.truck.x,t.truck.z
     C.syncPlayer(p4,driver)
     assert(guests[3]:requestInteraction('commute','load_delivery:'..token));pump()
-    check('independent_driver_loads_shared_manifest',received[3].interaction_result.accepted
+    check('independent_driver_cannot_bulk_load_from_outside',not received[3].interaction_result.accepted
+        and t.deliveryRun.status=='loading')
+    local warehouse=context.world or require('src.world')
+    warehouse.load();warehouse._state=state;warehouse._employeeOptions={}
+    assert(require('src.player_delivery_loading').sync(state,warehouse.truck,warehouse.bayDoor))
+    for _=1,10 do warehouse.updateSimulation(.1,context.assets,state,.1) end
+    assert(warehouse.toggleTruckCargoDoor(state))
+    for _=1,10 do warehouse.updateSimulation(.1,context.assets,state,.1) end
+    assert(warehouse.loadPickupPallet(state,job.pallets[1].id))
+    for _=1,30 do warehouse.updateSimulation(.1,context.assets,state,.1) end
+    check('independent_indoor_loader_loads_shared_manifest',hp.sceneId=='warehouse'
         and t.deliveryRun.status=='driving' and job.pickup.status=='player_delivery',
         ('accepted=%s run=%s pickup=%s mode=%s'):format(
             tostring(received[3].interaction_result.accepted),
@@ -188,11 +198,11 @@ function Test.run(context,check)
     driver.rider.ped.x,driver.rider.ped.z,driver.rider.ped.speed=store.door.x,store.door.z,0
     assert(guests[3]:requestInteraction('commute','deliver_stop:'..token));pump()
     check('independent_delivery_completes_in_shared_shop',received[3].interaction_result.accepted
-        and t.deliveryRun.status=='returning')
+        and not t.deliveryRun and #state.jobs.completed==1 and driver.destination==state.home.apartmentId)
     t.truck.x,t.truck.z,t.truck.speed=t.truck.homeX,t.truck.homeZ,0
     local warehouseDoor=world.sites.byId.warehouse.door
     driver.rider.ped.x,driver.rider.ped.z,driver.rider.ped.speed=warehouseDoor.x,warehouseDoor.z,0
-    assert(guests[3]:requestInteraction('commute','arrive:'..token));pump()
+    assert(guests[3]:requestInteraction('commute','cancel:'..token));pump()
     check('independent_delivery_return_preserves_other_locations',p4.sceneId=='warehouse' and not t.deliveryRun
         and t.participants[outsideId] and host.players[2].sceneId=='home' and hp.sceneId=='warehouse')
     check('independent_shared_calendar_advances',require('src.weekend_flow').limitCalendarStep(state,.1)==.1)
@@ -219,6 +229,6 @@ function Test.run(context,check)
         :format(bytes,packets,samples[50],samples[95],samples[100]))
     check('independent_indoor_host_never_allocates_outdoor_renderer',not R._commute.renderer and not R._commute.camera)
     for _,g in pairs(guests) do g:stop() end
-    host:stop();C.release(R)
+    host:stop();C.release(R);warehouse.load()
 end
 return Test

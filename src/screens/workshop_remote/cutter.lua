@@ -114,14 +114,13 @@ function Component.install(Runtime)
                 Runtime.cutterServiceButtonEnabled("finish_lubrication", state), true)
         elseif step == "blade_bolts" then
             love.graphics.setColor(0.24, 0.28, 0.29)
-            love.graphics.printf("Remove each blade bolt. The host tracks every distinct fastener.",
+            love.graphics.printf("Remove all five blade bolts. The host tracks every distinct fastener.",
                 122, 220, 690, "center")
-            local done = tonumber(view.bladeBoltsDone) or 0
-            for index = 1, 4 do
-                Runtime.button(Runtime.cutterBladeBoltRect(index), index <= done and "REMOVED" or ("BOLT " .. index),
-                    pointerX, pointerY, index == done + 1
-                        and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state),
-                    index <= done)
+            for index = 1, 5 do
+                local removed = Runtime.cutterBladeBoltRemoved(view, index)
+                Runtime.button(Runtime.cutterBladeBoltRect(index), removed and "REMOVED" or ("BOLT " .. index),
+                    pointerX, pointerY, not removed
+                        and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state), removed)
             end
         elseif step == "blade_lift" then
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.bladeAction, "LIFT RELEASED BLADE SAFELY",

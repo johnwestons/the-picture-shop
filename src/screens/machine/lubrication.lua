@@ -109,35 +109,104 @@ function Component.install(Runtime)
     end
 
     function Runtime.bladeBoltPositions()
-        return { { 332, 258 }, { 628, 258 }, { 332, 350 }, { 628, 350 } }
+        local positions = {}
+        for index, sourceX in ipairs({ 181, 244, 305, 366, 426 }) do
+            positions[index] = { 480 + (sourceX - 256) * 1.2, 310 + (295 - 256) * 1.2 }
+        end
+        return positions
     end
 
-    function Runtime.drawBladeGame(state, pointerX, pointerY)
+    function Runtime.drawBladeGame(state, assets, pointerX, pointerY)
+        local screen = Runtime.Screen
+        local now = love.timer.getTime()
+        local stage = screen.bladeStage
+        local removed = 0
+        for index = 1, 5 do
+            if screen.bladeBolts[index] then removed = removed + 1 end
+        end
+        if stage == "lifting" and now - (screen.bladeLiftStarted or now) >= 0.62 then
+            stage = "sleeve"
+            screen.bladeStage = stage
+        end
+
+        local function drawPart(frame, x, y, scale, rotation)
+            local image = assets and assets.get("cutterBladeRemoval")
+            local sprite = assets and assets.getQuad("cutterBladeRemoval" .. frame)
+            if image and sprite then
+                love.graphics.setColor(1, 1, 1, 1)
+                love.graphics.draw(image, sprite.quad, x, y, rotation or 0,
+                    scale, scale, sprite.width / 2, sprite.height / 2)
+                return true
+            end
+            return false
+        end
+
         Runtime.box(18, 18, 924, 642, { 0.03, 0.045, 0.055, 0.995 }, { 0.55, 0.46, 0.30, 1 }, 5)
         love.graphics.setColor(0.96, 0.82, 0.26)
         love.graphics.print("CUTTER BLADE REMOVAL", 42, 34)
         love.graphics.setColor(0.72, 0.80, 0.81)
-        local instruction = Runtime.Screen.bladeStage == "bolts" and "Click all four blade-carrier fasteners."
-            or Runtime.Screen.bladeStage == "blade" and "Click the released steel blade to remove it."
-            or "Click the wooden sleeve to secure the blade for transport."
+        local instruction = stage == "bolts" and "Back out each of the five carrier bolts and set them in the parts tray."
+            or stage == "blade" and "All five bolts are clear. Lift the blade by its safe ends."
+            or stage == "lifting" and "Supporting the blade... keep it level and clear of the carrier."
+            or "Place the blade fully inside its wooden safety sleeve."
         love.graphics.print(instruction, 42, 64)
         Runtime.box(140, 120, 680, 420, { 0.08, 0.09, 0.095, 1 }, { 0.34, 0.36, 0.37, 1 }, 4)
-        love.graphics.setColor(0.56, 0.59, 0.60)
-        love.graphics.rectangle("fill", 280, 220, 400, 178, 4, 4)
-        love.graphics.setColor(0.82, 0.84, 0.80)
-        love.graphics.rectangle("fill", 304, 294, 352, 34, 2, 2)
-        for index, pos in ipairs(Runtime.bladeBoltPositions()) do
-            local removed = Runtime.Screen.bladeBolts[index]
-            love.graphics.setColor(removed and 0.18 or 0.76, removed and 0.20 or 0.68, removed and 0.20 or 0.28)
-            love.graphics.circle("fill", pos[1], pos[2], 14)
-            love.graphics.setColor(0.15, 0.16, 0.16)
-            love.graphics.line(pos[1] - 7, pos[2], pos[1] + 7, pos[2])
+        love.graphics.setColor(0.12, 0.15, 0.16, 1)
+        love.graphics.rectangle("fill", 154, 134, 652, 392, 6, 6)
+
+        if stage == "bolts" then
+            drawPart(1, 480, 310, 1.2)
+        elseif stage == "blade" or stage == "lifting" then
+            drawPart(3, 480, 310, 1.2)
+            local lift = stage == "lifting" and math.min(1, (now - (screen.bladeLiftStarted or now)) / 0.62) or 0
+            drawPart(4, 480, 420 + lift * 20, 0.68, lift * 0.035)
+            drawPart(6, 765, 442, 0.31)
+        else
+            drawPart(5, 480, 430, 0.5)
+            drawPart(4, 480, 454, 0.52)
+            drawPart(6, 765, 442, 0.31)
         end
-        love.graphics.setColor(0.46, 0.25, 0.10)
-        love.graphics.rectangle("fill", 330, 445, 300, 60, 5, 5)
-        love.graphics.setColor(0.72, 0.47, 0.22)
-        love.graphics.rectangle("line", 330, 445, 300, 60, 5, 5)
-        love.graphics.printf("WOODEN BLADE SLEEVE", 330, 469, 300, "center")
+
+        if stage == "bolts" then
+            local tray = { x = 704, y = 436, width = 184, height = 76 }
+            love.graphics.setColor(0.045, 0.06, 0.065, 0.96)
+            love.graphics.rectangle("fill", tray.x, tray.y, tray.width, tray.height, 8, 8)
+            love.graphics.setColor(0.46, 0.56, 0.58, 1)
+            love.graphics.setLineWidth(2)
+            love.graphics.rectangle("line", tray.x, tray.y, tray.width, tray.height, 8, 8)
+            love.graphics.setLineWidth(1)
+            love.graphics.setColor(0.88, 0.83, 0.65, 1)
+            love.graphics.printf("FASTENERS  " .. removed .. " / 5", tray.x, tray.y + 7, tray.width, "center")
+            local boltImage = assets and assets.get("cutterBladeRemoval")
+            local boltQuad = assets and assets.getQuad("cutterBladeRemoval2")
+            for index = 1, 5 do
+                local pos = Runtime.bladeBoltPositions()[index]
+                local targetX, targetY = tray.x + 30 + (index - 1) * 30, tray.y + 50
+                local isRemoved = screen.bladeBolts[index] == true
+                local animation = screen.bladeBoltAnimations and screen.bladeBoltAnimations[index]
+                if boltImage and boltQuad and not isRemoved then
+                    love.graphics.setColor(0.78, 0.83, 0.84, 1)
+                    love.graphics.draw(boltImage, boltQuad.quad, pos[1], pos[2], 0, 0.105, 0.105,
+                        boltQuad.width / 2, boltQuad.height / 2)
+                elseif boltImage and boltQuad and isRemoved then
+                    local progress = animation and math.min(1, math.max(0, (now - animation) / 0.42)) or 1
+                    local x = pos[1] + (targetX - pos[1]) * progress
+                    local y = pos[2] + (targetY - pos[2]) * progress
+                    local scale = 0.105 - progress * 0.054
+                    love.graphics.setColor(0.85, 0.88, 0.86, 1)
+                    love.graphics.draw(boltImage, boltQuad.quad, x, y,
+                        (1 - progress) * 3.6, scale, scale, boltQuad.width / 2, boltQuad.height / 2)
+                end
+            end
+        elseif stage == "sleeve" then
+            love.graphics.setColor(0.88, 0.83, 0.65, 1)
+            love.graphics.printf("BLADE SECURED IN WOODEN SAFETY SLEEVE", 275, 500, 410, "center")
+        end
+
+        love.graphics.setColor(0.12, 0.15, 0.16, 1)
+        love.graphics.rectangle("fill", 42, 96, 860, 8, 4, 4)
+        love.graphics.setColor(0.34, 0.73, 0.65, 1)
+        love.graphics.rectangle("fill", 42, 96, 860 * (stage == "bolts" and removed / 5 or 1), 8, 4, 4)
         Runtime.drawMaintenanceCard(Runtime.maintenanceBack, "CANCEL BLADE WORK", "", true, pointerX, pointerY)
     end
 end

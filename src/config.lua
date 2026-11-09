@@ -429,6 +429,7 @@ local Config = {
         cutterMaintenanceOil = "assets/generated/cutter-maintenance-oil-atlas.png",
         cutterMaintenanceTools = "assets/generated/cutter-maintenance-tools-atlas.png",
         cutterMaintenanceScenes = "assets/generated/cutter-maintenance-scenes-atlas.png",
+        cutterBladeRemoval = "assets/generated/cutter-blade-removal-atlas-v1.png",
         skidWrapperDirections = "assets/generated/skid-wrapper-directions-strip.png",
         skidWrapper64Directions = "assets/generated/skid-wrapper-64-v1.png",
         wrapperMaintenanceAtlas = "assets/generated/skid-wrapper-maintenance-atlas.png",

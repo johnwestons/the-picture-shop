@@ -33,27 +33,28 @@ Sites.designs={
 -- seeded towns retain their original fingerprints and road layouts.
 Sites.warehouseTruckLayout={
     truckParking={x=9.3,z=0},
-    -- Company trucks return to two marked stalls west of the delivery queue;
-    -- the dock anchor remains reserved for loading and unloading.
-    truckHomeParking={box={x=8.15,z=7.1},kei={x=8.15,z=14.9}},
-    truckHomeStalls={box=rect(6.3,10.0,3.5,10.7),kei=rect(6.5,9.8,11.8,18.0)},
-    truckWaiting={x=12.1,z=6.2},
-    truckQueueAnchors={{x=12.1,z=6.2},{x=12.1,z=12.4},{x=12.1,z=18.6}},
+    -- Two full-size stalls beside the employee row, facing the building.
+    -- Keep the front walkway, entrance driveway and entire dock aisle clear.
+    truckHomeParking={box={x=-4.6,z=12.5},kei={x=-.6,z=12.5}},
+    truckHomeHeading=-math.pi*.5,
+    truckHomeStalls={box=rect(-6.3,-2.9,9,16),kei=rect(-2.3,1.1,9,16)},
+    truckWaiting={x=-10.1,z=0},
+    truckWaitingArea=rect(-13,-7.2,-5.4,18.6),
+    truckQueueAnchors={{x=-10.1,z=0},{x=-10.1,z=7},{x=-10.1,z=14}},
+    truckDockSetup={x=20,z=0},
     truckParkingArea=rect(6.2,15.4,-5.4,18.6),
     -- A broad private lot apron keeps the U-shaped truck circulation inside
     -- the property, clear of the frontage street and the loading door.
     truckApproach=rect(-13,6.2,15.4,18.6),
     truckAprons={rect(-13,-7.2,-5.4,18.6),rect(-13,17.8,-11.5,-5.4),
-        rect(15.4,21.2,-5.4,18.6)},
-    -- The entry lane goes around the back and east side of the building, then
-    -- returns along the marked queue aisle to the dock. The exit lane follows
-    -- the east apron back to the second frontage gate.
-    truckEntryWaypoints={{x=-10.1,z=18.6},{x=-10.1,z=-5.4},{x=-7,z=-8.4},
-        {x=8,z=-8.4},{x=17.8,z=-5.4},{x=18.3,z=0},{x=18.3,z=14.5},
-        {x=15.5,z=18.6},{x=12.1,z=18.6},{x=12.1,z=12.4},
-        {x=12.1,z=6.2},{x=12.1,z=3.4},{x=11.1,z=1.2},{x=9.3,z=0}},
-    truckExitWaypoints={{x=9.3,z=0},{x=11.1,z=-1.2},{x=14.5,z=-4},
-        {x=18.3,z=-5.4},{x=18.3,z=14.5},{x=15.5,z=18.6}},
+        rect(15.4,23.5,-5.4,18.6),rect(-6.8,1.6,8.5,16.5)},
+    -- One U through the private lot. Pull ahead of the dock, stop, then back
+    -- straight in. Queue upstream of the building, never in the reversing aisle.
+    truckEntryWaypoints={{x=-10.1,z=18.6},{x=-10.1,z=14},{x=-10.1,z=7},
+        {x=-10.1,z=0},{x=-10.1,z=-5.4},{x=-7,z=-8.4},{x=2,z=-8.4},
+        {x=6,z=-7.3},{x=9,z=-4},{x=12,z=-1},{x=15,z=0},
+        {x=20,z=0},{x=9.3,z=0}},
+    truckExitWaypoints={{x=9.3,z=0},{x=20,z=0},{x=20,z=8}},
 }
 -- Eight motorcycle spaces share the front entrance apron. This runtime
 -- metadata stays outside saved building designs and town fingerprints.
@@ -170,8 +171,10 @@ function Sites.validDesign(d)
     elseif d.truckParkingArea~=nil or d.truckApproach~=nil then return false,'Truck parking needs a parking anchor' end
     if d.truckWaiting~=nil then
         local a=d.truckWaiting
+        local waitingArea=d.truckWaitingArea or d.truckParkingArea
         if not d.truckParking or type(a)~='table' or not M.finite(a.x) or not M.finite(a.z)
-            or math.abs(a.x)>256 or math.abs(a.z)>256 or not contains(d.truckParkingArea,a.x,a.z)
+            or math.abs(a.x)>256 or math.abs(a.z)>256 or not validRect(waitingArea)
+            or not contains(waitingArea,a.x,a.z)
             or (a.x-d.truckParking.x)^2+(a.z-d.truckParking.z)^2<9 then
             return false,'Invalid truck waiting-space anchor'
         end
@@ -265,7 +268,8 @@ local function placement(designs,p)
     if design.style=='warehouse' then
         local current=Sites.warehouseTruckLayout
         design.truckParking=design.truckParking or copy(current.truckParking)
-        design.truckWaiting=design.truckWaiting or copy(current.truckWaiting)
+        design.truckWaiting=copy(current.truckWaiting)
+        design.truckWaitingArea=copy(current.truckWaitingArea)
         design.truckParkingArea=copy(current.truckParkingArea)
         design.truckApproach=copy(current.truckApproach)
     end
@@ -303,7 +307,8 @@ local function placement(designs,p)
     if self.style=='warehouse' then
         for model,anchor in pairs(Sites.warehouseTruckLayout.truckHomeParking) do
             local x,z,h=self:toWorld(anchor.x,anchor.z,anchor.h or 0)
-            self.truckHomeParking[model]={x=x,z=z,h=h}
+            self.truckHomeParking[model]={x=x,z=z,h=h,
+                heading=yaw+Sites.warehouseTruckLayout.truckHomeHeading}
         end
     end
     self.localTruckAprons=self.style=='warehouse' and copy(Sites.warehouseTruckLayout.truckAprons) or {}

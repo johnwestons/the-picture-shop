@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Routine=require("src.home_routine_pose")
 local Residents=require("src.home_residents")
 local Layout=require("src.home_layouts")
@@ -33,7 +34,7 @@ function Test.run(context,check)
             and remote.privacyKind==kind and remote.direction==pose.direction
             and remote.x==pose.x and remote.y==pose.y and Schema.validState(snapshot))
 
-        local canvas=love.graphics.newCanvas(240,180)
+        local canvas=PixelCanvas(240,180)
         love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.05,.06,.08,1)
         love.graphics.translate(120-pose.x,90-pose.y)
         check("home_privacy_"..kind.."_draws",Routine.draw(pose,player,context.characterAssets)==true)

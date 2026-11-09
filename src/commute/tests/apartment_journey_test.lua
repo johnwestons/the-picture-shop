@@ -60,7 +60,9 @@ local function scenario(R,input,id,check,town,outing)
             if predicate() then return true end
             R.App.update(.05)
         end
-        assert(predicate(),id..': '..label)
+        assert(predicate(),id..': '..label..' [phase='..tostring(R.state.home.weekend.phase)
+            ..', hour='..tostring(Calendar.absoluteHours(R.state))..', waits='
+            ..table.concat(require('src.shop_shutdown').checklist(R.state,R.World),'; ')..']')
         return true
     end
     local function part() return assert(Commute.localPart(R)) end
@@ -88,12 +90,13 @@ local function scenario(R,input,id,check,town,outing)
             assert(controls.keypressed('e',R) and R.state.screen=='home_travel','Town entrance did not open')
             assert(controls.keypressed('return',R))
         else assert(Weekend.command(R,R.World.player,'request')) end
-        local token=assert(R.state.home.weekend.travelToken)
-        if outing then assert(require('src.home_travel_controls').keypressed('return',R))
-        else assert(Weekend.command(R,R.World.player,'depart:'..token)) end
+        -- Explore Town enters the shared exterior independently; only the
+        -- Friday/Monday household journey has a second departure confirmation.
+        local token=assert(outing and R.state.home.commute.token or R.state.home.weekend.travelToken)
+        if not outing then assert(Weekend.command(R,R.World.player,'depart:'..token)) end
         require('src.commute.tests.loading_test_support').wait(R,verify,label or destination)
         verify((label or destination)..'_starts_on_foot_in_origin_lot',R.World.player.sceneId=='commute'
-            and R.state.home.commute.destination==destination and not part().rider.gear.mounted)
+            and Commute.localTrip(R).destination==destination and not part().rider.gear.mounted)
         return token
     end
     local function equipAndMount(token,label)
@@ -106,7 +109,7 @@ local function scenario(R,input,id,check,town,outing)
         verify(label..'_mount_starts_engine_only_after_dressing',part().rider.gear.engine and part().rider.gear.mounted)
     end
     local function journey(token,label)
-        local trip=R.state.home.commute
+        local trip=Commute.localTrip(R)
         local destinationId=trip.destination
         local world=Commute.world(R)
         local destination=assert(world.roads.destinations[destinationId])
@@ -120,6 +123,7 @@ local function scenario(R,input,id,check,town,outing)
         local clock=Calendar.absoluteHours(R.state)
         local phase=R.state.home.weekend.phase
         local index,reloaded,stopped,parkingApproach,parkingBrake=1,false,false,false,false
+        local parkingStage=1
         verify(label..'_mounted_door_entry_rejected',not Commute.command(R,R.World.player,'arrive:'..token))
         for frame=1,9000 do
             local bike=part().rider.bike
@@ -127,20 +131,37 @@ local function scenario(R,input,id,check,town,outing)
             local distance=math.sqrt((bike.x-parkX)^2+(bike.z-parkZ)^2)
             if padDistance<12 then parkingApproach=true end
             if parkingApproach then
-                local heading=math.atan2(parkZ-bike.z,parkX-bike.x)
+                local targetX,targetZ=parkX,parkZ
+                if destinationId=='warehouse' and parkingStage<3 then
+                    -- Enter through the front driveway, then use the aisle
+                    -- behind the parked delivery trucks before turning in.
+                    local side=parkingStage==1 and site.design.parking.x or select(1,site:toLocal(parkX,parkZ))
+                    targetX,targetZ=site:toWorld(side,8.1)
+                    if (targetX-bike.x)^2+(targetZ-bike.z)^2<1.4^2 then parkingStage=parkingStage+1 end
+                end
+                local heading=math.atan2(targetZ-bike.z,targetX-bike.x)
                 local error=(heading-bike.heading+math.pi)%(2*math.pi)-math.pi
                 input.steer=math.max(-1,math.min(1,error*2))
-                if distance<1.8 then parkingBrake=true end
+                if distance<1.8 and Bays.slotAt(site,bike.x,bike.z)
+                    and (destinationId~='warehouse' or parkingStage==3) then parkingBrake=true end
+                if parkingBrake and bike.speed==0 and not Bays.slotAt(site,bike.x,bike.z) then parkingBrake=false end
                 if parkingBrake then
-                    input.steer=0
                     input.drive=bike.speed>.45 and 1 or 0
-                else input.drive=bike.speed>2.5 and .5 or -.45 end
+                else input.drive=bike.speed>1 and .7 or -.2 end
             else
                 while index<#route.points and (bike.x-route.points[index].x)^2+(bike.z-route.points[index].z)^2<25 do
                     index=index+1
                 end
                 local waypoint=route.points[index]
-                local heading=math.atan2(waypoint.z-bike.z,waypoint.x-bike.x)
+                -- Follow a lane, not the centerline occupied by scheduled NPC
+                -- motorcycles. This driver must steer around other road users.
+                local previous,nextPoint=route.points[math.max(1,index-1)],route.points[math.min(#route.points,index+1)]
+                local tx,tz=nextPoint.x-previous.x,nextPoint.z-previous.z
+                local length=math.sqrt(tx*tx+tz*tz)
+                local lane=length>0 and index>2 and index<#route.points-2 and 1.6 or 0
+                local targetX=waypoint.x-(length>0 and tz/length*lane or 0)
+                local targetZ=waypoint.z+(length>0 and tx/length*lane or 0)
+                local heading=math.atan2(targetZ-bike.z,targetX-bike.x)
                 local error=(heading-bike.heading+math.pi)%(2*math.pi)-math.pi
                 input.steer=math.max(-1,math.min(1,error*2))
                 input.drive=bike.speed<4 and -.8 or bike.speed>5 and .5 or 0
@@ -162,10 +183,13 @@ local function scenario(R,input,id,check,town,outing)
         input.clear()
         local finalBike=part().rider.bike
         local finalX,finalZ=site:toLocal(finalBike.x,finalBike.z)
+        if not stopped then capture(R,id..'-'..label..'-blocked') end
         verify(label..'_physically_rides_route_and_parks',stopped and reloaded,
-            string.format('remaining=%.2f speed=%.2f slot=%s local=(%.2f,%.2f)',
+            string.format('remaining=%.2f speed=%.2f slot=%s local=(%.2f,%.2f) world=(%.2f,%.2f) waypoint=%d/%d (%.2f,%.2f) gear=%s bike=%s',
                 math.sqrt((finalBike.x-parkX)^2+(finalBike.z-parkZ)^2),finalBike.speed,
-                tostring(Bays.slotAt(site,finalBike.x,finalBike.z)),finalX,finalZ))
+                tostring(Bays.slotAt(site,finalBike.x,finalBike.z)),finalX,finalZ,finalBike.x,finalBike.z,
+                index,#route.points,route.points[index].x,route.points[index].z,
+                tostring(part().rider.gear.mounted),tostring(finalBike.collisionKind)..'/'..tostring(finalBike.collisionId)))
         assert(stopped,id..': '..label..' did not reach its parking area')
         waitFor(function()local b=part().rider.bike;return b.grounded and math.abs(b.vy or 0)<.08 end,
             120,'parked motorcycle did not settle')
@@ -196,7 +220,9 @@ local function scenario(R,input,id,check,town,outing)
         verify(label..'_bike_inside_marked_stall',Bays.slotAt(site,parkedX,parkedZ)~=nil,
             string.format('local=(%.2f,%.2f) pad=(%.2f,%.2f)',localX,localZ,site.design.parking.x,site.design.parking.z))
         assert(Commute.command(R,R.World.player,'arrive:'..token))
-        verify(label..'_door_commits_correct_interior_once',R.state.home.commute==nil
+        verify(label..'_door_commits_correct_interior_once',
+            (outing and R.state.home.commute.independent and not Commute.localPart(R)
+                or not outing and R.state.home.commute==nil)
             and R.World.player.sceneId==(destinationId=='warehouse' and 'warehouse' or 'home')
             and R.state.home.weekend.phase==(outing and 'working' or destinationId=='warehouse' and 'working' or 'home'))
         verify(label..'_replayed_arrival_rejected',not Commute.command(R,R.World.player,'arrive:'..token))
@@ -212,7 +238,12 @@ local function scenario(R,input,id,check,town,outing)
     else
         local close=R.state.home.weekend.closesAtHours
         at(R.state,close)
-        waitFor(function() return R.state.home.weekend.phase=='ready' end,100,'Friday shutdown did not finish')
+        waitFor(function() return R.state.home.weekend.phase=='closing' end,100,'Friday closing did not start')
+        local exit=assert(require('src.home_travel').target(R.World.player,R.state))
+        R.World.player.x,R.World.player.y=exit.x,exit.y
+        -- Closing stays playable until the owner explicitly finishes at the
+        -- entrance; an empty checklist alone must not close the shop.
+        assert(Weekend.command(R,R.World.player,'request'))
         local frozen=Calendar.absoluteHours(R.state);ticks(20)
         verify('friday_shutdown_is_safe_and_clock_held',#require('src.shop_shutdown').checklist(R.state,R.World)==0
             and Calendar.absoluteHours(R.state)==frozen and #R.state.home.finance.history==1)
@@ -230,7 +261,8 @@ local function scenario(R,input,id,check,town,outing)
         input.clear();ticks(12)
         assert(Commute.command(R,R.World.player,'cancel:'..originToken))
         verify('walk_back_through_warehouse_door_cancels_outing',R.World.player.sceneId=='warehouse'
-            and not R.state.home.commute and R.state.home.weekend.phase=='working')
+            and R.state.home.commute.independent and not Commute.localPart(R)
+            and R.state.home.weekend.phase=='working')
         reload('origin_return','warehouse')
     end
     local token=beginTrip(id)

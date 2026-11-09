@@ -137,7 +137,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.cutterBladeBoltRect(index)
-        return { x = 162 + (index - 1) * 170, y = 260, width = 126, height = 54 }
+        return { x = 142 + (index - 1) * 138, y = 260, width = 122, height = 54 }
+    end
+
+    function Runtime.cutterBladeBoltRemoved(view, index)
+        local mask = tonumber(view and view.bladeBoltMask)
+        if mask then return math.floor(mask / 2 ^ (index - 1)) % 2 == 1 end
+        return index <= (tonumber(view and view.bladeBoltsDone) or 0)
     end
 
     Runtime.WINDMILL_TAB_ORDER = { "run", "plates", "setup", "service" }

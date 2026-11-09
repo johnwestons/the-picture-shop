@@ -42,6 +42,10 @@ function Component.install(Runtime)
         quoteText = "",
         quoteFocused = false,
         quoteReplaceOnType = true,
+        deliveryQuoteText = "",
+        deliveryQuoteFocused = false,
+        deliveryQuoteReplaceOnType = true,
+        includeDeliveryQuote = false,
         promoJobId = nil,
         promoText = "",
         promoFocused = false,
@@ -150,7 +154,11 @@ function Component.install(Runtime)
     Runtime.CART_NEXT = { x = 514, y = 552, width = 42, height = 32 }
     Runtime.CART_PAGE_SIZE = 7
     Runtime.PAY_BILLS = { x = 612, y = 522, width = 196, height = 46 }
-    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 470, width = 190, height = 40 }
+    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 444, width = 392, height = 20 }
+    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 540, width = 186, height = 44 }
+    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 540, width = 186, height = 44 }
     Runtime.EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
     Runtime.EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
     Runtime.EMAIL_DELETE = { x = 640, y = 526, width = 186, height = 44 }

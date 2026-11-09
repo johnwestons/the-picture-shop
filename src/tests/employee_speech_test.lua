@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local State=require("src.state")
 local Employees=require("src.employees")
 local Schedule=require("src.employee_schedule")
@@ -145,7 +146,7 @@ local function layout(context,check)
     local visualState,visualWorker=fixture(context,"BUBBLE-SKILL-RENDER")
     visualWorker.x,visualWorker.y=480,450
     visualWorker.activity="This job needs a more skilled cutter operator"
-    local canvas=love.graphics.newCanvas(960,678)
+    local canvas=PixelCanvas(960,678)
     love.graphics.push("all")
     love.graphics.setCanvas({canvas,stencil=true})
     love.graphics.clear(0,0,0,0)
@@ -173,7 +174,7 @@ local function layout(context,check)
         for _,item in ipairs(cases) do
             local w=hire(s);w.activity,w.x,w.y=item[1],item[2],item[3]
         end
-        local canvas=love.graphics.newCanvas(960,678)
+        local canvas=PixelCanvas(960,678)
         love.graphics.push("all");love.graphics.setCanvas({canvas,stencil=true});love.graphics.clear(0,0,0,1)
         love.graphics.setColor(1,1,1);local image=context.assets.get("warehouse")
         love.graphics.draw(image,0,0,0,960/image:getWidth(),678/image:getHeight())

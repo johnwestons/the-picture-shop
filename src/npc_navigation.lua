@@ -335,7 +335,17 @@ function Navigator.travel(actor,goal,budget,dt,context)
                 route.points=nil;route.retry=0;break
             end
         end
-        if amount>.001 then lastMotionX,lastMotionY=(nx-actor.x)/amount,(ny-actor.y)/amount end
+        if amount>.001 then
+            -- Coordinate rounding can make achieved displacement slightly larger
+            -- than the requested budget. Network direction fields must stay in
+            -- [-1,1], so normalize the achieved vector rather than the budget.
+            local dx,dy=nx-actor.x,ny-actor.y
+            local moved=math.sqrt(dx*dx+dy*dy)
+            if moved>0 then
+                lastMotionX=math.max(-1,math.min(1,dx/moved))
+                lastMotionY=math.max(-1,math.min(1,dy/moved))
+            end
+        end
         actor.x,actor.y=nx,ny;budget=budget-amount;travelled=travelled+amount
         if length>amount then break end
         route.index=route.index+1;route.stalled=0

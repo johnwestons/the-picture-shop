@@ -91,13 +91,16 @@ function Component.install(Runtime)
     Runtime.additionalCuttingCompanies = {
         "Cedar & Finch Packaging",
         "Hightide Paper Works",
+        "Town Grocery",
         "Foxglove Print & Mail",
         "Copperline Label Company",
         "Alderbrook Stationery",
         "Westward Carton & Crate",
+        "Majic Blue",
         "Briar Patch Bookbinders",
         "Brightwell Candle Company",
         "Otter Creek Outfitters",
+        "Town Diner",
         "Hearth & Harbor Market",
         "Redtail Coffee Roasters",
         "Stonebridge Seed Company",
@@ -219,6 +222,14 @@ function Component.install(Runtime)
             hash = (hash * 31 + string.byte(job.id, index)) % 2147483647
         end
         return hash
+    end
+
+    -- A steady 45% request rate keeps outbound freight optional while making
+    -- requests repeatable across saves and network clients.
+    function Runtime.outboundDeliveryRequest(job, sequence)
+        local number = Runtime.stableDeliveryHash(job, sequence)
+        local requested = (number * 48271 % 2147483647) % 20 < 9
+        return { requested = requested, offered = false, transport = "customer" }
     end
 
     function Runtime.deliveryService(job, sequence)

@@ -185,7 +185,7 @@ function Test.run(context, check)
         and centralState.inventory.stock.maintenance_kit == 0)
     local bladeX, bladeY = context.machineScreen.maintenanceTaskCenter("blade")
     local bladeGame = context.machineScreen.mousepressed(cutterServiceState, bladeX, bladeY, 1)
-    for bolt = 1, 4 do
+    for bolt = 1, 5 do
         local boltX, boltY = context.machineScreen.bladeBoltCenter(bolt)
         context.machineScreen.mousepressed(cutterServiceState, boltX, boltY, 1)
     end

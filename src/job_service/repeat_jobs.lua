@@ -47,7 +47,9 @@ function Component.install(Runtime)
             id = string.format("EMAIL-%04d", number),
             sender = job.company,
             subject = "Job details for " .. job.id,
-            body = "Please review the job details and send an estimate.",
+            body = job.outboundDelivery and job.outboundDelivery.requested
+                and "Please review the job details and send a production estimate. Include shop delivery as a separate option; we may arrange our own transportation if the fee does not work for us."
+                or "Please review the job details and send a production estimate. We will arrange our own transportation for the shipment.",
             sourceJobId = job.id,
             readyAtHours = now + Runtime.emailDelay(job, 2, 5),
             estimateRequest = true,
@@ -113,6 +115,7 @@ function Component.install(Runtime)
         local spec = {
             id = string.format("EMAIL-JOB-%04d", emailNumber),
             company = completedJob.company,
+            customerDestination = completedJob.customerDestination,
             sourceSize = source,
             finishedSize = finished,
             sheetCounts = sheetCounts,
@@ -127,6 +130,7 @@ function Component.install(Runtime)
             stockSpec = stockSpec,
             requestChannel = "email",
             deliveryService = Runtime.deliveryService(completedJob, emailNumber),
+            outboundDelivery = Runtime.outboundDeliveryRequest(completedJob, emailNumber),
             details = {
                 stockDescription = stockSpec and stockSpec.description or "Repeat-client supplied stock",
                 dueDate = emailNumber % 3 == 0 and "Priority repeat order" or "Standard repeat-order turnaround",
@@ -245,8 +249,24 @@ function Component.install(Runtime)
                     local job = email.job
                     local succeeded
                     if email.accepted then
+                        local outbound = job.outboundDelivery
+                        if type(outbound) == "table" then
+                            local productionPrice = math.floor(tonumber(job.quote and job.quote.playerPrice)
+                                or tonumber(email.quotedPrice) or 0)
+                            local deliveryPrice = math.floor(tonumber(email.quotedDeliveryPrice) or 0)
+                            local acceptedDelivery = email.offeredDelivery == true
+                                and email.deliveryAccepted == true
+                                and outbound.requested == true
+                            outbound.offered = email.offeredDelivery == true
+                            outbound.quotedPrice = email.offeredDelivery and deliveryPrice or nil
+                            outbound.transport = acceptedDelivery and "shop" or "customer"
+                            job.quote.totalPrice = productionPrice + (acceptedDelivery and deliveryPrice or 0)
+                        end
                         succeeded = Runtime.JobService.acceptOffer(state, job, os.time())
                     else
+                        if type(email.job.outboundDelivery) == "table" then
+                            email.job.outboundDelivery.transport = "customer"
+                        end
                         succeeded = Runtime.JobService.declineOffer(state, job, os.time())
                     end
                     if succeeded then
@@ -258,11 +278,21 @@ function Component.install(Runtime)
                         email.subject = email.accepted
                             and ("Estimate accepted: " .. job.id)
                             or ("Estimate declined: " .. job.id)
-                        email.body = email.accepted
-                            and string.format("We accept your $%d estimate. Please proceed with the job.",
-                                math.floor(tonumber(email.quotedPrice) or 0))
-                            or string.format("Thank you for the $%d estimate. We have decided not to proceed.",
-                                math.floor(tonumber(email.quotedPrice) or 0))
+                        local productionPrice = math.floor(tonumber(email.quotedPrice) or 0)
+                        local deliveryPrice = math.floor(tonumber(email.quotedDeliveryPrice) or 0)
+                        if not email.accepted then
+                            email.body = string.format("Thank you for the $%d production estimate. We have decided not to proceed.",
+                                productionPrice)
+                        elseif email.offeredDelivery and email.deliveryAccepted then
+                            email.body = string.format("We accept your $%d production estimate and $%d delivery quote ($%d total). Please proceed with the job and shop delivery.",
+                                productionPrice, deliveryPrice, productionPrice + deliveryPrice)
+                        elseif email.offeredDelivery then
+                            email.body = string.format("We accept your $%d production estimate, but will arrange our own transportation rather than the $%d shop delivery. Please proceed with the job.",
+                                productionPrice, deliveryPrice)
+                        else
+                            email.body = string.format("We accept your $%d production estimate. We will arrange our own transportation for the shipment.",
+                                productionPrice)
+                        end
                         email.responseOutcome = email.accepted and "accepted" or "declined"
                         for _, archived in ipairs(emails.archive) do
                             if archived.jobId == job.id and archived.response == "estimate_sent" then

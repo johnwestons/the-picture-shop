@@ -201,7 +201,7 @@ function Component.install(Runtime)
         return position[1], position[2]
     end
 
-    function Runtime.Screen.bladeCenter() return 480, 311 end
+    function Runtime.Screen.bladeCenter() return 480, 420 end
     function Runtime.Screen.bladeSleeveCenter() return 480, 475 end
 
     function Runtime.Screen.hasModal() return Runtime.Screen.loadMenu ~= nil or Runtime.Screen.maintenanceView ~= nil or Runtime.Screen.helpOpen end

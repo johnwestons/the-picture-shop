@@ -202,7 +202,7 @@ function Component.install(Runtime)
             Runtime.drawOilingGame(state, assets, pointerX, pointerY)
             return
         elseif Runtime.Screen.maintenanceView == "blade" then
-            Runtime.drawBladeGame(state, pointerX, pointerY)
+            Runtime.drawBladeGame(state, assets, pointerX, pointerY)
             return
         end
         if state.machineType == "skid_wrapper" then

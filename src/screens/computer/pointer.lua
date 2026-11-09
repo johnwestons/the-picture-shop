@@ -8,6 +8,7 @@ function Component.install(Runtime)
         -- Do not retain Android keyboard focus when the player taps elsewhere.
         -- The estimate and promotion input hit targets below explicitly opt back in.
         Runtime.ComputerScreen.quoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
         Runtime.ComputerScreen.promoFocused = false
         if Runtime.ComputerScreen.promoJobId and Runtime.contains(Runtime.PROMO_INPUT, x, y) then
             Runtime.ComputerScreen.promoFocused = true
@@ -395,21 +396,60 @@ function Component.install(Runtime)
             end
             if Runtime.ComputerScreen.tab == "estimating" and currentEmail
                 and currentEmail.job and not currentEmail.awaitingReply
-                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ACCEPT, x, y)
+                and currentEmail.job.outboundDelivery
+                and currentEmail.job.outboundDelivery.requested == true
+                and Runtime.contains(Runtime.EMAIL_DELIVERY_TOGGLE, x, y)
             then
-                if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("estimate", { id = Runtime.ComputerScreen.selectedEmailId, amount = tonumber(Runtime.ComputerScreen.quoteText) }) end
+                Runtime.ComputerScreen.includeDeliveryQuote = not Runtime.ComputerScreen.includeDeliveryQuote
+                if Runtime.ComputerScreen.includeDeliveryQuote
+                    and Runtime.ComputerScreen.deliveryQuoteText == "" then
+                    local terms = Runtime.JobService.deliveryQuoteTerms(currentEmail.job)
+                    Runtime.ComputerScreen.deliveryQuoteText = terms
+                        and tostring(math.floor(terms.recommendedPrice)) or ""
+                end
+                return { action = "delivery_quote_toggled",
+                    included = Runtime.ComputerScreen.includeDeliveryQuote }
+            end
+            if Runtime.ComputerScreen.tab == "estimating" and currentEmail
+                and currentEmail.job and not currentEmail.awaitingReply
+                and Runtime.ComputerScreen.includeDeliveryQuote
+                and Runtime.contains(Runtime.EMAIL_DELIVERY_QUOTE_INPUT, x, y)
+            then
+                Runtime.ComputerScreen.deliveryQuoteFocused = true
+                Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+                return { action = "delivery_quote_focus" }
+            end
+            if Runtime.ComputerScreen.tab == "estimating" and currentEmail
+                and currentEmail.job and not currentEmail.awaitingReply
+                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ESTIMATE_SEND, x, y)
+            then
+                local includeDelivery = Runtime.ComputerScreen.includeDeliveryQuote == true
+                local deliveryAmount = includeDelivery
+                    and tonumber(Runtime.ComputerScreen.deliveryQuoteText) or nil
+                if Runtime.dependencies.remoteCommand then
+                    return Runtime.remoteAction("estimate", {
+                        id = Runtime.ComputerScreen.selectedEmailId,
+                        amount = tonumber(Runtime.ComputerScreen.quoteText),
+                        includeDeliveryQuote = includeDelivery,
+                        deliveryAmount = deliveryAmount,
+                    })
+                end
                 local succeeded, result = Runtime.JobService.submitEmailQuote(
-                    state, Runtime.ComputerScreen.selectedEmailId, tonumber(Runtime.ComputerScreen.quoteText), os.time())
+                    state, Runtime.ComputerScreen.selectedEmailId, tonumber(Runtime.ComputerScreen.quoteText),
+                    os.time(), deliveryAmount, includeDelivery)
                 if not succeeded then state.message = tostring(result); return { action = "blocked" } end
                 Runtime.ComputerScreen.selectedEmailId = nil
                 Runtime.ComputerScreen.emailSelectionRequired = true
                 Runtime.resetQuoteText(state)
-                state.message = string.format("Sent %s a $%d estimate. It expires in 3 days.",
-                    result.job.company, result.amount)
+                state.message = result.offeredDelivery
+                    and string.format("Sent %s a $%d production estimate and $%d delivery quote. Both decisions will arrive in 3 days.",
+                        result.job.company, result.amount, result.deliveryAmount)
+                    or string.format("Sent %s a $%d production estimate. The client will arrange shipment. Reply due in 3 days.",
+                        result.job.company, result.amount)
                 return { action = "estimate_sent", result = result }
             elseif Runtime.ComputerScreen.tab == "estimating" and currentEmail
                 and currentEmail.job and not currentEmail.awaitingReply
-                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_DECLINE, x, y)
+                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ESTIMATE_DECLINE, x, y)
             then
                 if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("decline", { id = Runtime.ComputerScreen.selectedEmailId }) end
                 local succeeded, result = Runtime.JobService.respondToEmail(
@@ -474,6 +514,10 @@ function Component.install(Runtime)
             and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
             and selected.inspection.status=="passed"
             and (Runtime.contains(Runtime.COMPLETE,x,y)) then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer"
+                and selected.status == "in_production" then
+                return { action = "pickup_ready", job = selected }
+            end
             return nil
         end
         if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.COMPLETE, x, y) then

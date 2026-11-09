@@ -119,6 +119,7 @@ function Component.install(Runtime)
             template.artworkKey = Runtime.artworkForSequence(state, sequence)
         end
         template.deliveryService = Runtime.deliveryService(template, sequence)
+        template.outboundDelivery = Runtime.outboundDeliveryRequest(template, sequence)
         local offer, errors = Runtime.Jobs.createOffer(template)
         if not offer then return nil, errors end
         return Runtime.decorateOfferForReputation(state, offer, sequence)

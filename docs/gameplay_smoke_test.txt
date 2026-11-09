@@ -1,0 +1,144 @@
+THE PICTURE SHOP - REPEATABLE GAMEPLAY READINESS TEST
+
+Run
+Double-click RUN_GAMEPLAY_SMOKE_TEST.bat, or run:
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/run_gameplay_smoke.ps1
+
+The complete run has 19 isolated stages and 37 required feature groups. Allow
+tens of minutes for both full suites and the physical travel campaigns. It
+continues through independent stages after a failure so one defect cannot hide
+the rest of the results. The final process exit is nonzero if any stage fails.
+
+Reports
+  output/gameplay-smoke/<timestamp>/summary.txt
+  output/gameplay-smoke/<timestamp>/summary.json
+  output/gameplay-smoke/<timestamp>/<stage>/checks.rpt
+  output/gameplay-smoke/<timestamp>/<stage>/stdout.log and stderr.log
+
+summary.json and summary.txt update after each stage. The JSON records the seed,
+runtime configuration, test count, wall time, deadline result, last successful
+checkpoint, exact missing evidence, and required checks for each feature group.
+Earlier runs are retained. A new run cannot overwrite an existing directory.
+Each stage gets a new save identity under the run's isolated APPDATA directory;
+it cannot inherit progress from another stage or from the normal player slots.
+
+What runs
+1. The entire existing regression suite in desktop and forced mobile modes:
+   production, reception/estimates, supplies, service, quality, payroll, business
+   finance, expansion, material handling, shipping, delivery, home activities,
+   furniture, minigames, input/screens, persistence and multiplayer authority.
+2. Six deterministic interruption campaigns: seeds 104729, 130363 and 155921 in
+   each mode. Every seed exercises 200 household recovery cases, 72 interrupted
+   grocery routes and five interrupted social interactions: 1,662 scenarios
+   across the six runs, each requiring a successful completion after recovery,
+   plus 12 nearby-shelf retargeting checks.
+3. Both modes: all four apartment round trips through real App updates, walking,
+   motorcycle physics, parking, doors, clothing changes and a household routine.
+   Journeys save/reload during the ride, reject premature/duplicate arrival, and
+   verify that personal pay is not repeated on the return to work.
+4. Both modes: weekday town outings, return through the origin door to cancel,
+   mid-journey reload and the completed trip back to the warehouse.
+5. Delivery trucks physically traverse every ordered destination pair across
+   three town seeds, plus each mainland-gate-to-loading-dock route. GPS route
+   data must survive its reliable snapshot within the packet budget.
+6. Both modes: additional live commute/session, gas station/service, sprint and
+   scene-exit checks, including save failure followed by a successful retry.
+
+Interruption campaign design
+Household scenarios cover tap water, washing, bathing, toilet use, floor rest,
+food/drink, floor sleep and sandwich preparation in every apartment. Each action
+is interrupted by explicit cancellation, walking away, scene departure,
+disconnect, or an actual disk save/load. Duplicate starts cannot consume twice.
+The activity must release its ownership/resting state, restart, finish within a
+bounded number of updates and produce a valid save. Cooking cannot duplicate
+food, and each food attempt consumes only one portion.
+
+Grocery routes mix shelf destinations, options-menu pauses, manual movement that
+overrides click-to-walk, repeated clicks and returning/retrieving the cart. The
+same campaign runs through solo movement and shared authoritative movement.
+A cart that cannot reach the chosen shelf within the deadline fails with the
+seed, step, current position and remaining waypoints.
+
+Social scenarios cover decline, walking out of range, changing rooms,
+disconnecting and letting an offer expire. Afterwards both participants must be
+free to start and finish another high five; stale acceptance cannot repeat it.
+
+Defects found while building this test
+- After manual movement near a grocery fixture, a route could assume the cart
+  was at a grid-cell center and begin with an impossible turn. The planner now
+  connects from the actual position, uses precise cart waypoints, and replans
+  after movement stops at a corner. Repeated blockage produces an actionable
+  notice instead of leaving silent, endless click-to-walk intent.
+- Opening a nearby shelf while walking somewhere else retained the old route.
+  The nearby shelf now clears the old destination and outgoing movement input.
+  Closing its menu therefore cannot resume an obsolete trip to another shelf.
+- The focused network commute fixture used a new town with the previous town's
+  roster and attempted mechanic transactions outside opening hours. Its initial
+  household is now constructed normally, and service runs during opening hours.
+- The weekday outing driver still expected a household departure confirmation
+  and a global trip destination. It now follows the current independent travel
+  flow, each resident's destination, and the retained shared outdoor world.
+  Both layouts complete origin-door cancellation and the physical round trip.
+- Preflight caught an empty environment value carrying from a seeded stage into
+  an unseeded stage. The runner now removes inherited task environment variables
+  before each child process, and validates the child's recorded configuration.
+
+Other recovery coverage remains in the full journeys: discarded/spoiled stock,
+quality rework, input duplication, missing supplies/funds, occupied equipment,
+stale leases, reconnect, machine/vehicle/save ownership, unfinished loading,
+employee shift handover, blocked construction, and once-only payment.
+
+Pass rules
+- Every planned stage must exit successfully before its deadline.
+- Every report must match the requested focus, mode, seed and isolated identity.
+- Every stage must meet its minimum check count and all named feature checkpoints.
+- CHECKS_COMPLETE, render completion and SMOKE_OK must each appear exactly once.
+- A FAIL line, duplicate check, timeout, missing report or missing feature fails.
+- Runtime Lua and test-tool sources are fingerprinted before and after the run.
+  A source change during testing makes the result fail, requiring another run.
+- A selected-stage run is always PARTIAL, even if its selected checks pass.
+  Only the full plan can produce GAMEPLAY_SMOKE_PASS.
+
+Development commands
+  ./tools/run_gameplay_smoke.ps1 -ValidateOnly
+  ./tools/tests/test_gameplay_smoke_runner.ps1
+  ./tools/run_gameplay_smoke.ps1 -Stage softlocks-desktop-130363
+
+Feature definitions and required evidence live in tools/gameplay_smoke_plan.json.
+Add a feature contract when adding a mechanic. Keep at least a completion check
+and a rejection/interruption recovery check; a render-only assertion is not
+completion evidence. Do not remove a required check to hide a gameplay failure.
+Use the failing stage and seed to reproduce, fix the cause, then run the complete
+plan again before treating the change as ready for broader playtesting.
+
+Interpretation
+These are automated journeys through the real LÖVE game and its controls,
+simulation and persistence. Fixtures establish relevant inventories, equipment,
+actors and starting scenes so late-game mechanics can be tested reliably.
+Some network/state checks use controlled transports and actor placement; physical
+route tests use actual motion. The report records tested contracts, not a claim
+that all possible player sequences are bug-free. A green run is a repeatable
+baseline for playtesting. Physical Android and separate-device LAN acceptance
+are reported in docs/gameplay_live_acceptance_2026-11-09.txt. Internet conditions,
+other devices and subjective usability need additional playtesting. No release
+build or installer is created by this launcher.
+
+Executed baseline - November 9, 2026
+The complete plan passed under Windows PowerShell 5.1 and the installed LÖVE
+runtime: 19/19 stages, 37/37 feature groups, 34,594 passing assertions, zero
+failed stages. Duration: 21.53 minutes. These assertions include repeated
+desktop/mobile and seeded scenarios, not 34,594 distinct player journeys.
+
+All 816 ordered delivery routes completed across the three towns, plus each
+mainland-to-warehouse route. The GPS snapshot used 364,880 of 524,288 bytes.
+All four apartment round trips and the weekday outing completed in both modes.
+The 1,662 interruption scenarios and 12 nearby-shelf regression checks passed.
+The report-validator's 10 positive/negative checks also passed separately.
+
+Reports: output/gameplay-smoke/acceptance-20261109/summary.txt and summary.json
+Source fingerprint (unchanged throughout the complete run):
+1893268235d47425bc3ba42f15ad3eb371ff425ff493c5490310defc78c8ad3d
+Earlier failed/partial reports remain available as diagnostic evidence; this
+complete run supersedes them for that source revision. Subsequent live-device
+fixes and their updated acceptance results are recorded in
+docs/gameplay_live_acceptance_2026-11-09.txt.

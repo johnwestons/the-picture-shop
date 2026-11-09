@@ -58,7 +58,9 @@ local function buttons(R)
         return {{key='w',label=week.phase=='home' and 'RETURN FOR THE WORK WEEK' or 'GO HOME FOR THE WEEKEND',command='request'}}
     end
     do
-        local result={{key='return',label='EXPLORE TOWN',command='explore'}}
+        local trip=R.state.home.commute
+        local resuming=trip and trip.deliveryRun and trip.deliveryDriver==require('src.home_residents').key(R.World.player)
+        local result={{key='return',label=resuming and 'RESUME DELIVERY' or 'EXPLORE TOWN',command='explore'}}
         local scene=R.World.player.sceneId or 'warehouse'
         if scene=='warehouse' and #available(R)>0 then
             result[#result+1]={key='d',label='PLAN PAPER DELIVERIES',command='planner'}
@@ -198,7 +200,7 @@ local function drawPlanner(R)
     g.setFont(small)
     g.setColor(.13,.32,.35,1);g.rectangle('fill',140,526,324,44,5)
     g.rectangle('fill',496,526,324,44,5)
-    g.setColor(.96,.96,.88,1);g.printf('LOAD & START ROUTE  [Enter]',148,540,308,'center')
+    g.setColor(.96,.96,.88,1);g.printf('RESERVE DELIVERY  [Enter]',148,540,308,'center')
     g.printf('CANCEL',504,540,308,'center')
     g.setColor(.96,.79,.4,1);g.printf(R.state.message or '',140,582,680,'left')
     g.pop()

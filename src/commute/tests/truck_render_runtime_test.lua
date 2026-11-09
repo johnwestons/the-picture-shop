@@ -32,7 +32,9 @@ function Test.run(context,check)
         check('kei_live_cab_expands_scene_to_phone_aspect',camera.firstPerson and camera.localVehicle=='truck'
             and R._commute.renderer.viewportWidth>1900)
         g.push('all');g.setCanvas({canvas,stencil=true});g.origin();g.clear(0,0,0,0)
-        require('src.viewport').beginDraw(R.Config.baseWidth,R.Config.baseHeight,true,R.App.officeUsesSafeArea())
+        local fullScreen=require('src.viewport').fullScreenDevice()
+        local insideWidth,insideHeight=R._commute.renderer.viewportWidth,R._commute.renderer.viewportHeight
+        require('src.viewport').beginDraw(R.Config.baseWidth,R.Config.baseHeight,not fullScreen,R.App.officeUsesSafeArea())
         C.draw(R)
         require('src.viewport').endDraw();g.pop()
         local data=canvas:newImageData()
@@ -47,7 +49,8 @@ function Test.run(context,check)
         camera:setFirstPerson(false,truck)
         R.App.update(0)
         check('kei_exiting_cab_restores_outside_canvas',not camera.firstPerson
-            and R._commute.renderer.viewportWidth==1280 and R._commute.renderer.viewportHeight==880)
+            and R._commute.renderer.viewportWidth==(fullScreen and insideWidth or 1280)
+            and R._commute.renderer.viewportHeight==(fullScreen and insideHeight or 880))
     end,debug.traceback)
     while g.getStackDepth()>stack do g.pop() end
     g.getDimensions=originalDimensions;canvas:release()

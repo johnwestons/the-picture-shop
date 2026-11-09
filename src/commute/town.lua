@@ -378,6 +378,11 @@ local function attachWarehouseTruckAccess(t,sites)
         local x,z,h=site:toWorld(localPoint.x,localPoint.z,0)
         exitPoints[#exitPoints+1]={x=x,z=z,h=h}
     end
+    -- Meet the frontage squarely. A fixed diagonal toward a close gate can
+    -- require a near U-turn onto the street and send the cab across its verge.
+    local gateX,gateZ=site:toLocal(exitGate.point[1],exitGate.point[2])
+    local approachX,approachZ,approachH=site:toWorld(gateX,gateZ-7,0)
+    exitPoints[#exitPoints+1]={x=approachX,z=approachZ,h=approachH}
     exitPoints[#exitPoints+1]={x=exitGate.point[1],z=exitGate.point[2],h=exitGate.point[3]}
     local exitDefinition=truckRoad('warehouse-truck-exit',exitPoints)
     -- The gate stations become real shared nodes so the GPS graph joins the

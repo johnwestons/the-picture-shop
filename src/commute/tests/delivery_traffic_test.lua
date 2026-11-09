@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Network=require('src.commute.delivery_traffic')
 local Town=require('src.commute.town')
 local Routes=require('src.commute.routes')
@@ -145,7 +146,7 @@ function Test.run(check)
     check('delivery_company_decal_is_a_separate_high_resolution_overlay',
         width==512 and height==200 and visible>100)
 
-    local preview=g.newCanvas(640,448,{format='rgba8'})
+    local preview=PixelCanvas(640,448,{format='rgba8'})
     local camera={zoom=1,yaw=0,tilt=55,screen=function() return 320,320 end}
     local actor={x=0,z=0,h=0,heading=0,livery='plain',company='Blue Ridge Packaging'}
     g.push('all');g.setCanvas(preview);g.origin();g.clear(0,0,0,0)

@@ -125,6 +125,31 @@ function Test.run(context,check)
     check("home_session_food_replay_cannot_consume_twice",state.home.inventory.basic_meal==1 and firstResident.activity.kind=="eat")
     assert(guests[1]:requestInteraction("homeActivity","cancel"));pump()
     local returningResident=guests[3].residentId;state.home.residents[returningResident].hunger=42
+    local Cargo=require('src.home_bike_cargo')
+    firstResident.bikeParkedAtHome=true;firstResident.bikeInventory=Cargo.new()
+    firstResident.bikeInventory.items.bread=1
+    local cargoTarget=assert(Cargo.target(host.players[2],state))
+    host.players[2].x,host.players[2].y=cargoTarget.x,cargoTarget.y
+    local breadBefore=state.home.inventory.bread or 0
+    local breadAdded=require('src.home_shop_catalog').PRODUCTS.bread.servings
+    received[1].interaction_result=nil
+    network:duplicateNext('client_to_host',1,1,true)
+    assert(guests[1]:requestInteraction('homeActivity','bike:all:0'));pump()
+    local unloaded=received[1].interaction_result
+    check('home_session_bike_cargo_acknowledged_and_applied_once',unloaded and unloaded.accepted
+        and unloaded.code=='unloaded' and unloaded.message:find('unloaded',1,true)
+        and state.home.inventory.bread==breadBefore+breadAdded and firstResident.bikeInventory.revision==1
+        and received[2].shop_state.state.home.inventory.bread==breadBefore+breadAdded)
+    received[1].interaction_result=nil
+    assert(guests[1]:requestInteraction('homeActivity','bike:all:0'));pump()
+    check('home_session_stale_bike_cargo_replied_without_timeout',received[1].interaction_result
+        and not received[1].interaction_result.accepted and received[1].interaction_result.code=='blocked'
+        and state.home.inventory.bread==breadBefore+breadAdded)
+    host.players[2].x,host.players[2].y=0,0
+    received[1].interaction_result=nil
+    assert(guests[1]:requestInteraction('homeActivity','bike:all:1'));pump()
+    check('home_session_distant_bike_cargo_replied_without_timeout',received[1].interaction_result
+        and not received[1].interaction_result.accepted and received[1].interaction_result.code=='blocked')
     local Shopping=require("src.home_shopping")
     assert(Shopping.order(state,hp,{productId="pizza",quantity=1,requestId="session-pizza",expectedRevision=state.home.revision}))
     state.calendar.elapsed=state.calendar.elapsed+.5/24*state.calendar.secondsPerDay

@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Bindings=require('src.commute.bindings')
 local Camera=require('src.commute.camera')
 local Rider=require('src.commute.rider')
@@ -166,7 +167,7 @@ function Test.run(check)
     -- Read the real marker pixels on a clear target. Project the wheel anchor
     -- off-canvas at high zoom so the same compact target can cover every case.
     local g=love.graphics
-    local canvas=g.newCanvas(32,32)
+    local canvas=PixelCanvas(32,32)
     for _,zoom in ipairs({.55,1.35,6.5}) do
         local clear=true
         for _,direction in ipairs({{1,0},{0,-1},{-1,0},{0,1}}) do

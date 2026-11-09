@@ -20,6 +20,59 @@ function Component.install(Runtime)
         return (hash % 10000) / 10000
     end
 
+    local localDeliveryCompanies = {
+        "wrenchworks", "majic blue", "mechanic", "town grocery", "grocery",
+        "town diner", "diner", "coffee shop", "general store", "post office",
+    }
+
+    function Runtime.JobService.deliveryQuoteTerms(job, amount)
+        if type(job) ~= "table" or type(job.outboundDelivery) ~= "table"
+            or job.outboundDelivery.requested ~= true then return nil end
+        local company = tostring(job.company or ""):lower()
+        local localRoute = false
+        for _, name in ipairs(localDeliveryCompanies) do
+            if company:find(name, 1, true) then localRoute = true; break end
+        end
+        local pallets = math.max(1, math.floor(tonumber(job.quote and job.quote.palletCount) or 1))
+        local base = (localRoute and 90 or 220) + (pallets - 1) * (localRoute and 30 or 55)
+        amount = math.max(1, math.floor(tonumber(amount) or base))
+        local ceiling = base * 2.4
+        local chance
+        if amount <= base then
+            chance = 1
+        elseif amount >= ceiling then
+            chance = 0.05
+        else
+            chance = 0.88 - ((amount - base) / math.max(1, ceiling - base)) * 0.73
+        end
+        return {
+            amount = amount,
+            recommendedPrice = base,
+            maximumPrice = math.floor(ceiling + 0.5),
+            acceptanceChance = math.max(0.05, math.min(1, chance)),
+            localRoute = localRoute,
+            palletCount = pallets,
+        }
+    end
+
+    function Runtime.deliveryQuoteRoll(job, amount, relationship)
+        local hash = math.floor(amount * 100 + relationship * 7919 + 104729)
+        for index = 1, #(job.id or "JOB") do
+            hash = (hash * 33 + string.byte(job.id, index)) % 2147483647
+        end
+        return (hash % 10000) / 10000
+    end
+
+    local function prepareOutboundQuote(job, requested, deliveryTerms, accepted)
+        job.outboundDelivery = type(job.outboundDelivery) == "table" and job.outboundDelivery or {
+            requested = requested == true,
+        }
+        job.outboundDelivery.requested = job.outboundDelivery.requested == true
+        job.outboundDelivery.offered = requested == true and deliveryTerms ~= nil
+        job.outboundDelivery.quotedPrice = deliveryTerms and deliveryTerms.amount or nil
+        job.outboundDelivery.transport = accepted == true and "shop" or "customer"
+    end
+
     function Runtime.decorateOfferForReputation(state, offer, sequence)
         if not offer then return offer end
         local reputation = Runtime.Reputation.ensure(state)
@@ -121,15 +174,19 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.JobService.submitQuote(state, job, amount, timestamp)
+    function Runtime.JobService.submitQuote(state, job, amount, timestamp, deliveryAmount, includeDeliveryQuote)
         if not job or job.status~="offered" then return false,"This customer's agreed price is already fixed." end
         local terms = Runtime.JobService.quoteTerms(state, job, amount)
         if not terms then return false, "quote paperwork is missing" end
         local accepted = Runtime.quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
+        local deliveryTerms = includeDeliveryQuote and Runtime.JobService.deliveryQuoteTerms(job, deliveryAmount) or nil
+        local deliveryAccepted = accepted and deliveryTerms ~= nil and Runtime.deliveryQuoteRoll(job,
+            deliveryTerms.amount, terms.relationshipJobs) <= deliveryTerms.acceptanceChance or false
         job.quote.recommendedPrice = terms.recommendedPrice
         job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
         job.quote.playerPrice = terms.amount
-        job.quote.totalPrice = terms.amount
+        job.quote.totalPrice = terms.amount + (deliveryAccepted and deliveryTerms.amount or 0)
+        prepareOutboundQuote(job, deliveryTerms ~= nil, deliveryTerms, deliveryAccepted)
         job.quoteProposal = {
             amount = terms.amount,
             recommendedPrice = terms.recommendedPrice,
@@ -137,6 +194,8 @@ function Component.install(Runtime)
             maximumPrice = terms.maximumPrice,
             relationshipJobs = terms.relationshipJobs,
             accepted = accepted,
+            deliveryAmount = deliveryTerms and deliveryTerms.amount or nil,
+            deliveryAccepted = deliveryAccepted,
         }
         local succeeded, result
         if accepted then succeeded, result = Runtime.JobService.acceptOffer(state, job, timestamp)
@@ -146,12 +205,14 @@ function Component.install(Runtime)
             accepted = accepted,
             job = job,
             amount = terms.amount,
+            deliveryAmount = deliveryTerms and deliveryTerms.amount or nil,
+            deliveryAccepted = deliveryAccepted,
             acceptanceChance = terms.acceptanceChance,
             recommendedPrice = terms.recommendedPrice,
         }
     end
 
-    function Runtime.JobService.submitEmailQuote(state, emailId, amount, timestamp)
+    function Runtime.JobService.submitEmailQuote(state, emailId, amount, timestamp, deliveryAmount, includeDeliveryQuote)
         local email, index = Runtime.emailById(state, emailId)
         if not email then return false, "email request was not found" end
         if not email.job then return false, "email does not contain an estimate request" end
@@ -160,6 +221,9 @@ function Component.install(Runtime)
         local job = email.job
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local accepted = Runtime.quoteRoll(job, terms.amount, terms.relationshipJobs) <= terms.acceptanceChance
+        local deliveryTerms = includeDeliveryQuote and Runtime.JobService.deliveryQuoteTerms(job, deliveryAmount) or nil
+        local deliveryAccepted = deliveryTerms ~= nil and Runtime.deliveryQuoteRoll(job,
+            deliveryTerms.amount, terms.relationshipJobs) <= deliveryTerms.acceptanceChance or false
         if accepted then
             local reserved, reserveError = Runtime.JobService.reserveHousePaper(state, job)
             if not reserved then return false, reserveError end
@@ -168,6 +232,8 @@ function Component.install(Runtime)
         job.quote.servicePrice=terms.servicePrice;job.quote.employeeBudget=terms.employeeBudget
         job.quote.playerPrice = terms.amount
         job.quote.totalPrice = terms.amount
+        prepareOutboundQuote(job, deliveryTerms ~= nil, deliveryTerms, false)
+        if deliveryTerms then job.outboundDelivery.transport = "pending" end
         job.quoteProposal = {
             amount = terms.amount,
             recommendedPrice = terms.recommendedPrice,
@@ -175,6 +241,8 @@ function Component.install(Runtime)
             maximumPrice = terms.maximumPrice,
             relationshipJobs = terms.relationshipJobs,
             accepted = accepted,
+            deliveryAmount = deliveryTerms and deliveryTerms.amount or nil,
+            deliveryAcceptanceChance = deliveryTerms and deliveryTerms.acceptanceChance or nil,
         }
         job.estimate = job.estimate or {}
         job.estimate.stage = "awaiting_reply"
@@ -184,12 +252,16 @@ function Component.install(Runtime)
         table.remove(state.clientEmails.inbox, index)
         state.clientEmails.archive[#state.clientEmails.archive + 1] = {
             id = email.id, sender = email.sender, subject = email.subject,
-            body = string.format("A $%d estimate was sent for %s. The client reply is pending.",
-                terms.amount, job.id),
+            body = deliveryTerms
+                and string.format("A $%d production estimate and optional $%d shop-delivery quote were sent for %s. The client reply is pending.",
+                    terms.amount, deliveryTerms.amount, job.id)
+                or string.format("A $%d production estimate was sent for %s. The client reply is pending.",
+                    terms.amount, job.id),
             jobId = job.id,
             response = "estimate_sent",
             quotedPrice = terms.amount,
             acceptanceChance = terms.acceptanceChance,
+            quotedDeliveryPrice = deliveryTerms and deliveryTerms.amount or nil,
             respondedAtHours = now,
             expiresAtHours = job.estimate.expiresAtHours,
         }
@@ -205,12 +277,18 @@ function Component.install(Runtime)
             quotedPrice = terms.amount,
             accepted = accepted,
             estimateReply = true,
+            quotedDeliveryPrice = deliveryTerms and deliveryTerms.amount or nil,
+            offeredDelivery = deliveryTerms ~= nil,
+            deliveryAccepted = deliveryAccepted,
             job = job,
         }
         return true, {
             accepted = nil,
             job = job,
             amount = terms.amount,
+            deliveryAmount = deliveryTerms and deliveryTerms.amount or nil,
+            offeredDelivery = deliveryTerms ~= nil,
+            deliveryAcceptanceChance = deliveryTerms and deliveryTerms.acceptanceChance or nil,
             acceptanceChance = terms.acceptanceChance,
             recommendedPrice = terms.recommendedPrice,
             expiresAtHours = job.estimate.expiresAtHours,

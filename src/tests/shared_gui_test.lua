@@ -103,7 +103,7 @@ function Test.run(context,check)
     check("shared_gui_cutter_service_button_sends_host_command",last("begin_lubrication"))
     for _,step in ipairs({"lockout_disconnect","lockout_key","lockout_tag","prep_cartridge","prep_prime","lubricate","blade_bolts","blade_lift","blade_sleeve"}) do
         cutter.serviceStep=step; cutter.serviceView=1; cutter.serviceTool=1; cutter.serviceItems={}
-        cutter.bladeBoltsDone=step=="blade_bolts" and 1 or 4; cutter.bladeBoltMask=step=="blade_bolts" and 8 or 15
+        cutter.bladeBoltsDone=step=="blade_bolts" and 1 or 5; cutter.bladeBoltMask=step=="blade_bolts" and 8 or 31
         render("cutter_"..step,nil,step=="lubricate")
         if step=="blade_bolts" then
             check("shared_gui_blade_tracks_exact_host_bolt_not_just_count",Remote.sharedMachine.screen.bladeBolts[4] and not Remote.sharedMachine.screen.bladeBolts[1])

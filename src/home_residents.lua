@@ -272,7 +272,12 @@ function Residents.command(state,player,command,served,twelveHourTime)
         local allowed,reason=Residents.householdAllowed(state,player)
         if not allowed then return false,'riding_gear',reason end
     end
-    if BikeCargo.decode(command) then return BikeCargo.command(state,player,command) end
+    if BikeCargo.decode(command) then
+        -- Cargo's public API returns (okay, message); home interactions also
+        -- need a protocol-safe result code so guests receive the acknowledgment.
+        local okay,message=BikeCargo.command(state,player,command)
+        return okay,okay and 'unloaded' or 'blocked',message
+    end
     if Dining.decode(command) then return Dining.command(state,player,command) end
     if Sleep.decode(command)~=nil then return Sleep.command(state,player,command,twelveHourTime) end
     if Objects.decode(command) then return Objects.command(state,player,command) end

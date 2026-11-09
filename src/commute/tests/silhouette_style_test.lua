@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Style=require('src.commute.silhouette_style')
 local Test={}
 
@@ -12,7 +13,7 @@ function Test.run(check)
     end
     local source=g.newImage(sourceData)
     source:setFilter('linear','linear')
-    local canvas=g.newCanvas(32,32)
+    local canvas=PixelCanvas(32,32)
     local shader=g.newShader([[
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;

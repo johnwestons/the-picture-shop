@@ -55,6 +55,15 @@ local function candidateScalingChecks(check)
 end
 
 function Test.run(context,check)
+    local bounded=true
+    for _,budget in ipairs({.01,.017,1/60,1/3,3.7}) do
+        for _,goal in ipairs({{x=788,y=580},{x=120,y=202}}) do
+            local actor={x=788,y=202}
+            Navigator.travel(actor,goal,budget,.016,scene({}))
+            bounded=bounded and math.abs(actor.intentX or 0)<=1 and math.abs(actor.intentY or 0)<=1
+        end
+    end
+    check('npc_navigation_direction_stays_in_network_range',bounded)
     candidateScalingChecks(check)
     local u={{x=420,y=270,halfWidth=100,halfHeight=8},
         {x=420,y=430,halfWidth=100,halfHeight=8},

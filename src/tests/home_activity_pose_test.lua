@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Pose=require("src.home_activity_pose")
 local Residents=require("src.home_residents")
 local Catalog=require("src.home_furniture_catalog")
@@ -14,7 +15,7 @@ end
 function Test.run(context,check)
     for _,example in ipairs({{"chair","sit"},{"chair","eat"},{"couch","watch"},{"couch","couchrest"},{"bed","nap"},{"guest_mat","matrest"}}) do
         local s,p=Fixtures.fresh();local kind,action=unpack(example)
-        local canvas=love.graphics.newCanvas(960,678);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.13,.16,.18,1)
+        local canvas=PixelCanvas(960,678);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.13,.16,.18,1)
         for i,direction in ipairs(Catalog.DIRECTIONS) do
             local item={id=2,kind=kind,x=0,y=0,location="floor",direction=direction,condition=100}
             s.home.furniture.items={item};p.x,p.y,p.character=100,100,"rabbit-worker"
@@ -50,7 +51,7 @@ function Test.run(context,check)
     local display={id=2,sceneId="home",x=x,y=y,character="rabbit-worker"}
     local remote=assert(Pose.get({home=Schema.snapshot(s).home},display))
     check("home_pose_guest_without_private_key_uses_active_identity",remote.x==gp.x and remote.frame==gp.frame)
-    local canvas=love.graphics.newCanvas(480,240);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.13,.16,.18,1)
+    local canvas=PixelCanvas(480,240);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.13,.16,.18,1)
     for i=1,6 do
         local copy=Schema.copy(gp);copy.x,copy.y=40+(i-1)*80,160;copy.item=nil
         Pose.draw(copy,{furColorway=i,overallsColorway=i})
@@ -65,7 +66,7 @@ function Test.run(context,check)
     context.world.updateNetworkPlayer(.1,1,0,context.assets,s)
     check("home_pose_walk_wakes_without_shop_teleport",math.abs(context.world.player.x-x)<30 and math.abs(context.world.player.y-y)<30 and not context.world.player.resting)
     Pose.release()
-    canvas=love.graphics.newCanvas(240,120);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear()
+    canvas=PixelCanvas(240,120);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear()
     floor.x,floor.y=120,60;Pose.draw(floor,p);love.graphics.pop()
     local data=canvas:newImageData();local visible=false
     for i=30,210,5 do for j=10,110,5 do local _,_,_,a=data:getPixel(i,j);if a>.18 then visible=true end end end

@@ -121,7 +121,7 @@ function Component.install(Runtime)
             releaseKey = function(key) Runtime.Input.keyreleased(key, Runtime.inputContext) end,
             pressPointer = function(x,y,button)
                 local commute=require('src.commute.runtime')
-                if commute.indoorControlsActive(Runtime) then
+                if Runtime.state.screen=='world' and commute.indoorControlsActive(Runtime) then
                     local px,py=Runtime.toPointerCoordinates(x,y)
                     return commute.pointer(Runtime,px,py,'touch')
                 end

@@ -14,11 +14,28 @@ function Component.run(Context)
             requestedCopies = 500, spoilageAllowance = 25 }
     end
     Context.fivePalletView.quoteRows = Context.Codec.array(Context.fiveRows)
+    Context.fivePalletView.deliveryRequested = true
     Context.fivePalletGrantPacket = Context.Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 16, resourceId = "reception_customer",
         granted = true, leaseId = "lease-customer-2", code = "granted",
         message = "Customer counter acquired.", revision = 10, view = Context.fivePalletView,
     })
+    do
+        local packet=assert(Context.fivePalletGrantPacket)
+        local decoded=assert(Context.Protocol.decode(packet))
+        Context.check('network_protocol_five_pallet_delivery_preserves_quote_fields',
+            decoded.payload.view.deliveryRequested and #decoded.payload.view.quoteRows==5
+            and decoded.payload.view.quoteRows[5].requestedCopies==500
+            and decoded.payload.view.quoteRows[5].spoilageAllowance==25
+            and #packet<=Context.Protocol.MAX_PACKET_BYTES)
+        local wire=assert(Context.Codec.decode(packet))
+        wire.payload.view.quoteRows[1]=Context.Codec.array({1,525,2,500})
+        Context.check('network_protocol_rejects_short_quote_tuple',
+            not Context.Protocol.decode(assert(Context.Codec.encode(wire))))
+        wire.payload.view.quoteRows[1]=Context.Codec.array({1,525,2,500,26})
+        Context.check('network_protocol_rejects_inconsistent_quote_tuple',
+            not Context.Protocol.decode(assert(Context.Codec.encode(wire))))
+    end
     Context.missingGrantedLease = Context.Protocol.encode("workshop_grant", {
         sessionId = "session-001", requestId = 16, resourceId = "office_computer",
         granted = true, code = "granted", message = "Granted.", revision = 10,
@@ -83,6 +100,14 @@ function Component.run(Context)
         granted = true, leaseId = "lease-cutter-2", code = "granted",
         message = "Granted.", revision = 11, view = Context.cutterViews.tooManyCandidates,
     })
+    for _,name in ipairs({'customerGrantPacket','printResultPacket','wrapperResultPacket',
+        'officeGrantPacket','jackGrantPacket','maximumCutterGrantPacket','fivePalletGrantPacket'}) do
+        local packet=Context[name]
+        local decoded,reason
+        if packet then decoded,reason=Context.Protocol.decode(packet) end
+        Context.check('network_workshop_view_roundtrip_'..name,packet~=nil and decoded~=nil,
+            tostring(reason or 'view could not be encoded'))
+    end
     Context.check("network_protocol_workshop_views_are_host_authored_strict_and_resource_specific",
         Context.customerGrant and Context.customerGrant.payload.view.jobId == "JOB-0001"
         and Context.customerGrant.payload.view.difficulty == "easy"

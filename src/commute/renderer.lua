@@ -253,7 +253,7 @@ function Renderer:buildRoadMeshes()
             siteLine(site,{x1,z0},{x1,z1},.075,.065,layers.approach,mark)
             for _,anchor in ipairs(site.truckQueueAnchors or {}) do
                 local separator=anchor.z+3.1
-                siteLine(site,{10.3,separator},{13.9,separator},.085,.07,layers.approach,mark)
+                siteLine(site,{anchor.x-1.8,separator},{anchor.x+1.8,separator},.085,.07,layers.approach,mark)
             end
             for _,stall in pairs(site.localTruckHomeStalls or {}) do
                 local x0,x1,z0,z1=stall.minX,stall.maxX,stall.minZ,stall.maxZ

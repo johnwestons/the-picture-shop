@@ -113,6 +113,21 @@ function Component.install(Runtime)
     end
 
     local function wireEnvelope(normalized)
+        if (normalized.type == "workshop_grant" or normalized.type == "workshop_result")
+            and normalized.payload.resourceId == "reception_customer" and normalized.payload.view then
+            -- Five print pallets plus delivery terms must fit the existing
+            -- datagram budget. Repeated field names are unnecessary on the wire.
+            local payload, view, rows = {}, {}, {}
+            for key, value in pairs(normalized.payload) do payload[key] = value end
+            for key, value in pairs(payload.view) do view[key] = value end
+            for index, row in ipairs(view.quoteRows) do
+                rows[index] = Runtime.Codec.array(view.printJob
+                    and {row.number, row.sheetCount, row.requiredLifts, row.requestedCopies, row.spoilageAllowance}
+                    or {row.number, row.sheetCount, row.requiredLifts, row.price})
+            end
+            view.quoteRows, payload.view = Runtime.Codec.array(rows), view
+            return {version=normalized.version,type=normalized.type,payload=payload}
+        end
         if normalized.type~="workshop_snapshot" then return normalized end
         local resources={}
         for index,record in ipairs(normalized.payload.resources) do

@@ -1,0 +1,642 @@
+{
+  "version": 1,
+  "description": "Gameplay readiness gate: completion plus interruption/recovery evidence. Full run required for PASS.",
+  "stages": [
+    {
+      "id": "core-desktop",
+      "focus": "full",
+      "mobile": false,
+      "timeoutSeconds": 1800,
+      "minChecks": 10000
+    },
+    {
+      "id": "core-mobile",
+      "focus": "full",
+      "mobile": true,
+      "timeoutSeconds": 1800,
+      "minChecks": 10000
+    },
+    {
+      "id": "softlocks-desktop-104729",
+      "focus": "softlock-campaign",
+      "mobile": false,
+      "seed": 104729,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "softlocks-desktop-130363",
+      "focus": "softlock-campaign",
+      "mobile": false,
+      "seed": 130363,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "softlocks-desktop-155921",
+      "focus": "softlock-campaign",
+      "mobile": false,
+      "seed": 155921,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "softlocks-mobile-104729",
+      "focus": "softlock-campaign",
+      "mobile": true,
+      "seed": 104729,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "softlocks-mobile-130363",
+      "focus": "softlock-campaign",
+      "mobile": true,
+      "seed": 130363,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "softlocks-mobile-155921",
+      "focus": "softlock-campaign",
+      "mobile": true,
+      "seed": 155921,
+      "timeoutSeconds": 180,
+      "minChecks": 1300
+    },
+    {
+      "id": "apartments-desktop",
+      "focus": "apartment-journey",
+      "mobile": false,
+      "timeoutSeconds": 900,
+      "minChecks": 200
+    },
+    {
+      "id": "outing-desktop",
+      "focus": "town-outing",
+      "mobile": false,
+      "timeoutSeconds": 600,
+      "minChecks": 40
+    },
+    {
+      "id": "apartments-mobile",
+      "focus": "apartment-journey",
+      "mobile": true,
+      "timeoutSeconds": 900,
+      "minChecks": 200
+    },
+    {
+      "id": "outing-mobile",
+      "focus": "town-outing",
+      "mobile": true,
+      "timeoutSeconds": 600,
+      "minChecks": 40
+    },
+    {
+      "id": "delivery-routes",
+      "focus": "delivery-route-smoke",
+      "mobile": false,
+      "timeoutSeconds": 1200,
+      "minChecks": 6
+    },
+    {
+      "id": "services-desktop",
+      "focus": "recent-features",
+      "mobile": false,
+      "timeoutSeconds": 600,
+      "minChecks": 10
+    },
+    {
+      "id": "commute-desktop",
+      "focus": "commute",
+      "mobile": false,
+      "timeoutSeconds": 600,
+      "minChecks": 100
+    },
+    {
+      "id": "scene-exits-desktop",
+      "focus": "scene-exits",
+      "mobile": false,
+      "timeoutSeconds": 600,
+      "minChecks": 20
+    },
+    {
+      "id": "services-mobile",
+      "focus": "recent-features",
+      "mobile": true,
+      "timeoutSeconds": 600,
+      "minChecks": 10
+    },
+    {
+      "id": "commute-mobile",
+      "focus": "commute",
+      "mobile": true,
+      "timeoutSeconds": 600,
+      "minChecks": 100
+    },
+    {
+      "id": "scene-exits-mobile",
+      "focus": "scene-exits",
+      "mobile": true,
+      "timeoutSeconds": 600,
+      "minChecks": 20
+    }
+  ],
+  "features": [
+    {
+      "id": "menus",
+      "label": "Title, menus, options and input",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "title_keyboard_c_continues",
+        "title_keyboard_overwrite_cancel_preserves_bytes",
+        "computer_back_escape_parity"
+      ]
+    },
+    {
+      "id": "estimates",
+      "label": "Reception, written estimates and delayed replies",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "computer_sends_repeat_client_estimate_without_instant_decision",
+        "guest_journey_typed_quote_sent_once",
+        "guest_journey_no_instant_award"
+      ]
+    },
+    {
+      "id": "cutting",
+      "label": "Cutter production and replacement stock",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "full_loop_finishes_cutting",
+        "guest_journey_reconnect_gets_fresh_lease_and_paper",
+        "guest_journey_disconnect_does_not_repeat_cut"
+      ]
+    },
+    {
+      "id": "printing",
+      "label": "Windmill preparation, setup, proof and print production",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "windmill_full_operator_loop_runs_setup_proof_production_and_cleanup",
+        "guest_print_journey_completed_job_paid_once"
+      ]
+    },
+    {
+      "id": "wrapping",
+      "label": "Wrapping and leaving an active cycle",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "full_loop_finishes_wrapping",
+        "wrapper_keyboard_middle_exit_keeps_cycle_running",
+        "wrapper_mouse_final_frame_finishes_once"
+      ]
+    },
+    {
+      "id": "maintenance",
+      "label": "Blade exchange, lubrication and service recovery",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "cutter_guest_lubrication_consumes_and_saves_exactly_once",
+        "cutter_maintenance_disconnect_discards_transient_progress_and_releases_lease",
+        "mara_completes_staged_blade_exchange"
+      ]
+    },
+    {
+      "id": "quality",
+      "label": "Quality inspection and rework",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "feedback_known_offsize_output_is_held_for_rework",
+        "feedback_rework_reenters_normal_stock_and_machine_flow"
+      ]
+    },
+    {
+      "id": "shipping",
+      "label": "Customer pickup, archives and once-only payment",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "full_loop_pickup_archives_and_pays",
+        "full_loop_payment_cannot_repeat",
+        "guest_journey_unquoted_delivery_uses_customer_transport"
+      ]
+    },
+    {
+      "id": "delivery",
+      "label": "Player/employee delivery and partial-load recovery",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "player_delivery_reload_preserves_loaded_cargo_and_resumes_remaining_manifest",
+        "player_delivery_single_city_trip_delivers_remaining_manifest",
+        "player_delivery_cannot_drive_away_partially_loaded",
+        "player_delivery_can_go_home_without_returning_truck_to_shop"
+      ]
+    },
+    {
+      "id": "room-shipping",
+      "label": "Shipping across workshop rooms",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "room_shipping_full_host_cycle_loads_departs_and_archives_once",
+        "room_shipping_departure_does_not_pay_twice",
+        "room_shipping_reload_resumes_loaded_room_jack_and_loaded_truck"
+      ]
+    },
+    {
+      "id": "supplies",
+      "label": "Vendor supplies and consumption",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "vendor_catalog_purchase",
+        "vendor_wrapper_consumes_delivered_supplies",
+        "sample_cutter_consumes_delivered_paper"
+      ]
+    },
+    {
+      "id": "equipment",
+      "label": "Machine purchasing and saved deliveries",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "vendor_machine_purchase_is_host_owned_saved_and_exactly_once",
+        "save_pending_machine_delivery_round_trip"
+      ]
+    },
+    {
+      "id": "logistics",
+      "label": "Pallet jacks, forklift, storage and blocked space",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "jack_navigation_retrieves_every_pallet_from_full_staging",
+        "forklift_cargo_failed_transfer_atomic",
+        "forklift_cargo_cannot_duplicate_jack",
+        "receiving_lanes_report_full",
+        "receiving_lane_reopens_after_move"
+      ]
+    },
+    {
+      "id": "staff",
+      "label": "Employee work, shifts, navigation and handover",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "employee_next_shift_finishes_remaining_cuts_then_next_job_exactly_once",
+        "employee_resumes_with_assignment_after_jack_takeover",
+        "employee_navigation_continues_after_watchdog_recovery",
+        "employee_waiting_for_pay_releases_loaded_jack"
+      ]
+    },
+    {
+      "id": "finance",
+      "label": "Business finances, credit and household pay",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "credit_tab_finances_used_dealer_machines_for_a_down_payment",
+        "credit_network_intent_rejects_client_supplied_price",
+        "weekend_runtime_shutdown_transfers_personal_pay"
+      ]
+    },
+    {
+      "id": "weekend",
+      "label": "Friday shutdown and return rules",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "weekend_runtime_player_can_choose_when_to_finish",
+        "weekend_runtime_docked_truck_blocks_departure",
+        "commute_trip_home_arrival_exactly_once_with_suit",
+        "commute_trip_explicit_host_bring_everyone_retains_gear"
+      ]
+    },
+    {
+      "id": "groceries",
+      "label": "Grocery browsing, purchase and cargo",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "journey_grocery_cart_reaches_every_shelf_and_checkout_false",
+        "journey_grocery_cart_reaches_every_shelf_and_checkout_true",
+        "journey_grocery_retry_pays_once_and_loads_exact_cargo",
+        "journey_grocery_unloads_home_exactly_once"
+      ]
+    },
+    {
+      "id": "household",
+      "label": "Household needs, fixture ownership and sleep",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "home_resident_floor_rest_is_available_without_bed",
+        "home_resident_disconnect_releases_fixture_and_freezes_need",
+        "home_sleep_new_awake_guest_interrupts_acceleration",
+        "home_sleep_runtime_monday_wake_saved"
+      ]
+    },
+    {
+      "id": "furnishings",
+      "label": "Furniture, utilities, dining and storage",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "home_furniture_cancel_releases_lock",
+        "home_furniture_reload_recovery_keeps_object_releases_edit",
+        "home_utilities_runtime_saved_power_and_storage",
+        "home_dining_runtime_meal_finishes_frees_slot",
+        "home_dining_runtime_packing_returns_uneaten_portion"
+      ]
+    },
+    {
+      "id": "hockey",
+      "label": "Complete air-hockey games and recovery",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "journey_hockey_solo_reaches_seven_front_left",
+        "journey_hockey_solo_reaches_seven_front_right"
+      ]
+    },
+    {
+      "id": "basketball",
+      "label": "Basketball possession, aim, scoring and replication",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "basketball_LAN_clean_shot_scores_and_ball_returns",
+        "basketball_two_room_LAN_ball_shards_are_retained"
+      ]
+    },
+    {
+      "id": "kombat",
+      "label": "Critter Kombat selection, rounds and leaving",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "kombat_selected_character_wins_are_not_fixed_to_side",
+        "kombat_second_join_cannot_replace_player",
+        "kombat_LAN_pending_choice_exit_frees_cabinet"
+      ]
+    },
+    {
+      "id": "crisis",
+      "label": "Critter Crisis solo/co-op campaigns and restart",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "crisis_solo_wins_all_fourteen_encounters",
+        "crisis_coop_wins_all_fourteen_encounters",
+        "crisis_controller_solo_restarts"
+      ]
+    },
+    {
+      "id": "vehicles",
+      "label": "Vehicle damage, driving and service",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "bike_total_damage_can_launch_and_limp_at_five_mph_on_road_and_trail",
+        "bike_partial_damage_reduces_top_speed_and_repair_restores_it",
+        "mechanic_shop_late_duplicate_order_still_cannot_charge_again"
+      ]
+    },
+    {
+      "id": "saves",
+      "label": "Save interruption, corruption and recovery",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "save_truncated_primary_recovers_backup",
+        "save_invalid_primary_recovers_valid_temporary",
+        "guest_journey_offline_round_trip_preserves_outcome"
+      ]
+    },
+    {
+      "id": "multiplayer",
+      "label": "Remote control, reconnect and independent scenes",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "guest_journey_reconnect_has_no_old_control",
+        "guest_journey_final_host_guest_agree",
+        "independent_reused_slot_does_not_adopt_offline_journey",
+        "network_protocol_five_pallet_delivery_preserves_quote_fields"
+      ]
+    },
+    {
+      "id": "interruption-campaign",
+      "label": "Seeded household/cart/social interruption recovery",
+      "stages": [
+        "softlocks-desktop-104729",
+        "softlocks-desktop-130363",
+        "softlocks-desktop-155921",
+        "softlocks-mobile-104729",
+        "softlocks-mobile-130363",
+        "softlocks-mobile-155921"
+      ],
+      "checks": [
+        "softlock_household_all_interruptions_recover",
+        "softlock_grocery_interruptions_recover_false",
+        "softlock_grocery_interruptions_recover_true",
+        "softlock_highfive_disconnect_completes",
+        "softlock_highfive_expire_completes",
+        "softlock_campaign_completed"
+      ]
+    },
+    {
+      "id": "physical-apartments",
+      "label": "Every apartment's physical round trip and reload",
+      "stages": [
+        "apartments-desktop",
+        "apartments-mobile"
+      ],
+      "checks": [
+        "commute_apartment_brick-walkup_returned_shop_reload_keeps_scene_and_apartment",
+        "commute_apartment_garden_returned_shop_reload_keeps_scene_and_apartment",
+        "commute_apartment_courtyard_returned_shop_reload_keeps_scene_and_apartment",
+        "commute_apartment_corner_returned_shop_reload_keeps_scene_and_apartment"
+      ]
+    },
+    {
+      "id": "physical-outing",
+      "label": "Weekday town outing, cancellation and return",
+      "stages": [
+        "outing-desktop",
+        "outing-mobile"
+      ],
+      "checks": [
+        "commute_outing_garden_walk_back_through_warehouse_door_cancels_outing",
+        "commute_outing_garden_returned_shop_reload_keeps_scene_and_apartment"
+      ]
+    },
+    {
+      "id": "physical-delivery",
+      "label": "All ordered town routes across three seeds",
+      "stages": [
+        "delivery-routes"
+      ],
+      "checks": [
+        "delivery_truck_follows_live_gate_to_warehouse_route_712345",
+        "delivery_truck_follows_live_gate_to_warehouse_route_712346",
+        "delivery_truck_follows_live_gate_to_warehouse_route_43127",
+        "delivery_route_smoke_covers_every_ordered_town_destination_pair"
+      ]
+    },
+    {
+      "id": "construction",
+      "label": "Expansion and blocked construction",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "construction_live_completion_registers_one_usable_rack",
+        "construction_live_registry_is_idempotent",
+        "construction_live_blocked_worksite_pauses_day_progress",
+        "construction_live_unblocked_worksite_resumes_remaining_hours"
+      ]
+    },
+    {
+      "id": "chores",
+      "label": "Laundry, food storage and chores",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "home_chores_cancel_loading_retains_dirty_bundle",
+        "home_chores_loading_starts_one_timed_cycle",
+        "home_chores_reconnect_does_not_mint_laundry",
+        "home_objects_packed_fridge_retains_food"
+      ]
+    },
+    {
+      "id": "marketing",
+      "label": "Repeat business and promotions",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "player_can_send_personalized_ten_percent_promotion",
+        "completed_job_ten_percent_promotion_is_single_use"
+      ]
+    },
+    {
+      "id": "paint-radio",
+      "label": "Bike paint and truck radio",
+      "stages": [
+        "core-desktop",
+        "core-mobile"
+      ],
+      "checks": [
+        "bike_paint_replayed_request_cannot_debit_twice",
+        "bike_paint_requires_actual_exterior_service_visit",
+        "commute_truck_cab_radio_controls_route_to_shared_radio"
+      ]
+    },
+    {
+      "id": "gas-station",
+      "label": "Fuel and oil service",
+      "stages": [
+        "services-desktop",
+        "services-mobile"
+      ],
+      "checks": [
+        "gas_station_fuel_gui_confirms_payment_and_fills_present_vehicle",
+        "gas_station_rejects_fuel_without_motorcycle_at_pump",
+        "gas_station_counter_sells_oil_change_at_station"
+      ]
+    },
+    {
+      "id": "live-commute",
+      "label": "Live commute controls and gear recovery",
+      "stages": [
+        "commute-desktop",
+        "commute-mobile"
+      ],
+      "checks": [
+        "commute_runtime_midride_reload_retains_trip_and_gear",
+        "commute_runtime_explicit_indoor_removal_restores_normal_avatar",
+        "commute_runtime_returns_to_work_without_rewinding_calendar"
+      ]
+    },
+    {
+      "id": "scene-menu-recovery",
+      "label": "Scene exits and failed-save recovery",
+      "stages": [
+        "scene-exits-desktop",
+        "scene-exits-mobile"
+      ],
+      "checks": [
+        "scene_exit_save_failure_keeps_apartment_and_options_open",
+        "scene_exit_retry_can_return_to_menu_after_saving",
+        "scene_exit_apartment_reload_retains_progress_without_offline_simulation",
+        "scene_exit_client_leaves_without_writing_host_state"
+      ]
+    }
+  ]
+}

@@ -15,7 +15,10 @@ function Test.run(check)
                 local left,right=w,-1
                 for y=0,h-1 do for x=0,w-1 do
                     local _,_,_,a=data:getPixel(slot%4*w+x,math.floor(slot/4)*h+y)
-                    if a>128/255 then
+                    -- Android exposes this channel through a float32 value;
+                    -- byte 128 can round just above the double 128/255 value.
+                    -- Compare the authored byte threshold on both platforms.
+                    if math.floor(a*255+.5)>128 then
                         first=math.min(first,y);last=math.max(last,y)
                         left=math.min(left,x);right=math.max(right,x)
                     end

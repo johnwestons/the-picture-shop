@@ -51,6 +51,7 @@ function Component.install(Runtime)
             stockSource = offer.stockSpec and offer.stockSpec.suppliedBy == "house" and "house" or "client",
             packaging = offer.packaging == "boxed" and "boxed" or "flat",
             delivery = tostring(Runtime.JobService.deliverySummary(offer)),
+            deliveryRequested = offer.outboundDelivery and offer.outboundDelivery.requested == true or false,
             artworkKey = tostring(artwork.key or offer.artworkKey or "flower"),
             artworkName = tostring(artwork.displayName or artwork.fileName
                 or offer.artworkKey or "Client artwork"),

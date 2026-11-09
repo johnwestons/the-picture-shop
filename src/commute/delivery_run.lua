@@ -43,6 +43,7 @@ local function eligible(job)
     if not job or job.status~='ready_for_pickup'
         or job.pickup and job.pickup.status~='awaiting_schedule'
         and job.pickup.status~='player_delivery' then return false end
+    if job.outboundDelivery and job.outboundDelivery.transport == 'customer' then return false end
     if not job.inspection or job.inspection.status~='passed' then return false end
     for _,pallet in ipairs(job.pallets or {}) do
         if pallet.status~='spoiled_discarded'
@@ -74,7 +75,7 @@ function Run.availableJobs(state,world,driverMode,now)
     return result
 end
 
-function Run.build(state,jobIds,world)
+function Run.build(state,jobIds,world,driverMode)
     if type(jobIds)~='table' or #jobIds<1 or #jobIds>Run.CAPACITY then
         return nil,'Choose at least one job for the delivery run.'
     end
@@ -84,6 +85,9 @@ function Run.build(state,jobIds,world)
         seen[id]=true
         local job=findJob(state,id)
         if not eligible(job) then return nil,(id..' is not ready to load onto the shop truck.') end
+        if driverMode and (not job.pickup or job.pickup.driverMode~=driverMode) then
+            return nil,id..' is assigned to another delivery method.'
+        end
         local count=0
         for _,pallet in ipairs(job.pallets or {}) do if pallet.status~='spoiled_discarded' then count=count+1 end end
         total=total+count
@@ -112,6 +116,62 @@ function Run.build(state,jobIds,world)
         stopIndex=1,stops=stops,jobIds={}}
     for _,item in ipairs(jobs) do run.jobIds[#run.jobIds+1]=item.job.id end
     return run
+end
+
+function Run.reserve(state,run)
+    for _,id in ipairs(run.jobIds) do
+        local job=findJob(state,id)
+        local reserved=job and job.status=='pickup_in_progress' and job.pickup and job.pickup.driverMode=='player'
+        if not reserved and not eligible(job) then return false,'A selected job is no longer ready to load.' end
+    end
+    for _,id in ipairs(run.jobIds) do
+        local job=findJob(state,id)
+        if job.status=='ready_for_pickup' then
+            require('src.job_service').schedulePickup(job,os.time())
+            job.pickup.status='player_loading';job.pickup.driverMode='player'
+        end
+    end
+    return true
+end
+
+function Run.loadingProgress(state,run)
+    local loaded,total=0,0
+    for _,id in ipairs(run.jobIds or {}) do
+        local job=findJob(state,id)
+        if not job then return nil,nil,'A delivery job is missing from the manifest.' end
+        for _,pallet in ipairs(job.pallets or {}) do
+            if pallet.status~='spoiled_discarded' then
+                total=total+1
+                if pallet.location=='outbound_truck' then loaded=loaded+1 end
+            end
+        end
+    end
+    return loaded,total
+end
+
+function Run.nextMessage(run)
+    if run.status=='loading' then return 'Back the truck to the shop dock and load every pallet inside.' end
+    local stop=run.stops[run.stopIndex]
+    if not stop then return 'All deliveries complete. You are free to continue your day.' end
+    return stop.kind=='city' and ('GPS: Millhaven bridge exit for '..stop.label..'.')
+        or ('GPS: '..stop.label..'. Park nearby and hand off the pallets at the door.')
+end
+
+function Run.releaseTrip(state,trip)
+    local driver=trip.deliveryDriver
+    trip.deliveryRun=nil;trip.deliveryDriver=nil;trip.deliveryVehicleModel=nil
+    if not trip.independent then
+        trip.independent=true;trip.purpose='outing';trip.origin='warehouse'
+        trip.destination=state.home.apartmentId
+        for _,part in pairs(trip.participants) do
+            part.origin=part.origin or 'warehouse'
+            part.destination=part.origin=='warehouse' and state.home.apartmentId or 'warehouse'
+        end
+    elseif driver and trip.participants[driver] then
+        local part=trip.participants[driver]
+        part.destination=part.origin=='warehouse' and state.home.apartmentId or 'warehouse'
+    end
+    state.home.revision=state.home.revision+1
 end
 
 function Run.load(state,run)
@@ -147,16 +207,35 @@ end
 function Run.completeStop(state,stop,driverDelivery)
     if type(stop)~='table' or type(stop.jobIds)~='table' then return false,'Invalid delivery stop.' end
     local service=require('src.job_service')
+    -- Validate the entire stop before archiving or paying any of its jobs.
+    -- Completed jobs are accepted on retry, without paying them a second time.
     for _,jobId in ipairs(stop.jobIds) do
         local job=findJob(state,jobId)
-        local previousPerformance=job and job.driverDelivery
-        if type(driverDelivery)=='table' then
-            if job then job.driverDelivery=copy(driverDelivery) end
+        if job then
+            if job.status~='pickup_in_progress' then return false,'The delivery is not loaded.' end
+            for _,pallet in ipairs(job.pallets or {}) do
+                if pallet.status~='spoiled_discarded' and pallet.location~='outbound_truck' then
+                    return false,'The delivery manifest is incomplete. Load every pallet first.'
+                end
+            end
+        else
+            local completed=false
+            for _,prior in ipairs(state.jobs.completed or {}) do
+                if prior.id==jobId then completed=true;break end
+            end
+            if not completed then return false,'A delivery job is missing.' end
         end
-        local okay,reason=service.completePickup(state,jobId,os.time())
-        if not okay then
-            if job then job.driverDelivery=previousPerformance end
-            return false,reason
+    end
+    for _,jobId in ipairs(stop.jobIds) do
+        local job=findJob(state,jobId)
+        if job then
+            local previousPerformance=job.driverDelivery
+            if type(driverDelivery)=='table' then job.driverDelivery=copy(driverDelivery) end
+            local okay,reason=service.completePickup(state,jobId,os.time())
+            if not okay then
+                job.driverDelivery=previousPerformance
+                return false,reason
+            end
         end
     end
     return true

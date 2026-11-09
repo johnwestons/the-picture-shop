@@ -99,7 +99,8 @@ function Component.install(Runtime)
         local bounds
         -- On phones, world shortcuts can sit in the extra horizontal space
         -- even when the scene artwork remains centered.
-        if screen == "world" and (Runtime.App.cameraTransformsWorld() or fullScreenDevice())
+        if screen == "world" and Runtime.World.player.sceneId~='grocery'
+            and (Runtime.App.cameraTransformsWorld() or fullScreenDevice())
             and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight)
         end

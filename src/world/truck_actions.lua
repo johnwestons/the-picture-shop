@@ -139,6 +139,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.toggleTruckCargoDoor(state)
+        if Runtime.World.truck.playerDelivery then
+            local run=require('src.player_delivery_loading').context(state)
+            if run and run.status~='loading' then
+                state.message='All pallets are loaded and secured. '..require('src.commute.delivery_run').nextMessage(run)
+                return false
+            end
+        end
         if Runtime.World.truck.mode == "machine_delivery" then
             if state then state.message = "This flatbed has no cargo door. Open its delivery manifest instead." end
             return false
@@ -202,11 +209,23 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.loadPickupPallet(state, palletId)
+        local allowed,reason=require('src.player_delivery_loading').canLoad(state,Runtime.World.truck)
+        if not allowed then state.message=reason;return false,reason end
         if Runtime.World.truck.state ~= "cargo_open" or Runtime.World.truck.mode ~= "pickup" then
             if state then state.message = "Open the scheduled pickup truck before loading pallets." end
             return false
         end
         local item=require("src.pallet_state").find(state,palletId)
+        if item and item.pallet.location=='on_pallet_jack' then
+            local jack=state.palletJack
+            local target=Runtime.World.truck:getInteraction()
+            if not jack or not target or jack.carriedPalletId~=palletId
+                or (jack.sceneId or 'warehouse')~=(Runtime.World.truck.sceneId or 'warehouse')
+                or (jack.x-target.x)^2+(jack.y-target.y)^2>135^2 then
+                state.message='Bring the loaded pallet jack to the truck loading apron.'
+                return false,state.message
+            end
+        end
         if item and item.pallet.world and (item.pallet.world.sceneId or "warehouse")~=(Runtime.World.truck.sceneId or "warehouse") then
             state.message="Bring this skid to the truck's assigned loading bay before loading."
             return false,state.message
@@ -223,6 +242,8 @@ function Component.install(Runtime)
 
     function Runtime.World.loadEmployeePickup(state,worker,palletId)
         local truck=Runtime.World.truck
+        local allowed,reason=require('src.player_delivery_loading').canLoad(state,truck)
+        if not allowed then return false,reason end
         local jack=require("src.pallet_jack_fleet").owned(state,worker.id)
         if truck.mode~="pickup" or truck.state~="cargo_open" or not jack
             or jack.carriedPalletId~=palletId or jack.sceneId~=(truck.sceneId or "warehouse") then

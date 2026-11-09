@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Cockpit = require('src.commute.truck_cockpit')
 local Test = {}
 
@@ -90,7 +91,7 @@ function Test.run(check)
     radio.active, radio.paused, radio.muted = oldRadio.active, oldRadio.paused, oldRadio.muted
 
     local graphics = love.graphics
-    local canvas = graphics.newCanvas(1280, 880)
+    local canvas = PixelCanvas(1280, 880)
     local originalDraw, originalDelta = graphics.draw, love.timer.getDelta
     local recorded = {}
     local truck = {speed=0, steering=0, throttle=0, brake=0, engine=false}

@@ -266,10 +266,9 @@ function Component.install(Runtime)
                             and Runtime.request(sendCommand, "finish_lubrication", {}) or true
                     end
                 elseif serviceStep == "blade_bolts" then
-                    local nextBolt = (tonumber(view.bladeBoltsDone) or 0) + 1
-                    for index = 1, 4 do
+                    for index = 1, 5 do
                         if Runtime.contains(Runtime.cutterBladeBoltRect(index), x, y) then
-                            return index == nextBolt
+                            return not Runtime.cutterBladeBoltRemoved(view, index)
                                 and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state)
                                 and Runtime.request(sendCommand, "remove_blade_bolt", { itemIndex = index }) or true
                         end

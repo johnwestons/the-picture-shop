@@ -182,10 +182,20 @@ function Component.install(Runtime)
             and Runtime.optionalText(value.responseText)
     end
 
+    local function outboundDelivery(value)
+        if value == nil then return true end
+        return type(value) == "table"
+            and Runtime.optionalBoolean(value.requested)
+            and Runtime.optionalBoolean(value.offered)
+            and (value.transport == "customer" or value.transport == "shop" or value.transport == "pending")
+            and Runtime.optionalNonnegative(value.quotedPrice)
+    end
+
     function Runtime.job(value)
         return type(value) == "table"
             and Runtime.text(value.id)
             and Runtime.text(value.company)
+            and (value.customerDestination == nil or Runtime.text(value.customerDestination))
             and Runtime.dimensions(value.sourceSize)
             and Runtime.dimensions(value.finishedSize)
             and (value.artworkKey == nil or Runtime.text(value.artworkKey))
@@ -193,6 +203,7 @@ function Component.install(Runtime)
             and (value.artwork == nil or value.artworkKey == value.artwork.key)
             and Runtime.stockSpec(value.stockSpec, value.press ~= nil)
             and Runtime.deliveryService(value.deliveryService)
+            and outboundDelivery(value.outboundDelivery)
             and (value.requestChannel == nil or value.requestChannel == "reception" or value.requestChannel == "email")
             and type(value.details) == "table"
             and Runtime.text(value.difficulty)

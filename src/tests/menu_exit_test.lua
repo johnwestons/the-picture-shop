@@ -47,8 +47,41 @@ local function wideHeader(check)
     check('widescreen_apartment_toolbar_uses_expanded_camera_bounds',homeBounds==wide)
     r.App.mobileCamera.isEnabled=function()return false end
     check('widescreen_apartment_without_camera_keeps_toolbar_inside_canvas',select(2,r.optionsAccessLayout())==nil)
+    r.Viewport.fullScreenDevice=function()return true end
+    r.World.player.sceneId='grocery'
+    local groceryScreen,groceryBounds=r.optionsAccessLayout()
+    check('android_grocery_toolbar_stays_inside_letterboxed_canvas',groceryBounds==nil
+        and fits(Options.accessRect(groceryScreen,groceryBounds))
+        and fits(require('src.screens.hud').exitRect(groceryBounds)))
 end
-function Test.run(_,check)
+local function indoorOptionsTouch(context,check)
+    local R=assert(context.appRuntime)
+    local previousScreen,previousScene,previousCommute=R.state.screen,R.World.player.sceneId,R._commute
+    local previousEnabled=R.mobileControls.enabled
+    local cameraEnabled=R.App.mobileCamera:isEnabled()
+    R.mobileControls.enabled=true;R.App.mobileCamera.enabled=false
+    local function tap(id,x,y)
+        local ox,oy,_,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight)
+        R.App.touchpressed(id,ox+x*sx,oy+y*sy)
+        R.App.touchreleased(id,ox+x*sx,oy+y*sy)
+    end
+    for _,kind in ipairs({'grocery','station'}) do
+        R.World.player.sceneId=kind
+        R._commute={mechanicOffer={interiorKind=kind,page=kind..'Floor'}}
+        R.state.screen='options'
+        Options.enter({settings=Settings.normalize(),save={SLOT_COUNT=3},state=R.state,
+            onClose=function()R.state.screen='world'end})
+        tap('indoor-options-tab',290,112)
+        check('mobile_'..kind..'_options_touch_changes_tab',Options.tab=='audio')
+        tap('indoor-options-resume',868,41)
+        check('mobile_'..kind..'_options_touch_resumes_world',R.state.screen=='world')
+        R.mobileControls:cancelAll()
+    end
+    R.state.screen,R.World.player.sceneId,R._commute=previousScreen,previousScene,previousCommute
+    R.mobileControls.enabled=previousEnabled;R.App.mobileCamera.enabled=cameraEnabled
+end
+function Test.run(context,check)
+    indoorOptionsTouch(context,check)
     wideHeader(check)
     local R,events=fixture()
     local saved=0;R.saveCurrent=function(immediate)saved=saved+1;return false end

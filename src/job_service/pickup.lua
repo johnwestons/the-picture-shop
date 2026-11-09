@@ -50,7 +50,13 @@ function Component.install(Runtime)
                 return false, "quality inspection found a defect; rework the affected pallet before pickup"
             end
         end
-        driverMode = driverMode == "player" and "player" or "employee"
+        local clientArrangesTransport = job.outboundDelivery
+            and job.outboundDelivery.transport == "customer"
+        if clientArrangesTransport then
+            driverMode = nil
+        else
+            driverMode = driverMode == "player" and "player" or "employee"
+        end
         job.status = "ready_for_pickup"
         job.pickup = {
             status = "awaiting_schedule",
@@ -70,6 +76,9 @@ function Component.install(Runtime)
             return false, "Choose employee delivery or player delivery."
         end
         local job = Runtime.activeJob(state, jobId)
+        if job and job.outboundDelivery and job.outboundDelivery.transport == "customer" then
+            return false, "The client is arranging transportation for this shipment."
+        end
         if not job or job.status ~= "ready_for_pickup" or type(job.pickup) ~= "table"
             or job.pickup.status ~= "awaiting_schedule" then
             return false, "Delivery choice can only be changed before a driver loads the job."
@@ -203,6 +212,17 @@ function Component.install(Runtime)
         return remaining
     end
 
+    function Runtime.JobService.pickupItemAvailable(state,item,scene)
+        local position=item.pallet and item.pallet.world
+        if position and (position.sceneId or 'warehouse')~=(scene or 'warehouse') then return false end
+        if item.location=='on_pallet_jack' then
+            local jack=state.palletJack
+            return jack and jack.carriedPalletId==item.id and jack.operating
+                and jack.operatorPlayerId~=nil and jack.operatorEmployeeId==nil or false
+        end
+        return item.location=='warehouse' or item.location=='cutter_output' or item.location=='press_output'
+    end
+
     function Runtime.JobService.loadForPickup(state, jobId, palletId, timestamp, employeeId)
         local job = Runtime.activeJob(state, jobId)
         if not job or job.status ~= "pickup_in_progress" then return false, "pickup is not in progress" end
@@ -213,7 +233,10 @@ function Component.install(Runtime)
                 local jack=state.palletJack
                 local employeeLoad=employeeId and pallet.location=="on_pallet_jack" and jack
                     and jack.carriedPalletId==palletId and jack.operating and jack.operatorEmployeeId==employeeId
-                if not employeeLoad and pallet.location ~= "warehouse" and pallet.location ~= "cutter_output"
+                local playerLoad=not employeeId and pallet.location=="on_pallet_jack" and jack
+                    and jack.carriedPalletId==palletId and jack.operating and jack.operatorPlayerId~=nil
+                    and jack.operatorEmployeeId==nil
+                if not employeeLoad and not playerLoad and pallet.location ~= "warehouse" and pallet.location ~= "cutter_output"
                     and pallet.location ~= "press_output" then
                     return false, "lower the wrapped pallet onto the warehouse floor before loading"
                 end

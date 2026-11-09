@@ -298,6 +298,7 @@ function Test.run(_, check)
 
     local android, androidError = GatewayDiscovery.discover({
         platform = "Android",
+        provider = false,
     })
     local unsupported, unsupportedError = GatewayDiscovery.discover({
         platform = "Linux",

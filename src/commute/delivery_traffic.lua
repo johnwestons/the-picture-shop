@@ -11,6 +11,7 @@ local EmployeeCommuters=require('src.commute.employee_commute')
 local DrivingPath=require('src.commute.driving_path')
 local TrafficActorIndex=require('src.commute.traffic_actor_index')
 local AIWatchdog=require('src.ai_watchdog')
+local DockManeuver=require('src.commute.dock_maneuver')
 local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_INBOUND_TRUCKS=3,TRUCK_CAPACITY=10}
 local stuckWatch=setmetatable({}, {__mode='k'})
 local ruleWatch=setmetatable({}, {__mode='k'})
@@ -163,7 +164,7 @@ local function deliveryPath(route,vehicle,target,base,anchor)
         local destination=targetDestination(route,target)
         if not destination then return nil end
         local cached=maneuverPaths[vehicle]
-        if not cached or cached.target~=target then
+        if not cached or cached.target~=target or vehicle.replanRoute then
             local planned=route.planner:findFromPoint(vehicle.x,vehicle.z,destination)
             if not planned or type(planned.points)~='table' or #planned.points<2 then
                 maneuverPaths[vehicle]=nil
@@ -171,6 +172,7 @@ local function deliveryPath(route,vehicle,target,base,anchor)
             end
             cached={target=target,points=planned.points}
             maneuverPaths[vehicle]=cached
+            vehicle.replanRoute=nil
             vehicle.pathIndex=2
         end
         return cached.points
@@ -571,6 +573,7 @@ end
 local function dockBlocked(state,world,subject)
     local commute=state and state.home and state.home.commute
     if commute and truckAtDock(world,commute.truck) then return true end
+    if commute and truckAtDock(world,commute.keiTruck) then return true end
     local occupied=false
     eachDelivery(state,function(_,delivery)
         if occupied or type(delivery)~='table' then return end
@@ -975,7 +978,7 @@ local function routeSpeedLimit(vehicle,points,index,waypointDistance,remaining,h
         2*TrafficRules.brakeDeceleration(vehicle)*remaining)))
 end
 
-local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
+local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
     if not points or #points<2 then return false end
     if vehicle.pathTarget~=targetName then
         local startIndex=vehicle.pathTarget==nil and vehicle.pathIndex or nil
@@ -1078,13 +1081,14 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
     local hold=final or stopHold or localYield or passAbortHold
     local watch=stuckWatch[vehicle]
     local routeKey=targetName..':'..index
-    if not watch or watch.routeKey~=routeKey then
+    if not watch or watch.targetName~=targetName then
         if watch then AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Route stage advanced'}) end
-        watch={routeKey=routeKey,windowTime=0,windowMoved=0,stalled=0,cooldown=0,
+        watch={routeKey=routeKey,targetName=targetName,windowTime=0,windowMoved=0,stalled=0,cooldown=0,
             reverseTime=0,recoveryAttempts=0,
             issueId='road-driver:'..tostring(vehicle.trafficId or vehicle.pathTarget or targetName)}
         stuckWatch[vehicle]=watch
     end
+    watch.routeKey=routeKey
     if watch.reverseTime>0 then
         if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
             recoverMotorcycle(vehicle,watch,steer,dt,world)
@@ -1099,6 +1103,7 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
             watch.cooldown=2
             watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
             vehicle.pathTarget=nil
+            vehicle.replanRoute=true
         end
         return false
     end
@@ -1123,6 +1128,7 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
             if not rescueOkay then rescueReason=tostring(rescued);rescued=false end
             if rescued then
                 vehicle.pathTarget=nil
+                vehicle.replanRoute=true
                 updateTrafficActorIndex(world,vehicle,kind)
                 return {ok=true,action='Moved to a collision-checked clear road position and replanned',
                     detail='Controller error: '..operationError}
@@ -1142,17 +1148,37 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
     end
     releaseJunctionClaim(vehicle,ruleState,world)
     watch.cooldown=math.max(0,watch.cooldown-dt)
-    if final or desired<1.2 or stopHold or localYield then
+    if final or stopHold or localYield or passAbortHold then
+        -- A real traffic wait is safe, but must not be invisible to F10 forever.
+        watch.waitTime=(watch.waitTime or 0)+dt
+        if not final and watch.waitTime>=12 and not watch.waitReported then
+            watch.waitReported=true
+            AIWatchdog.note(watchdogState,watch.issueId,{status='STALLED',system='Road traffic',
+                subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
+                reason='Traffic wait has prevented route progress for 12 seconds',
+                action='Holding safely; checking traffic clearance every simulation step',
+                detail=('yield=%s stop=%s passing=%s desired=%.2f waypoint=%d')
+                    :format(tostring(localYield),tostring(stopHold),tostring(passAbortHold),desired,index),
+                elapsed=watch.waitTime,x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,
+                scope='world-simulation'})
+        end
         watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
         if final then AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Route waypoint reached',
             x=vehicle.x,z=vehicle.z}) end
     else
+        if watch.waitReported then
+            AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Traffic obstruction cleared; driving resumed'})
+        end
+        watch.waitTime=0;watch.waitReported=false
         if watch.windowTime==0 then watch.windowStartDistance=remaining end
         watch.windowTime=watch.windowTime+dt
         watch.windowMoved=watch.windowMoved+moved
         if watch.windowTime>=1 then
-            local madeProgress=watch.windowStartDistance-remaining>=.25
-            if watch.windowMoved<.75 or not madeProgress then watch.stalled=watch.stalled+watch.windowTime
+            -- Slow, deliberate crawling is progress too. Judge it against the
+            -- requested speed instead of demanding walking speed from a truck.
+            local minimumProgress=math.max(.03,math.min(.25,desired*.1))
+            local madeProgress=watch.windowStartDistance-remaining>=minimumProgress
+            if watch.windowMoved<.03 or not madeProgress then watch.stalled=watch.stalled+watch.windowTime
             else
                 watch.stalled=0;watch.recoveryAttempts=0
                 AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Vehicle resumed route progress',
@@ -1175,6 +1201,7 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
                     watch.reverseTime=0;watch.reverseFinishing=false;watch.cooldown=2
                     watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
                     vehicle.pathTarget=nil
+                    vehicle.replanRoute=true
                     local kind=(vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle'
                     updateTrafficActorIndex(world,vehicle,kind)
                 else
@@ -1196,6 +1223,30 @@ local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
     end
     if final and vehicle.speed<.3 then return true end
     return false
+end
+
+local function driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
+    local plan=DockManeuver.plan(vehicle,points,world,watchdogState)
+    if not plan then
+        DockManeuver.clear(vehicle,watchdogState,'Truck switched to another route')
+        return driveForward(vehicle,points,dt,world,targetName,watchdogState)
+    end
+    if plan.stage=='approach' then
+        if not driveForward(vehicle,plan.forward,dt,world,targetName,watchdogState) then return false end
+        plan.stage='reverse'
+    end
+    local okay,arrived=AIWatchdog.protect(watchdogState,
+        'delivery-dock-controller:'..tostring(vehicle.trafficId or 'truck'),{
+            system='Delivery docking',subject=vehicle.trafficId or 'Delivery truck',stage='backing_to_dock',
+            x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,scope='world-simulation'},
+        function()return DockManeuver.reverse(vehicle,plan,dt,world,watchdogState)end,
+        function()
+            world.activeTruck=nil
+            vehicle.speed=0;vehicle.steering=0;vehicle.slipAngle=0;vehicle.throttle=0;vehicle.brake=1
+            return {ok=true,action='Stopped the faulty docking controller and will retry next simulation step'}
+        end)
+    updateTrafficActorIndex(world,vehicle,'vehicle')
+    return okay and arrived
 end
 
 -- Shared route follower for autonomous delivery traffic. Keeping this entry
@@ -1532,6 +1583,9 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
         end
         local points
         if vehicle.pathTarget~=target then
+            if vehicle.phase=='waiting_bay' then
+                vehicle.phase='approaching_wait';changed=true
+            end
             if vehicle.pathTarget~=nil then vehicle.localManeuver=true end
             local startIndex=vehicle.pathTarget==nil and vehicle.pathIndex or nil
             vehicle.pathIndex=startIndex or 2;vehicle.pathTarget=target

@@ -52,11 +52,14 @@ function Free.enter(state,player,world,run,players)
         end
     end
     if run then
+        local reserved,reason=require('src.commute.delivery_run').reserve(state,run)
+        if not reserved then return false,reason end
         t.deliveryRun=run;t.deliveryDriver=id;t.deliveryVehicleModel='box'
         t.truck.owner=id
     end
+    local resuming=t.deliveryRun and t.deliveryDriver==id
     t.participants[id]={slot=slot,arrived=false,rider=rider,origin=origin,
-        destination=run and 'warehouse' or scene=='home' and 'warehouse' or state.home.apartmentId,
+        destination=resuming and 'warehouse' or scene=='home' and 'warehouse' or state.home.apartmentId,
         appearance=require('src.commute.normal_art').appearance(player)}
     resident.bikeParkedAtHome=false;resident.sceneId='commute';resident.activity=nil
     state.home.commute=t;state.home.revision=state.home.revision+1
@@ -69,7 +72,7 @@ function Free.leave(state,player,token,destination,world)
     if not part then return false,t end
     local id=Residents.key(player)
     if destination~='warehouse' and destination~=state.home.apartmentId then return false,'Unknown entrance.' end
-    if t.deliveryDriver==id and destination~='warehouse' then return false,'Finish the delivery route at the warehouse.' end
+    if t.deliveryDriver==id and destination~='warehouse' then return false,'Finish your customer deliveries before going home.' end
     local previous=part.destination;part.destination=destination
     local okay,message=Trip.command(state,player,token,'arrive',world)
     if not okay then part.destination=previous;return false,message end
@@ -84,10 +87,13 @@ function Free.leave(state,player,token,destination,world)
     resident.sceneId=destination=='warehouse' and 'warehouse' or 'home'
     resident.revision=resident.revision+1
     TruckService.syncFleet(state.home,Trip.trucks(t))
+    local reserved=t.deliveryDriver==id and t.deliveryRun~=nil
     for _,truck in ipairs(Trip.trucks(t)) do
-        if truck.owner==id then truck.owner=nil;truck.driver=nil end
+        if truck.owner==id then
+            truck.driver=nil
+            if not reserved then truck.owner=nil end
+        end
     end
-    if t.deliveryDriver==id then t.deliveryDriver=nil;t.deliveryRun=nil end
     t.participants[id]=nil
     state.home.revision=state.home.revision+1
     -- Retain the shared truck position and town token while interiors are occupied.

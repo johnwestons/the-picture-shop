@@ -68,18 +68,18 @@ local function truckParkedInBay(world,id,truck)
     return M.length(truck.x-pad.x,truck.z-pad.z)<=3
 end
 function Trip.truckAtLoadingBay(world,truck)
-    if not truck then return false end
-    if truckParkedInBay(world,'warehouse',truck) then return true end
+    if not truck or (truck.speed or 0)>.05 then return false end
     local site=world and world.sites and world.sites.byId.warehouse
     local anchor=site and site.design.truckParking
-    if truck.model=='kei' and anchor then
-        local x,z=site:toLocal(truck.x,truck.z)
-        for _,offset in ipairs({-3.1,3.1,-3.6,3.6}) do
-            if math.abs(x-anchor.x)<=1.1/site.scale.x
-                and math.abs(z-(anchor.z+offset))<=.9/site.scale.z then return true end
-        end
-    end
-    return false
+    if not anchor then return false end
+    local F=require('src.commute.truck_footprint')
+    if math.cos((truck.heading or 0)-site.yaw)<math.cos(math.rad(12)) then return false end
+    local length=F.dimensions(truck).halfLength
+    local rearX,rearZ=truck.x-math.cos(truck.heading)*length,truck.z-math.sin(truck.heading)*length
+    local dockX,dockZ=site:toWorld(anchor.x,anchor.z,0)
+    dockX,dockZ=dockX-site.cos*F.halfLength,dockZ-site.sin*F.halfLength
+    local dx,dz=rearX-dockX,rearZ-dockZ
+    return math.abs(dx*site.cos+dz*site.sin)<=.8 and math.abs(-dx*site.sin+dz*site.cos)<=.65
 end
 function Trip.truckParking(world,companyTruck,model,boxTruck)
     local site=world and world.sites and world.sites.byId.warehouse
@@ -88,6 +88,7 @@ function Trip.truckParking(world,companyTruck,model,boxTruck)
     model=model or 'box'
     local anchor=site.truckHomeParking and site.truckHomeParking[model]
     if not anchor then return nil end
+    heading=anchor.heading or heading
     local candidates={}
     for _,offset in ipairs({{0,0},{-.35,0},{.35,0},{0,-.35},{0,.35}}) do
         candidates[#candidates+1]={anchor.x+offset[1],anchor.z+offset[2]}
@@ -141,7 +142,8 @@ end
 local function integer(n,min,max) return M.finite(n) and n%1==0 and n>=min and n<=max end
 local function position(p)
     return type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.heading)
-        and p.x>=56 and p.x<=458 and p.z>=56 and p.z<=458
+        -- Generated towns extend to the mainland bridge at the map edge.
+        and p.x>=0 and p.x<=512 and p.z>=0 and p.z<=512
 end
 function Trip.valid(t,home)
     if t==nil then return true end
@@ -230,9 +232,11 @@ function Trip.valid(t,home)
         if truck and (truck.driver~=nil and (not t.participants[truck.driver]
                 or t.participants[truck.driver].rider.vehicle~='truck'
                 or (t.participants[truck.driver].rider.truck.model or 'box')~=(truck.model or 'box'))
-            or truck.owner~=nil and not t.participants[truck.owner]) then return false end
+            or truck.owner~=nil and not t.participants[truck.owner]
+                and not (independent and t.deliveryRun and truck.owner==t.deliveryDriver
+                    and truck==vehicleForModel(t,t.deliveryVehicleModel or 'box'))) then return false end
     end
-    if independent and t.deliveryDriver and (not t.participants[t.deliveryDriver]
+    if independent and t.deliveryDriver and (home and not home.residents[t.deliveryDriver]
         or not vehicleForModel(t,t.deliveryVehicleModel or 'box')
         or vehicleForModel(t,t.deliveryVehicleModel or 'box').owner~=t.deliveryDriver) then return false end
     if home then
@@ -352,6 +356,23 @@ function Trip.restore(t,world,companyTruck,truckFleet)
         result.keiTruck=Trip.truckParking(world,companyTruck,'kei',result.truck)
         if result.keiTruck and result.truck then result.keiTruck.fuel=result.truck.fuel end
     end
+    local site=world.sites and world.sites.byId.warehouse
+    for _,vehicle in ipairs({result.truck,result.keiTruck}) do
+        local anchor=site and site.truckHomeParking[vehicle.model or 'box']
+        if anchor then
+            local x,z=site:toLocal(vehicle.x,vehicle.z)
+            local oldZ=vehicle.model=='kei' and 14.9 or 7.1
+            if not vehicle.owner and not vehicle.driver and vehicle.speed<.05
+                and math.abs(x-8.15)<.6 and math.abs(z-oldZ)<.6
+                and not Truck.blocked(world,anchor.x,anchor.z,anchor.heading,vehicle) then
+                -- Only relocate an idle truck in a retired home stall. Preserve
+                -- player parking elsewhere and all vehicle condition/fuel data.
+                vehicle.x,vehicle.z,vehicle.h,vehicle.heading=anchor.x,anchor.z,anchor.h,anchor.heading
+                vehicle.reverse=false;vehicle.steering=0;vehicle.slipAngle=0
+            end
+            vehicle.homeX,vehicle.homeZ=anchor.x,anchor.z
+        end
+    end
     local function savedRecord(vehicle)
         if vehicle and TruckService.validRecord({damage=vehicle.damage or 0,
             repairRevision=vehicle.repairRevision or 0,service=vehicle.service}) then
@@ -375,6 +396,9 @@ function Trip.restore(t,world,companyTruck,truckFleet)
     if t.mapVersion~=Roads.VERSION then
         result.truck.owner=nil;result.truck.driver=nil
         result.keiTruck.owner=nil;result.keiTruck.driver=nil
+        if result.independent and result.deliveryRun and result.deliveryDriver then
+            vehicleForModel(result,result.deliveryVehicleModel or 'box').owner=result.deliveryDriver
+        end
     end
     for _,p in pairs(result.participants) do
         local anchor=Trip.parking(world,p.arrived and (p.destination or t.destination) or (p.origin or t.origin),p.slot)
@@ -434,11 +458,9 @@ function Trip.command(state,player,token,action,world)
         if M.length(rider.ped.x-truck.x,rider.ped.z-truck.z)>5.5 then
             return false,'Walk over to the truck in the loading bay to load the pallets.'
         end
-        local okay,message=require('src.commute.delivery_run').load(state,run)
-        if not okay then return false,message end
-        run.status='driving'
-        state.home.revision=state.home.revision+1
-        return true,'Pallets loaded. Follow the GPS to the first delivery stop.'
+        local loaded,total,reason=require('src.commute.delivery_run').loadingProgress(state,run)
+        return false,reason or ('%d/%d pallets loaded. Use the warehouse loading manifest or let employees load the truck.')
+            :format(loaded,total)
     end
     if run and action=='deliver_stop' then
         local stop=run.stops[run.stopIndex]
@@ -462,13 +484,11 @@ function Trip.command(state,player,token,action,world)
         local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
         if not okay then return false,message end
         run.stopIndex=run.stopIndex+1
-        if run.stopIndex>#run.stops then run.status='returning' end
+        local notice='Delivered '..stop.palletCount..' pallet'..(stop.palletCount==1 and '' or 's')..' to '..stop.label..'. '
+            ..require('src.commute.delivery_run').nextMessage(run)
+        if run.stopIndex>#run.stops then require('src.commute.delivery_run').releaseTrip(state,baseTrip) end
         state.home.revision=state.home.revision+1
-        return true,'Delivered '..stop.palletCount..' pallet'..(stop.palletCount==1 and '' or 's')..' to '..stop.label..'.'
-    end
-    if run and action=='arrive' and run.status~='loading'
-        and (run.status~='returning' or run.stopIndex<=#run.stops) then
-        return false,'Finish every planned delivery and return to the warehouse first.'
+        return true,notice
     end
     if action~='arrive' then
         if action=='truck' then
@@ -512,7 +532,17 @@ function Trip.command(state,player,token,action,world)
             if truck.driver then return false,'Another rider is driving the delivery truck.' end
             if nearestDistance>5.5 then return false,'Walk over to the delivery truck first.' end
             truck.fuel=require('src.company_delivery_driver').ensure(state).fuelLiters
-            if run then baseTrip.deliveryVehicleModel=truck.model or 'box' end
+            if run then
+                local loaded=require('src.commute.delivery_run').loadingProgress(state,run)
+                if (run.status~='loading' or (loaded or 0)>0)
+                    and (truck.model or 'box')~=(baseTrip.deliveryVehicleModel or 'box') then
+                    return false,'The delivery pallets are loaded on the other truck.'
+                end
+                for _,other in ipairs(Trip.trucks(baseTrip)) do
+                    if other~=truck and other.owner==Residents.key(player) and not other.driver then other.owner=nil end
+                end
+                baseTrip.deliveryVehicleModel=truck.model or 'box'
+            end
             truck.owner=Residents.key(player);truck.driver=Residents.key(player)
             rider.vehicle='truck';rider.transport='truck';rider.truck=truck
             rider.ped.x,rider.ped.z,rider.ped.heading=truck.x,truck.z,truck.heading
@@ -565,31 +595,49 @@ function Trip.update(state,player,input,dt,world)
         return false
     end
     local run=(not t.independent or t.deliveryDriver==Residents.key(player)) and t.deliveryRun
+    if run and run.status=='returning' and run.stopIndex>#run.stops then
+        require('src.commute.delivery_run').releaseTrip(state,t)
+        state.message='All deliveries complete. You are free to continue your day.'
+        return true
+    end
     if run and run.status=='offmap' then
         local key=Residents.key(player)
         local truck=Trip.truckFor(part.rider,t)
         local driver=truck and (key==truck.driver
             or truck.driver==nil and (tonumber(player.id) or 1)==1)
         if driver and os.time()>=(run.cutsceneEndsAtEpoch or math.huge) then
-            local stop=run.stops[run.stopIndex]
-            local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
-            if not okay then state.message=message;return false end
-            run.stopIndex=run.stopIndex+1
-            run.status=run.stopIndex>#run.stops and 'returning' or 'driving'
-            run.cutsceneStartedAtEpoch=nil;run.cutsceneEndsAtEpoch=nil
             local gate=world.mainlandExit
             local dx,dz=math.cos(gate.heading),math.sin(gate.heading)
+            local heading=gate.heading+math.pi
+            local returnX,returnZ
+            for _,distance in ipairs({8,16,24,32}) do
+                local x,z=gate.x-dx*distance+dz*1.8,gate.z-dz*distance-dx*1.8
+                if not Truck.blocked(world,x,z,heading,truck) then returnX,returnZ=x,z;break end
+            end
+            if not returnX then state.message='Waiting for a clear lane on the return bridge.';return false end
+            local delivered=0
+            while run.stops[run.stopIndex] and run.stops[run.stopIndex].kind=='city' do
+                local stop=run.stops[run.stopIndex]
+                local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
+                if not okay then state.message=message;return false end
+                delivered=delivered+stop.palletCount
+                run.stopIndex=run.stopIndex+1
+            end
+            run.status='driving'
+            run.cutsceneStartedAtEpoch=nil;run.cutsceneEndsAtEpoch=nil
             if not truck.driver then
                 truck.owner,truck.driver=key,key
                 part.rider.vehicle='truck';part.rider.transport='truck';part.rider.truck=truck
             end
-            truck.x,truck.z=gate.x-dx*8,gate.z-dz*8
-            local nextStop=run.stops[run.stopIndex]
-            truck.heading=nextStop and nextStop.kind=='city' and gate.heading or gate.heading+math.pi
-            truck.speed=0;truck.reverse=false
+            truck.x,truck.z=returnX,returnZ
+            truck.heading=heading
+            truck.speed=0;truck.reverse=false;truck.steering=0;truck.slipAngle=0
+            truck.collisionContact=false;truck.collisionStun=0
             truck.h=world:supportHeight(truck.x,truck.z)
             part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=truck.x,truck.z,truck.heading
-            state.message='Millhaven delivery complete. Return to The Picture Shop.'
+            state.message=('Millhaven delivery complete: %d pallets delivered. '):format(delivered)
+                ..require('src.commute.delivery_run').nextMessage(run)
+            if run.stopIndex>#run.stops then require('src.commute.delivery_run').releaseTrip(state,t) end
             state.home.revision=state.home.revision+1
             return true
         end
@@ -599,6 +647,10 @@ function Trip.update(state,player,input,dt,world)
     if part.rider.vehicle=='truck' then
         local truck=Trip.truckFor(part.rider,t)
         if not truck or truck.driver~=Residents.key(player) then return false end
+        if run and run.status=='loading' then
+            local loaded=require('src.commute.delivery_run').loadingProgress(state,run)
+            if (loaded or 0)>0 and Trip.truckAtLoadingBay(world,truck) then input={drive=0,steer=0,brake=1} end
+        end
         local moved,conditionChanged=Truck.update(truck,input,dt,world)
         changed=moved>0 or conditionChanged
         if TruckService.syncFleet(state.home,Trip.trucks(t)) then changed=true end

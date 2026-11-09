@@ -427,6 +427,7 @@ function Assets.load()
     validateExactPath(Config.paths.cutterMaintenanceOil, 512, 512)
     validateExactPath(Config.paths.cutterMaintenanceTools, 768, 512)
     validateExactPath(Config.paths.cutterMaintenanceScenes, 1024, 768)
+    validateExactPath(Config.paths.cutterBladeRemoval, 1536, 1024)
     validateExactPath(Config.paths.polarBackButton, 384, 128)
     validateExactPath(Config.paths.wrappedPalletStages, 1536, 512)
     validateExactPath(Config.paths.loadedPaperPallet, 256, 256)
@@ -448,7 +449,8 @@ local PACK_IMAGES = {
         "titleMenuInkFocus", "titleMenuToolboxFocus" },
     cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterBlade",
         "cutterClampDetail", "cutterBladeDetail",
-        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel",
+        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes",
+        "cutterBladeRemoval", "cutterGuiSteel",
         -- Keep the frequently reused motion strip newest in the bounded cache.
         "cutterClamp" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
@@ -482,6 +484,7 @@ local function clearPackQuads(packName)
         end
         for frame = 1, 6 do Assets.quads["cutterMaintenanceTool" .. frame] = nil end
         for frame = 1, 4 do Assets.quads["cutterMaintenanceScene" .. frame] = nil end
+        for frame = 1, 6 do Assets.quads["cutterBladeRemoval" .. frame] = nil end
     end
     if packName == "wrapper" then
         for frame = 1, 4 do Assets.quads["wrapperMaintenance" .. frame] = nil end
@@ -538,7 +541,10 @@ local function loadCutterPack()
     local oil = loadImage("cutterMaintenanceOil", Config.paths.cutterMaintenanceOil, false)
     local tools = loadImage("cutterMaintenanceTools", Config.paths.cutterMaintenanceTools, false)
     local scenes = loadImage("cutterMaintenanceScenes", Config.paths.cutterMaintenanceScenes, false)
-    if not clamp or not blade or not clampDetail or not bladeDetail or not oil or not tools or not scenes then
+    local bladeRemoval = loadImage("cutterBladeRemoval", Config.paths.cutterBladeRemoval, false)
+    if not clamp or not blade or not clampDetail or not bladeDetail or not oil or not tools or not scenes
+        or not bladeRemoval
+    then
         return false
     end
     if not hasExactDimensions(clampDetail, Config.paths.cutterClampDetail, 2172, 724)
@@ -548,6 +554,8 @@ local function loadCutterPack()
     end
     clampDetail:setFilter("linear", "linear")
     bladeDetail:setFilter("linear", "linear")
+    if not hasExactDimensions(bladeRemoval, Config.paths.cutterBladeRemoval, 1536, 1024) then return false end
+    bladeRemoval:setFilter("linear", "linear")
     for frame = 1, Config.cutterGui.motionFrameCount do
         local x = (frame - 1) * Config.cutterGui.motionFrameWidth
         makeQuad("cutterClamp" .. frame, clamp, x, 0,
@@ -576,6 +584,13 @@ local function loadCutterPack()
             makeQuad("cutterMaintenanceScene" .. frame, scenes,
                 (column - 1) * sceneWidth, (row - 1) * sceneHeight,
                 sceneWidth, sceneHeight)
+        end
+    end
+    for row = 1, 2 do
+        for column = 1, 3 do
+            local frame = (row - 1) * 3 + column
+            makeQuad("cutterBladeRemoval" .. frame, bladeRemoval,
+                (column - 1) * 512, (row - 1) * 512, 512, 512)
         end
     end
     return true

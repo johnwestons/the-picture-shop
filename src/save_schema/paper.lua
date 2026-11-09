@@ -231,7 +231,8 @@ function Component.install(Runtime)
         local phases={approaching=true,approaching_wait=true,waiting_bay=true,at_bay=true,
             departing=true,offmap=true}
         local kinds={inbound=true,outbound=true}
-        local targets={dock=true,waiting=true,outbound=true}
+        local targets={dock=true,waiting=true,outbound=true,
+            ['waiting-1']=true,['waiting-2']=true,['waiting-3']=true}
         return require('src.commute.delivery_truck').valid(value)
             and phases[value.phase]==true
             and (value.pathKind==nil or kinds[value.pathKind])
@@ -240,6 +241,7 @@ function Component.install(Runtime)
             and (value.simRemainder==nil or Runtime.number(value.simRemainder) and value.simRemainder>=0 and value.simRemainder<=1)
             and Runtime.optionalBoolean(value.noticeSent)
             and Runtime.optionalBoolean(value.localManeuver)
+            and Runtime.optionalBoolean(value.replanRoute)
     end
 
     local function deliveryRoute(value)

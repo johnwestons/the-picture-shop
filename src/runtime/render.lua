@@ -32,8 +32,12 @@ function Component.install(Runtime)
             if Runtime.controller and showHud then Runtime.controller:draw() end
             local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
             if showHud then
-            require('src.screens.player_status').draw(Runtime.state,
-                Runtime.App.settings and Runtime.App.settings.twelveHourTime,bounds,destination,objective)
+            -- The grocery interior owns its header. Overlaying the outdoor
+            -- status card obscures its title/cart and clips on wide phones.
+            if Runtime.World.player.sceneId~='grocery' then
+                require('src.screens.player_status').draw(Runtime.state,
+                    Runtime.App.settings and Runtime.App.settings.twelveHourTime,bounds,destination,objective)
+            end
             Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
             Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
             end

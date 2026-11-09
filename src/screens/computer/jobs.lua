@@ -434,6 +434,10 @@ function Component.install(Runtime)
             or "INSPECT FINISHED JOB") or "PRODUCTION NOT COMPLETE"
         if selected.status == "ready_for_pickup" and inspection.status == "passed"
             and selected.pickup and selected.pickup.status == "awaiting_schedule" then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer" then
+                Runtime.drawComputerButton(Runtime.COMPLETE, "CLIENT PICKUP QUEUED", "disabled")
+                return
+            end
             local mode=selected.pickup.driverMode or 'employee'
             local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
             local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
@@ -448,6 +452,12 @@ function Component.install(Runtime)
         elseif selected.status == "pickup_in_progress" then buttonLabel = "PICKUP IN PROGRESS"
         elseif selected.status == "completed" then buttonLabel = "PAID AND COMPLETED" end
         if ready and inspection.status == 'passed' and selected.status == 'in_production' then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer" then
+                local hovered=pointerX and Runtime.contains(Runtime.COMPLETE,pointerX,pointerY)
+                Runtime.drawComputerButton(Runtime.COMPLETE,"SCHEDULE CUSTOMER PICKUP",
+                    hovered and "primaryHover" or "primary")
+                return
+            end
             local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
             local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
             Runtime.drawComputerButton(Runtime.PICKUP_EMPLOYEE,'EMPLOYEE DRIVER',

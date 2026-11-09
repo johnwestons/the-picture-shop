@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Machine = require("src.machine")
 local MachineScreen = require("src.screens.machine_screen")
 local PaperWork = require("src.paper_work")
@@ -164,7 +165,7 @@ function Test.run(context, check)
     check("remote_cutter_loads_the_same_animation_pack_as_host",
         Remote.requiredAssetPack() == "cutter" and assets.activatePack(Remote.requiredAssetPack())
         and assets.get("cutterClamp") ~= nil and assets.getQuad("cutterBlade5") ~= nil)
-    local canvas = love.graphics.newCanvas(960, 680)
+    local canvas = PixelCanvas(960, 680)
     local function pixels(draw)
         love.graphics.push("all")
         love.graphics.setCanvas(canvas)

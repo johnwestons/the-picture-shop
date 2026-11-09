@@ -58,7 +58,7 @@ function Travel.command(state,player,command,context)
                 ids[#ids+1]=job
             end
             if #ids<1 or #ids>10 then return denied('Choose between one and ten jobs.') end
-            local reason;run,reason=require('src.commute.delivery_run').build(state,ids,context.commuteWorld)
+            local reason;run,reason=require('src.commute.delivery_run').build(state,ids,context.commuteWorld,'player')
             if not run then return denied(reason) end
         end
         local okay,trip=require('src.commute.free_travel').enter(state,player,context.commuteWorld,run,context.players())
@@ -68,7 +68,10 @@ function Travel.command(state,player,command,context)
         require('src.player_controller').reset(player,{x=ped.x,y=ped.z},Config.player)
         player.sceneId='commute';player.resting=false
         player.inputX,player.inputY,player.gameInputX,player.gameInputY,player.combatButtons=0,0,0,0,0
-        return true,'accepted',run and 'Your route is planned. Walk to the truck in the loading bay to load the pallets.' or 'Explore town. Other players can stay where they are.'
+        return true,'accepted',run and 'Delivery planned. Back your truck up to the dock, then load the pallets inside or let employees load them.'
+            or trip.deliveryDriver==require('src.home_residents').key(player) and trip.deliveryRun
+                and ('Delivery resumed. '..require('src.commute.delivery_run').nextMessage(trip.deliveryRun))
+            or 'Explore town. Other players can stay where they are.'
     end
     local action,token=command:match("^(%a+):(%d+)$")
     if action=="ready" then

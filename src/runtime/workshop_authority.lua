@@ -163,7 +163,7 @@ function Component.install(Runtime)
                                 local succeeded,result=Runtime.JobService.requestPickup(Runtime.state,job,os.time(),"player")
                                 if not succeeded then return false,"pickup_blocked","Could not reserve player delivery: "..tostring(result) end
                                 Runtime.saveCurrent()
-                                return true,"player_delivery_reserved",job.id.." is reserved for your delivery.",{}
+                                return true,"player_delivery_reserved",job.id.." is complete. Choose Plan Paper Deliveries at the warehouse entrance, then back your truck to the dock and load it.",{}
                             end,
                         },
                         set_employee_delivery = {

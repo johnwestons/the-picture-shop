@@ -702,7 +702,11 @@ function Input.mousepressed(x, y, button, context)
         elseif result.action == "pickup_ready" then
             local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time(),result.driverMode)
             if scheduled then
-                state.message = result.job.id .. " is ready. Customer pickup is awaiting a truck."
+                local mode=result.job.pickup and result.job.pickup.driverMode
+                state.message = result.job.id .. (mode=='player'
+                    and ' is complete. Choose Plan Paper Deliveries at the warehouse entrance, then back your truck to the dock and load it.'
+                    or mode=='employee' and ' is complete and queued for employee delivery.'
+                    or ' is ready. Customer pickup is awaiting a truck.')
                 context.saveCurrent()
             else
                 state.message = "Could not schedule pickup: " .. tostring(jobOrError)

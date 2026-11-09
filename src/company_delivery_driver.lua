@@ -548,9 +548,17 @@ function CompanyTruck.update(state,now,activeRunOnly)
             truck.fuelLiters=math.max(0,truck.fuelLiters-fuel)
             truck.odometerMeters=truck.odometerMeters+fuel/CompanyTruck.FUEL_PER_METER
             local vehicle=exteriorVehicle(state)
-            if vehicle and truck.departureHomeX and truck.departureHomeZ then
-                vehicle.x,vehicle.z=truck.departureHomeX,truck.departureHomeZ
-                vehicle.heading=truck.departureHomeHeading or vehicle.heading
+            if vehicle then
+                local town=state.home and state.home.town
+                local sites=require('src.commute.sites').create({
+                    placements=town and town.placements,designs=town and town.designs})
+                local site=sites.byId.warehouse
+                local home=site and site.truckHomeParking[vehicle.model or 'box']
+                if home then
+                    vehicle.x,vehicle.z,vehicle.h=home.x,home.z,home.h
+                    vehicle.homeX,vehicle.homeZ=home.x,home.z
+                    vehicle.heading=home.heading
+                end
                 vehicle.speed=0;vehicle.reverse=false;vehicle.engine=true
             end
             returnDriver(state,truck,'Returned to the warehouse after deliveries')

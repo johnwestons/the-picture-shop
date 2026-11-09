@@ -17,8 +17,13 @@ local function player(id)
         moving=false,facing=1,animationDistance=0,character='rabbit-worker'}
 end
 function Test.run(context,check)
-    local state=context.State.new();state.home.town=assert(require('src.commute.town').generate(712345))
+    local state=context.State.new()
+    state.home=assert(require('src.home').new({town=assert(require('src.commute.town').generate(712345))},state.calendar.totalDays))
     state.home.weekend.phase='ready';state.home.weekend.closedAtHours=44
+    -- The mechanic's service/paint transactions occur during opening hours.
+    local Calendar=require('src.business_calendar')
+    state.calendar=Calendar.dateFromHours(57)
+    state.calendar.elapsed=9/24*Calendar.secondsPerDay(state)
     local now=0
     local network=Harness.new({maxClients=3,classify=function(bytes)local v=Protocol.decode(bytes);return v and v.type or 'invalid' end})
     local host=Session.new({transportFactory=network.factory,clock=function()return now end})
@@ -129,7 +134,8 @@ function Test.run(context,check)
     local price=require('src.commute.bike_upgrades').CATALOG[1].costCents
     check('commute_session_garage_purchase_is_host_authoritative_and_debits_once',received[1].interaction_result.accepted
         and state.home.balanceCents==100000-price and state.home.residents[residentId].ridingUpgradeLevel==1
-        and received[2].shop_state.state.home.commute.participants[residentId].rider.bike.upgradeLevel==1)
+        and received[2].shop_state.state.home.commute.participants[residentId].rider.bike.upgradeLevel==1,
+        received[1].interaction_result.message)
     assert(g:requestInteraction('commute',upgrade));pump()
     check('commute_session_stale_garage_purchase_rejected',not received[1].interaction_result.accepted
         and state.home.balanceCents==100000-price)

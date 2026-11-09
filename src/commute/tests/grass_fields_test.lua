@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Fields=require('src.commute.grass_fields')
 local Placement=require('src.commute.grass_placement')
 local Test={}
@@ -63,7 +64,7 @@ function Test.run(check)
         a:prepareDraw(view,1,'summer',22,51200,actor)
         a:prepareDraw(view,2,'autumn',22,51200,actor)
         check('grass_fields_wind_and_season_do_not_rebuild_geometry',a.generated==generated and digest(a)==before)
-        local g=love.graphics;local canvas=g.newCanvas(640,420)
+        local g=love.graphics;local canvas=PixelCanvas(640,420)
         local function windPixels(time)
             g.push('all');g.setCanvas({canvas,depth=true});g.origin();g.clear(0,0,0,1,0,1)
             a:prepareDraw(view,time,'summer',22,51200,actor)
