@@ -268,15 +268,21 @@ try {
     }
 
     Invoke-GateStep 'Build and smoke-test Windows installer' {
-        $packagePath = (Get-Content -Raw (
-            Join-Path $projectRoot 'output\mobile\build-report.json') | ConvertFrom-Json).package
+        # Windows needs the native route provider embedded into its own .love
+        # package. Let the installer builder create that package from this same
+        # clean source commit instead of passing the Android package.
         & (Join-Path $projectRoot 'tools\build_windows_installer.ps1') `
-            -PackagePath $packagePath | ForEach-Object { Write-Host $_ }
+            | ForEach-Object { Write-Host $_ }
         Assert-ExitCode 'Windows installer build'
         $windowsReport = Get-Content -Raw (
             Join-Path $projectRoot 'output\windows\windows-build-report.json') | ConvertFrom-Json
         if ($windowsReport.sourceCommit -ne $script:head -or $windowsReport.sourceDirty) {
             throw 'Windows installer provenance does not match the clean release source.'
+        }
+        $expectedWindowsVersion = [regex]::Replace(
+            [string]$script:config.versionName, '-android\.', '-test.')
+        if ($windowsReport.version -ne $expectedWindowsVersion) {
+            throw "Windows version $($windowsReport.version) does not match Android $($script:config.versionName)."
         }
         if (-not $windowsReport.installer -or
             -not (Test-Path -LiteralPath $windowsReport.installer)) {
