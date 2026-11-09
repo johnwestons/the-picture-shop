@@ -41,13 +41,17 @@ function Save-Fingerprint {
     return ($records -join "`n")
 }
 
-function Invoke-CheckedProcess([string]$FilePath, [string[]]$Arguments) {
+function Invoke-CheckedProcess(
+    [string]$FilePath,
+    [string[]]$Arguments,
+    [int]$TimeoutSeconds = 90
+) {
     $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments `
         -WindowStyle Hidden -PassThru
     $null = $process.Handle
-    if (-not $process.WaitForExit(90000)) {
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw "$FilePath timed out."
+        throw "$FilePath timed out after $TimeoutSeconds seconds."
     }
     $process.WaitForExit()
     if ($process.ExitCode -ne 0) {
@@ -80,7 +84,7 @@ try {
     try {
         $env:PICTURE_SHOP_SMOKE = '1'
         $env:PICTURE_SHOP_SMOKE_REPORT = $smokeReport
-        Invoke-CheckedProcess $game @()
+        Invoke-CheckedProcess -FilePath $game -Arguments @() -TimeoutSeconds 1200
     } finally {
         if ($null -eq $previousSmoke) { Remove-Item Env:PICTURE_SHOP_SMOKE -ErrorAction SilentlyContinue }
         else { $env:PICTURE_SHOP_SMOKE = $previousSmoke }
