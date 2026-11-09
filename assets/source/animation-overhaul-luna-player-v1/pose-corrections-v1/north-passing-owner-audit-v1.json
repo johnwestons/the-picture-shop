@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "audit": "north-canonical-passing-foot-owner-v1",
+  "status": "audit only; no new art generated; no runtime edits",
+  "basis": {
+    "original_source_strip_path": "assets/generated/characters/rabbit-worker/walk_north.png",
+    "original_source_strip_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+    "original_source_strip_dimensions_px": [
+      4096,
+      512
+    ],
+    "proposal_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-proposal.png",
+    "proposal_sha256": "244171ab60f25e618891511062f94add0c8a83851b734b4593330a634c071f8c",
+    "proposal_role": "original seven canonical source cells interleaved with correctedN5 trial06",
+    "current_runtime_source_path": "assets/generated/characters/rabbit-worker/walk_north.png",
+    "current_runtime_source_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+    "cell_hashes_from_proposal_manifest": {
+      "1": "2ae840063f83213d67042f0713f661f84b8490fc992a36ca151ac5d3a5285a56",
+      "2": "33d4c29977310dfbbf1213eaa31e91c879d135b8eca8611dd31a0303bff6b4e8",
+      "3": "616c2488495dac3fcb9451e68450856138e40c52e9f78950703dd14f6fbb0532",
+      "4": "2990fe9cc92783eb2cada5c0e401c20126817c3c79735d18adc6e3f52b32c2d7",
+      "5": "0c00fa5f8ced8778ee6709c0c18fba7bfcd001cda9dd968adcbb6cd42e13c0a5",
+      "6": "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434",
+      "7": "abaa6341ac7a6166484531b263be7ef7a21713ea3ba0fcdcdd85e24b3ad4b484",
+      "8": "e7722baa9d2d3ce0293da21c4b27310312d36fd05d1409279d1925d3a4b6a78f"
+    }
+  },
+  "observations": [
+    {
+      "key": 1,
+      "role_label": "left_contact",
+      "visual": "viewer-right / rabbit-right trailing boot exposes its sole; opposite boot planted."
+    },
+    {
+      "key": 2,
+      "role_label": "left_weight_down",
+      "visual": "both boots grounded; compressed weight-down pose."
+    },
+    {
+      "key": 3,
+      "role_label": "right_passing",
+      "visual": "viewer-left / rabbit-left boot exposes its sole below left hip; same boot owner as K7."
+    },
+    {
+      "key": 4,
+      "role_label": "right_knee_up",
+      "visual": "viewer-left / rabbit-left boot is lifted with sole visible; appears same owner as K8."
+    },
+    {
+      "key": 5,
+      "role_label": "right_contact_trial06",
+      "visual": "viewer-left / rabbit-left trailing boot exposes its sole; right boot planted, alternating K1 contact ownership."
+    },
+    {
+      "key": 6,
+      "role_label": "right_weight_down",
+      "visual": "both boots grounded; compressed weight-down pose."
+    },
+    {
+      "key": 7,
+      "role_label": "left_passing",
+      "visual": "viewer-left / rabbit-left boot exposes its sole; same owner as K3."
+    },
+    {
+      "key": 8,
+      "role_label": "left_knee_up",
+      "visual": "viewer-left / rabbit-left boot is lifted with sole visible; appears same owner as K4."
+    }
+  ],
+  "finding": "K3 and K7 have the same visible raised/sole-facing boot owner despite alternating passing roles; K3 is the likely wrong passing owner because it follows K2 left-weight-down and leads to K4 right-knee-up, yet shows the left boot lifted. K4 likewise appears to repeat K8 left-boot ownership. This flags the K3/K4 half-cycle for owner review; no candidate correction was made.",
+  "evidence": {
+    "odd_key_owner_sheet_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-odd-key-sole-owner-review-v1.png",
+    "odd_key_owner_sheet_sha256": "7241e8262950c44ba45b0ae3a1c875d02e01482765b5ae2eeeb71220d507ce75",
+    "k3_k5_k7_detail_sheet_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-passing-03-07-audit-v1.png",
+    "visual_note": "K7 retains the detached short horizontal alpha residue above the ears already flagged by root; excluded from ownership finding."
+  }
+}

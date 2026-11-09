@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.focus(focused)
+        if not focused then require('src.commute.runtime').cancelCameraDrag(Runtime) end
         if Runtime.state.screen=="air_hockey" then
             require("src.screens.air_hockey_screen").cancelInputs(not focused)
             Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
@@ -36,12 +37,13 @@ function Component.install(Runtime)
             Runtime.mobileControls:cancelAll()
         end
         if not focused then
+            require("src.image_loader").shutdown()
             Runtime.Assets.clearCache()
             Runtime.CharacterAssets.clearCache()
             Runtime.WorldRenderer.clearCache()
             Runtime.multiplayer:sendNeutralInput()
             if Runtime.controller then Runtime.controller:cancelAll() end
-            Runtime.saveCurrent()
+            Runtime.saveCurrent(true)
             local activeDirectHost = Runtime.multiplayer:isHost()
                 and Runtime.multiplayer.networkKind == "direct"
             if Runtime.directConnection and not (Runtime.isAndroidPlatform()
@@ -74,7 +76,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.quit()
-        if not Runtime.spriteLabActive then Runtime.saveCurrent() end
+        if not Runtime.spriteLabActive then Runtime.saveCurrent(true) end
         Runtime.lanDiscovery:stop()
         Runtime.lanReconnect:cancel(true)
         local sessionClean, sessionError = Runtime.multiplayer:stop("Application closed")
@@ -92,6 +94,8 @@ function Component.install(Runtime)
             love.window.setDisplaySleepEnabled(true)
         end
         if Runtime.App.sound then Runtime.App.sound:shutdown() end
+        Runtime.Save.shutdown()
+        require("src.image_loader").shutdown()
         return false
     end
 

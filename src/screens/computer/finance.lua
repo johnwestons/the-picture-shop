@@ -1,6 +1,17 @@
 -- Warehouse, bills, and credit presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local FinanceCharts=require("src.screens.finance_charts")
+
+local function shortMoney(value)
+    value=tonumber(value) or 0
+    local sign=value<0 and "−" or ""
+    value=math.abs(value)
+    if value>=1000000 then return string.format("%s$%.1fm",sign,value/1000000) end
+    if value>=10000 then return string.format("%s$%.0fk",sign,value/1000) end
+    if value>=1000 then return string.format("%s$%.1fk",sign,value/1000) end
+    return string.format("%s$%.0f",sign,value)
+end
 
 function Component.install(Runtime)
     function Runtime.drawWarehouse(state,pointerX,pointerY,assets)
@@ -25,6 +36,9 @@ function Component.install(Runtime)
             love.graphics.print("PALLET STAGING AREA EDITOR",78,195)
             control(Runtime.WAREHOUSE_STAGING_EDITOR_EXIT,"ROOM UPGRADES",true)
 
+            local roomLabel=view.selectedRoom and view.selectedRoom.label or "WAREHOUSE"
+            control(Runtime.WAREHOUSE_STAGING_ROOM,"ROOM  /  "..roomLabel.."  ›",true)
+
             local selected=view.selectedArea or view.stagingAreas[1]
             for index,area in ipairs(view.stagingAreas) do
                 local rect=Runtime.warehouseStagingAreaTabRect(index)
@@ -48,7 +62,10 @@ function Component.install(Runtime)
             Runtime.panel(mapRect,{0.085,0.12,0.12,1},{0.34,0.55,0.51,1},3,1)
             love.graphics.setColor(0.20,0.25,0.24,1)
             love.graphics.rectangle("fill",map.x,map.y,map.width,map.height)
-            love.graphics.setScissor(map.x,map.y,map.width,map.height)
+            -- Scissor rectangles use window pixels, while the mobile viewport
+            -- scales these game coordinates. Clip using the active transform.
+            local oldScissor={love.graphics.getScissor()}
+            love.graphics.setScissor(Runtime.ComputerScreen.warehouseStagingMapScissor())
             love.graphics.setColor(0.29,0.34,0.31,0.35)
             for worldX=0,Runtime.Config.baseWidth,48 do
                 local gridX=map.x+worldX*map.scale
@@ -62,11 +79,11 @@ function Component.install(Runtime)
                 polar_115={key="cutter",label="CUTTER",color={0.72,0.81,0.84,1}},
                 skid_wrapper={key="wrapper",label="WRAPPER",color={0.48,0.77,0.85,1}},
                 heidelberg_10x15={key="windmill",label="PRESS",color={0.84,0.70,0.46,1}},
-                regal_moll={key="regalFolder",label="FOLDER",color={0.84,0.40,0.36,1}},
             }
             for _,machine in ipairs(state.machines and state.machines.items or {}) do
                 local marker=machineMap[machine.modelId]
-                if machine.status=="installed" and marker then
+                if machine.status=="installed" and marker
+                    and ((machine.world and machine.world.sceneId or "warehouse")==view.selectedRoomId) then
                     local placement=machine.world or state[marker.key]
                     local config=Runtime.Config[marker.key.."Placement"]
                     if not placement and config then placement={x=config.spawnX,y=config.spawnY} end
@@ -108,39 +125,45 @@ function Component.install(Runtime)
                     love.graphics.polygon("line",sx,sy-ry,sx+rx,sy,sx,sy+ry,sx-rx,sy)
                 end
             end
-            love.graphics.setScissor()
+            if oldScissor[1] then love.graphics.setScissor(unpack(oldScissor))
+            else love.graphics.setScissor() end
             love.graphics.setColor(0.53,0.67,0.61,1)
             love.graphics.rectangle("line",map.x,map.y,map.width,map.height)
 
             Runtime.panel({x=610,y=260,width=274,height=344},{0.045,0.09,0.10,0.98},{0.31,0.52,0.49,1},3,1)
             local area=selected
             love.graphics.setColor(0.95,0.82,0.39,1)
-            love.graphics.print(area and StagingAreas.label(state,area) or "STAGING AREA",624,270)
+            love.graphics.print(area and StagingAreas.label(state,area) or "NO STAGING AREAS",624,270)
             local fixedPurpose=StagingAreas.isFixedPurpose(area)
             local function setting(rect,label,enabled)
                 control(rect,label,enabled and view.enabled and not view.pending)
             end
-            setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
-                ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
-            local swatch=StagingAreas.color(area.color)
-            setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
-            if area.purpose=="machine_output" then
-                local machineLabel="NO INSTALLED MACHINE"
-                for _,machine in ipairs(view.machineOptions) do
-                    if machine.id==area.machineId then machineLabel=machine.label end
+            if area then
+                setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
+                    ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
+                local swatch=StagingAreas.color(area.color)
+                setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
+                if area.purpose=="machine_output" then
+                    local machineLabel="NO INSTALLED MACHINE IN THIS ROOM"
+                    for _,machine in ipairs(view.machineOptions) do
+                        if machine.id==area.machineId then machineLabel=machine.label end
+                    end
+                    setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
+                        ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
+                        area.id~="cutter-output" and #view.machineOptions>0)
+                else
+                    love.graphics.setColor(0.59,0.72,0.69,1)
+                    love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO MACHINES IN THIS ROOM.",620,390,264,"center")
                 end
-                setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
-                    ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
-                    area.id~="cutter-output" and #view.machineOptions>0)
+                local shownArea=Runtime.warehouseStagingPreviewArea(area)
+                love.graphics.setColor(0.75,0.86,0.82,1)
+                love.graphics.printf(string.format("POSITION  /  X %d   Y %d",shownArea.x,shownArea.y),620,430,264,"center")
+                love.graphics.setColor(0.65,0.79,0.75,1)
+                love.graphics.printf("DRAG ON THE MAP  /  NUDGE",620,454,264,"center")
             else
                 love.graphics.setColor(0.59,0.72,0.69,1)
-                love.graphics.printf("MACHINE OUTPUT AREAS CAN BE ASSIGNED TO ANY INSTALLED MACHINE.",620,390,264,"center")
+                love.graphics.printf("Create a pallet area for this room, then choose its purpose and position.",620,330,264,"center")
             end
-            local shownArea=Runtime.warehouseStagingPreviewArea(area)
-            love.graphics.setColor(0.75,0.86,0.82,1)
-            love.graphics.printf(string.format("POSITION  /  X %d   Y %d",shownArea.x,shownArea.y),620,430,264,"center")
-            love.graphics.setColor(0.65,0.79,0.75,1)
-            love.graphics.printf("DRAG ON THE MAP  /  NUDGE",620,454,264,"center")
             setting(Runtime.WAREHOUSE_STAGING_LEFT,"<",true)
             setting(Runtime.WAREHOUSE_STAGING_UP,"^",true)
             setting(Runtime.WAREHOUSE_STAGING_DOWN,"v",true)
@@ -177,9 +200,20 @@ function Component.install(Runtime)
                         and bay.status=="complete" and bay.optionId=="breakroom" and not view.pending)
                 end
             else
-                for oi,option in ipairs(bay.options) do
-                    control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
-                        view.enabled and option.available and bay.status=="locked" and not view.pending)
+                if bay.status=="locked" then
+                    for oi,option in ipairs(bay.options) do
+                        control(Runtime.warehouseOptionRect(bi,oi),option.name.."  /  "..(option.available and Runtime.money(option.price) or "NOT READY YET"),
+                            view.enabled and option.available and not view.pending)
+                    end
+                elseif bay.garageAvailable then
+                    love.graphics.setColor(.74,.84,.79,1)
+                    love.graphics.printf("Add a loading bay for customer pickup trucks.",110+(bi-1)*380,290,330,"left")
+                    love.graphics.printf("Employees carry finished skids through the room passage and load their assigned truck.",110+(bi-1)*380,326,330,"left")
+                end
+                if bay.garageAvailable then
+                    control(Runtime.warehouseOptionRect(bi,4),"TRUCK GARAGE DOOR / "..
+                        (bay.garageOwned and "OWNED" or Runtime.money(require("src.room_loading_bays").PRICE)),
+                        view.enabled and not bay.garageOwned and not view.pending)
                 end
             end
             local phase=view.gamesPage and (bay.status=="complete" and bay.optionId=="breakroom"
@@ -214,7 +248,8 @@ function Component.install(Runtime)
             or "Review a choice to confirm its cost. The raccoon mechanic calls before construction.",100,578,736,"left")
         local choice=view.confirmation
         if not choice then return end
-        local product=choice.kind=="buy_breakroom_fixture"
+        local product=choice.kind=="buy_garage_door" and require("src.room_loading_bays").catalog()
+            or choice.kind=="buy_breakroom_fixture"
             and Runtime.BreakroomGames.CATALOG[choice.fixtureId]
             or Runtime.Upgrades.catalog(choice.optionId or "forklift")
         love.graphics.setColor(0,0,0,0.88);love.graphics.rectangle("fill",82,190,770,408)
@@ -224,7 +259,9 @@ function Component.install(Runtime)
         love.graphics.setColor(0.92,0.96,0.91,1)
         love.graphics.printf("Host catalog price: "..Runtime.money(product.price),204,300,532,"center")
         love.graphics.setColor(0.72,0.85,0.82,1)
-        love.graphics.printf(choice.kind=="buy_breakroom_fixture"
+        love.graphics.printf(choice.kind=="buy_garage_door"
+            and "Install a truck loading bay in this room. Employees bring wrapped skids to their assigned pickup truck."
+            or choice.kind=="buy_breakroom_fixture"
             and ((choice.bayId=="front_left" and "Room A" or "Room B")..
                 " fixture. Host confirms ownership and saves one purchase receipt.")
             or choice.kind=="buy_forklift"
@@ -249,16 +286,22 @@ function Component.install(Runtime)
 
     function Runtime.drawBills(state, pointerX, pointerY)
         local charges, monthlyTotal = Runtime.BusinessCalendar.monthlyCharges()
-        local balance,_,wages = Runtime.BusinessCalendar.amountDue(state)
-        local accrued=state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true)/100 or 0
+        local balance,operatingDue,wages = Runtime.BusinessCalendar.amountDue(state)
+        local accrued=(state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true) or 0)
+            /100+require('src.guest_payroll').totalOwed(state)/100
         local weekly=0
         for _,w in ipairs(state.employment and state.employment.staff or {}) do
             if w.status=="employed" and not w.terminationRequested then weekly=weekly+require("src.employment_contracts").weeklyEstimate(w.contract) end
         end
         local claimTotal = 0
+        local fuelPaidThisMonth=0
         for _, invoice in ipairs(state.bills and state.bills.ledger or {}) do
             if invoice.status == "unpaid" and invoice.kind == "spoil_claim" then
                 claimTotal = claimTotal + (invoice.total or 0)
+            end
+            local date=state.calendar or {}
+            if invoice.reference=="truck-fuel" and invoice.year==date.year and invoice.month==date.month then
+                fuelPaidThisMonth=fuelPaidThisMonth+(invoice.total or 0)
             end
         end
         Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
@@ -267,7 +310,7 @@ function Component.install(Runtime)
         love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 108, 214)
         love.graphics.setColor(0.76, 0.83, 0.84)
         love.graphics.print(Runtime.BusinessCalendar.dateText(state), 108, 242)
-        love.graphics.print("Monthly shop invoices. Wages: agreed 1-4 week cycle, Monday 09:00.", 108, 266)
+        love.graphics.print("Staff wages follow their pay cycle. Connected player wages settle as cash is available.", 108, 266)
 
         love.graphics.setColor(0.16, 0.22, 0.24)
         love.graphics.rectangle("fill", 108, 302, 470, 28)
@@ -275,28 +318,33 @@ function Component.install(Runtime)
         love.graphics.print("EXPENSE", 122, 310)
         love.graphics.print("FLAT MONTHLY RATE", 408, 310)
         for index, charge in ipairs(charges) do
-            local y = 330 + (index - 1) * 34
+            local y = 330 + (index - 1) * 27
             love.graphics.setColor(index % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
-            love.graphics.rectangle("fill", 108, y, 470, 32)
+            love.graphics.rectangle("fill", 108, y, 470, 25)
             love.graphics.setColor(0.78, 0.84, 0.84)
-            love.graphics.print(charge.label, 122, y + 9)
+            love.graphics.print(charge.label, 122, y + 6)
             love.graphics.setColor(0.95, 0.84, 0.30)
-            love.graphics.printf(Runtime.money(charge.amount), 402, y + 9, 150, "right")
+            love.graphics.printf(Runtime.money(charge.amount), 402, y + 6, 150, "right")
         end
+        local summaryY=330+#charges*27+4
         love.graphics.setColor(0.72, 0.79, 0.80)
-        love.graphics.print("Normal monthly total", 122, 478)
+        love.graphics.print("Normal monthly total", 122, summaryY)
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.printf(Runtime.money(monthlyTotal), 402, 478, 150, "right")
-        love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
-        love.graphics.print("Customer stock replacement claims", 122, 510)
-        love.graphics.printf(Runtime.money(claimTotal), 402, 510, 150, "right")
+        love.graphics.printf(Runtime.money(monthlyTotal), 402, summaryY, 150, "right")
         love.graphics.setColor(.78,.84,.84,1)
-        love.graphics.print("Employee wages currently due",122,534)
-        love.graphics.printf(Runtime.money(wages),402,534,150,"right")
-        love.graphics.print("Wages earned, not yet due",122,556)
-        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,556,150,"right")
-        love.graphics.print("Estimated staff pay / week",122,578)
-        love.graphics.printf(Runtime.money(weekly),402,578,150,"right")
+        love.graphics.print("Delivery truck fuel paid this month",122,summaryY+24)
+        love.graphics.setColor(0.95, 0.84, 0.30)
+        love.graphics.printf(Runtime.money(fuelPaidThisMonth),402,summaryY+24,150,"right")
+        love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
+        love.graphics.print("Customer stock replacement claims", 122, summaryY+48)
+        love.graphics.printf(Runtime.money(claimTotal), 402, summaryY+48, 150, "right")
+        love.graphics.setColor(.78,.84,.84,1)
+        love.graphics.print("Staff and player wages due",122,summaryY+70)
+        love.graphics.printf(Runtime.money(wages),402,summaryY+70,150,"right")
+        love.graphics.print("Wages earned, not yet due",122,summaryY+91)
+        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,summaryY+91,150,"right")
+        love.graphics.print("Estimated staff pay / week",122,summaryY+112)
+        love.graphics.printf(Runtime.money(weekly),402,summaryY+112,150,"right")
 
         Runtime.panel({ x = 604, y = 302, width = 204, height = 188 },
             { 0.08, 0.10, 0.11, 1 }, { 0.31, 0.48, 0.49, 1 })
@@ -305,8 +353,14 @@ function Component.install(Runtime)
         love.graphics.setColor(balance > 0 and 0.96 or 0.54, balance > 0 and 0.48 or 0.84, balance > 0 and 0.30 or 0.65)
         love.graphics.printf(Runtime.money(balance), 620, 370, 172, "center")
         love.graphics.setColor(0.58, 0.66, 0.67)
-        love.graphics.printf(balance > 0 and "Includes due wages. Unpaid balances carry forward." or "All currently due bills and wages are paid.",
-            620, 410, 172, "center")
+        love.graphics.printf("Breakdown of current amount due.",620,408,172,"center")
+        local obligationMix={
+            {label="Bills",value=math.max(0,operatingDue-claimTotal),color={.40,.84,.81,1},valueText=shortMoney(math.max(0,operatingDue-claimTotal))},
+            {label="Claims",value=claimTotal,color={1,.59,.50,1},valueText=shortMoney(claimTotal)},
+            {label="Wages due",value=wages,color={.96,.77,.47,1},valueText=shortMoney(wages)},
+        }
+        FinanceCharts.donut(758,455,29,obligationMix,"COSTS")
+        FinanceCharts.legend(615,435,obligationMix,105,14,3)
 
         local ownerOnly=Runtime.dependencies.remoteCommand~=nil and wages>0
         local payable = not ownerOnly and balance > 0

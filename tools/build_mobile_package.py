@@ -26,6 +26,47 @@ ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 # platform packages. Keep the direction versions in sync with the Lua catalog.
 WAREHOUSE_SOURCE_ROOT = "assets/source/warehouse-expansion-v1/"
 VIBES_MUSIC_ROOT = "assets/audio/music/vibes/"
+COMMUTE_AUDIO_FILES = (
+    "engine-1400.wav", "engine-3000.wav", "engine-5000.wav", "engine-7500.wav",
+    "wind.wav", "tires.wav", "intake.wav", "brake.wav", "ignition.wav",
+    "shutdown.wav", "shift.wav", "impact.wav", "forest-ambience.mp3",
+    "manifest.json", "SOURCES.md",
+)
+# Runtime-ready commute atlases only. Offline terrain sources, prompts and
+# staged review artwork are deliberately outside this closed set of patterns.
+COMMUTE_RUNTIME_GLOBS = (
+    "assets/commute/bike/*-16.png",
+    "assets/commute/bike/mounted-upright-32.png",
+    "assets/commute/bike/mounted-upright-64.png",
+    "assets/commute/bike/mounted-upright-64-v2.png",
+    "assets/commute/bike/actions-64/*.png",
+    "assets/commute/bike/actions-64/paint_regions.lua",
+    "assets/commute/bike/wheel_regions.lua",
+    "assets/generated/commute-ride-actions-v1/*.png",
+    "assets/generated/commute-ride-actions-v1/registration.lua",
+    "assets/commute/bridge/*.png",
+    "assets/commute/truck/*.png",
+    "assets/commute/truck/turntables/*.png",
+    "assets/commute/truck/kei-turntables/*.png",
+    "assets/commute/truck/decals/*.png",
+    "assets/commute/truck/interior-v1/*.png",
+    "assets/commute/truck/interior-v2/*.png",
+    "assets/commute/ui/*.png",
+    "assets/commute/buildings/warehouse.png",
+    "assets/commute/cockpit/handlebars.png",
+    "assets/commute/cockpit/first-person-bike-v2.png",
+    "assets/commute/cockpit/handlebars-fuel-v2.png",
+    "assets/commute/cockpit/first-person-bike-fuel-v2.png",
+    "assets/generated/commute-ui-icons-v1/action-icons-atlas.png",
+    "assets/commute/terrain/ground-desktop-v1.png",
+    "assets/commute/terrain/ground-mobile-v1.png",
+    "assets/commute/plant-atlas/page-*.png",
+    "assets/commute/plants/*.png",
+    "assets/commute/plants/variants/*.png",
+    "assets/commute/plants/motion/*.png",
+    "assets/commute/scenery/*.png",
+    "assets/commute/scenery/environmental/*.png",
+)
 VIBES_MUSIC_TRACKS = (
     "blood_red.wav",
     "downpour.wav",
@@ -37,6 +78,7 @@ VIBES_MUSIC_TRACKS = (
     "this_is_not_your_song.wav",
     "time_time.wav",
 )
+WORKSHOP_RUNTIME_FILES = ("assets/workshop/wooden-blade-sleeve-v1.png",)
 # The standalone Frontier arcade is unfinished 2.5D content. Critter Crisis
 # keeps its internal compatibility modules, but Android ships neither its
 # player-facing entry screen nor its art bundle.
@@ -136,6 +178,26 @@ def runtime_source_paths(root: Path = ROOT) -> list[Path]:
     return result
 
 
+def runtime_commute_paths(root: Path = ROOT) -> list[Path]:
+    """Resolve shipped ride artwork without admitting offline source directories."""
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    for pattern in COMMUTE_RUNTIME_GLOBS:
+        matches = sorted(root.glob(pattern))
+        if not matches:
+            raise RuntimeError(f"Missing required commute artwork: {pattern}")
+        for path in matches:
+            resolved = path.resolve()
+            if (not path.is_file() or root.resolve() not in resolved.parents
+                    or path.suffix.lower() not in {".png", ".lua"} or "source" in path.relative_to(root).parts):
+                raise RuntimeError(f"Invalid commute runtime artwork: {path}")
+            if resolved in seen:
+                raise RuntimeError(f"Duplicate commute artwork: {path}")
+            paths.append(path)
+            seen.add(resolved)
+    return paths
+
+
 def runtime_music_paths(root: Path = ROOT) -> list[Path]:
     """Return the Vibes radio playlist only, excluding other project music."""
     if len(VIBES_MUSIC_TRACKS) != len(set(VIBES_MUSIC_TRACKS)):
@@ -185,6 +247,36 @@ def runtime_music_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
     ]
 
 
+def runtime_workshop_paths(root: Path = ROOT) -> list[Path]:
+    """Resolve the explicit workshop art used by the shared warehouse runtime."""
+    if len(WORKSHOP_RUNTIME_FILES) != len(set(WORKSHOP_RUNTIME_FILES)):
+        raise RuntimeError("Duplicate workshop runtime asset allowlist entry")
+    resolved_root = root.resolve()
+    result = []
+    for relative in WORKSHOP_RUNTIME_FILES:
+        path = root / relative
+        resolved = path.resolve()
+        if (not relative.startswith("assets/workshop/")
+                or resolved_root not in resolved.parents
+                or "source" in path.relative_to(root).parts):
+            raise RuntimeError(f"Workshop runtime asset escapes its package root: {relative}")
+        if not path.is_file():
+            raise RuntimeError(f"Missing required workshop runtime asset: {relative}")
+        result.append(path)
+    return result
+
+
+def runtime_workshop_manifest(root: Path = ROOT) -> list[dict[str, str | int]]:
+    return [
+        {
+            "path": source.relative_to(root).as_posix(),
+            "bytes": source.stat().st_size,
+            "sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        }
+        for source in runtime_workshop_paths(root)
+    ]
+
+
 def git_value(*arguments: str) -> str | None:
     try:
         return subprocess.check_output(
@@ -204,9 +296,25 @@ def safe_clean(path: Path, output: Path) -> None:
     path.mkdir(parents=True)
 
 
+def validate_runtime_asset_modules(stage: Path) -> None:
+    """Reject runtime Lua imports whose asset metadata was excluded from the package."""
+    for source in sorted((stage / "src").rglob("*.lua")):
+        if "tests" in source.relative_to(stage).parts:
+            continue
+        text = source.read_text(encoding="utf-8")
+        for module in re.findall(r'''\brequire\s*(?:\(\s*)?["'](assets\.[^"']+)["']''', text):
+            relative = module.replace(".", "/") + ".lua"
+            target = stage / relative
+            if stage.resolve() not in target.resolve().parents or not target.is_file():
+                raise RuntimeError(
+                    f"Runtime asset module is missing from package: {module} (required by {source.relative_to(stage)})"
+                )
+
+
 def copy_runtime(stage: Path) -> None:
     # Validate before the larger shared runtime copy, then copy this closed set.
     runtime_source_paths()
+    commute_paths = runtime_commute_paths(ROOT)
     for source in (ROOT / "main.lua", ROOT / "conf.lua"):
         shutil.copy2(source, stage / source.name)
     for source_root in (ROOT / "src", ROOT / "assets" / "generated", ROOT / "assets" / "fonts"):
@@ -227,11 +335,21 @@ def copy_runtime(stage: Path) -> None:
         if source.name != "picture_shop_sfx_preview.wav"
     )
     audio_files.extend(runtime_music_paths())
+    audio_files.extend(audio_root / "commute" / name for name in COMMUTE_AUDIO_FILES)
     for source in audio_files:
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
+    for source in commute_paths:
+        destination = stage / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    for source in runtime_workshop_paths(ROOT):
+        destination = stage / source.relative_to(ROOT)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
     copy_runtime_source_assets(stage)
+    validate_runtime_asset_modules(stage)
 
 
 def write_runtime_version(stage: Path, version_name: str) -> Path:
@@ -380,6 +498,7 @@ def build(
         "runtimeBytes": sum(path.stat().st_size for path in runtime_files),
         "runtimeSourceAssets": runtime_source_manifest(stage),
         "runtimeMusicTracks": runtime_music_manifest(stage),
+        "runtimeWorkshopAssets": runtime_workshop_manifest(stage),
     }
     if route_manifest is not None:
         manifest["windowsRouteProvider"] = route_manifest

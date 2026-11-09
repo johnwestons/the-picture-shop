@@ -54,8 +54,9 @@ function Component.install(Runtime)
             if entry.kind == "supply" then
                 local category = Runtime.Procurement.categories[entry.categoryIndex]
                 local item = category and category.items[entry.itemIndex]
-                if not item or item.available == false or item.retailPrice ~= entry.price then
-                    return false, "A supply item in the cart is no longer available."
+                local currentPrice = item and Runtime.Procurement.retailPrice(state, entry.categoryIndex, entry.itemIndex)
+                if not item or item.available == false or currentPrice ~= entry.price then
+                    return false, "A product's availability or sale price changed. Review the cart and try again."
                 end
             elseif entry.kind == "machine" then
                 local offer = Runtime.MachineFleet.offers("online")[entry.offerIndex]

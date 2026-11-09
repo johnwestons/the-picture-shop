@@ -233,7 +233,18 @@ function Component.install(Runtime)
     end
 
     Runtime.returnToTitle = function()
-        Runtime.saveCurrent()
+        -- Capture authority before stopping the session. A cleanup retry may
+        -- already look offline, but must never save a guest's copy as a shop.
+        if not Runtime._menuExitSaved then
+            if not Runtime.multiplayer:isClient() and Runtime.state.activeSlot then
+                if not Runtime.saveCurrent(true) then
+                    local message="Progress could not be saved. Please try Save & Main Menu again."
+                    Runtime.state.message=message
+                    return false,message
+                end
+            end
+            Runtime._menuExitSaved=true
+        end
         Runtime.lanDiscovery:stop()
         Runtime.lanReconnect:cancel(true)
         Runtime.lanReconnectArmed = false
@@ -244,15 +255,24 @@ function Component.install(Runtime)
         if not sessionClean or not connectionClean or not hostClean then
             Runtime.enterDirectCleanupScreen(sessionError or connectionError or hostError,
                 Runtime.returnToTitle)
-            return false
+            return false,sessionError or connectionError or hostError
         end
         Runtime.DirectScreen.leave()
+        require('src.commute.runtime').cancelCameraDrag(Runtime)
+        require('src.commute.runtime').release(Runtime)
+        if Runtime.mobileControls then Runtime.mobileControls:cancelAll() end
+        if Runtime.controller then Runtime.controller:cancelAll() end
+        Runtime.state.optionsReturnScreen=nil
+        if Runtime.OptionsScreen then Runtime.OptionsScreen.motorcycleEditor=nil end
+        Runtime._menuExitSaved=nil
         if Runtime.isAndroidPlatform() and love.window and love.window.setDisplaySleepEnabled then
             love.window.setDisplaySleepEnabled(true)
         end
         Runtime.state.screen = "title"
         Runtime.TitleScreen.enter(Runtime.startGame, Runtime.openLocalPlay,
             Runtime.CryptoNative.productionReady == true and Runtime.openDirectPlay or nil)
+        if Runtime.syncMobileKeyboard then Runtime.syncMobileKeyboard() end
+        return true
     end
 end
 

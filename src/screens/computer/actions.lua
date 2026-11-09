@@ -19,7 +19,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.enter(state)
-        Runtime.ComputerScreen.tab = "active"
+        Runtime.ComputerScreen.tab = state.home and require("src.weekend_flow").atHome(state) and "home" or "active"
+        if Runtime.resetHomeView then Runtime.resetHomeView() end
         Runtime.ComputerScreen.emailFolder = "inbox"
         Runtime.ComputerScreen.pages = { active = 1, completed = 1, deliveries = 1 }
         Runtime.ComputerScreen.selectedJobId = nil
@@ -29,13 +30,18 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.quoteText = ""
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.quoteReplaceOnType = true
+        Runtime.ComputerScreen.deliveryQuoteText = ""
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+        Runtime.ComputerScreen.includeDeliveryQuote = false
         Runtime.ComputerScreen.promoJobId = nil
         Runtime.ComputerScreen.promoText = ""
         Runtime.ComputerScreen.promoFocused = false
         Runtime.ComputerScreen.calendarYear = state.calendar.year
         Runtime.ComputerScreen.calendarMonth = state.calendar.month
         Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
-        Runtime.ComputerScreen.calendarScroll = 0
+        Runtime.ComputerScreen.calendarDayOpen = false
+        Runtime.ComputerScreen.calendarDayScroll = 0
         Runtime.ComputerScreen.retailPage = 1
         Runtime.ComputerScreen.wwwSite = 1
         Runtime.ComputerScreen.cart = {}
@@ -54,6 +60,9 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.tabCenter(tabId)
         if tabId == "online" then tabId = "www" end
+        local financialAliases={bills='bills',player_wages='players',payroll='staff',shop_budget='overview'}
+        local financialAlias=financialAliases[tabId]
+        if financialAlias then Runtime.ComputerScreen.financialSection=financialAlias;tabId='financials' end
         for index, tab in ipairs(Runtime.visibleTabs()) do
             if tab.id == tabId then
                 local rect = Runtime.tabDropdownRect(index)
@@ -101,7 +110,8 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.calendarYear = state.calendar.year
             Runtime.ComputerScreen.calendarMonth = state.calendar.month
             Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
-            Runtime.ComputerScreen.calendarScroll = 0
+            Runtime.ComputerScreen.calendarDayOpen = false
+            Runtime.ComputerScreen.calendarDayScroll = 0
         elseif tab.id == "inventory" then
             Runtime.ComputerScreen.retailPage = 1
         end
@@ -163,7 +173,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.payBillsCenter()
-        return Runtime.PAY_BILLS.x + Runtime.PAY_BILLS.width / 2, Runtime.PAY_BILLS.y + Runtime.PAY_BILLS.height / 2
+        local tab=Runtime.ComputerScreen.tab
+        local yOffset = (tab == "bills" or tab == "financials"
+            and Runtime.ComputerScreen.financialSection == "bills") and 30 or 0
+        return Runtime.PAY_BILLS.x + Runtime.PAY_BILLS.width / 2,
+            Runtime.PAY_BILLS.y + Runtime.PAY_BILLS.height / 2 + yOffset
     end
 
     function Runtime.creditMachineRect(index)
@@ -278,13 +292,26 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.emailButtonCenter(action)
-        local rect = action == "accept" and Runtime.EMAIL_ACCEPT or Runtime.EMAIL_DECLINE
+        local estimating = Runtime.ComputerScreen.tab == "estimating"
+        local rect = action == "accept"
+            and (estimating and Runtime.EMAIL_ESTIMATE_SEND or Runtime.EMAIL_ACCEPT)
+            or (estimating and Runtime.EMAIL_ESTIMATE_DECLINE or Runtime.EMAIL_DECLINE)
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
     function Runtime.ComputerScreen.textInputCenter(kind)
         local rect = kind == "promotion" and Runtime.PROMO_INPUT or Runtime.EMAIL_QUOTE_INPUT
         return rect.x + rect.width / 2, rect.y + rect.height / 2
+    end
+
+    function Runtime.ComputerScreen.promotionButtonCenter()
+        return Runtime.JOB_PROMO.x + Runtime.JOB_PROMO.width / 2,
+            Runtime.JOB_PROMO.y + Runtime.JOB_PROMO.height / 2
+    end
+
+    function Runtime.ComputerScreen.sendPromotionCenter()
+        return Runtime.PROMO.x + Runtime.PROMO.width / 2,
+            Runtime.PROMO.y + Runtime.PROMO.height / 2
     end
 
     function Runtime.ComputerScreen.rowCenter(row)
@@ -296,8 +323,17 @@ function Component.install(Runtime)
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
-    function Runtime.ComputerScreen.calendarScrollCenter(direction)
-        local rect = direction == "up" and Runtime.CAL_SCROLL_UP or Runtime.CAL_SCROLL_DOWN
+    function Runtime.ComputerScreen.calendarDayEvents(state,year,month,day,twelveHourTime)
+        return Runtime.calendarDayEvents(state,year,month,day,twelveHourTime)
+    end
+
+    function Runtime.ComputerScreen.calendarDayCloseCenter()
+        local rect=Runtime.CAL_DAY_CLOSE
+        return rect.x+rect.width/2,rect.y+rect.height/2
+    end
+
+    function Runtime.ComputerScreen.calendarDayScrollCenter(direction)
+        local rect = direction == "up" and Runtime.CAL_DAY_SCROLL_UP or Runtime.CAL_DAY_SCROLL_DOWN
         return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
@@ -307,9 +343,15 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.hiringMousepressed(state,x,y)
-        return Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
+        local result=Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
             return Runtime.ComputerScreen.employeeCommand(state,intent)
-        end,false,Runtime.dependencies.remoteCommand==nil)
+        end,false,Runtime.dependencies.remoteCommand==nil,
+            Runtime.twelveHourTime())
+        if Runtime.ComputerScreen.hiring.section=="payroll" then
+            Runtime.ComputerScreen.tab="financials"
+            Runtime.ComputerScreen.financialSection="staff"
+        end
+        return result
     end
 
     function Runtime.ComputerScreen.scheduleMousepressed(state,x,y)

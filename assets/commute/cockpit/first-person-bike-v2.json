@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "path": "assets/commute/cockpit/first-person-bike-v2.png",
+  "generator": "built-in imagegen",
+  "prompt": "assets/commute/cockpit/first-person-bike-v2.prompt.txt",
+  "designReference": "assets/source/commute-bike-v1/parked-directions-source.png",
+  "sha256": "12716ab2e39aba079615a7ecc7f3504f31a9f09990c22d3bd6f819a0a945958e",
+  "size": [
+    1024,
+    1536
+  ],
+  "opaqueBounds": [
+    73,
+    20,
+    950,
+    1515
+  ],
+  "anatomy": "Olive step-through utility motorcycle: low narrow frame, compact engine, single saddle, right-side shielded exhaust, rear luggage rack, complete front and rear wheel ends; no rider.",
+  "instrumentRegistration": {
+    "speedometer": [
+      511,
+      235,
+      48
+    ],
+    "gearDisplay": [
+      584,
+      216,
+      72,
+      32
+    ]
+  },
+  "review": {
+    "transparentCutoutVerified": true,
+    "completeFrontAndRearSilhouette": true,
+    "liveInstrumentsVerified": true,
+    "previewCaptures": 13,
+    "commuteChecksPassed": 357,
+    "captures": "output/first-person-bike"
+  }
+}

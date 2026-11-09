@@ -30,7 +30,7 @@ function Component.install(Runtime)
                 panel.x + 22, panel.y + 48, 430, "left")
             drawPaws(panel.x + 22, panel.y + 72, math.floor(average + 0.5))
         else
-            love.graphics.printf("Good runs don't always get a review. Mistakes always get feedback.",
+            love.graphics.printf("Reviews appear after customers pick up completed orders.",
                 panel.x + 22, panel.y + 51, 470, "left")
         end
 
@@ -49,7 +49,7 @@ function Component.install(Runtime)
         local reviews = reputation.reviews or {}
         if #reviews == 0 then
             love.graphics.setColor(0.58, 0.64, 0.66, 1)
-            love.graphics.printf("A spoiled or off-spec order always receives a bad review.",
+            love.graphics.printf("No customer reviews yet. Complete an order and have the customer pick it up.",
                 panel.x + 24, panel.y + 222, panel.width - 48, "center")
             return
         end
@@ -73,7 +73,7 @@ function Component.install(Runtime)
                 rect.x + 10, rect.y + 24, rect.width - 20, "left")
         end
         love.graphics.setColor(0.55, 0.68, 0.68, 1)
-        love.graphics.printf("Showing the 6 most recent • Ratings reflect delivered quality and material specs.",
+        love.graphics.printf("Quality, delivery timing, and driver service affect ratings.",
             panel.x + 16, panel.y + 420, panel.width - 32, "center")
     end
 end

@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "batch": "luna-player-north-k07-trial01-v3-review-v1",
+  "status": "staged for root review only; no runtime integration",
+  "imagegen": {
+    "generation_id": "exec-11cdb414-5f46-44a4-8d4c-451377856bf4",
+    "cache_path": "C:/Users/johnw/.codex/generated_images/01a17bec-a216-72b3-ac73-5e56d3da1c90/exec-11cdb414-5f46-44a4-8d4c-451377856bf4.png",
+    "cache_timestamp_local": "2026-10-27T11:41:41-04:00",
+    "exact_prompt_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-07-trial-01-prompt.txt",
+    "exact_prompt_sha256": "205241719d914539a9c2724e06e112833dea0b04252fee91f9cb9f5061427efa",
+    "exact_prompt": "Edit Reference 1, the accepted rabbit-worker North K5 trial06 raw source, to create ONE full-body canonical K7 walking drawing. Reference 1 is the sole authority for exact character identity, orange fur and head, the shape and size of exactly two ears, torso and overalls proportions, shirt, tail, tool pouch, tool colors, palette, brush texture, outline weight, camera, canvas and overall full-body scale. Preserve its head, ears, torso, shoulders, waist, clothing, palette, outlines and shading as closely as possible. This must look like the same rigid character and same camera; do not zoom, crop, redesign, enlarge the head, shorten the body, alter the proportions or make a squat pose. Use one uniform source-master scale; no local stretching or limb deformation.\n\nReference 2 is a crop from the installed v3 K7 drawing and is ONLY a lower-body pose and anatomical owner guide. Copy its left-leg passing role and right-leg support relationship, not its head, body proportions, scale, outline style, clothing construction or colors. Reference 3 is a lower-body-only crop of the new compact K3 trial03 and is ONLY an example of the compact low passing amplitude; it has the opposite leg owner, so do not copy which side passes. Ignore its character scale, style and upper body.\n\nDraw a single rabbit-worker facing directly away from camera, walking north, full body and centered in the same square transparent canvas at the same subject scale and placement as Reference 1. This is K7, the compact anatomical-LEFT passing phase between right weight-down and left knee-up. The ANATOMICAL LEFT leg is on SCREEN-LEFT in this rear view: lift its ankle only slightly, keep it low and close under the pelvis, toe angled down, boot shown from rear/side with only a narrow sole edge and no broad sole facing camera. The LEFT leg remains clearly connected from viewer-left hip through thigh, knee, ankle and boot. The ANATOMICAL RIGHT leg on SCREEN-RIGHT is the weight-bearing support: its boot stays fully flat on the shared ground baseline, stable and visible. Do not lift the right foot, swap leg owners, cross the legs or turn the body.\n\nKeep the head and torso upright at the exact Reference 1 proportions and keep the camera fixed. Use a modest natural counter-arm like Reference 1: the right arm moves slightly forward against the advancing left leg, the left arm trails slightly, and the relaxed hands stay distinct. Keep the character's anatomical RIGHT-hip tool pouch visible on SCREEN-RIGHT without merging with the arm. Preserve exactly two long orange rabbit ears, two arms, two hands, two legs, two boots, one fluffy white tail, one brown pouch, exactly one red handled tool and one yellow handled tool, white shirt and sleeves, blue denim overalls, brass strap buttons and brown belt. Keep the same clean black outline weight, fur texture, shading and colors as Reference 1. Outside the character every pixel is transparent: no black or checkerboard matte, floor, cast shadow, detached marks, extra ears, extra limbs, extra tools, duplicate character or mirror.",
+    "references": [
+      {
+        "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-05-trial-06-generated.png",
+        "sha256": "d8f4220f356bc5069ab10252b641d839f54e9023451dce2e487b03a89bc72c83",
+        "role": "editable identity/head/torso/outline/proportion/style source master"
+      },
+      {
+        "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-v3-k07-pose-owner-only-v1.png",
+        "sha256": "7e9d2ab7c3cf21706c8c6c39150557f0b19840ce8ba7c77da62fd1cec7c64fb3",
+        "role": "cropped installed-v3 K7 lower-body pose/left-owner guide only"
+      },
+      {
+        "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-k03-trial03-compact-pass-pose-only-v1.png",
+        "sha256": "b43d7fe484bfdcc1d2c3ac2597d3ebbb4ee589915024df370976b44e44459b38",
+        "role": "opposite-owner compact passing amplitude cue only"
+      }
+    ]
+  },
+  "prompt_log": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/imagegen-prompt-log-v1.json",
+    "sha256": "688da585c3dfb5c9a02372ac6ecc2b8526be4cb4b42d4943ab41e836884b2448",
+    "entry_id": "exec-11cdb414-5f46-44a4-8d4c-451377856bf4"
+  },
+  "raw_master": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-07-trial-01-generated.png",
+    "sha256": "567fb6558bbe26edef0e663a08b308510cacae24d881932d5c4c42483cb8306c",
+    "dimensions_px": [
+      1254,
+      1254
+    ],
+    "alpha_bbox_gt_16": [
+      404,
+      144,
+      923,
+      1153
+    ],
+    "transparent_background": true
+  },
+  "normalization": {
+    "policy": "one frozen accepted K5 raw-master uniform scale; crop and translation only; no per-cell scale, deformation or height fit",
+    "frozen_scale": 0.40773276015281634,
+    "resampling": "Pillow Lanczos",
+    "raw_crop_xyxy": [
+      404,
+      144,
+      923,
+      1153
+    ],
+    "resized_size_px": [
+      212,
+      411
+    ],
+    "resized_visible_bbox_xyxy": [
+      0,
+      0,
+      212,
+      411
+    ],
+    "raw_head_center_anchor_x": 628.5,
+    "target_center_x": 256,
+    "ground_baseline_y": 465,
+    "paste_xy": [
+      164,
+      54
+    ],
+    "normalized_visible_bbox_xyxy": [
+      164,
+      54,
+      376,
+      465
+    ],
+    "normalized_visible_height_px": 411,
+    "neighbor_visible_heights_px": {
+      "K6_v3": 410,
+      "K3_trial03": 421,
+      "K4_trial02": 424,
+      "K5_trial06": 416,
+      "K8_v3": 410
+    }
+  },
+  "base": {
+    "path": "assets/generated/player-walk-v3/walk_north.png",
+    "sha256": "7df2307d8ac60ebd895077b39d856be3336c8430399bcb77b64a822d19840709",
+    "k5_matches_trial06": true
+  },
+  "phase_roles": [
+    {
+      "cell": 1,
+      "role": "installed v3 original",
+      "pixel_sha256": "2ae840063f83213d67042f0713f661f84b8490fc992a36ca151ac5d3a5285a56"
+    },
+    {
+      "cell": 2,
+      "role": "installed v3 left support",
+      "pixel_sha256": "33d4c29977310dfbbf1213eaa31e91c879d135b8eca8611dd31a0303bff6b4e8"
+    },
+    {
+      "cell": 3,
+      "role": "staged trial03 compact right-passing candidate",
+      "pixel_sha256": "89304339a890ccd8863b4fb4b2f4d9c6682fa0f8c0ec6a454d7a9dcbc5def521"
+    },
+    {
+      "cell": 4,
+      "role": "staged trial02 provisional right knee-up/recovery",
+      "pixel_sha256": "f61c8f8be96e72bbc02c237f174543b651f83ae280dc6946267da329e6185e6c"
+    },
+    {
+      "cell": 5,
+      "role": "installed v3 accepted trial06 contact",
+      "pixel_sha256": "0c00fa5f8ced8778ee6709c0c18fba7bfcd001cda9dd968adcbb6cd42e13c0a5"
+    },
+    {
+      "cell": 6,
+      "role": "installed v3 right weight-down",
+      "pixel_sha256": "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434"
+    },
+    {
+      "cell": 7,
+      "role": "new left passing K7 candidate; review pending",
+      "pixel_sha256": "a31b0ab26217e5b38e045975ec71e6c48888bd03e925d9194fd5fcdfaa711410"
+    },
+    {
+      "cell": 8,
+      "role": "installed v3 left knee-up",
+      "pixel_sha256": "e7722baa9d2d3ce0293da21c4b27310312d36fd05d1409279d1925d3a4b6a78f"
+    }
+  ],
+  "review_findings": [
+    "Raw K7 candidate contains exactly two rabbit ears, two arms, two hands, two legs and two boots; right-side pouch and red/yellow tools remain visible.",
+    "Viewer-right support boot is flat at the baseline; viewer-left leg is lifted low beneath the pelvis and remains connected to the left hip.",
+    "The viewer-left boot shows only a narrow dark edge at game scale; the low passing pose reads compact between K6 and K8, pending root review.",
+    "All unselected cells K1/K2/K5/K6/K8 are byte-exact installed v3; staged K3/K4 are reused unchanged. This proposal retains v3 K7 cleanup only in the comparison row; the new K7 is a separate proposal cell.",
+    "No runtime edits or shared smoke checks were run."
+  ],
+  "outputs": {
+    "normalized_k7": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-07-trial-01-uniform.png",
+      "sha256": "2a2eb0096af2194c16fd1e0b8c1d526e421fa08e89290898f60d1f0aa9accaec"
+    },
+    "proposal_strip": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k03trial03-k04trial02-k07trial01-proposal.png",
+      "sha256": "b14e8e9603af29236d48258a7acec1485faeaea7d4ccdaeebed76ee53d189fad"
+    },
+    "k6_k7_k8_contact": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k06-k07trial01-k08-review.png",
+      "sha256": "c9c89d71a8258bb5fa9615c4927e1405c3312a492b2e9f6eb6d4bfa90e6a871a"
+    },
+    "k3_to_k8_contact": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k03trial03-k04trial02-k05-k06-k07trial01-k08-review.png",
+      "sha256": "f0d70f16ab4d0c3978ef560f82a65da381e78a029fa03b2f086f7d83c640e271"
+    },
+    "full8_contact": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k03trial03-k04trial02-k07trial01-full8-game-scale-review.png",
+      "sha256": "fa8060626861637f0fc48ea0935b65d434dff832cbbf7d2c39306cba45366cea"
+    },
+    "original_vs_proposal_contact": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k07trial01-original-vs-proposal-game-scale.png",
+      "sha256": "c6317fad2e3485ae7ceec1d8bc22aaf038ed66647b554e5880a36183eda394ac"
+    },
+    "nominal_gif": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k03-k04-k07trial01-nominal-8phase.gif",
+      "sha256": "d0d039920daa1ba679e120f23f08e8b6077403f9cf408703e0e2899d48f6edd0"
+    },
+    "half_speed_gif": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-v3-k03-k04-k07trial01-half-speed-8phase.gif",
+      "sha256": "8d0aa5cd28da137ac656ea298636728644f6c236fa75b29cc5b0e7befe952685"
+    }
+  },
+  "gif_delays_ms": {
+    "nominal": 130,
+    "half_speed": 260
+  }
+}

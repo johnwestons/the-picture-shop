@@ -1,6 +1,7 @@
 -- Cutter and Windmill control availability and actions.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function Component.install(Runtime)
     Runtime.cutterButtonEnabled = function(action)
@@ -21,7 +22,8 @@ function Component.install(Runtime)
         elseif action == "set_clamp" then
             return view.loaded == true and (view.step == "positioned" or view.step == "clamped")
         elseif action == "position_paper" then
-            return view.loaded == true and view.clamp ~= true and view.step == "loaded"
+            return view.loaded == true and view.clamp ~= true
+                and (view.step == "loaded" or view.step == "positioned")
         elseif action == "rotate_paper" then
             return view.loaded == true and view.clamp ~= true
                 and (view.step == "loaded" or view.step == "positioned")
@@ -39,24 +41,33 @@ function Component.install(Runtime)
 
     function Runtime.cutterMaintenanceStatus(state)
         local cutter
+        local _, machineId = Runtime.MachineResource.parse(Runtime.Screen.leaseResourceId)
         for _, item in ipairs(state and state.machines and state.machines.items or {}) do
-            if item.modelId == "polar_115" and item.status == "installed" then
+            if item.modelId == "polar_115" and item.status == "installed" and (not machineId or item.id == machineId) then
                 cutter = item.maintenance and item.maintenance.cutter
                 break
             end
         end
         local stock = state and state.inventory and state.inventory.stock or {}
         cutter = cutter or {}
+        local view = Runtime.Screen.view or {}
         return {
             maintenanceKits = tonumber(stock.maintenance_kit) or 0,
+            spareBlades = tonumber(stock.cutter_blade) or 0,
             bladeRemoved = cutter.bladeRemoved == true,
             bladeInSleeve = cutter.bladeInSleeve == true,
+            spareBladeInstalled = cutter.spareBladeInstalled == true,
             weeklyTechnician = cutter.weeklyTechnician == true,
             technicianScheduled = cutter.nextTechnicianDay ~= nil,
+            bladeGrade = view.bladeGrade or cutter.bladeGrade or "standard",
+            orderedBladeGrade = view.orderedBladeGrade ~= nil and view.orderedBladeGrade
+                or cutter.orderedBladeGrade or "none",
+            moneyCents = view.moneyCents ~= nil and view.moneyCents
+                or math.max(0, math.floor((tonumber(state and state.money) or 0) * 100 + 0.5)),
         }
     end
 
-    function Runtime.cutterServiceButtonEnabled(action, state)
+    function Runtime.cutterServiceButtonEnabled(action, state, grade)
         local view = Runtime.Screen.view or {}
         local status = Runtime.cutterMaintenanceStatus(state)
         if Runtime.Screen.waiting or Runtime.Screen.safetyWaiting then return false end
@@ -70,6 +81,17 @@ function Component.install(Runtime)
         elseif action == "book_blade_technician" then
             return step == "idle" and status.bladeInSleeve == true
                 and status.technicianScheduled ~= true
+        elseif action == "install_spare_blade" then
+            return step == "idle" and view.loaded ~= true and view.step == "idle"
+                and status.bladeRemoved == true and status.bladeInSleeve == true
+                and status.orderedBladeGrade == "none"
+                and status.spareBladeInstalled ~= true and status.spareBlades > 0
+        elseif action == "order_blade_upgrade" then
+            local profile = BladeProfiles.get(grade)
+            return step == "idle" and view.loaded ~= true and view.step == "idle"
+                and profile ~= nil and BladeProfiles.isUpgrade(status.bladeGrade, grade)
+                and status.orderedBladeGrade == "none" and status.spareBladeInstalled ~= true
+                and status.moneyCents >= profile.price * 100
         elseif action == "set_weekly_technician" then
             return step == "idle"
         elseif action == "service_advance" then

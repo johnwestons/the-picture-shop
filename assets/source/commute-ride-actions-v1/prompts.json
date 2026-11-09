@@ -1,0 +1,46 @@
+{
+  "character": "rabbit-worker in bronze motorcycle helmet and brown leather riding suit",
+  "direction": "southeast",
+  "reference": "assets/generated/commute-gear-actions-v1/helmet_on_southeast.png",
+  "actions": {
+    "mount": {
+      "source": "mount-six-frame-source.png",
+      "grid": [3, 2],
+      "frame_order": [
+        "stand beside bike",
+        "reach to bars",
+        "lift leg",
+        "swing leg over seat",
+        "settle onto seat",
+        "ready astride bike"
+      ]
+    },
+    "dismount": {
+      "source": "dismount-six-frame-source.png",
+      "grid": [3, 2],
+      "frame_order": [
+        "seated on bike",
+        "lean on bars and lift leg",
+        "swing leg over",
+        "plant boots beside bike",
+        "release bars",
+        "stand beside bike"
+      ]
+    },
+    "crash": {
+      "source": "crash-eight-frame-source.png",
+      "grid": [4, 2],
+      "frame_order": [
+        "ejection",
+        "airborne",
+        "tumble",
+        "impact",
+        "recover on ground",
+        "push up",
+        "rise to one knee",
+        "stand"
+      ]
+    }
+  },
+  "runtime": "Six-frame mount and dismount strips run against the existing gear transition clock. The eight-frame crash strip follows the existing rider fall timer."
+}

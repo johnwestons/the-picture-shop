@@ -11,12 +11,18 @@ function Component.install(Runtime)
     Runtime.MachineResource = require("src.machine_resource_id")
     Runtime.PlacementGrid = require("src.placement_grid")
     Runtime.EmployeePose = require("src.employee_pose")
+    Runtime.DeliveryDriverPose = require("src.delivery_driver_pose")
+    Runtime.TechnicianPose = require("src.technician_pose")
+    Runtime.PalletJackPose = require("src.pallet_jack_pose")
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 41,
+        VERSION = 71,
         MAX_PACKET_BYTES = 1200,
-        MAX_SHOP_SNAPSHOT_BYTES = 512 * 1024,
+        MAX_SHOP_SNAPSHOT_BYTES = 1024 * 1024,
+        SHOP_COMPRESSION_MAGIC = "TPSL",
+        SHOP_COMPRESSION_MIN_BYTES = 4096,
+        SHOP_COMPRESSION_MIN_SAVING_BYTES = 64,
         MAX_PLAYERS = 4,
         MAX_EVENTS_PER_UPDATE = 64,
         CHANNEL_CONTROL = 0,
@@ -53,16 +59,18 @@ function Component.install(Runtime)
         maxBytes = Runtime.Protocol.MAX_PACKET_BYTES,
         maxDepth = 8,
         maxEntries = 256,
-        -- Typed office messages are bounded to 600 bytes; other fields keep their
-        -- narrower per-message schema limits below. The packet cap stays 1,200.
-        maxStringBytes = 600,
+        -- Individual requests still fit within the packet cap; field-specific
+        -- validation below supplies tighter limits where an action requires one.
+        maxStringBytes = Runtime.Protocol.MAX_PACKET_BYTES,
         maxNumberBytes = 32,
     }
 
     Runtime.SHOP_CODEC_LIMITS = {
         maxBytes = Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES,
         maxDepth = 32,
-        maxEntries = 32768,
+        -- Durable snapshots include the generated town, residents, employees,
+        -- and commute routes. Keep headroom for a crowded four-player save.
+        maxEntries = 65536,
         maxStringBytes = 128 * 1024,
         maxNumberBytes = 32,
     }
@@ -94,6 +102,7 @@ function Component.install(Runtime)
         wrapper_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         windmill_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         pallet_jack_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
+        extra_pallet_jack_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         forklift_snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         input = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
         snapshot = { channel = Runtime.Protocol.CHANNEL_STATE, delivery = "unreliable" },
@@ -112,7 +121,7 @@ function Component.install(Runtime)
         "highfive_request_result", "highfive_result", "highfive_start",
         "workshop_acquire", "workshop_grant", "workshop_command",
         "workshop_result", "workshop_release", "workshop_snapshot", "fight_snapshot", "crisis_snapshot", "crisis_frame", "cutter_snapshot", "wrapper_snapshot",
-        "windmill_snapshot", "pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
+        "windmill_snapshot", "pallet_jack_snapshot", "extra_pallet_jack_snapshot", "forklift_snapshot", "input", "snapshot",
         "visitor_snapshot", "environment_snapshot", "employee_snapshot", "ping", "pong", "leave", "error",
     }
 end

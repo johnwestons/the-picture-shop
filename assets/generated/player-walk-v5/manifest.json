@@ -1,0 +1,143 @@
+{
+  "version": 1,
+  "status": "installed and root-reviewed",
+  "scope": "Replace only north-walk phases 3 and 7 in the installed V4 cycle; no extra in-betweens.",
+  "runtime_path": "assets/generated/player-walk-v5/walk_north.png",
+  "runtime_sha256": "09cd04db24b729e0d963590f2d24e1175f0e0cace11057c8929ff37be99af9bf",
+  "frame_size": [
+    512,
+    512
+  ],
+  "frame_count": 8,
+  "fps": 7.75,
+  "base_strip": "assets/generated/player-walk-v4/walk_north.png",
+  "base_strip_sha256": "c01210e2a7fc8cb796591ff6aa217f3c6e730af386f9e541366b5f1bc3cf14fc",
+  "phase_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "accepted_scale": 0.40773276015281634,
+  "phase_registrations": {
+    "3": {
+      "source_path": "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-iteration2-imagegen-generated-raw.png",
+      "source_sha256": "430f4eafabfb7f3ebf21af204bf9c8c05424bf1f3e36f7a595648de2d05d8960",
+      "source_visible_bbox_alpha_gt16": [
+        308,
+        137,
+        883,
+        1147
+      ],
+      "accepted_fixed_scale": 0.40773276015281634,
+      "target_visible_bbox_alpha_gt16": [
+        152,
+        58,
+        363,
+        468
+      ],
+      "registered_offset_xy": [
+        140,
+        56
+      ],
+      "registered_visible_bbox_alpha_gt16": [
+        140,
+        56,
+        374,
+        468
+      ],
+      "visible_height_px": 412
+    },
+    "7": {
+      "source_path": "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-lowerbody-only-edit01-imagegen-generated-raw.png",
+      "source_sha256": "34df3586c8c04f6414b976936743d3bdb19f9a8e9d580295d952d474f33c42e8",
+      "source_visible_bbox_alpha_gt16": [
+        365,
+        126,
+        881,
+        1127
+      ],
+      "accepted_fixed_scale": 0.40773276015281634,
+      "target_visible_bbox_alpha_gt16": [
+        150,
+        56,
+        355,
+        466
+      ],
+      "registered_offset_xy": [
+        148,
+        58
+      ],
+      "registered_visible_bbox_alpha_gt16": [
+        148,
+        58,
+        358,
+        466
+      ],
+      "visible_height_px": 408
+    }
+  },
+  "phase3_generation_id": "exec-c6e29136-5057-49c5-a42d-7f665ac37172.png",
+  "phase3_prompt_status": "Original iteration2 tool prompt not retained; raw candidate is pinned by SHA-256 and preserved unchanged.",
+  "phase7_prompt": "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-lowerbody-only-edit01-exact-prompt.txt",
+  "phase7_prompt_sha256": "a65317aa37cca1388186452084d22ddd73fef4b6b784125d18a4709bf30288e8",
+  "phase_metrics_alpha_gt16_bbox": [
+    [
+      169,
+      57,
+      381,
+      467
+    ],
+    [
+      157,
+      58,
+      376,
+      467
+    ],
+    [
+      140,
+      56,
+      374,
+      468
+    ],
+    [
+      157,
+      57,
+      379,
+      469
+    ],
+    [
+      146,
+      55,
+      361,
+      467
+    ],
+    [
+      137,
+      57,
+      349,
+      467
+    ],
+    [
+      148,
+      58,
+      358,
+      466
+    ],
+    [
+      138,
+      56,
+      354,
+      467
+    ]
+  ],
+  "changed_phases": [
+    3,
+    7
+  ],
+  "review": "Phase 3 uses a flat left support and compact, occluded right pass. Phase 7 uses a flat right support and low left pass. Root reviewed both at fixed scale, white/checkerboard and 64px, across all five authored views, and through 32 local/guest production captures on desktop and landscape phone layouts."
+}

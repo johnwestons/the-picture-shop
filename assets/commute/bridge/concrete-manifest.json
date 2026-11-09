@@ -1,0 +1,157 @@
+{
+  "version": 3,
+  "status": "generated_development_review_candidate",
+  "generator": "built-in imagegen",
+  "promptLog": "assets/source/commute-bridge-concrete-v3/imagegen-prompts.json",
+  "promptLogSha256": "75ecb73cabc5bae031f412d28eaac2258e6e7f87b4bb96e90df91fa12177418a",
+  "baseArtPromptLogs": [
+    {
+      "path": "assets/source/commute-bridge-concrete-v1/imagegen-prompts.json",
+      "sha256": "fa121e26672b2ceb04f1ecfd92812a462e925786de777aba14779f4051698496"
+    },
+    {
+      "path": "assets/source/commute-bridge-concrete-v2/imagegen-prompts.json",
+      "sha256": "8aef15311ce0d03a7313939b24c98797cc5be289a775e8dee7edf23403055816"
+    }
+  ],
+  "alphaThreshold": 8,
+  "packing": "alpha-bound crop and low-alpha cleanup for sprites; uniform raster resampling for textures",
+  "assets": {
+    "concreteSideBay": {
+      "source": "assets/source/commute-bridge-concrete-v1/concrete-side-bay-imagegen-source.png",
+      "sourceSha256": "be51cd04bc08e4f1d6663e6ccc459de2393b84547a04750022781ebdb08c1bb7",
+      "runtime": "assets/commute/bridge/concrete-side-bay.png",
+      "runtimeSha256": "58c8284b55ff1df50145171366db1f3586bfcb54be601f6b637961bd02fb2a82",
+      "sourceSize": [
+        2048,
+        768
+      ],
+      "sourceCrop": [
+        8,
+        98,
+        2038,
+        687
+      ],
+      "topCropPx": 0,
+      "runtimeSize": [
+        2030,
+        589
+      ],
+      "alphaThreshold": 8,
+      "registration": {
+        "view": "side elevation",
+        "spanMeters": 4.8,
+        "totalProfileMeters": 3.0,
+        "deckLineFromTop": 0.53
+      }
+    },
+    "concretePier": {
+      "source": "assets/source/commute-bridge-concrete-v1/concrete-pier-imagegen-source.png",
+      "sourceSha256": "b4683e10dddc8d32ce85a18a60e61accc02b726cb9ad16c6250344b7a8b1170f",
+      "runtime": "assets/commute/bridge/concrete-pier.png",
+      "runtimeSha256": "f47242366d02e3511290571c40ff4b2fbe723848490d52c87fe8ce87e18f5607",
+      "sourceSize": [
+        1225,
+        1284
+      ],
+      "sourceCrop": [
+        27,
+        76,
+        1198,
+        1202
+      ],
+      "topCropPx": 0,
+      "runtimeSize": [
+        1024,
+        985
+      ],
+      "alphaThreshold": 8,
+      "registration": {
+        "view": "front elevation billboard with complete bearing beam and support legs",
+        "deckWidthMeters": 5.0,
+        "baseAnchor": "terrain height",
+        "topAnchor": "bearing beam meets fascia underside at deck height minus registered girder depth"
+      }
+    },
+    "concreteParapetCap": {
+      "source": "assets/source/commute-bridge-concrete-v3/parapet-cap-top-imagegen-source.png",
+      "sourceSha256": "e5121eb8e744f4d00ac9e92d7a20c5881760f79a089a362d49c3059aeb7d2bbf",
+      "runtime": "assets/commute/bridge/concrete-parapet-cap.png",
+      "runtimeSha256": "e1c41dbba9101eae4f86b471854ee4c58dfe204680232298169961df4c454770",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "runtimeSize": [
+        512,
+        128
+      ],
+      "registration": {
+        "view": "top-down repeatable cap surface",
+        "stripWidthMeters": 0.48,
+        "tileMeters": 3.2
+      }
+    },
+    "concreteParapetEndBlock": {
+      "source": "assets/source/commute-bridge-concrete-v3/parapet-end-block-imagegen-source.png",
+      "sourceSha256": "4d1c496c9300b4226e8f0077676b7478d669d211878b8f8bd811b572cffb99fc",
+      "runtime": "assets/commute/bridge/concrete-parapet-end-block.png",
+      "runtimeSha256": "9b1d436aa6d958784991988b27559d12f658658a519f01e1f3c99e73cee9b248",
+      "sourceSize": [
+        1024,
+        1536
+      ],
+      "sourceCrop": [
+        231,
+        88,
+        797,
+        1450
+      ],
+      "topCropPx": 0,
+      "runtimeSize": [
+        426,
+        1024
+      ],
+      "alphaThreshold": 8,
+      "registration": {
+        "view": "travel-direction billboard at each parapet corner",
+        "widthMeters": 0.58,
+        "heightMeters": 1.59,
+        "baseAnchor": "bridge deck height"
+      }
+    },
+    "asphalt": {
+      "source": "assets/source/commute-bridge-concrete-v2/asphalt-fine-imagegen-source.png",
+      "sourceSha256": "f66bdfcd64203828ae57072a135f7860515af7631cbc3684a62e7086ea3d7500",
+      "runtime": "assets/commute/bridge/asphalt.png",
+      "runtimeSha256": "f8ed10a1f2084553f3f9916ef9c94ff260f481f87d77449d9d335faf866128b2",
+      "sourceSize": [
+        1254,
+        1254
+      ],
+      "runtimeSize": [
+        256,
+        256
+      ],
+      "registration": {
+        "view": "top-down repeatable material",
+        "tileMeters": 3.2
+      }
+    }
+  },
+  "rejectedCandidates": [
+    {
+      "runtime": "assets/commute/bridge/concrete-end-frame.png",
+      "promptLog": "assets/source/commute-bridge-concrete-v2/imagegen-prompts.json",
+      "reason": "Full-width cross-section read as a barrier across the lane in native end-on review; not referenced by runtime."
+    }
+  ],
+  "notes": "Terrain, road and parking surfaces remain generated geometry; bridge parapet sides, overhead caps, end blocks, piers, and asphalt material use generated 2D artwork. Bridge art does not change the road support or collision contract.",
+  "reviews": [
+    "output/commute-bridge-concrete/concrete-side-tiling-review.png",
+    "output/commute-bridge-concrete/concrete-pier-review.png",
+    "output/commute-bridge-concrete/concrete-parapet-cap-review.png",
+    "output/commute-bridge-concrete/concrete-parapet-end-block-review.png",
+    "output/commute-bridge-concrete/asphalt-review.png"
+  ]
+}

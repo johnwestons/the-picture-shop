@@ -96,11 +96,14 @@ function Test.run(context,check)
     for page=1,6 do Remote.sharedMachine.screen.helpOpen=true; Remote.sharedMachine.screen.helpStep=page; render("cutter_help_"..page) end
     Remote.sharedMachine.screen.helpOpen=false
     Remote.sharedMachine.screen.maintenanceView="hub"; render("cutter_service",nil,true)
+    click(250,486)
+    check("shared_gui_cutter_specialty_order_uses_host_purchase_path",
+        last("order_blade_upgrade") and sent[#sent].args.bladeGrade=="premium_hss" and state.money==money)
     click(Remote.sharedMachine.screen.maintenanceTaskCenter("oil"))
     check("shared_gui_cutter_service_button_sends_host_command",last("begin_lubrication"))
     for _,step in ipairs({"lockout_disconnect","lockout_key","lockout_tag","prep_cartridge","prep_prime","lubricate","blade_bolts","blade_lift","blade_sleeve"}) do
         cutter.serviceStep=step; cutter.serviceView=1; cutter.serviceTool=1; cutter.serviceItems={}
-        cutter.bladeBoltsDone=step=="blade_bolts" and 1 or 4; cutter.bladeBoltMask=step=="blade_bolts" and 8 or 15
+        cutter.bladeBoltsDone=step=="blade_bolts" and 1 or 5; cutter.bladeBoltMask=step=="blade_bolts" and 8 or 31
         render("cutter_"..step,nil,step=="lubricate")
         if step=="blade_bolts" then
             check("shared_gui_blade_tracks_exact_host_bolt_not_just_count",Remote.sharedMachine.screen.bladeBolts[4] and not Remote.sharedMachine.screen.bladeBolts[1])
@@ -111,6 +114,16 @@ function Test.run(context,check)
     enter("skid_wrapper",wrapper); assets.activatePack("wrapper")
     wrapper=Remote.view
     render("wrapper",nil,true)
+    wrapper.palletId,wrapper.step,wrapper.cycleTime=pallet.id,"wrapping",18
+    wrapper.progress=3
+    local firstWrap=render("wrapper_lower_laps",nil,true)
+    wrapper.progress=9
+    local upperWrap=render("wrapper_upper_laps",nil,true)
+    wrapper.step,wrapper.progress="finished",18
+    local completedWrap=render("wrapper_finished_load",nil,true)
+    check("shared_wrapper_shows_advancing_film_and_retains_completed_pallet",
+        firstWrap~=upperWrap and upperWrap~=completedWrap and not pallet.wrapped)
+    wrapper.step,wrapper.progress,wrapper.palletId="idle",0,nil
     Remote.sharedMachine.screen.maintenanceView="wrapper_hub"; render("wrapper_service")
     wrapper.serviceStep="task"; wrapper.serviceTaskIndex=1; wrapper.servicePhase=1
     render("wrapper_task",nil,true)

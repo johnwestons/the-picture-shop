@@ -58,6 +58,8 @@ local function checkLocalRelocation(check)
         Jack.move(state, 1, 0, .1, Config.palletJack, function() return true end)
         local approachDistance = Jack.animationDistance(state, Config.palletJack)
         assert(World[spec[2]](state))
+        local _,attachedPose=require("src.machine_transport").active(state)
+        machine=attachedPose or machine
         local attachedX, attachedY = state.palletJack.x, state.palletJack.y
         Jack.move(state, 0, 0, .1, Config.palletJack, function() return true end)
         check("jack_local_" .. spec[1] .. "_attachment_stops_approach_momentum",

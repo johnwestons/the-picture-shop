@@ -33,7 +33,38 @@ local function drive(actor,goal,context,steps)
     return arrived
 end
 
+local function candidateScalingChecks(check)
+    local obstacles={{x=450,y=330,halfWidth=24,halfHeight=240}}
+    local context={assets={getData=function() return nil end},
+        obstacles=function() return obstacles end}
+    local actor,goal={x=100,y=300},{x=800,y=300}
+    local goals={}
+    -- Machine contacts can repeat a location at different unloading headings.
+    -- The nearest-goal heuristic must preserve route and candidate ordering.
+    for index=1,640 do goals[index]={x=goal.x,y=goal.y,contact=index} end
+    local single=assert(Navigator.findPath(actor,{goal},context))
+    local many,selected=Navigator.findPath(actor,goals,context)
+    local safe=many and #single==#many and selected==goals[1]
+    local previous=actor
+    for index,point in ipairs(many or {}) do
+        safe=safe and point.x==single[index].x and point.y==single[index].y
+            and Navigation.canTraverse(context.assets,previous.x,previous.y,point.x,point.y,obstacles)
+        previous=point
+    end
+    check("npc_many_machine_contacts_preserve_route_and_candidate_order",safe)
+end
+
 function Test.run(context,check)
+    local bounded=true
+    for _,budget in ipairs({.01,.017,1/60,1/3,3.7}) do
+        for _,goal in ipairs({{x=788,y=580},{x=120,y=202}}) do
+            local actor={x=788,y=202}
+            Navigator.travel(actor,goal,budget,.016,scene({}))
+            bounded=bounded and math.abs(actor.intentX or 0)<=1 and math.abs(actor.intentY or 0)<=1
+        end
+    end
+    check('npc_navigation_direction_stays_in_network_range',bounded)
+    candidateScalingChecks(check)
     local u={{x=420,y=270,halfWidth=100,halfHeight=8},
         {x=420,y=430,halfWidth=100,halfHeight=8},
         {x=520,y=350,halfWidth=8,halfHeight=88}}

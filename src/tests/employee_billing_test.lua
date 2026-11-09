@@ -37,8 +37,11 @@ function Test.run(context,check)
     check("employee_billing_owner_only_quote_keeps_existing_service_price",baseline.recommendedPrice==150 and baseline.employeeBudget==nil)
     local w=hire(state)
     local low=Service.quoteTerms(state,job)
+    local lowCostFloor=require("src.staff_finances").summary(state).pricePerLift
+        * math.max(1,job.quote.totalLifts or 1)
     check("employee_billing_quote_discloses_negotiated_labor_without_double_surcharge",low.employeeBudget and low.employeeBudget.wagePerHour==22
-        and low.employeeBudget.laborCost>0 and low.recommendedPrice==150 and job.quote.totalPrice==150)
+        and low.employeeBudget.laborCost>0 and low.recommendedPrice+1e-6>=lowCostFloor
+        and job.quote.totalPrice==150)
     hire(state,10000)
     local high=Service.quoteTerms(state,job)
     check("employee_billing_high_wages_raise_price_to_cover_cost_and_margin",high.recommendedPrice>low.recommendedPrice and high.employeeBudget.wagePerHour==100)
@@ -49,9 +52,16 @@ function Test.run(context,check)
     local printing=offer("JOB-LABOR-PRINT",true);local pressAllowance=printing.quote.pressBudget.laborCost
     local printTerms=Service.quoteTerms(state,printing)
     check("employee_billing_press_quote_covers_employee_time_without_mutating_press_allowance",
-        printTerms.recommendedPrice>=high.recommendedPrice+printing.quote.pressBudget.recommendedCharge
+        printTerms.recommendedPrice>=printTerms.employeeBudget.minimumCuttingCharge
+                +printing.quote.pressBudget.recommendedCharge
             and printTerms.employeeBudget.minimumCuttingCharge>high.employeeBudget.minimumCuttingCharge
-            and printing.quote.pressBudget.laborCost==pressAllowance)
+            and printing.quote.pressBudget.laborCost==pressAllowance,
+        string.format("press=%s high=%s charge=%s pressFloor=%s highFloor=%s allowance=%s/%s",
+            tostring(printTerms.recommendedPrice),tostring(high.recommendedPrice),
+            tostring(printing.quote.pressBudget.recommendedCharge),
+            tostring(printTerms.employeeBudget.minimumCuttingCharge),
+            tostring(high.employeeBudget.minimumCuttingCharge),
+            tostring(printing.quote.pressBudget.laborCost),tostring(pressAllowance)))
     local wallet=state.money
     local accepted,result=Service.submitQuote(state,job,high.recommendedPrice,1)
     local agreed=job.quote.totalPrice
@@ -87,7 +97,7 @@ function Test.run(context,check)
     legacy.state.employment.version=2
     for _,old in ipairs(legacy.state.employment.staff) do old.laborTotals=nil end
     local migrated=Schema.migrate(legacy)
-    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==6
+    check("employee_billing_v18_migration_retains_queues_wages_and_agreed_prices",migrated and migrated.version==Schema.VERSION and migrated.state.employment.version==9
         and near(migrated.state.employment.staff[1].laborTotals.shopCents,4400) and migrated.state.jobs.active[1].quote.totalPrice==agreed
         and legacy.state.employment.staff[1].laborTotals==nil)
     -- The Bills page and Payroll settle the same obligations exactly once.

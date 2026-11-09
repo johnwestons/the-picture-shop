@@ -5,8 +5,14 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.interactables(player)
         player = player or Runtime.World.player
+        if Runtime.World._state and not require('src.commute.outfit').allowed(Runtime.World._state,player,'work') then
+            return {homeTravel=require('src.home_travel').target(player,Runtime.World._state)}
+        end
         local Rooms=require("src.shop_rooms")
         local targets = Rooms.targets(player, Runtime.World._state)
+        targets.homeTravel=require("src.home_travel").target(player,Runtime.World._state)
+        targets.homeDelivery=require("src.home_shopping").target(player,Runtime.World._state)
+        if Rooms.scene(player)=="home" then return targets end
         local function addTarget(kind, target, key)
             Runtime.MultiplayerCapabilities.requireInteraction(kind)
             if target then
@@ -16,11 +22,88 @@ function Component.install(Runtime)
         end
         local jack=Runtime.World._state and Runtime.PalletJack.ensure(
             Runtime.World._state,Runtime.Config.palletJack)
-        if jack and jack.sceneId==Rooms.scene(player) then
-            addTarget("palletJack",Runtime.PalletJack.interaction(
-                player,Runtime.World._state,Runtime.Config.palletJack))
+        local jackState=Runtime.World._state
+        if jack then
+            -- Guests retain the host's shared control slot. Offline/host
+            -- interaction can select any available physical jack.
+            local options=Runtime.World._employeeOptions
+            if player==Runtime.World.player and not (options and options.isNetworkClient and options.isNetworkClient()) then
+                local fleet=require("src.pallet_jack_fleet")
+                jack=fleet.playerChoice(Runtime.World._state,player)
+                jackState=fleet.view(Runtime.World._state,jack)
+            end
+        end
+        if jack and (jack.sceneId or "warehouse")==Rooms.scene(player) then
+            local target=Runtime.PalletJack.interaction(player,jackState,Runtime.Config.palletJack)
+            target.jackId=jack.id
+            addTarget("palletJack",target)
+        end
+        if Runtime.World._state then
+            local employeeOptions=Runtime.World._employeeOptions
+            local networkClient=employeeOptions and employeeOptions.isNetworkClient
+                and employeeOptions.isNetworkClient()
+            for _,worker in ipairs(Runtime.Employees.ensure(Runtime.World._state).staff) do
+                if worker.status=="employed" and worker.visible
+                    and worker.greetingKind==require("src.employee_speech").EMPLOYEE_HIGH_FIVE_REQUEST
+                    and (worker.sceneId or "warehouse")==Rooms.scene(player) then
+                    addTarget("employeeHighFive",{x=worker.x,y=worker.y,radius=82,
+                        employeeId=worker.id,actionLabel="HIGH FIVE",
+                        prompt=networkClient and "The shop owner handles employee high fives"
+                            or "E: high five "..worker.name})
+                end
+            end
+        end
+        if Runtime.World._state then
+            local fleet=require("src.pallet_jack_fleet")
+            for _,employeeJack in ipairs(fleet.all(Runtime.World._state)) do
+                if employeeJack.operating and employeeJack.operatorEmployeeId
+                    and employeeJack.id~= (jack and jack.id)
+                    and (employeeJack.sceneId or "warehouse")==Rooms.scene(player) then
+                    local view=fleet.view(Runtime.World._state,employeeJack)
+                    local target=Runtime.PalletJack.interaction(player,view,Runtime.Config.palletJack)
+                    local worker=Runtime.Employees.worker(Runtime.World._state,employeeJack.operatorEmployeeId)
+                    target.jackId=employeeJack.id
+                    target.prompt="E: take pallet jack from "..(worker and worker.name or "employee")
+                    addTarget("palletJack",target,"palletJack:"..tostring(employeeJack.id))
+                end
+            end
         end
         if Rooms.scene(player)~="warehouse" then
+            local sceneId=Rooms.scene(player)
+            local networkMachineView=Runtime.World._state and Runtime.World._state._networkMachinePoses~=nil
+            jack=Runtime.World._state and Runtime.PalletJack.ensure(Runtime.World._state,Runtime.Config.palletJack)
+            local playerId=tonumber(player.id) or (player==Runtime.World.player and 1 or nil)
+            local jackReady=jack and jack.operating and not jack.carriedPalletId
+                and jack.operatorPlayerId==playerId and jack.sceneId==sceneId
+            local machines={
+                {model="polar_115",kind="cutter",radius=Runtime.Config.cutterPlacement.interactionRadius,
+                    label="use",name="paper cutter"},
+                {model="skid_wrapper",kind="skidWrapper",radius=Runtime.Config.wrapperPlacement.interactionRadius,
+                    label="use",name="skid wrapper"},
+                {model="heidelberg_10x15",kind="windmill",radius=Runtime.Config.windmillPlacement.interactionRadius,
+                    label="operate",name="Windmill"},
+            }
+            for _,entry in ipairs(machines) do
+                for _,machine in ipairs(Runtime.MachineFleet.installedUnits(Runtime.World._state,entry.model)) do
+                    local pose=machine.world
+                    if pose and (pose.sceneId or "warehouse")==sceneId and not pose.moving then
+                        addTarget(entry.kind,{x=pose.x,y=pose.y,radius=entry.radius,
+                            machineId=machine.id,prompt="E: "..entry.label.." "..entry.name
+                                .." ("..machine.id..")"..(jackReady and "  |  M: relocate with pallet jack" or "")},
+                            entry.kind..":"..machine.id)
+                    end
+                end
+            end
+            if jackReady and not (jack and jack.candidatePalletId) then
+                local candidate=Runtime.World.nearbyMachineMove(Runtime.World._state)
+                if candidate then targets.palletJack.prompt="F: park pallet jack  |  M: RELOCATE "..candidate.target.machineId end
+            end
+            if require("src.room_loading_bays").owns(Runtime.World._state,Rooms.scene(player)) then
+                addTarget("loadingBayDoor",Runtime.World.doorForScene(Rooms.scene(player)):getInteraction())
+                if Runtime.World.truck.sceneId==Rooms.scene(player) then
+                    addTarget("truckCargoDoor",Runtime.World.truck:getInteraction())
+                end
+            end
             local lift=Runtime.World._state and Runtime.World._state.forklift
             if lift and lift.owned and (lift.sceneId or "warehouse")==Rooms.scene(player) then
                 addTarget("forklift",{x=lift.x,y=lift.y,
@@ -59,10 +142,10 @@ function Component.install(Runtime)
                     local networkClient=employeeOptions and employeeOptions.isNetworkClient
                         and employeeOptions.isNetworkClient()
                     addTarget("applicant",{x=a.actor.x,y=a.actor.y,radius=68,applicationId=a.id,
-                        actionLabel="TALK",
+                        actionLabel="EMAIL RESUME",
                         prompt=networkClient
                             and "The shop owner handles employment applications"
-                            or "E: talk to applicant   X: dismiss applicant"})
+                            or "E: EMAIL RESUME | X: NOT HIRING"})
                 end
             end
         end
@@ -72,8 +155,11 @@ function Component.install(Runtime)
             addTarget("vendor", vendorInteraction)
         end
         addTarget("loadingBayDoor", Runtime.World.bayDoor:getInteraction())
-        local truckInteraction = Runtime.World.truck:getInteraction()
+        local truckInteraction = Runtime.World.truck.sceneId=="warehouse" and Runtime.World.truck:getInteraction()
         addTarget("truckCargoDoor", truckInteraction)
+        if Rooms.scene(player)=="warehouse" then
+            addTarget("deliverySignature",require("src.warehouse_delivery_driver").interaction(Runtime.World._state))
+        end
         if Runtime.World._state then
             local networkMachineView = Runtime.World._state._networkMachinePoses ~= nil
             local nearestPallet
@@ -111,7 +197,7 @@ function Component.install(Runtime)
             end
             for index = 1, #cutters do
                 local item = cutters[index]
-                if item.world then addTarget("cutter", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("cutter", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.cutterPlacement.interactionRadius,
                     prompt = "E: use " .. item.name .. " (" .. item.id .. ")"
@@ -130,7 +216,7 @@ function Component.install(Runtime)
             end
             for index = 1, #wrappers do
                 local item = wrappers[index]
-                if item.world then addTarget("skidWrapper", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("skidWrapper", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.wrapperPlacement.interactionRadius,
                     prompt = "E: use skid wrapper (" .. item.id .. ")"
@@ -149,21 +235,13 @@ function Component.install(Runtime)
             end
             for index = 1, #windmills do
                 local item = windmills[index]
-                if item.world then addTarget("windmill", {
+                if item.world and (item.world.sceneId or "warehouse") == "warehouse" then addTarget("windmill", {
                     x = item.world.x, y = item.world.y,
                     radius = Runtime.Config.windmillPlacement.interactionRadius,
                     prompt = "E: operate Windmill (" .. item.id .. ")"
                         .. (jackReady and "  |  M: relocate with pallet jack" or ""),
                     machineId = item.id,
                 }, "windmill:" .. item.id) end
-            end
-            for _, folder in ipairs(Runtime.MachineFleet.installedUnits(Runtime.World._state, "regal_moll")) do
-                if folder.world then
-                    addTarget("regalFolder", { x = folder.world.x, y = folder.world.y,
-                        radius = Runtime.Config.regalFolderPlacement.interactionRadius,
-                        machineId = folder.id,
-                        prompt = "E: run Regal Moll folder practice batch" }, "regalFolder:" .. folder.id)
-                end
             end
             local lift = Runtime.Forklift.ensure(Runtime.World._state, Runtime.Config.forklift)
             if lift.owned and (lift.sceneId or "warehouse")=="warehouse" then
@@ -220,6 +298,7 @@ function Component.install(Runtime)
             stickiness = Runtime.Config.player.interactionStickiness,
             facingWeight = Runtime.Config.player.interactionFacingWeight,
         })
+        if require("src.shop_rooms").scene(player)=="home" then return ordinary end
         local pickup = Runtime.World.palletPickupSnapshot(Runtime.World._state, cursorX, cursorY, player)
         return require("src.pallet_pickup").interaction(pickup, player, ordinary)
     end
@@ -243,6 +322,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.interactionAt(x, y, networkClient)
+        if not Runtime.World._state then
+            Runtime.World.selectedInteraction=nil
+            return nil
+        end
         local selector = networkClient and Runtime.selectNetworkInteractionFor
             or Runtime.selectInteractionFor
         Runtime.World.selectedInteraction = selector(

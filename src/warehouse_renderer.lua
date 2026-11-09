@@ -6,15 +6,22 @@ local PalletState = require("src.pallet_state")
 local ForkliftPresentation = require("src.forklift_presentation")
 local ForkliftLayeredPresentation = require("src.forklift_layered_presentation")
 local MechanicWorkPresentation = require("src.mechanic_work_presentation")
+local Construction = require("src.warehouse_construction")
 local ConstructionPresentation = require("src.warehouse_construction_presentation")
 local RackPresentation = require("src.warehouse_rack_presentation")
 local BreakroomPresentation = require("src.warehouse_breakroom_presentation")
 local Config = require("src.config")
 local Renderer = {}
+local ImageLoader=require("src.image_loader")
 local meshes, rackImage = {}, nil
 local sourceImages, sourceQuads = {}, {}
-local sourceCache = require("src.texture_cache").new(64 * 1024 * 1024, 20)
+-- Active warehouse art stays pinned; trim inactive sprites on mobile so the
+-- outdoor ride does not carry the full indoor source-art cache with it.
+local mobile=love and love.system and love.system.getOS and love.system.getOS()=="Android"
+    or os.getenv("PICTURE_SHOP_MOBILE")=="1"
+local sourceCache = require("src.texture_cache").new((mobile and 48 or 64) * 1024 * 1024, 20)
 local sourceUse, sourceSequence, touched, frameDepth = {}, 0, {}, 0
+local forkliftPoses=setmetatable({}, {__mode="k"})
 local constructionIssues={}
 local constructionImages={}
 local rackIssues={}
@@ -29,7 +36,12 @@ local function sourceImage(path)
     if not sourceImages[path] then
         local cached=sourceCache:take(path)
         local okay,image=true,cached
-        if not image then okay,image=pcall(love.graphics.newImage,path) end
+        if not image then
+            local reason
+            image,reason=ImageLoader.load(path)
+            if not image and reason=="pending" then return nil end
+            okay=image~=nil
+        end
         sourceImages[path]=okay and image or false
         if okay then image:setFilter("linear","linear") end
     end
@@ -81,11 +93,12 @@ end
 local function constructionImage(bayId,path)
     local current=constructionImages[bayId]
     if not current or current.path~=path then
+        local image=ImageLoader.load(path)
+        if not image then return current and current.image or nil end
         releaseConstructionImage(bayId)
-        local okay,image=pcall(love.graphics.newImage,path)
-        current={path=path,image=okay and image or false}
+        current={path=path,image=image}
         constructionImages[bayId]=current
-        if okay then image:setFilter("linear","linear") end
+        image:setFilter("linear","linear")
     end
     return current.image or nil
 end
@@ -113,8 +126,9 @@ end
 local function loadRack()
     if rackImage==false then return nil end
     if not rackImage then
-        local okay,value=pcall(love.graphics.newImage,RACK_PATH)
-        rackImage=okay and value or false
+        local value,reason=ImageLoader.load(RACK_PATH)
+        if not value and reason=="pending" then return nil end
+        rackImage=value or false
         if rackImage then rackImage:setFilter("linear","linear") end
     end
     return rackImage or nil
@@ -333,8 +347,6 @@ end
 
 function Renderer.drawConstructionWorker(worker,state)
     if not worker or worker.phase=="hidden" or worker.phase=="exited" then return end
-    love.graphics.setColor(0.02,0.02,0.02,0.2)
-    love.graphics.ellipse("fill",worker.x,worker.y+1,14,5)
     local review=Config.warehouse and Config.warehouse.provisionalArt==true
     local working,plan=MechanicWorkPresentation.draw(worker,state,sourceImage,
         {review=review,edgeCleanup=true})
@@ -344,8 +356,8 @@ function Renderer.drawConstructionWorker(worker,state)
         local path=ROOT.."mechanic-raccoon/"..action..(direction=="east" and "" or "_"..direction)..".png"
         local image=sourceImage(path)
         if not image then return end
-        local frame=worker.moving and (math.floor((worker.animationDistance or 0)/13)%8+1)
-            or (math.floor(math.max(0,worker.idleTime or 0)*0.65)%2+1)
+        local width=image:getDimensions()
+        local frame=Construction.frame(worker,math.floor(width/512))
         local quad=sourceQuad(path,frame,512,512)
         if not quad then return end
         love.graphics.setColor(1,1,1,1)
@@ -360,6 +372,19 @@ function Renderer.drawConstructionWorker(worker,state)
         love.graphics.setColor(1,0.8,0.3,1)
         love.graphics.printf(label,worker.x-35,worker.y+7,70,"center")
     end
+end
+function Renderer.drawDeliveryDriver(actor,scaleMultiplier)
+    return require("src.warehouse_delivery_driver").draw(actor,sourceImage,sourceQuad,scaleMultiplier)
+end
+
+function Renderer.drawDeliverySignatureHint(actor)
+    if not actor then return end
+    love.graphics.push("all")
+    love.graphics.setColor(.035,.075,.07,.92)
+    love.graphics.rectangle("fill",actor.x-42,actor.y-103,84,18,4,4)
+    love.graphics.setColor(.72,1,.77,1)
+    love.graphics.printf("SIGN DELIVERY",actor.x-40,actor.y-100,80,"center")
+    love.graphics.pop()
 end
 
 function Renderer.forkliftScales()
@@ -399,6 +424,27 @@ end
 function Renderer.drawForklift(assets,state,drawPallet)
     local vehicle=state and state.forklift
     if not vehicle or not vehicle.owned then return end
+    if ImageLoader.enabled then
+        local prior=forkliftPoses[vehicle]
+        if not prior then sourceImage(ROOT.."forklift-eight-directions-unmanned-v1.png") end
+        local function ready(candidate)
+            local layered=Renderer.layeredForkliftPlan(candidate)
+            if layered then
+                local body,forks=sourceImage(layered.bodyPath),sourceImage(layered.carriagePath)
+                return body and forks
+            end
+            local plan=Renderer.forkliftPlan(candidate)
+            return plan and sourceImage(plan.path)
+        end
+        if ready(vehicle) then
+            forkliftPoses[vehicle]={direction=vehicle.direction,operating=vehicle.operating}
+        elseif prior then
+            local fallback={}
+            for key,value in pairs(vehicle) do fallback[key]=value end
+            fallback.direction,fallback.operating=prior.direction,prior.operating
+            if ready(fallback) then vehicle=fallback end
+        end
+    end
     local layeredPlan=Renderer.layeredForkliftPlan(vehicle)
     local plan=layeredPlan or Renderer.forkliftPlan(vehicle)
     local operatingScale,_,multiplier=Renderer.forkliftScales()

@@ -6,6 +6,9 @@ function Component.install(Runtime)
     function Runtime.handleMultiplayerEvents()
         for _, event in ipairs(Runtime.multiplayer:drainEvents()) do
             if event.type == "ready" then
+                -- Joining replaces the local state table with a different
+                -- shop. Finish any local writes before applying that snapshot.
+                if Runtime.Save and Runtime.Save.flush then Runtime.Save.flush() end
                 Runtime.warehouseControls:resolve(Runtime.warehousePendingIntent,false,"The warehouse connection was restarted.")
                 Runtime.warehousePendingIntent=nil
                 Runtime.warehouseControls:reset("The warehouse connection was restarted.")
@@ -21,9 +24,13 @@ function Component.install(Runtime)
                         Runtime.lanDiscovery:stop()
                     end
                     Runtime.World.load(event.spawn)
+                    Runtime.World.player.homeResidentId=Runtime.multiplayer.residentId
                     Runtime.App.syncPlayerColorways()
                     Runtime.state.screen = "world"
                     Runtime.state.message = "Joined the host shop. Movement, doors, reception, office, cutter, wrapper, and Windmill controls are live."
+                    local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
+                        Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
+                    if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
                     Runtime.DirectScreen.leave()
                 end
                 Runtime.syncMobileKeyboard()
@@ -32,6 +39,10 @@ function Component.install(Runtime)
                     Runtime.showConnectionError(
                         "The host sent a shop update this build could not apply.",
                         "Invalid durable shop update")
+                else
+                    local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
+                        Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
+                    if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
                 end
             elseif event.type == "radio_state" then
                 require("src.jukebox").applyNetworkState(event)
@@ -42,12 +53,14 @@ function Component.install(Runtime)
                 end
             elseif event.type == "pallet_jack_state" then
                 local applied, applyError = Runtime.World.applyNetworkPalletJackSnapshot(
-                    Runtime.state, event.jack, event.machines)
+                    Runtime.state, event.jack, event.machines,event.jackId)
                 if not applied and applyError ~= "awaiting_durable" then
                     Runtime.showConnectionError(
                         "The host sent a pallet-jack update this build could not apply.",
                         "Invalid pallet-jack update")
                 end
+            elseif event.type=="extra_pallet_jack_state" then
+                require("src.pallet_jack_fleet").applySnapshot(Runtime.state,event.jackId,event.jack)
             elseif event.type == "visitor_state" then
                 if not Runtime.World.applyVisitorSnapshot(event.customer, event.vendor) then
                     Runtime.showConnectionError(
@@ -57,7 +70,8 @@ function Component.install(Runtime)
             elseif event.type == "employee_state" then
                 Runtime.World.applyEmployeeSnapshot(event.employees,Runtime.state)
             elseif event.type == "environment_state" then
-                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees, Runtime.state) then
+                if not Runtime.World.applyEnvironmentSnapshot(event.bayDoor, event.truck, event.employees,
+                    Runtime.state,event.technician,event.roomDoors,event.deliveryDriver) then
                     Runtime.showConnectionError(
                         "The host sent an environment update this build could not apply.",
                         "Invalid environment update")
@@ -66,6 +80,15 @@ function Component.install(Runtime)
                 Runtime.state.message = tostring(event.message or (event.accepted
                     and "The host accepted the interaction."
                     or "The host rejected the interaction."))
+                if event.targetKind=="deliverySignature"
+                    and Runtime.state.screen=="delivery_signature" then
+                    if event.accepted then
+                        Runtime.RuntimeDependencies.DeliverySignatureScreen.clear()
+                        Runtime.state.screen="world"
+                    else
+                        Runtime.RuntimeDependencies.DeliverySignatureScreen.setPending(false)
+                    end
+                end
             elseif event.type == "workshop_grant" then
                 Runtime.state.message = tostring(event.message or (event.granted
                     and "Workshop control granted." or "Workshop control was not granted."))
@@ -228,6 +251,10 @@ function Component.install(Runtime)
                 Runtime.state.message = "The Direct join request expired. Create fresh codes to try again."
             elseif event.type == "player_joined" then
                 Runtime.state.message = tostring(event.name or "A worker") .. " joined the shop."
+                if Runtime.privateServerMode then
+                    print(string.format("[PRIVATE SERVER] Worker joined id=%s name=%s",
+                        tostring(event.playerId), tostring(event.name or "Worker")))
+                end
             elseif event.type == "player_left" then
                 if Runtime.workshopAuthority then
                     Runtime.workshopAuthority:cleanupPlayer({ id = event.playerId }, "disconnected",
@@ -235,6 +262,10 @@ function Component.install(Runtime)
                 end
                 local label = Runtime.multiplayer.networkKind == "direct" and "Direct" or "LAN"
                 Runtime.state.message = tostring(event.name or "A worker") .. " left the " .. label .. " shop."
+                if Runtime.privateServerMode then
+                    print(string.format("[PRIVATE SERVER] Worker left id=%s name=%s reason=%s",
+                        tostring(event.playerId), tostring(event.name or "Worker"), tostring(event.reason or "unknown")))
+                end
             elseif event.type == "player_kicked" then
                 Runtime.state.message = tostring(event.name or "A worker") .. " was removed by the host."
             elseif event.type == "direct_closed" then
@@ -252,11 +283,19 @@ function Component.install(Runtime)
                 Runtime.clearWorkshopAuthority("transport_failed")
                 Runtime.WorkshopRemoteScreen.clear()
                 require("src.jukebox").stopNetworkPlayback()
-                local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"
-                if not lanClient or not Runtime.handleLanReconnectFailure(
-                    event.message or "The host connection ended.")
+                if Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "server"
+                    and Runtime.schedulePrivateServerReconnect
+                    and Runtime.schedulePrivateServerReconnect(event.message)
                 then
-                    Runtime.showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+                    -- The private-server invite is retained in memory so this worker
+                    -- can re-authenticate after a server restart or brief outage.
+                else
+                    local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"
+                    if not lanClient or not Runtime.handleLanReconnectFailure(
+                        event.message or "The host connection ended.")
+                    then
+                        Runtime.showConnectionError(event.message or "The host connection ended.", "Host disconnected")
+                    end
                 end
             elseif event.type == "error" then
                 local lanClient = Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan"

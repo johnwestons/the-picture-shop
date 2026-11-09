@@ -70,6 +70,10 @@ function Controls.open(Runtime,mode)
         or "Choose an available room. Other players stay in their own rooms."
 end
 function Controls.keypressed(key,Runtime)
+    if require("src.home_furniture_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_delivery_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_activity_controls").keypressed(key,Runtime) then return true end
+    if require("src.home_travel_controls").keypressed(key,Runtime) then return true end
     if Runtime.state.screen=="shop_rooms" then
         if key=="escape" then Runtime.state.screen="world"
         elseif key=="up" or key=="down" then
@@ -88,8 +92,9 @@ function Controls.keypressed(key,Runtime)
     local sceneId=Rooms.scene(Runtime.World.player)
     local storageRoom=sceneId~="warehouse" and Rooms.isComplete(Runtime.state,sceneId)
         and Rooms.definition(Runtime.state,sceneId)=="storage"
-    local warehouseKey=({m=true,v=true,g=true,t=true,r=true,k=true,h=true})[key]
-    if sceneId~="warehouse" and ({f=true,l=true,q=true})[key]
+    local vehicleKey=({f=true,l=true,q=true,m=true})[key]
+    local warehouseKey=({v=true,g=true,t=true,r=true,k=true,h=true})[key]
+    if sceneId~="warehouse" and vehicleKey and not Rooms.machineRoomAllowed(Runtime.state,sceneId)
         or sceneId~="warehouse" and warehouseKey and not storageRoom then
         Runtime.state.message="Return to the warehouse to use its machines and vehicles."
         return true
@@ -142,6 +147,9 @@ function Controls.keyreleased(key,Runtime)
     return false
 end
 function Controls.mousepressed(x,y,button,Runtime)
+    if require("src.home_furniture_controls").mousepressed(x,y,button,Runtime) then return true end
+    if require("src.home_activity_controls").mousepressed(x,y,button,Runtime) then return true end
+    if require("src.home_travel_controls").mousepressed(x,y,button,Runtime) then return true end
     if require("src.basketball_controls").mousepressed(x,y,button,Runtime) then return true end
     if Runtime.state.screen~="shop_rooms" then return false end
     if button~=1 then return true end

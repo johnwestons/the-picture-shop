@@ -1,0 +1,18 @@
+{
+  "id": "commute-ui-icons-v1",
+  "status": "runtime_approved",
+  "source": "built-in image generation",
+  "image": "assets/generated/commute-ui-icons-v1/action-icons-atlas.png",
+  "dimensions": [1254, 1254],
+  "grid": {
+    "columns": 4,
+    "rows": 4,
+    "order": [
+      ["throttle", "brake", "steer", "map"],
+      ["camera", "follow", "center", "boost"],
+      ["headlight", "transmission", "reverse", "more"],
+      ["ignition", "shift", "dismount", "helmet"]
+    ]
+  },
+  "visual_review": "Transparent pixel-art icons reviewed in the generated sprite atlas."
+}

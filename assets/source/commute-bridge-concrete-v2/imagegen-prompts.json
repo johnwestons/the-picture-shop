@@ -1,0 +1,54 @@
+{
+  "version": 2,
+  "generator": "built-in imagegen",
+  "baseArtPromptLog": "assets/source/commute-bridge-concrete-v1/imagegen-prompts.json",
+  "generations": [
+    {
+      "id": "exec-2ecf341b-17cc-4bb1-bdb2-30d165cbcab9",
+      "asset": "concrete-end-frame-imagegen-source.png",
+      "transparentBackground": true,
+      "prompt": "Generate a single high-quality game asset: a 2D painted sprite of a sturdy rural reinforced-concrete road bridge END CROSS-SECTION, seen exactly straight-on from the road approach, not perspective. Transparent background. Wide horizontal composition, 5:3 width-to-height. The central roadway is a flat medium-gray asphalt top surface spanning the full width between two very substantial solid concrete parapet walls. Each parapet has a broad cap and visible inner side, around 1.2m tall relative to road width. Below the roadway is a deep, massive concrete box-girder / fascia slab with a beveled lower edge; clearly chunky and load-bearing in appearance. The concrete is weathered cool gray with subtle aggregate, expansion joints and restrained shadowing. The upper deck remains open and driveable, no gate or wall across the roadway. Strict orthographic elevation, centered, symmetrical, crisp silhouette, stylized painted game art with restrained fine detail, not photoreal, no text, no labels, no background, no scenery, no water, no vehicles, no timber, no rails made of thin bars. Isolated on transparency.",
+      "sourceSha256": "1ca718023191b0d210d80c88f587575dcfe8fdc1303b37459357c9bf8342be62",
+      "runtime": "assets/commute/bridge/concrete-end-frame.png",
+      "runtimeSha256": "9a5318cb636a1f8c8f8f7594a7bb44651094a182aa2c3f231d29eaf7efb9b1a2",
+      "packing": {
+        "sourceSize": [
+          1619,
+          971
+        ],
+        "sourceCrop": [
+          31,
+          249,
+          1588,
+          756
+        ],
+        "topCropPx": 0,
+        "runtimeSize": [
+          1557,
+          507
+        ],
+        "alphaThreshold": 8
+      }
+    },
+    {
+      "id": "exec-1733c18a-e903-43c1-bc1a-194929ab5783",
+      "asset": "asphalt-fine-imagegen-source.png",
+      "transparentBackground": false,
+      "prompt": "A seamless repeating top-down asphalt material texture for a 2D hand-painted driving game, square tile. Mid-dark cool gray asphalt with fine but restrained aggregate grain and a few subtle patches, low contrast so a small motorcycle remains readable above it. Uniformly lit from straight above, no perspective, no directional shadows, no road edges, no lane markings, no cracks, no text, no objects. Painterly game texture with crisp small details, realistic enough to read as maintained paved roadway, not coarse gravel and not shiny. Seamless on all four borders.",
+      "sourceSha256": "f66bdfcd64203828ae57072a135f7860515af7631cbc3684a62e7086ea3d7500",
+      "runtime": "assets/commute/bridge/asphalt.png",
+      "runtimeSha256": "f8ed10a1f2084553f3f9916ef9c94ff260f481f87d77449d9d335faf866128b2",
+      "packing": {
+        "sourceSize": [
+          1254,
+          1254
+        ],
+        "runtimeSize": [
+          256,
+          256
+        ]
+      }
+    }
+  ],
+  "notes": "The original v1 side parapet and support sprites are retained as immutable sources. New v2 assets provide the bridge end frame and finer downsampled asphalt. Runtime textures are cropped, uniformly resampled, or color-space converted only."
+}

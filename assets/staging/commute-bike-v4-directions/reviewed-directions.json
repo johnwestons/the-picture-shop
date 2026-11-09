@@ -1,0 +1,1662 @@
+{
+  "version": 1,
+  "status": "approved_direction_review",
+  "review": {
+    "reviewer": "Codex visual source and repaired-view review",
+    "evidence": "../../../output/bike-direction-reorder/review-notes.md"
+  },
+  "atlases": {
+    "parked-16.png": {
+      "sourceSha256": "99deb2e7dfff7223117ebe66657bf1eee6bb4ef93593279260d057bcc6ffc675",
+      "originalSha256": "dd3db4a8e16d6f2bb261e4b3606278a000ad1c99ddebcea73dbb0545484b597d",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 11,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-16.png": {
+      "sourceSha256": "2550524f630d15a2efec5c7247e7d915fc4f31d4985e4b2c0fc4d718603eb410",
+      "originalSha256": "c543dfef103a77d0e59530d080a357b24543229d30cf8e98962c77dec1c0f708",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-aero-tuck-16.png": {
+      "sourceSha256": "bfdf0ee7372ff8126eba941acc75b512e632102b500cd09c458a48e990820b66",
+      "originalSha256": "62d935fd454c49b9dd776a1abbccab7550143690b731e94a33247b7bea2e4038",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-aero-tuck-transition-16.png": {
+      "sourceSha256": "7768f75627df3bf118ad84f8b658f8162536e0d5d39a65a84e897884de92033f",
+      "originalSha256": "de189c429dcd18f102838b7a2d425bd8d5bc8a5cd002a154dccd135c8151d5d8",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-acceleration-response-16.png": {
+      "sourceSha256": "34e129e86359c4a9e2c37ebb3e4fb19d7de184850430e360f3701d6bd021f0e0",
+      "originalSha256": "25f945b675be8e576c8ca32400b6bdf3f621c1d29f2eb5de7633d96cbfbc2a65",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-boost-transition-16.png": {
+      "sourceSha256": "a53ce8e5c0cd6902cc03a283e09776c460872961d2d6661610d382d54544a81b",
+      "originalSha256": "720d736f9c7035f6360e3deebcfa3d52878e7bdb1c82a1414d5851626bdfdc42",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-gear-shift-16.png": {
+      "sourceSha256": "f29cfd00f0ee57f5a9f40d04f7b309c550f5e02ce0bb470e1d06065c4787f4c0",
+      "originalSha256": "f9f9100da5865198849ccf513d6f938611ec6324fec01ca35821894043bf5890",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-gear-shift-transition-16.png": {
+      "sourceSha256": "1bb6622b014a0594e84ca48bf555f4276f1450bf7aa61b4de515c0fb3c4f62c9",
+      "originalSha256": "c420b0dcfa9e810282e2f79b3ecbf0f86e6e17c3e2626f3abdcf66bd2edc3663",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-impact-brace-16.png": {
+      "sourceSha256": "2e15fed1d8edb8b4f59f13e8ddd529dddbbd9e2c94977518ee36c865d16c9f24",
+      "originalSha256": "0df364f48ecbfdcc368995581f73d84c3d24d9778a029c9a4a5544930713d492",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-impact-transition-16.png": {
+      "sourceSha256": "a98a6aa44d3aec95817b8e29e4acff61c10621a0b2fd8f10039fbcf43380c25e",
+      "originalSha256": "67e4d01cb982a80104d88260b42556018e184f48074944e31dc303dc96cd0d42",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-hard-turn-left-16.png": {
+      "sourceSha256": "186d7d3d1597af622da70fae5c1b8938b8dcffc6c302f1944fad3fe5a6a14cf5",
+      "originalSha256": "de5e3b11680fe76451078d6ec6fa06259bc63195864738a49b82b03742642ef9",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-hard-turn-right-16.png": {
+      "sourceSha256": "77b11fec18430bf68241bbc3f1de255d24b16ec126f0a5b06a38a6d6ce0bbbc8",
+      "originalSha256": "097673bfc7a3066862a19781b1e3a2bdc92b20e71a8d4170183cd3a05ba3c6ba",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 13,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-turn-left-transition-16.png": {
+      "sourceSha256": "9b58e302f3095b7aeafb46ba0ca250e52957ec1c8e27a7904696026ab68dfe04",
+      "originalSha256": "5ed62364fcec5885dcc78bf316b43d865775a51e82e3dc896190efaa8c2438f9",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    },
+    "mounted-turn-right-transition-16.png": {
+      "sourceSha256": "ab21ff0e83fafc770c7a73789dde814da82c4eadc799e2eb7c071b9b0b1a16c9",
+      "originalSha256": "71bdd0cb6f54991f8917adb5754500c432a2b9ae2b2e3a41e313d2be19d8390c",
+      "frames": [
+        {
+          "direction": "north",
+          "observedDirection": "north",
+          "source": "original",
+          "cell": 1,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northeast",
+          "observedDirection": "north-northeast",
+          "source": "generated",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "northeast",
+          "observedDirection": "northeast",
+          "source": "original",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "east-northeast",
+          "observedDirection": "east-northeast",
+          "source": "generated",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "east",
+          "observedDirection": "east",
+          "source": "original",
+          "cell": 3,
+          "reviewed": true
+        },
+        {
+          "direction": "east-southeast",
+          "observedDirection": "east-southeast",
+          "source": "generated",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "southeast",
+          "observedDirection": "southeast",
+          "source": "original",
+          "cell": 4,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southeast",
+          "observedDirection": "south-southeast",
+          "source": "generated",
+          "cell": 2,
+          "reviewed": true
+        },
+        {
+          "direction": "south",
+          "observedDirection": "south",
+          "source": "original",
+          "cell": 5,
+          "reviewed": true
+        },
+        {
+          "direction": "south-southwest",
+          "observedDirection": "south-southwest",
+          "source": "generated",
+          "cell": 16,
+          "reviewed": true
+        },
+        {
+          "direction": "southwest",
+          "observedDirection": "southwest",
+          "source": "original",
+          "cell": 6,
+          "reviewed": true
+        },
+        {
+          "direction": "west-southwest",
+          "observedDirection": "west-southwest",
+          "source": "generated",
+          "cell": 14,
+          "reviewed": true
+        },
+        {
+          "direction": "west",
+          "observedDirection": "west",
+          "source": "original",
+          "cell": 7,
+          "reviewed": true
+        },
+        {
+          "direction": "west-northwest",
+          "observedDirection": "west-northwest",
+          "source": "generated",
+          "cell": 12,
+          "reviewed": true
+        },
+        {
+          "direction": "northwest",
+          "observedDirection": "northwest",
+          "source": "original",
+          "cell": 8,
+          "reviewed": true
+        },
+        {
+          "direction": "north-northwest",
+          "observedDirection": "north-northwest",
+          "source": "generated",
+          "cell": 10,
+          "reviewed": true
+        }
+      ]
+    }
+  }
+}

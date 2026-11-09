@@ -74,6 +74,9 @@ Authority.ACTIONS = {
     },
     office_computer = {
         request_pickup = true,
+        request_player_delivery = true,
+        set_employee_delivery = true,
+        set_player_delivery = true,
         office_action = true,
     },
     cutter = {
@@ -107,6 +110,8 @@ Authority.ACTIONS = {
         lift_blade = true,
         sleeve_blade = true,
         book_blade_technician = true,
+        install_spare_blade = true,
+        order_blade_upgrade = true,
         set_weekly_technician = true,
     },
     windmill = {
@@ -308,6 +313,10 @@ local function publicLease(lease)
     }
 end
 
+local function printableMessage(value)
+    return tostring(value or ""):gsub("[%c]+", " ")
+end
+
 local function baseResult(operation, request, accepted, code, message, revision)
     return {
         operation = operation,
@@ -315,7 +324,7 @@ local function baseResult(operation, request, accepted, code, message, revision)
         resourceId = request and request.resourceId or "unknown",
         accepted = accepted == true,
         code = tostring(code or (accepted and "accepted" or "rejected")),
-        message = tostring(message or (accepted
+        message = printableMessage(message or (accepted
             and "The workshop request was accepted."
             or "The workshop request was rejected.")),
         revision = math.max(0, math.floor(tonumber(revision) or 0)),

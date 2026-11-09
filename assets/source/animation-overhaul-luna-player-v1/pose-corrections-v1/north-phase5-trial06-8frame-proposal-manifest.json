@@ -1,0 +1,352 @@
+{
+  "version": 1,
+  "batch": "luna-player-north-phase5-trial06-contained-proposal-v1",
+  "status": "staged for owner review; not integrated or runtime-approved",
+  "source_strip": {
+    "path": "assets/generated/characters/rabbit-worker/walk_north.png",
+    "sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+    "dimensions_px": [
+      4096,
+      512
+    ],
+    "frame_dimensions_px": [
+      512,
+      512
+    ],
+    "frame_count": 8
+  },
+  "proposal_strip": {
+    "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-proposal.png",
+    "sha256": "244171ab60f25e618891511062f94add0c8a83851b734b4593330a634c071f8c",
+    "dimensions_px": [
+      4096,
+      512
+    ],
+    "frame_dimensions_px": [
+      512,
+      512
+    ],
+    "frame_count": 8
+  },
+  "pose_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "selected_cells": [
+    {
+      "cell": 1,
+      "phase": "left_contact",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "2ae840063f83213d67042f0713f661f84b8490fc992a36ca151ac5d3a5285a56",
+      "proposal_rgba_sha256": "2ae840063f83213d67042f0713f661f84b8490fc992a36ca151ac5d3a5285a56",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 2,
+      "phase": "left_weight_down",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "33d4c29977310dfbbf1213eaa31e91c879d135b8eca8611dd31a0303bff6b4e8",
+      "proposal_rgba_sha256": "33d4c29977310dfbbf1213eaa31e91c879d135b8eca8611dd31a0303bff6b4e8",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 3,
+      "phase": "right_passing",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "616c2488495dac3fcb9451e68450856138e40c52e9f78950703dd14f6fbb0532",
+      "proposal_rgba_sha256": "616c2488495dac3fcb9451e68450856138e40c52e9f78950703dd14f6fbb0532",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 4,
+      "phase": "right_knee_up",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "2990fe9cc92783eb2cada5c0e401c20126817c3c79735d18adc6e3f52b32c2d7",
+      "proposal_rgba_sha256": "2990fe9cc92783eb2cada5c0e401c20126817c3c79735d18adc6e3f52b32c2d7",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 5,
+      "phase": "right_contact",
+      "exact_source_pixels": false,
+      "source_rgba_sha256": "3a565e7af783d98c721fb3b2fb72ef688ce30904186f28d23cac4d16a9e672f0",
+      "proposal_rgba_sha256": "0c00fa5f8ced8778ee6709c0c18fba7bfcd001cda9dd968adcbb6cd42e13c0a5",
+      "role": "replacement"
+    },
+    {
+      "cell": 6,
+      "phase": "right_weight_down",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434",
+      "proposal_rgba_sha256": "d0f564927f8412c747dce8d87d193c635c72040d45b41926fe9063324383c434",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 7,
+      "phase": "left_passing",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "abaa6341ac7a6166484531b263be7ef7a21713ea3ba0fcdcdd85e24b3ad4b484",
+      "proposal_rgba_sha256": "abaa6341ac7a6166484531b263be7ef7a21713ea3ba0fcdcdd85e24b3ad4b484",
+      "role": "unchanged canonical source"
+    },
+    {
+      "cell": 8,
+      "phase": "left_knee_up",
+      "exact_source_pixels": true,
+      "source_rgba_sha256": "e7722baa9d2d3ce0293da21c4b27310312d36fd05d1409279d1925d3a4b6a78f",
+      "proposal_rgba_sha256": "e7722baa9d2d3ce0293da21c4b27310312d36fd05d1409279d1925d3a4b6a78f",
+      "role": "unchanged canonical source"
+    }
+  ],
+  "replacement_candidate": {
+    "canonical_slot_one_based": 5,
+    "source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-05-trial-06-generated.png",
+    "source_sha256": "d8f4220f356bc5069ab10252b641d839f54e9023451dce2e487b03a89bc72c83",
+    "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-05-trial-06-uniform.png",
+    "normalized_sha256": "1b55ca0f529776adb290c5ca680e6547772b4df4edafedeb64743ed4ab6e0979",
+    "normalized_landmarks": {
+      "head_width_px": 112,
+      "head_bbox_xyxy": [
+        196,
+        52,
+        308,
+        211
+      ],
+      "torso_width_px": 77,
+      "torso_bbox_xyxy": [
+        218,
+        212,
+        295,
+        265
+      ]
+    },
+    "normalization": "one uniform source-master scale 0.40773276015281634 derived as sqrt((114/283)*(78/189)); expanded source crop [401,138,932,1174]; Lanczos resize to 217x422; translate to x=160,y=46 so torso center x=256 and ground y=465; no per-cell or per-part scaling",
+    "selected_reference_roles": [
+      "phase 1 constrains opposite contact sole/arm-cycle contrast",
+      "phase 4 adjacent raised-knee pose constrains counter-swing and transition entry",
+      "phase 6 adjacent weight-down pose constrains trailing/support leg and exit",
+      "unscaled rigid upper-body reference constrains head/ear and torso landmarks"
+    ],
+    "prompt_log": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/imagegen-prompt-log-v1.json",
+    "prompt_log_sha256": "ee1b6c785b0e768a0a81dbd8bea0b158845c446419cc1739dba60d5f428047d3"
+  },
+  "anchor": {
+    "torso_center_x_px": 256,
+    "ground_line_y_px": 465
+  },
+  "timing": {
+    "config_speed_px_per_second": 155,
+    "distance_per_canonical_frame_px": 20,
+    "ideal_nominal_frame_ms": 129.032,
+    "nominal_gif_frame_duration_ms": 130,
+    "nominal_gif_cycle_duration_ms": 1040,
+    "half_speed_gif_frame_duration_ms": 260,
+    "half_speed_gif_cycle_duration_ms": 2080,
+    "gif_delay_quantization_ms": 10,
+    "timing_basis": "GIF delay times quantize to 10ms; uniform per-frame durations rounded to nearest 10ms from 20px/155px/s; half-speed is exactly double nominal"
+  },
+  "previews": {
+    "contact": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-proposal-contact.png",
+      "sha256": "f7b170333a7627e1e7a832a1c8b30ec2685751d4e66330aff122ce40e946aa3a"
+    },
+    "nominal_gif": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-nominal.gif",
+      "sha256": "8951764d5708aafddb19861b15d31289ab1a27e85358e5fbfcb42b0e73ee996c",
+      "frame_durations_ms": [
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130,
+        130
+      ]
+    },
+    "half_speed_gif": {
+      "path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-half-speed.gif",
+      "sha256": "3780323e9aa45c2a31671f9d297acd73122e036e36a63d77a6d228cfeba15c43",
+      "frame_durations_ms": [
+        260,
+        260,
+        260,
+        260,
+        260,
+        260,
+        260,
+        260
+      ]
+    }
+  },
+  "companion_transition_candidate": {
+    "purpose": "separate 5-to-6 transition repair candidate; not included in contained 8-frame canonical proposal and not accepted yet",
+    "source_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-transition-05-to-06-trial-02-generated.png",
+    "normalized_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-transition-05-to-06-trial-02-uniform.png",
+    "normalized_sha256": "1bf582d9e69b7aabda577a06c8819d26931a12b0210722ada0c5bd2445911eb0",
+    "metrics": {
+      "cell_number": 1,
+      "atlas_cell_bounds_xyxy": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "raw_alpha_bbox_16": [
+        342,
+        92,
+        904,
+        1167
+      ],
+      "raw_visible_height_px": 1075,
+      "group_uniform_scale": 0.366221,
+      "raw_landmarks": {
+        "head_width_px": 300,
+        "head_bbox_xyxy": [
+          494,
+          92,
+          794,
+          512
+        ],
+        "torso_width_px": 221,
+        "torso_bbox_xyxy": [
+          532,
+          516,
+          753,
+          651
+        ]
+      },
+      "normalized_landmarks": {
+        "head_width_px": 107,
+        "head_bbox_xyxy": [
+          201,
+          73,
+          308,
+          225
+        ],
+        "torso_width_px": 80,
+        "torso_bbox_xyxy": [
+          216,
+          228,
+          296,
+          276
+        ]
+      },
+      "normalized_alpha_bbox_16": [
+        145,
+        71,
+        351,
+        465
+      ],
+      "normalized_visible_height_px": 394,
+      "normalized_torso_anchor_x": 256.0,
+      "normalized_ground_y": 465,
+      "edge_clipped": false,
+      "source_raw_sha256": "529ad9d965856c6c2dae9a77d70258201a6217e50968170846cbf0db1e0ec1c3",
+      "normalized_sha256": "1bf582d9e69b7aabda577a06c8819d26931a12b0210722ada0c5bd2445911eb0",
+      "uniform_scale_info": {
+        "method": "one uniform scale for this raw source master; geometric mean of canonical/generated median orange head-and-ear width and centered blue torso/bib width ratios",
+        "canonical_median_head_width_px": 114.0,
+        "canonical_median_torso_width_px": 78.0,
+        "source_master_median_head_width_px": 300.0,
+        "source_master_median_torso_width_px": 221.0,
+        "head_landmark_scale": 0.38,
+        "torso_landmark_scale": 0.352941,
+        "uniform_master_scale": 0.366221,
+        "source_cell_landmarks": [
+          {
+            "head_width_px": 300,
+            "head_bbox_xyxy": [
+              494,
+              92,
+              794,
+              512
+            ],
+            "torso_width_px": 221,
+            "torso_bbox_xyxy": [
+              532,
+              516,
+              753,
+              651
+            ]
+          }
+        ],
+        "per_cell_scale_used": false
+      }
+    },
+    "review_status": "unselected after visual neighbor audit; still near phase-5 contact, insufficient foot rotation/descent; no accepted phase-5-to-6 transition"
+  },
+  "prompt_log_sha256": "ee1b6c785b0e768a0a81dbd8bea0b158845c446419cc1739dba60d5f428047d3",
+  "transition_audit": {
+    "review_contact_sheet": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-transition-neighbor-audit-v3.png",
+    "review_contact_sheet_sha256": "876ffb8788f57b71647633a20a4d3eb9b44ac1d011890a9d14936647f12888b9",
+    "accepted_5_to_6_transition": null,
+    "status": "unresolved; this contained 8-frame canonical proposal does not constitute an accepted 16-frame gait proposal",
+    "attempts": [
+      "north-transition-05-to-06-trial-01-generated.png",
+      "north-transition-05-to-06-trial-02-generated.png",
+      "north-transition-05-to-06-trial-03-generated.png"
+    ]
+  },
+  "staging_builder": {
+    "path": "tools/build_luna_player_north_key_v1.py",
+    "purpose": "deterministically rebuild trial06 normalized cell and contained 8-frame proposal from pinned raw master and original strip",
+    "sha256": "c8e4c4a8d4fa23ffe272c2f194ae0946489222847c6f92b7aa6b6f40144449ab",
+    "inputs": {
+      "raw_master_sha256": "d8f4220f356bc5069ab10252b641d839f54e9023451dce2e487b03a89bc72c83",
+      "original_strip_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b"
+    },
+    "normalization": {
+      "alpha_visibility": "alpha > 16",
+      "raw_visible_bbox_xyxy": [
+        409,
+        146,
+        924,
+        1166
+      ],
+      "expanded_subject_crop_xyxy": [
+        401,
+        138,
+        932,
+        1174
+      ],
+      "uniform_scale_formula": "sqrt((114 / 283) * (78 / 189))",
+      "uniform_scale_full_precision": 0.40773276015281634,
+      "resampled_size_px": [
+        217,
+        422
+      ],
+      "resampling": "Pillow Image.Resampling.LANCZOS",
+      "resampled_visible_bbox_xyxy": [
+        3,
+        3,
+        214,
+        419
+      ],
+      "paste_translation_xy": [
+        160,
+        46
+      ],
+      "anchor_x_px": 256,
+      "ground_y_px": 465,
+      "normalized_visible_bbox_xyxy": [
+        163,
+        49,
+        374,
+        465
+      ],
+      "per_cell_scale": false,
+      "per_part_deformation": false
+    },
+    "verified_output_hashes": {
+      "normalized_cell_sha256": "1b55ca0f529776adb290c5ca680e6547772b4df4edafedeb64743ed4ab6e0979",
+      "proposal_strip_sha256": "244171ab60f25e618891511062f94add0c8a83851b734b4593330a634c071f8c"
+    }
+  }
+}

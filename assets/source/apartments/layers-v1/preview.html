@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Apartment layer review</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#171b21;color:#edf1f4}
+*{box-sizing:border-box}body{margin:0;padding:22px;max-width:1280px;margin-inline:auto}
+h1{font-size:23px;font-weight:600;margin:0 0 7px}p{color:#bfc8d2;margin:0 0 18px}
+.controls{display:flex;flex-wrap:wrap;gap:14px;align-items:end;margin-bottom:14px}
+label{display:flex;flex-direction:column;gap:5px;font-size:13px}
+select,input,button{font:inherit}select,button{background:#29313c;color:#f4f6f8;border:1px solid #586574;border-radius:6px;padding:9px 12px;min-height:42px}
+.check{flex-direction:row;align-items:center;min-height:42px}input[type=checkbox]{width:18px;height:18px}
+input[type=range]{width:150px;min-height:30px}
+canvas{width:100%;height:auto;display:block;touch-action:none}
+.caption{margin-top:10px;font-size:13px;display:flex;flex-wrap:wrap;gap:14px;color:#c1cad4}
+output{font-variant-numeric:tabular-nums}
+@media(max-width:580px){body{padding:12px}.controls{gap:10px}h1{font-size:20px}}
+</style>
+</head>
+<body>
+<h1>Apartment layers</h1>
+<p>Inspect the transparent floor and walls separately, or move across the apartment to preview a wall reveal.</p>
+<div class="controls">
+<label>Apartment<select id="apartment"><option value="brick-walkup">Brick walk-up</option><option value="garden">Garden</option><option value="courtyard">Courtyard</option><option value="corner">Corner</option></select></label>
+<label>Layers<select id="mode"><option value="combined">Floor + walls</option><option value="floor">Floor + fixed fixtures</option><option value="walls">Walls only</option></select></label>
+<label>Backdrop<select id="backdrop"><option value="checker">Transparency checker</option><option value="light">Light</option><option value="dark">Dark</option><option value="green">Green</option></select></label>
+<label class="check"><input id="reveal" type="checkbox">Reveal around marker</label>
+<label>Reveal radius <output id="radiusValue">130 px</output><input id="radius" type="range" min="50" max="260" value="130"></label>
+<button id="center" type="button">Center marker</button>
+</div>
+<canvas id="stage" width="1536" height="1024" aria-label="Apartment floor and wall sprite preview"></canvas>
+<div class="caption"><span id="status" aria-live="polite">Loading layers…</span><span id="position">Marker: 780, 550</span><span>Art preview · wall collision and gameplay are unchanged</span></div>
+<script>
+(() => {
+  const el = id => document.getElementById(id);
+  const canvas=el('stage'),ctx=canvas.getContext('2d');
+  const overlay=document.createElement('canvas');overlay.width=1536;overlay.height=1024;
+  const wallCtx=overlay.getContext('2d');
+  const definitions={"brick-walkup":{"floor":"brick-walkup-floor-fixtures-v2.png","walls":"brick-walkup-walls.png","fixtureRepaintRegions":[[1040,145,80,130],[1140,145,85,110],[1215,108,195,225],[1038,310,100,170],[1250,435,210,275]]},"garden":{"floor":"garden-floor-fixtures.png","walls":"garden-walls.png","fixtureRepaintRegions":[[950,90,95,175],[1080,175,85,155],[1180,175,90,120],[1250,135,215,245],[1190,400,275,320]]},"courtyard":{"floor":"courtyard-floor-fixtures.png","walls":"courtyard-walls-v2.png","fixtureRepaintRegions":[[300,40,165,245],[450,140,95,120],[540,145,85,150],[680,115,95,170],[75,385,190,260]]},"corner":{"floor":"corner-floor-fixtures.png","walls":"corner-walls-v2.png","fixtureRepaintRegions":[[410,195,300,190],[740,140,85,150],[820,140,90,130],[880,90,150,240],[1060,145,100,210]]}};
+  const cache=new Map();let active=null,loadId=0,point={x:780,y:550};
+  function loadImage(src){return new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>reject(new Error('Cannot load '+src));im.src=src;});}
+  function background(){
+    const kind=el('backdrop').value;
+    if(kind==='checker'){
+      const s=32;for(let y=0;y<1024;y+=s)for(let x=0;x<1536;x+=s){ctx.fillStyle=((x/s+y/s)%2)?'#d1d5db':'#f1f3f5';ctx.fillRect(x,y,s,s);}
+    } else {ctx.fillStyle={light:'#f0e9df',dark:'#202630',green:'#68836c'}[kind];ctx.fillRect(0,0,1536,1024);}
+  }
+  function marker(){
+    ctx.fillStyle='#1e89d1';ctx.strokeStyle='#ffffff';ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(point.x,point.y-16,13,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(point.x-9,point.y-3);ctx.lineTo(point.x,point.y+11);ctx.lineTo(point.x+9,point.y-3);ctx.closePath();ctx.fill();ctx.stroke();
+  }
+  function draw(){
+    background();if(!active)return;
+    const mode=el('mode').value,reveal=el('reveal').checked,r=Number(el('radius').value);
+    if(mode!=='walls')ctx.drawImage(active.floor,0,0);
+    if(reveal)marker();
+    if(mode!=='floor'){
+      wallCtx.clearRect(0,0,1536,1024);wallCtx.globalCompositeOperation='source-over';wallCtx.drawImage(active.walls,0,0);
+      if(reveal){
+        wallCtx.globalCompositeOperation='destination-out';
+        const gradient=wallCtx.createRadialGradient(point.x,point.y-18,r*.65,point.x,point.y-18,r);
+        gradient.addColorStop(0,'rgba(0,0,0,1)');gradient.addColorStop(1,'rgba(0,0,0,0)');
+        wallCtx.fillStyle=gradient;wallCtx.beginPath();wallCtx.arc(point.x,point.y-18,r,0,Math.PI*2);wallCtx.fill();
+        wallCtx.globalCompositeOperation='source-over';
+      }
+      ctx.drawImage(overlay,0,0);
+      if(mode==='combined'){
+        ctx.save();ctx.beginPath();
+        for(const region of active.regions)ctx.rect(...region);
+        ctx.clip();ctx.drawImage(active.floor,0,0);ctx.restore();
+      }
+    }
+    if(reveal){ctx.strokeStyle='#1e89d1';ctx.lineWidth=2;ctx.setLineDash([6,7]);ctx.beginPath();ctx.arc(point.x,point.y-18,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+    el('radiusValue').textContent=r+' px';el('position').textContent='Marker: '+Math.round(point.x)+', '+Math.round(point.y);
+  }
+  async function select(){
+    const id=++loadId,key=el('apartment').value;el('status').textContent='Loading layers…';
+    try{
+      if(!cache.has(key)){const def=definitions[key];cache.set(key,Promise.all([loadImage(def.floor),loadImage(def.walls)]).then(([floor,walls])=>({floor,walls,regions:def.fixtureRepaintRegions})));}
+      const result=await cache.get(key);if(id!==loadId)return;active=result;
+      el('status').textContent=active.floor.naturalWidth+' × '+active.floor.naturalHeight+' · shared origin 0, 0';draw();
+    }catch(error){el('status').textContent=error.message;active=null;draw();}
+  }
+  el('apartment').addEventListener('change',select);
+  for(const id of ['mode','backdrop','reveal','radius'])el(id).addEventListener('input',draw);
+  el('center').addEventListener('click',()=>{point={x:780,y:550};draw();});
+  function move(event){const rect=canvas.getBoundingClientRect();point={x:Math.max(0,Math.min(1536,(event.clientX-rect.left)*1536/rect.width)),y:Math.max(0,Math.min(1024,(event.clientY-rect.top)*1024/rect.height))};draw();}
+  canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerdown',event=>{canvas.setPointerCapture(event.pointerId);move(event);});
+  select();
+})();
+</script>
+</body>
+</html>

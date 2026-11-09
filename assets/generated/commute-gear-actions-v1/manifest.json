@@ -1,0 +1,70 @@
+{
+  "status": "runtime_approved",
+  "mode": "built-in imagegen, pixel-preserving atlas compile",
+  "sourceRegistration": "assets/staging/commute-gear-actions-v1/manifest.json",
+  "runtimeRegistration": "assets/generated/commute-gear-actions-v1/registration.lua",
+  "character": "rabbit-worker",
+  "direction": "southeast",
+  "frameSize": [256, 256],
+  "anchor": [128, 238],
+  "referenceHeight": 256,
+  "review": {
+    "contactSheet": "output/commute-gear-actions-review/equip-contact.png",
+    "nativeReview": "output/commute-gear-actions-review/native-review.png",
+    "colorwayGrid": "output/commute-gear-actions-review/native-colorway-grid.png",
+    "gaitAudit": "output/commute-rider-v3-audit/report.json",
+    "visualReview": "contact, planted baseline, relative scale, and fur/overalls masks reviewed"
+  },
+  "actions": {
+    "suit_on": {
+      "path": "assets/generated/commute-gear-actions-v1/suit_on_southeast.png",
+      "sha256": "89eb25b3fef653f91407cf73207cccdbb16909c4f0b890e3f6e57fc1c214e30f",
+      "maskSha256": "3ffc0ec96b57858dbfa8b66207a085aec756dd62db9771b6dbf991e170eabe90",
+      "sourceSha256": "3bbdf69f810ced7c40c48e0a78960904be5f817b8548bbe9e226e7d0acd28f48",
+      "duration": 1.2,
+      "frameCount": 4,
+      "normalizationHeight": 215.0
+    },
+    "zip_up": {
+      "path": "assets/generated/commute-gear-actions-v1/zip_up_southeast.png",
+      "sha256": "dbc1f600b9e4ef469674d7e1953d4bcf331a86b130b10c2a4817b2a66f324193",
+      "maskSha256": "ff7f8d8ae5975cb96996db6691830e03ed3f36a5cfb65f6bbe7c814dc41dd5f3",
+      "sourceSha256": "3bbdf69f810ced7c40c48e0a78960904be5f817b8548bbe9e226e7d0acd28f48",
+      "duration": 0.8,
+      "frameCount": 4,
+      "normalizationHeight": 218.5
+    },
+    "boots_gloves": {
+      "path": "assets/generated/commute-gear-actions-v1/boots_gloves_southeast.png",
+      "sha256": "8edb49e8fe98dccf062c9e4fff2eb789db76ef2bc3fe0fea34960323708e3f59",
+      "maskSha256": "73f36c720f448928960cbc79361b1d20e9ce66b3dfda607511f16c68d55c1b9d",
+      "sourceSha256": "18cc83924abfb9109bc473d14714c59eef23fe55a956e53efe0aa76a679d1488",
+      "duration": 0.7,
+      "frameCount": 4,
+      "normalizationHeight": 218.0,
+      "note": "This strip fastens the gloves. Boots appear with the suit; a separate boot fastening pose is not authored."
+    },
+    "helmet_on": {
+      "path": "assets/generated/commute-gear-actions-v1/helmet_on_southeast.png",
+      "sha256": "8860d710e4b0a772d5bdf52384237c890fadf25182166438a06428c328190ae4",
+      "maskSha256": "f924348338ff56989a3001e4ce6f40436a56a41a11fed9b09a865d9860fa6643",
+      "sourceSha256": "18cc83924abfb9109bc473d14714c59eef23fe55a956e53efe0aa76a679d1488",
+      "duration": 1.0,
+      "frameCount": 4,
+      "normalizationHeight": 213.5
+    }
+  },
+  "removal": {
+    "method": "reverse the corresponding reviewed equip strip at the existing shared gear clock",
+    "mapping": {
+      "helmet_off": "helmet_on reversed",
+      "unzip": "zip_up reversed",
+      "suit_off": "suit_on reversed"
+    }
+  },
+  "remaining": [
+    "The four action strips are southeast-facing only; runtime presents their authored view while changing. Stable walking returns to the selected direction.",
+    "Other playable character types retain their own normal appearance; matching exposed dressing art remains open.",
+    "A distinct boot-fastening pose is not authored; boots are visible as part of the one-piece suit before the glove action."
+  ]
+}

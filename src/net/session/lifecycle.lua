@@ -9,6 +9,7 @@ function Component.install(Runtime)
             mode = "offline",
             status = "Offline",
             networkKind = "lan",
+            dedicatedServer = false,
             transportFactory = options.transportFactory or Runtime.Transport,
             clock = options.clock or Runtime.defaultClock,
             transport = nil,
@@ -50,6 +51,7 @@ function Component.install(Runtime)
             lastEnvironmentTick = -1,
             lastEmployeeTick = -1,
             lastPalletJackTick = -1,
+            lastExtraPalletJackTicks = {},
             lastForkliftTick = -1,
             lastCutterTick = -1,
             lastWindmillTick = -1,
@@ -131,6 +133,7 @@ function Component.install(Runtime)
         self.localAddress = nil
         self.hostAddress = nil
         self.networkKind = "lan"
+        self.dedicatedServer = false
         self.serverTick = 0
         self.lastServerTick = -1
         self.lastFightTick = -1
@@ -147,6 +150,8 @@ function Component.install(Runtime)
         self.snapshotAccumulator = 0
         self.shopStateAccumulator = 0
         self.shopFallbackAccumulator = 0
+        self.broadcastTownId=nil
+        self.receivedTown=nil
         self.shopRevision = 0
         self.lastShopRevision = -1
         self.radioRevision = 0
@@ -156,12 +161,14 @@ function Component.install(Runtime)
         self.lastEnvironmentTick = -1
         self.lastEmployeeTick = -1
         self.lastPalletJackTick = -1
+        self.lastExtraPalletJackTicks = {}
         self.lastForkliftTick = -1
         self.lastCutterTick = -1
         self.lastWindmillTick = -1
         self.lastMachineTicks = {}
         self.shopDirty = false
         self.connectedAt = nil
+        self.sessionStartedAt = nil
         self.ready = false
         self.requireHostApproval = false
         self.clientConnectTimeout = Runtime.CONNECT_TIMEOUT
@@ -190,8 +197,20 @@ function Component.install(Runtime)
         self.pendingHostWorkshop = {}
         self.lastWorkshopSnapshotRevision = -1
         self.clientNonce = nil
+        self.residentId,self.residentToken=nil,nil
         self.rtt = nil
         self.pendingPing = {}
+        self.pingAccumulator = 0
+        self.pingNonce = 0
+        self.pingSentCount = 0
+        self.pingReceivedCount = 0
+        self.pingLostCount = 0
+        self.pingSendFailures = 0
+        self.pingMinMs = nil
+        self.pingMaxMs = nil
+        self.pingAverageMs = nil
+        self.lastPingSentAt = nil
+        self.lastPongAt = nil
         self.terminal = false
     end
 
@@ -200,6 +219,7 @@ function Component.install(Runtime)
         self.terminal = true
         self.ready = false
         self.connectedAt = nil
+        self.pendingPing = {}
         self.status = tostring(message or "The multiplayer connection ended.")
         self:_queue("disconnected", { message = self.status })
         return true
@@ -256,7 +276,10 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "host"
-        self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+        self.sessionStartedAt=self.clock()
+        self.networkKind = options.networkKind == "direct" and "direct"
+            or options.networkKind == "server" and "server" or "lan"
+        self.dedicatedServer = options.dedicatedServer == true
         -- Internet Direct always requires a final, in-game host decision. This is
         -- intentionally not controlled by a caller option: no production path may
         -- silently auto-admit an Internet peer and disclose the host save.
@@ -278,7 +301,9 @@ function Component.install(Runtime)
         self.ready = true
         self.status = self.networkKind == "direct"
             and "Hosting a Direct Internet shop"
-            or ("Hosting on " .. tostring(self.localAddress or "local network"))
+            or self.networkKind == "server"
+                and ("Private server listening on UDP " .. tostring(port))
+                or ("Hosting on " .. tostring(self.localAddress or "local network"))
         self:_queue("host_started", {
             address = self.localAddress,
             port = self.port,
@@ -299,6 +324,9 @@ function Component.install(Runtime)
         end
         local parsed, addressError = Runtime.Address.parse(address, options.port)
         if not parsed then return false, addressError end
+        local residentToken,identityError=options.residentToken
+        if not residentToken then residentToken,identityError=require("src.resident_credentials").get() end
+        if not require("src.resident_credentials").valid(residentToken) then return false,identityError or "Invalid resident identity." end
         local transportFactory = options.transportFactory or self.transportFactory
         if type(transportFactory) ~= "table"
             or type(transportFactory.createClient) ~= "function" then
@@ -312,7 +340,9 @@ function Component.install(Runtime)
         self:_resetRuntime()
         self.transport = transport
         self.mode = "client"
-        self.networkKind = options.networkKind == "direct" and "direct" or "lan"
+        self.sessionStartedAt=self.clock()
+        self.networkKind = options.networkKind == "direct" and "direct"
+            or options.networkKind == "server" and "server" or "lan"
         self.clientConnectTimeout = self.networkKind == "direct"
             and Runtime.DIRECT_CLIENT_TIMEOUT or Runtime.CONNECT_TIMEOUT
         self.port = parsed.port
@@ -322,6 +352,7 @@ function Component.install(Runtime)
         self.localFurColorway = tonumber(options.furColorway) or 1
         self.localOverallsColorway = tonumber(options.overallsColorway) or 1
         self.clientNonce = Runtime.identifier("n", self.clock)
+        self.residentToken=residentToken
         self.connectedAt = self.clock()
         self.status = self.networkKind == "direct"
             and "Connecting to the Direct Internet host"

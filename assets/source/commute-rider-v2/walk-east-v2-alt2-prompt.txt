@@ -1,0 +1,16 @@
+East walk repair candidate B. Identity and gait references match walk-east-v2-prompt.txt; this retry simplified phase wording while retaining explicit opposing-limb requirements.
+
+Create one transparent 4-column x 2-row sprite sheet of 8 separate frames, consistent side profile facing screen-right. Use only the first reference for identity and body proportions: the tall suit-up-derived animal rider, enclosed-ear bronze full-face helmet, brown one-piece leathers, gloves and broad boots. Do not use old short/chibi rider imagery. Use the second reference only for limb order; in that diagram blue means near anatomical RIGHT leg/arm and red means far LEFT leg/arm. Never copy its gray figure or colors.
+
+Keep camera, ground, scale, lighting, torso and head consistent. Show both legs and arms clearly. No words, dividers, extra figures or scenery; generous transparent gutters. Ordered left-to-right row 1 then row 2.
+
+1 LEFT CONTACT: far/LEFT leg reaches forward (screen-right) in clear heel strike, near/RIGHT leg extended behind; near RIGHT arm forward, far LEFT arm back.
+2 LEFT DOWN: far/LEFT foot remains planted ahead, knee softens, torso subtly lowest; near/RIGHT foot trails and starts toe-off; opposing arms.
+3 RIGHT PASSING: far/LEFT support nearly vertical beneath hip; near/RIGHT leg crosses forward directly under pelvis, knee bent and foot low. Compact pass, not long reach or rear kick. Arms exchange near neutral.
+4 RIGHT UP: near/RIGHT leg swings forward, distinctly bent knee and lifted toe; far/LEFT supports beneath/behind hip; far LEFT arm forward and near RIGHT arm back.
+5 RIGHT CONTACT: near/RIGHT leg reaches forward to distinct heel strike while far/LEFT trails; visibly opposite planted foot from frame 1. Far LEFT arm forward, near RIGHT arm back.
+6 RIGHT DOWN: near/RIGHT foot planted in front, knee softens, body subtly lowest; far/LEFT trails and starts toe-off; opposing arms.
+7 LEFT PASSING: near/RIGHT support nearly vertical beneath hip; far/LEFT leg crosses forward beneath pelvis, knee bent and foot low. Compact opposite pass, not long reach or rear kick. Arms exchange near neutral.
+8 LEFT UP: far/LEFT leg swings forward with distinctly bent lifted knee/toe; near/RIGHT supports beneath/behind hip; near RIGHT arm forward, far LEFT arm back.
+
+Critical: frames 1 and 5 plant opposite feet and show opposite arm placement. Frames 4 and 8 lift opposite knees. Frames 3 and 7 pass opposite legs beneath the hip with feet compact and close to ground. No repeated leading-leg pose. Anatomically coherent and grounded.

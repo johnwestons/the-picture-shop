@@ -1,0 +1,42 @@
+{
+  "status": "single master staged for review; root rejected full-cycle semantics; no retries or runtime installation authorized",
+  "raw_source": {
+    "path": "field-mouse-technician-west-canonical-8phase-v1-generated.png",
+    "sha256": "93636403a1e300f7ddbe08ab308374966c53e338b62a24559653e8a8b0708a1c",
+    "size_px": [1774, 887],
+    "layout": [4, 2]
+  },
+  "generation_record": "../../../../output/animation-overhaul/luna-worker-actions/mouse-west/generation-prompt-v1.md",
+  "references": [
+    {
+      "path": "../../technician-motion-v2/references/mouse-west.png",
+      "role": "authoritative west-facing identity, camera, clothing, body and tail",
+      "sha256": "b6f0a9f39aa0f908bffe70b3b4b939343850c7c54432c7ff35bfc3aaa97cc239"
+    },
+    {
+      "path": "../../technician-motion-v2/mouse-west-idle-v2.png",
+      "role": "definitive corrected two-ear anatomy and outfit",
+      "sha256": "deac502b4f4996659f440f9e2a14a3ce2e687c275cd78b35a74539cbb8c6c61e"
+    },
+    {
+      "path": "../../technician-motion-v2/references/guide-west.png",
+      "role": "canonical gait phase order and limb assignment diagram only",
+      "sha256": "21b1866fa702fb0b96c8cb5c6cf4bc232970aa7c881f29f06f1377ab09566825"
+    },
+    {
+      "path": "../../technician-motion-v2/mouse-west-right-swing.png",
+      "role": "black case accessory only; its extra gray ear is explicitly excluded",
+      "sha256": "55f8c6f8a3ef041fdc3e83a865a6d45e9c62fae5021294e8c7bc84e7e9a54ae5"
+    }
+  ],
+  "phase_order": [
+    "left_contact", "left_weight_down", "right_passing", "right_knee_up",
+    "right_contact", "right_weight_down", "left_passing", "left_knee_up"
+  ],
+  "root_review": {
+    "full_cycle": "rejected: contacts 1/5 lead with the same pocketed near-left leg; knee-up poses 4/8 raise the same farther leg",
+    "preserved_rejected_registration": "output/animation-overhaul/luna-worker-actions/mouse-west/field-mouse-technician-west-canonical-8phase-v1-review-metrics.json",
+    "torso_axis_review": "output/animation-overhaul/luna-worker-actions/mouse-west/field-mouse-technician-west-canonical-8phase-v2-torso-axis-review-metrics.json",
+    "candidate_cells": "poses 3/7 are tentative opposite-leg passing references; poses 2/6 may show weight transfer; none are independently approved"
+  }
+}

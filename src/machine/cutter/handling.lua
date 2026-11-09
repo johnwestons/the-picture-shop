@@ -221,7 +221,13 @@ function Component.run(Context)
         end
         Context.ensureLiftProgress(pallet)
         local sheets = math.min(Context.Jobs.LIFT_CAPACITY, math.max(1, pallet.remainingSheets))
-        local stockCost = Context.stockReplacementCost(Context.Machine.job, sheets)
+        local housePaperUsed = false
+        if Context.Machine.job and Context.Machine.job.press
+            and Context.Procurement.housePaperAvailable(state) >= sheets then
+            housePaperUsed = Context.Procurement.consumeHousePaper(state, sheets) == true
+        end
+        local stockCost = housePaperUsed and 0
+            or Context.stockReplacementCost(Context.Machine.job, sheets)
         local redoCost = math.ceil(sheets / Context.Jobs.LIFT_CAPACITY) * Context.Jobs.PRICE_PER_LIFT
         local cost = stockCost + redoCost
         pallet.damagedSheets = (pallet.damagedSheets or 0) + sheets
@@ -239,17 +245,22 @@ function Component.run(Context)
             state, Context.Machine.job, pallet, sheets)
         Context.Machine.job.spoiledSheets = (Context.Machine.job.spoiledSheets or 0) + sheets
         Context.Machine.job.spoilCost = (Context.Machine.job.spoilCost or 0) + cost
+        local chargeDescription = housePaperUsed
+            and string.format("Redo print-job lift using house paper for %s (%d sheets)", Context.Machine.job.id, sheets)
+            or string.format("Redo lift and replace client stock for %s (%d sheets)", Context.Machine.job.id, sheets)
         local invoice = Context.BusinessCalendar.addCharge(state,
-            string.format("Redo lift and replace client stock for %s (%d sheets)", Context.Machine.job.id, sheets),
-            cost, Context.Machine.job.id)
+            chargeDescription, cost, Context.Machine.job.id)
         local demanding = Context.Machine.job.clientTemperament == "demanding"
         local loss, score = Context.Reputation.spoilLift(state, sheets, cost, demanding)
         Context.Machine.step = "cut_complete"
+        local replacementDetail = housePaperUsed
+            and string.format("%d house-paper sheets used for the print-job replacement; the shop covers stock cost.", sheets)
+            or string.format("%s billed $%d for replacement stock and the redo.",
+                demanding and "the demanding client" or "the client", invoice.total)
         Context.message(state, string.format(
-            "OFF-SIZE CUT: %.2f in instead of %.2f in. %d client sheets spoiled; %s billed $%d for replacement stock and the redo. Replacement skid %s arrives in about %d game hour%s. Reputation -%d (%d).",
+            "OFF-SIZE CUT: %.2f in instead of %.2f in. %d sheets spoiled; %s Replacement skid %s arrives in about %d game hour%s. Reputation -%d (%d).",
             result.actualGauge or Context.Machine.gauge, result.expectedGauge or 0, sheets,
-            demanding and "the demanding client" or "the client", invoice.total,
-            replacement.id, delay, delay == 1 and "" or "s", loss, score))
+            replacementDetail, replacement.id, delay, delay == 1 and "" or "s", loss, score))
     end
 end
 

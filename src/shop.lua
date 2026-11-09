@@ -5,6 +5,7 @@ function Shop.buyPaper(state)
         state.message = "Not enough money."
         return false
     end
+    require("src.household_finances").purchase(state,"abstract_paper",25,2500)
     state.money = state.money - 25
     state.inventory.paper = state.inventory.paper + 25
     state.message = "Bought 25 sheets of paper."
@@ -18,6 +19,7 @@ function Shop.sellPrint(state)
     end
     state.inventory.prints = state.inventory.prints - 1
     state.money = state.money + 12
+    require("src.household_finances").record(state,"revenue",1200)
     state.message = "Sold a finished print for $12."
     return true
 end

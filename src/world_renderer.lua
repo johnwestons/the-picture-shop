@@ -24,7 +24,6 @@ local WarehouseScene = require("src.warehouse_scene")
 
 local Renderer = {}
 local World
-local checkerShader
 local palletPickup
 function Renderer.beginFrame() WarehouseRenderer.beginFrame() end
 function Renderer.endFrame() WarehouseRenderer.endFrame() end
@@ -35,6 +34,19 @@ end
 function Renderer.clearCache()
     WarehouseRenderer.clearCache()
     require("src.shop_room_renderer").clearCache()
+    require("src.home_renderer").clearCache()
+end
+
+function Renderer.machineUnitsInScene(state, sceneId)
+    sceneId = sceneId or "warehouse"
+    local result = {}
+    for _, machine in ipairs(MachineFleet.owned(state)) do
+        if machine.status == "installed" and machine.world
+            and (machine.world.sceneId or "warehouse") == sceneId then
+            result[#result + 1] = machine
+        end
+    end
+    return result
 end
 
 local function drawPrintedArtwork(assets, item, x, y, carried)
@@ -199,12 +211,13 @@ local function drawPallet(assets, item)
     end
 end
 
-local function drawPalletTooltip(state, mouseX, mouseY)
+local function drawPalletTooltip(state, mouseX, mouseY, physicalPallets, pickupView)
     -- Non-world screens still render the live shop as a backdrop, but App
     -- deliberately withholds hover coordinates from that backdrop. A pallet
     -- can become carried between reliable and realtime snapshots, so never
     -- enter the carried-item hit test without an actual pointer position.
-    local tooltip = World and World.palletTooltipAt(state, mouseX, mouseY) or nil
+    local tooltip = World and World.palletTooltipAt(state, mouseX, mouseY,
+        physicalPallets,pickupView) or nil
     if not tooltip then return end
     local width, height = 390, 86
     local x = math.min(Config.baseWidth - width - 12, mouseX + 16)
@@ -223,6 +236,7 @@ local function drawPalletTooltip(state, mouseX, mouseY)
 end
 
 local function drawTruck(assets, state)
+    if (World.truck.sceneId or "warehouse")~="warehouse" then return end
     if not World.truck:isVisible() then return end
     local machineDelivery = World.truck.mode == "machine_delivery"
     local truckImage, cargoImage, cargoSprite
@@ -331,10 +345,7 @@ end
 local function drawCutter(assets, state, placement)
     local cutter = placement or CutterPlacement.ensure(state, Config.cutterPlacement)
     local image = assets.get("polarDirections")
-    local cutterFrames = { northwest = 1, north = 2, northeast = 3, east = 4,
-        southeast = 5, south = 6, southwest = 7, west = 8 }
-    local frame = placement and (cutterFrames[placement.direction] or placement.frame or 1)
-        or CutterPlacement.frame(state, Config.cutterPlacement)
+    local frame = CutterPlacement.rotationFrameFor(cutter)
     local sprite = assets.getQuad("polarDirection" .. frame)
     if image and sprite then
         local scale = Config.cutterPlacement.drawScale
@@ -373,44 +384,47 @@ local function drawRegalFolder(assets, placement)
         station.drawScale, station.drawScale, sprite.width / 2, sprite.height * 0.96)
 end
 
+local function drawChandlerPrice(assets, placement)
+    local image = assets.get("chandlerPriceFrontLeft")
+    if not image then return end
+    local scale = Config.chandlerPricePlacement.drawScale
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.draw(image, placement.x, placement.y, 0,
+        scale, scale, image:getWidth() / 2, image:getHeight() * 0.96)
+end
+
 local function drawWrapper(assets, state, placement)
     local wrapper = placement or WrapperPlacement.ensure(state, Config.wrapperPlacement)
-    local image = assets.get("skidWrapperDirections")
-    local directions = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
-    local frame = placement and (directions[placement.direction] or placement.frame or 1)
-        or WrapperPlacement.frame(state, Config.wrapperPlacement)
-    local sprite = assets.getQuad("skidWrapperDirection" .. frame)
+    local image = assets.get("skidWrapper64Directions")
+    local frame = WrapperPlacement.rotationFrameFor(wrapper)
+    local sprite = assets.getQuad("skidWrapper64Direction" .. frame)
+    local scale = Config.wrapperPlacement.drawScale
+    if not image or not sprite then
+        image = assets.get("skidWrapperDirections")
+        local legacyFrame = ({
+            northwest = 1, north = 1, northeast = 2, east = 2,
+            southeast = 4, south = 4, southwest = 3, west = 3,
+        })[wrapper.direction] or 1
+        sprite = assets.getQuad("skidWrapperDirection" .. legacyFrame)
+        scale = scale * .5
+    end
     if not image or not sprite then return end
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, wrapper.x, wrapper.y, 0,
-        Config.wrapperPlacement.drawScale, Config.wrapperPlacement.drawScale,
+        scale, scale,
         sprite.width / 2, sprite.height * 0.94)
 end
 
 local function drawWindmill(assets, state, placement)
     local item = placement or WindmillPlacement.ensure(state, Config.windmillPlacement)
     local image = assets.get("windmillDirections")
-    local windmillFrames = { northwest = 1, northeast = 2, southwest = 3, southeast = 4 }
-    local frame = placement and (windmillFrames[placement.direction] or placement.frame or 1)
-        or WindmillPlacement.frame(state, Config.windmillPlacement)
+    local frame = WindmillPlacement.rotationFrameFor(item)
     local sprite = assets.getQuad("windmillDirection" .. frame)
     if not image or not sprite then return end
-    if not checkerShader then
-        checkerShader = love.graphics.newShader([[
-            vec4 effect(vec4 color, Image texture, vec2 uv, vec2 screen_coords) {
-                vec4 px = Texel(texture, uv);
-                float spread = max(max(abs(px.r-px.g), abs(px.g-px.b)), abs(px.r-px.b));
-                if (px.r > 0.86 && px.g > 0.86 && px.b > 0.86 && spread < 0.018) discard;
-                return px * color;
-            }
-        ]])
-    end
-    love.graphics.setShader(checkerShader)
     love.graphics.setColor(1, 1, 1)
     love.graphics.draw(image, sprite.quad, item.x, item.y, 0,
         Config.windmillPlacement.drawScale, Config.windmillPlacement.drawScale,
         sprite.width / 2, sprite.height * 0.94)
-    love.graphics.setShader()
 end
 
 local function drawInteractionFocus()
@@ -436,9 +450,10 @@ local pushFacing = {
 
 local function drawPlayer(characterAssets,state)
     local player = World.player
+    if require('src.commute.presentation').indoor(player,state,characterAssets) then return end
     if require("src.basketball_renderer").draw(player,state) then return end
     local character = player.character or Config.player.character
-    local highFive = player.highFiveAnimation
+    local highFive = player.employeeHighFiveAnimation or player.highFiveAnimation
     local highFiveActive = highFive and characterAssets.hasAction(character, "high_five")
     local resting=player.resting and characterAssets.hasAction(character,"sit")
     local jack=state and state.palletJack
@@ -466,8 +481,7 @@ local function drawPlayer(characterAssets,state)
         directionScale=player.facing or -1
     elseif player.moving then
         local directionalAction,mirror
-        directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX,player.velocityY or player.intentY)
+        directionalAction,mirror=CharacterAnimation.actorWalkAction(player)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     else
@@ -496,6 +510,7 @@ local function drawPlayer(characterAssets,state)
             and (partnerX < player.x and -1 or 1)
             or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
     end
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
     local image, quad, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame
@@ -506,7 +521,7 @@ local function drawPlayer(characterAssets,state)
         -- Hold a planted, two-foot stance with both hands on the handle when
         -- the jack is stopped instead of freezing halfway through a stride.
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
-            player.animationDistance,Config.player.walkPixelsPerFrame)
+            player.animationDistance,Config.palletJack.gaitPixelsPerFrame or 20)
     elseif taskActionActive then
         frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else
@@ -518,8 +533,6 @@ local function drawPlayer(characterAssets,state)
     if image and quad then
         local anchorX, anchorY = characterAssets.getAnchor(character, action, frame)
         local scale = Config.player.drawScale * characterAssets.getNormalization(character, action)
-        love.graphics.setColor(0.03, 0.04, 0.05, 0.24)
-        love.graphics.ellipse("fill", player.x, player.y + 1, 13, 5)
         love.graphics.setColor(1, 1, 1)
         if character == "rabbit-worker" then
             RabbitColorways.draw(image, quad, player.x, player.y, 0,
@@ -546,13 +559,25 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     palletPickup = state.screen == "world" and World.palletPickupSnapshot(state, mouseX, mouseY) or nil
     local Rooms=require("src.shop_rooms")
     require("src.shop_room_renderer").selectScene(Rooms.scene(World.player))
+    local physicalPallets=PalletLogistics.physicalPallets(state)
     local sameRoomPlayers={}
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
     remotePlayers=sameRoomPlayers
+    if Rooms.scene(World.player)=="home" then
+        require("src.home_renderer").draw(World,assets,characterAssets,state,remotePlayers,
+            function() drawPlayer(characterAssets,state) end)
+        WarehouseRenderer.endFrame()
+        return
+    end
     if Rooms.scene(World.player)~="warehouse" then
         require("src.shop_room_renderer").drawRoom(World,assets,characterAssets,state,remotePlayers,
             function() drawPlayer(characterAssets,state) end,drawPallet,drawPalletJack,
-            function() PlacementGrid.draw(World.placementGridSnapshot(state,assets)) end)
+            function() PlacementGrid.draw(World.placementGridSnapshot(state,assets)) end,
+            function(machine)
+                if machine.modelId=="polar_115" then drawCutter(assets,state,machine.world)
+                elseif machine.modelId=="skid_wrapper" then drawWrapper(assets,state,machine.world)
+                elseif machine.modelId=="heidelberg_10x15" then drawWindmill(assets,state,machine.world) end
+            end,physicalPallets)
         WarehouseRenderer.endFrame()
         return
     end
@@ -605,13 +630,10 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         actors[#actors + 1] = { y = windmill.moving and jack.y or windmill.y,
             layer = windmill.moving and 2 or 0, draw = function() drawWindmill(assets, state) end }
     end
-    for _, machine in ipairs(MachineFleet.owned(state)) do
-        if machine.status == "installed" and machine.world then
+    for _, machine in ipairs(Renderer.machineUnitsInScene(state, "warehouse")) do
+        if machine.world then
             local storedMachine = machine
-            if storedMachine.modelId == "regal_moll" then
-                actors[#actors + 1] = { y = storedMachine.world.y, layer = 0,
-                    draw = function() drawRegalFolder(assets, storedMachine.world) end }
-            elseif storedMachine.modelId == "polar_115" then
+            if storedMachine.modelId == "polar_115" then
                 actors[#actors + 1] = { y = storedMachine.world.moving and jack.y or storedMachine.world.y,
                     layer = storedMachine.world.moving and 2 or 0,
                     draw = function() drawCutter(assets, state, storedMachine.world) end }
@@ -633,17 +655,20 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local forklift = state and state.forklift
     local forkliftDriver = forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse"
         and forklift.operating and forklift.operatorPlayerId
-    local jackOperator,jackEmployee
-    if jackInScene and jack.operating then
-        if jack.operatorPlayerId == (tonumber(World.player.id) or 1) then jackOperator = World.player end
-        for _, remote in ipairs(remotePlayers or {}) do
-            if tonumber(remote.id) == jack.operatorPlayerId then jackOperator = remote end
-        end
-        for _,entry in ipairs(employeeEntries) do
-            if entry.worker and entry.worker.id==jack.operatorEmployeeId then jackEmployee=entry end
+    local JackFleet=require("src.pallet_jack_fleet")
+    local jackOperators,jackEmployees={},{}
+    for _,vehicle in ipairs(JackFleet.all(state)) do
+        if (vehicle.sceneId or "warehouse")=="warehouse" and vehicle.operating then
+            if vehicle.operatorPlayerId==(tonumber(World.player.id) or 1) then jackOperators[World.player]=true end
+            for _,remote in ipairs(remotePlayers or {}) do
+                if tonumber(remote.id)==vehicle.operatorPlayerId then jackOperators[remote]=true end
+            end
+            for _,entry in ipairs(employeeEntries) do
+                if entry.worker and entry.worker.id==vehicle.operatorEmployeeId then jackEmployees[entry]=true end
+            end
         end
     end
-    if forkliftDriver ~= (tonumber(World.player.id) or 1) and jackOperator ~= World.player then
+    if forkliftDriver ~= (tonumber(World.player.id) or 1) and not jackOperators[World.player] then
     actors[#actors + 1] = { y = World.player.y, draw = function() drawPlayer(characterAssets,state) end }
     end
     if forklift and forklift.owned and (forklift.sceneId or "warehouse")=="warehouse" then
@@ -655,35 +680,57 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         local worker=state.constructionWorker
         actors[#actors+1]={y=worker.y,draw=function() WarehouseRenderer.drawConstructionWorker(worker,state) end}
     end
-    if jackInScene then
+    local deliveryDriver=require("src.warehouse_delivery_driver").presentation(state)
+    if deliveryDriver and deliveryDriver.visible then
+        actors[#actors+1]={y=deliveryDriver.y,draw=function()
+            WarehouseRenderer.drawDeliveryDriver(deliveryDriver)
+            if state.deliveryDriver and state.deliveryDriver.status=="waiting" then
+                WarehouseRenderer.drawDeliverySignatureHint(deliveryDriver)
+            end
+        end}
+    end
+    for _,vehicle in ipairs(JackFleet.all(state)) do
+      if (vehicle.sceneId or "warehouse")=="warehouse" then
+        local vehicleState=JackFleet.view(state,vehicle)
+        local jackOperator,jackEmployee
+        if vehicle.operating then
+            if vehicle.operatorPlayerId==(tonumber(World.player.id) or 1) then jackOperator=World.player end
+            for _,remote in ipairs(remotePlayers or {}) do
+                if tonumber(remote.id)==vehicle.operatorPlayerId then jackOperator=remote end
+            end
+            for _,entry in ipairs(employeeEntries) do
+                if entry.worker and entry.worker.id==vehicle.operatorEmployeeId then jackEmployee=entry end
+            end
+        end
         actors[#actors + 1] = {
-            y = jack.y,
-            layer = jack.operating and 1 or 0,
+            y = vehicle.y,
+            layer = vehicle.operating and 1 or 0,
             draw = function()
-                local pose = PalletJack.visualPose(state, Config.palletJack)
+                local pose = PalletJack.visualPose(vehicleState, Config.palletJack)
                 local workerBehind = math.sin(pose.heading) >= 0
                 local function drawOperator()
-                    if jackOperator == World.player then drawPlayer(characterAssets, state)
-                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, state)
-                    elseif jackEmployee then EmployeeRenderer.draw(jackEmployee,characterAssets,state) end
+                    if jackOperator == World.player then drawPlayer(characterAssets, vehicleState)
+                    elseif jackOperator then MultiplayerAvatarRenderer.draw(characterAssets, {jackOperator}, vehicleState)
+                    elseif jackEmployee then EmployeeRenderer.draw(jackEmployee,characterAssets,vehicleState) end
                 end
                 if workerBehind then drawOperator() end
-                drawPalletJack(assets, state)
+                drawPalletJack(assets, vehicleState)
                 if not workerBehind then drawOperator() end
             end,
         }
+      end
     end
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         local player = remotePlayer
         if type(player) == "table" and type(player.y) == "number"
-            and forkliftDriver ~= tonumber(player.id) and player ~= jackOperator then
+            and forkliftDriver ~= tonumber(player.id) and not jackOperators[player] then
             actors[#actors + 1] = {
                 y = player.y,
                 draw = function() MultiplayerAvatarRenderer.draw(characterAssets, { player },state) end,
             }
         end
     end
-    for _, item in ipairs(PalletLogistics.physicalPallets(state)) do
+    for _, item in ipairs(physicalPallets) do
         -- A realtime jack snapshot can arrive just before its reliable durable
         -- pallet transition. Suppress the host-declared carried ID immediately
         -- so the load never appears both on the floor and on the forks.
@@ -736,13 +783,13 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             local room=WarehouseRenderer.breakroomPlan(state,employee.actor.seatBay)
             if room then depth=room.depthY+.1 end
         end
-        if employee~=jackEmployee then
+        if not jackEmployees[employee] then
             actors[#actors+1]={y=depth,draw=function() EmployeeRenderer.draw(employee,characterAssets,state) end}
         end
     end
-    local technician = state and Technician.ensure(state)
+    local technician = state and Technician.presentation(state)
     if technician and technician.visible then
-        actors[#actors + 1] = { y = technician.y, draw = function() Technician.draw(assets, state) end }
+        actors[#actors + 1] = { y = technician.y, draw = function() Technician.draw(assets, state, characterAssets) end }
     end
     table.sort(actors, function(a, b)
         if a.y == b.y then return (a.layer or 0) < (b.layer or 0) end
@@ -760,7 +807,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     HighFiveUi.drawWorld(mouseX, mouseY, remotePlayers, World.player, {
         active = type(remotePlayers) == "table" and #remotePlayers > 0,
     })
-    drawPalletTooltip(state, mouseX, mouseY)
+    drawPalletTooltip(state, mouseX, mouseY,physicalPallets,palletPickup)
     if forklift and (forklift.sceneId or "warehouse")=="warehouse" then
         WarehouseRenderer.drawVehicleStatus(state)
     end

@@ -34,18 +34,76 @@ local function pop(heap)
     end
     return result
 end
+local function goalBounds(entries)
+    local minX,minY,maxX,maxY=math.huge,math.huge,-math.huge,-math.huge
+    for _,entry in ipairs(entries) do
+        minX,minY=math.min(minX,entry.goal.x),math.min(minY,entry.goal.y)
+        maxX,maxY=math.max(maxX,entry.goal.x),math.max(maxY,entry.goal.y)
+    end
+    return minX,minY,maxX,maxY
+end
+local function buildGoalTree(entries)
+    local minX,minY,maxX,maxY=goalBounds(entries)
+    local node={minX=minX,minY=minY,maxX=maxX,maxY=maxY}
+    if #entries<=12 then node.entries=entries;return node end
+    local splitX=maxX-minX>=maxY-minY
+    table.sort(entries,function(a,b)
+        local av,bv=splitX and a.goal.x or a.goal.y,splitX and b.goal.x or b.goal.y
+        if av~=bv then return av<bv end
+        local ao,bo=splitX and a.goal.y or a.goal.x,splitX and b.goal.y or b.goal.x
+        if ao~=bo then return ao<bo end
+        return a.order<b.order
+    end)
+    local middle=math.floor(#entries*.5)
+    local left,right={},{}
+    for index=1,middle do left[index]=entries[index] end
+    for index=middle+1,#entries do right[#right+1]=entries[index] end
+    node.left,node.right=buildGoalTree(left),buildGoalTree(right)
+    return node
+end
+local function boxDistanceSquared(node,x,y)
+    local dx=x<node.minX and node.minX-x or x>node.maxX and x-node.maxX or 0
+    local dy=y<node.minY and node.minY-y or y>node.maxY and y-node.maxY or 0
+    return dx*dx+dy*dy
+end
+local function nearestGoalSquared(node,x,y,best)
+    if boxDistanceSquared(node,x,y)>=best then return best end
+    if node.entries then
+        for _,entry in ipairs(node.entries) do
+            local dx,dy=x-entry.goal.x,y-entry.goal.y
+            best=math.min(best,dx*dx+dy*dy)
+        end
+        return best
+    end
+    local leftDistance=boxDistanceSquared(node.left,x,y)
+    local rightDistance=boxDistanceSquared(node.right,x,y)
+    if leftDistance<=rightDistance then
+        if leftDistance<best then best=nearestGoalSquared(node.left,x,y,best) end
+        if rightDistance<best then best=nearestGoalSquared(node.right,x,y,best) end
+    else
+        if rightDistance<best then best=nearestGoalSquared(node.right,x,y,best) end
+        if leftDistance<best then best=nearestGoalSquared(node.left,x,y,best) end
+    end
+    return best
+end
 
-function Navigator.findPath(actor, candidates, context)
-    local obstacles = ObstacleIndex.new(context.obstacles(actor))
+function Navigator.findPath(actor, candidates, context, obstacleSnapshot)
+    local obstacles = ObstacleIndex.new(obstacleSnapshot or context.obstacles(actor),context.obstacleIndexScratch)
+    local walkability=Navigation.walkabilityContext(context.assets)
     local goals = {}
     for _, goal in ipairs(candidates or {}) do
-        if Navigation.isWalkable(context.assets, goal.x, goal.y, obstacles) then
+        if Navigation.isWalkable(context.assets, goal.x, goal.y, obstacles,walkability) then
             goals[#goals+1] = goal
         end
     end
     if #goals == 0 then return nil end
+    -- Segment queries are synchronous within this search. Reuse the candidate
+    -- list and its generation-mark table instead of allocating both for every
+    -- indexed segment that crosses a cell boundary.
+    local segmentScratch={items={},seen={},generation=0}
     local function clear(a, b, recover)
-        return Navigation.canTraverse(context.assets, a.x, a.y, b.x, b.y, obstacles, recover)
+        return Navigation.canTraverse(context.assets, a.x, a.y, b.x, b.y,
+            obstacles,recover,segmentScratch,walkability)
     end
     -- The usual case needs no grid search at all.
     for _, goal in ipairs(goals) do
@@ -53,19 +111,52 @@ function Navigator.findPath(actor, candidates, context)
     end
     local columns = math.floor(Config.baseWidth / STEP) + 1
     local function key(x, y) return y * columns + x + 1 end
+    local goalBuckets,goalTree
+    if #goals>32 then
+        goalBuckets={};local entries={}
+        for order,goal in ipairs(goals) do
+            local gx,gy=math.floor(goal.x/STEP),math.floor(goal.y/STEP)
+            local cellKey=key(gx,gy);local bucket=goalBuckets[cellKey]
+            if not bucket then bucket={};goalBuckets[cellKey]=bucket end
+            local entry={goal=goal,order=order}
+            bucket[#bucket+1]=entry;entries[#entries+1]=entry
+        end
+        goalTree=buildGoalTree(entries)
+    end
+    local nearestGoalCache={}
+    local function goalBucket(x,y)
+        if x<0 or y<0 or x*STEP>=Config.baseWidth or y*STEP>=Config.baseHeight then return nil end
+        return goalBuckets and goalBuckets[key(x,y)]
+    end
     local function heuristic(x, y)
+        if #goals == 1 then
+            local goal = goals[1]
+            return math.sqrt((x-goal.x)^2+(y-goal.y)^2)
+        end
+        if goalBuckets then
+            local cellX,cellY=math.floor(x/STEP),math.floor(y/STEP)
+            local cellId=key(cellX,cellY)
+            local cached=nearestGoalCache[cellId]
+            if cached then return cached end
+            cached=math.sqrt(nearestGoalSquared(goalTree,x,y,math.huge))
+            nearestGoalCache[cellId]=cached
+            return cached
+        end
         local best = math.huge
         for _, goal in ipairs(goals) do
-            best = math.min(best, math.sqrt((x-goal.x)^2+(y-goal.y)^2))
+            best = math.min(best, (x-goal.x)^2+(y-goal.y)^2)
         end
-        return best
+        -- Drop/parking searches may have hundreds of candidate contacts.
+        -- Comparing squared lengths preserves the nearest-goal heuristic
+        -- without taking a square root for every candidate at every node.
+        return math.sqrt(best)
     end
     local heap, scores, closed, walkable = {}, {}, {}, {}
     local function walk(x, y)
         if x < 0 or y < 0 or x * STEP >= Config.baseWidth or y * STEP >= Config.baseHeight then return false end
         local id = key(x,y)
         if walkable[id] == nil then
-            walkable[id] = Navigation.isWalkable(context.assets,x*STEP,y*STEP,obstacles)
+            walkable[id] = Navigation.isWalkable(context.assets,x*STEP,y*STEP,obstacles,walkability)
         end
         return walkable[id]
     end
@@ -86,9 +177,25 @@ function Navigator.findPath(actor, candidates, context)
         local node=pop(heap)
         if not closed[node.id] then
             closed[node.id]=true;visited=visited+1
-            for _,goal in ipairs(goals) do
-                if distance(node,goal)<=STEP*2 and clear(node,goal) then
-                    target,selected=node,goal;break
+            if goalBuckets then
+                local bestOrder,bestGoal=math.huge,nil
+                for dx=-2,2 do for dy=-2,2 do
+                    for _,entry in ipairs(goalBucket(node.gx+dx,node.gy+dy) or {}) do
+                        if entry.order<bestOrder then
+                            local goal=entry.goal;local gx,gy=node.x-goal.x,node.y-goal.y
+                            if gx*gx+gy*gy<=(STEP*2)^2 and clear(node,goal) then
+                                bestOrder,bestGoal=entry.order,goal
+                            end
+                        end
+                    end
+                end end
+                if bestGoal then target,selected=node,bestGoal end
+            else
+                for _,goal in ipairs(goals) do
+                    local dx,dy=node.x-goal.x,node.y-goal.y
+                    if dx*dx+dy*dy<=(STEP*2)^2 and clear(node,goal) then
+                        target,selected=node,goal;break
+                    end
                 end
             end
             if target then break end
@@ -132,6 +239,32 @@ function Navigator.status(actor)
     local route=routes[actor]
     return route and route.status or "idle",route and route.failures or 0
 end
+function Navigator.recover(actor,context,goal)
+    if type(actor)~='table' or type(context)~='table' or type(context.obstacles)~='function' then
+        return false,'Movement context is unavailable.'
+    end
+    local obstacles=ObstacleIndex.new(context.obstacles(actor),context.obstacleIndexScratch)
+    local best,bestScore
+    for _,radius in ipairs({10,18,28,40}) do
+        for index=0,15 do
+            local angle=index*math.pi/8
+            local x,y=actor.x+math.cos(angle)*radius,actor.y+math.sin(angle)*radius
+            if Navigation.isWalkable(context.assets,x,y,obstacles)
+                and Navigation.canTraverse(context.assets,actor.x,actor.y,x,y,obstacles,true) then
+                local score=radius
+                if goal then score=score+distance({x=x,y=y},goal)*.2 end
+                if not bestScore or score<bestScore then
+                    best,bestScore={x=x,y=y},score
+                end
+            end
+        end
+        if best then break end
+    end
+    if not best then return false,'No collision-safe walking space found nearby.' end
+    actor.x,actor.y=best.x,best.y
+    routes[actor]=nil
+    return true,best
+end
 function Navigator.findReachablePoint(actor, goals, context)
     local points,goal=Navigator.findPath(actor,goals,context)
     if not points then return nil end
@@ -159,7 +292,7 @@ local function prepare(actor,goal,dt,context,obstacles)
         route.points=nil;route.retry=0;route.stalled=0;route.status="replanning"
     end
     if not route.points and route.retry<=0 then
-        route.points=Navigator.findPath(actor,{goal},context)
+        route.points=Navigator.findPath(actor,{goal},context,obstacles)
         route.index=1;route.retry=RETRY
         if not route.points then
             route.failures=route.failures+1;route.status="unreachable"
@@ -175,7 +308,7 @@ end
 -- the opposite side of a wall, and no movement step skips over a collider.
 function Navigator.travel(actor,goal,budget,dt,context)
     dt=math.max(0,dt or 0);budget=math.max(0,budget or 0)
-    local obstacles=context.obstacles(actor)
+    local obstacles=ObstacleIndex.new(context.obstacles(actor),context.obstacleIndexScratch)
     if distance(actor,goal)<.01 and Navigation.isWalkable(context.assets,goal.x,goal.y,obstacles) then
         local route=routes[actor];if route then route.status="arrived" end
         return true,budget,0,false
@@ -202,7 +335,17 @@ function Navigator.travel(actor,goal,budget,dt,context)
                 route.points=nil;route.retry=0;break
             end
         end
-        if amount>.001 then lastMotionX,lastMotionY=(nx-actor.x)/amount,(ny-actor.y)/amount end
+        if amount>.001 then
+            -- Coordinate rounding can make achieved displacement slightly larger
+            -- than the requested budget. Network direction fields must stay in
+            -- [-1,1], so normalize the achieved vector rather than the budget.
+            local dx,dy=nx-actor.x,ny-actor.y
+            local moved=math.sqrt(dx*dx+dy*dy)
+            if moved>0 then
+                lastMotionX=math.max(-1,math.min(1,dx/moved))
+                lastMotionY=math.max(-1,math.min(1,dy/moved))
+            end
+        end
         actor.x,actor.y=nx,ny;budget=budget-amount;travelled=travelled+amount
         if length>amount then break end
         route.index=route.index+1;route.stalled=0

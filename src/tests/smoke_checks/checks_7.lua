@@ -10,13 +10,14 @@ function Component.run(Context)
     Context.check("computer_inventory_tab_click",
         Context.selectComputerTab(Context.context.computerScreen, Context.serviceState, "inventory").tab == "inventory")
     Context.officeInventory = Context.context.procurement.inventoryRows(Context.serviceState)
-    Context.check("computer_inventory_exposes_purchasable_stock", #Context.officeInventory >= 10
+    Context.check("computer_inventory_exposes_purchasable_stock", #Context.officeInventory >= 11
         and Context.officeInventory[1].id == "house_sheets"
         and Context.officeInventory[3].id == "shipping_cartons"
         and Context.officeInventory[4].id == "stretch_film"
         and Context.officeInventory[5].id == "maintenance_kit"
-        and Context.officeInventory[6].id == "black_ink"
-        and Context.officeInventory[10].id == "raw_press_plates")
+        and Context.officeInventory[6].id == "cutter_blade"
+        and Context.officeInventory[7].id == "black_ink"
+        and Context.officeInventory[11].id == "raw_press_plates")
     Context.wwwTabResult = Context.selectComputerTab(Context.context.computerScreen, Context.serviceState, "www")
     Context.paperSiteX, Context.paperSiteY = Context.context.computerScreen.wwwSiteCenter(1)
     Context.paperSiteResult = Context.context.computerScreen.mousepressed(Context.serviceState, Context.paperSiteX, Context.paperSiteY, 1)
@@ -32,7 +33,7 @@ function Component.run(Context)
         and Context.wwwTabResult.tab == "www" and Context.paperSiteResult
         and Context.paperSiteResult.site.url == "www.thecritternet.com/paper-depot" and Context.cartAdd
         and Context.cartAdd.action == "cart_item_added"
-        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 30
+        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 26
         and Context.computerCheckout.action == "cart_checked_out"
         and Context.computerOrder.channel == "computer"
         and Context.computerOrder.pallets[1].quantity == 250
@@ -49,9 +50,10 @@ function Component.run(Context)
     Context.billsTabResult = Context.selectComputerTab(Context.context.computerScreen, Context.billUiState, "bills")
     Context.payBillsX, Context.payBillsY = Context.context.computerScreen.payBillsCenter()
     Context.billPayment = Context.context.computerScreen.mousepressed(Context.billUiState, Context.payBillsX, Context.payBillsY, 1)
-    Context.check("computer_bills_tab_pays_monthly_expenses", Context.billsTabResult and Context.billsTabResult.tab == "bills"
-        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 3950
-        and Context.billUiState.money == 1050 and Context.billUiState.bills.balance == 0)
+    Context.check("computer_bills_tab_pays_monthly_expenses", Context.billsTabResult and Context.billsTabResult.tab == "financials"
+        and Context.context.computerScreen.financialSection == "bills"
+        and Context.billPayment and Context.billPayment.action == "bill_paid" and Context.billPayment.amount == 4135
+        and Context.billUiState.money == 865 and Context.billUiState.bills.balance == 0)
 
     Context.calendarUiState = Context.context.State.new()
     Context.calendarUiState.clientEmails.pending = {}
@@ -63,6 +65,13 @@ function Component.run(Context)
         Context.calendarUiState.bills.ledger[index] = {
             id = "CAL-BILL-" .. index, total = 100, status = "unpaid",
             issuedOnDay = index - 1, dueOnDay = index - 1,
+        }
+    end
+    Context.calendarUiState.townCalendarEvents={}
+    for index=1,8 do
+        Context.calendarUiState.townCalendarEvents[index]={
+            id='TOWN-CALENDAR-'..index,title='Community gathering '..index,
+            detail='Town square',startHours=4*24+10+index,
         }
     end
     Context.privateReplySchedule = Context.context.businessCalendar.events(Context.calendarUiState)
@@ -78,17 +87,30 @@ function Component.run(Context)
         Context.calendarUiState, Context.calendarDayX, Context.calendarDayY, 1)
     Context.check("computer_calendar_days_are_clickable", Context.selectedCalendarDay
         and Context.selectedCalendarDay.action == "calendar_day" and Context.selectedCalendarDay.day == 5
-        and Context.context.computerScreen.calendarSelectedDay == 5)
-    Context.context.computerScreen.calendarScroll = 0
-    Context.check("computer_calendar_event_list_mouse_wheel_scrolls",
+        and Context.context.computerScreen.calendarSelectedDay == 5
+        and Context.context.computerScreen.calendarDayOpen==true)
+    local shopDayEvents,townDayEvents=Context.context.computerScreen.calendarDayEvents(
+        Context.calendarUiState,Context.calendarUiState.calendar.year,
+        Context.calendarUiState.calendar.month,5)
+    Context.check('computer_calendar_daily_agenda_separates_shop_and_town_events',
+        #shopDayEvents>=1 and #townDayEvents==8 and townDayEvents[1].hour~=nil)
+    Context.context.computerScreen.calendarDayScroll = 0
+    Context.check("computer_calendar_day_agenda_mouse_wheel_scrolls",
         Context.context.computerScreen.wheelmoved(Context.calendarUiState, 0, -1)
-        and Context.context.computerScreen.calendarScroll == 1)
-    Context.calendarDownX, Context.calendarDownY = Context.context.computerScreen.calendarScrollCenter("down")
+        and Context.context.computerScreen.calendarDayScroll == 1)
+    Context.calendarDownX, Context.calendarDownY = Context.context.computerScreen.calendarDayScrollCenter("down")
     Context.calendarScrollResult = Context.context.computerScreen.mousepressed(
         Context.calendarUiState, Context.calendarDownX, Context.calendarDownY, 1)
-    Context.check("computer_calendar_event_list_buttons_scroll", Context.calendarScrollResult
-        and Context.calendarScrollResult.action == "calendar_scroll"
-        and Context.context.computerScreen.calendarScroll == 2)
+    Context.check("computer_calendar_day_agenda_buttons_scroll", Context.calendarScrollResult
+        and Context.calendarScrollResult.action == "calendar_day_scroll"
+        and Context.context.computerScreen.calendarDayScroll == 2)
+    Context.calendarCloseX,Context.calendarCloseY=
+        Context.context.computerScreen.calendarDayCloseCenter()
+    Context.calendarClose=Context.context.computerScreen.mousepressed(
+        Context.calendarUiState,Context.calendarCloseX,Context.calendarCloseY,1)
+    Context.check('computer_calendar_day_agenda_closes_from_popup_button',
+        Context.calendarClose and Context.calendarClose.action=='calendar_day_closed'
+            and not Context.context.computerScreen.calendarDayOpen)
 
     Context.JobLoopIntegration.run(Context.context, Context.check, Context.jobs)
 

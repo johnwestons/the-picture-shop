@@ -5,7 +5,8 @@ local BackButton = require("src.screens.back_button")
 local Config = require("src.config")
 local Ui = require("src.screens.ui")
 
-local Screen = {}
+local Screen = {page=1,manifestKey=nil,manifestState=nil}
+local PAGE_SIZE = 3
 local CLOSE = { x = 744, y = 60, width = 140, height = 42 }
 local DOOR = { x = 650, y = 570, width = 220, height = 42 }
 local PREVIOUS = {x=82,y=410,width=150,height=38}
@@ -37,9 +38,28 @@ local function remainingCargo(state, snapshot)
     return Logistics.remainingOnTruck(state, snapshot.jobId)
 end
 
-local function available(item, pickup, machineDelivery)
+local function localPage(state,snapshot,count)
+    local key=tostring(snapshot.mode)..':'..tostring(snapshot.jobId)
+    if Screen.manifestState~=state or Screen.manifestKey~=key then
+        Screen.manifestState,Screen.manifestKey,Screen.page=state,key,1
+    end
+    local pageCount=math.max(1,math.ceil(count/PAGE_SIZE))
+    Screen.page=math.max(1,math.min(pageCount,Screen.page))
+    return Screen.page,pageCount
+end
+
+local function pageItems(inventory,page)
+    local rows={}
+    local first=(page-1)*PAGE_SIZE+1
+    for index=first,math.min(#inventory,first+PAGE_SIZE-1) do
+        rows[#rows+1]=inventory[index]
+    end
+    return rows
+end
+
+local function available(item, pickup, machineDelivery, state, scene)
     if machineDelivery then return item ~= nil end
-    if pickup then return item.location == "warehouse" or item.location == "cutter_output" or item.location == "press_output" end
+    if pickup then return JobService.pickupItemAvailable(state,item,scene) end
     return item.location == "awaiting_delivery"
 end
 
@@ -48,15 +68,19 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         or world.truckSnapshot()
     local pickup = snapshot.mode == "pickup"
     local machineDelivery = snapshot.mode == "machine_delivery"
-    local job, inventory = manifest(state, snapshot)
-    local totalItems = #inventory
+    local job, allInventory = manifest(state, snapshot)
+    local totalItems = #allInventory
+    local inventory,page,pageCount
     if remoteView then
-        local page={}
+        page,pageCount=remoteView.page,remoteView.pageCount
+        local rows={}
         for index,record in ipairs(remoteView.items) do
-            local item=inventory[(remoteView.page-1)*3+index]
-            page[index]=item or {display=record}
+            rows[index]={display=record}
         end
-        inventory=page
+        inventory=rows
+    else
+        page,pageCount=localPage(state,snapshot,totalItems)
+        inventory=pageItems(allInventory,page)
     end
     local vendorDelivery = snapshot.mode == "vendor_delivery"
     box(52, 42, 856, 592, { 0.045, 0.06, 0.075, 0.99 }, { 0.40, 0.64, 0.70, 1 }, 6)
@@ -80,10 +104,18 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         love.graphics.print(remoteView and (remoteView.manifestId .. "  •  " .. remoteView.title)
             or "No delivery manifest is attached to this truck.", 82, 105)
     end
+    local run=state.home and state.home.commute and state.home.commute.deliveryRun
+    if pickup and run and run.status=='loading' then
+        for _,id in ipairs(run.jobIds) do if id==snapshot.jobId then
+            local loaded,total=require('src.commute.delivery_run').loadingProgress(state,run)
+            if loaded then love.graphics.print(('Delivery route: %d / %d pallets loaded'):format(loaded,total),82,128) end
+            break
+        end end
+    end
 
     for index, item in ipairs(inventory) do
         local row, button = rowRect(index), unloadRect(index)
-        local canMove = available(item, pickup, machineDelivery)
+        local canMove = available(item, pickup, machineDelivery,state,snapshot.sceneId)
         if remoteView then canMove=remoteView.items[index].available end
         box(row.x, row.y, row.width, row.height,
             canMove and { 0.08, 0.12, 0.15, 1 } or { 0.07, 0.16, 0.12, 1 },
@@ -106,7 +138,7 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         elseif pickup then
             love.graphics.print(string.format("%s finished sheets  |  %s  |  %s",
                 commaNumber(item.sheets), tostring(item.pallet.packagedAs or item.pallet.packaging),
-                tostring(item.status)), row.x + 18, row.y + 38)
+                item.location=='outbound_truck' and 'Loaded' or tostring(item.status):gsub('_',' ')), row.x + 18, row.y + 38)
         elseif vendorDelivery then
             love.graphics.print(string.format("%s  |  %s %s", item.productName,
                 tostring(item.quantity), item.unit), row.x + 18, row.y + 38)
@@ -134,14 +166,14 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
     local readyState = machineDelivery and snapshot.state == "parked_closed" or snapshot.state == "cargo_open"
     local ready = remaining == 0 and readyState
     if remoteView then ready=remoteView.canClose end
-    if remoteView and remoteView.pageCount>1 then
+    if pageCount>1 then
         for _,r in ipairs({PREVIOUS,NEXT}) do
             box(r.x,r.y,r.width,r.height,{0.08,0.12,0.15,1},{0.40,0.64,0.70,1},4)
         end
         love.graphics.setColor(0.94,0.96,0.94)
         love.graphics.printf("< PREVIOUS",PREVIOUS.x,PREVIOUS.y+12,PREVIOUS.width,"center")
         love.graphics.printf("NEXT >",NEXT.x,NEXT.y+12,NEXT.width,"center")
-        love.graphics.printf(string.format("PAGE %d / %d",remoteView.page,remoteView.pageCount),300,422,360,"center")
+        love.graphics.printf(string.format("PAGE %d / %d",page,pageCount),300,422,360,"center")
     end
     box(DOOR.x, DOOR.y, DOOR.width, DOOR.height,
         ready and { 0.18, 0.46, 0.30, 1 } or { 0.16, 0.17, 0.18, 1 },
@@ -155,9 +187,9 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
     love.graphics.setColor(0.68, 0.75, 0.77)
     local instruction = machineDelivery
         and "Click Unload to receive this machine, then release the empty flatbed."
-        or (pickup and "Click a manifest row to load that wrapped pallet into the customer truck."
+        or (pickup and "Load wrapped pallets using this manifest or let employees use their jacks."
             or "Click a manifest row to place that pallet outside the truck.")
-    love.graphics.print(instruction, 82, 588)
+    love.graphics.printf(instruction, 82, 572, 548, 'left')
     if not pickup and not machineDelivery then
         love.graphics.print(string.format("Receiving lanes: %d / %d open", receiving.open, receiving.total), 82, 608)
     end
@@ -174,8 +206,18 @@ function Screen.mousepressed(state, world, x, y, button)
     local pickup = snapshot.mode == "pickup"
     local machineDelivery = snapshot.mode == "machine_delivery"
     local _, inventory = manifest(state, snapshot)
-    for index, item in ipairs(inventory) do
-        local canMove = available(item, pickup, machineDelivery)
+    local page,pageCount=localPage(state,snapshot,#inventory)
+    if pageCount>1 then
+        if inside(PREVIOUS,x,y) and page>1 then
+            Screen.page=page-1
+            return {action="page_changed"}
+        elseif inside(NEXT,x,y) and page<pageCount then
+            Screen.page=page+1
+            return {action="page_changed"}
+        end
+    end
+    for index,item in ipairs(pageItems(inventory,page)) do
+        local canMove = available(item, pickup, machineDelivery,state,snapshot.sceneId)
         if inside(unloadRect(index), x, y) and canMove then
             local succeeded, cargo, remaining
             if pickup then

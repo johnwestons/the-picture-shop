@@ -6,7 +6,7 @@ function Component.install(Runtime)
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade" })
+            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost" })
         if not valid then return nil, shapeError end
         local taskAction, taskActionError = Runtime.normalizeTaskAction(
             payload.taskAction, "input.taskAction")
@@ -22,6 +22,8 @@ function Component.install(Runtime)
         local moveY
         moveY, fieldError = Runtime.numberInRange(payload.moveY, -1, 1, "input.moveY")
         if not moveY then return nil, fieldError end
+        local boost=payload.boost
+        if boost~=nil and type(boost)~='boolean' then return nil,'input.boost must be boolean' end
         local gameX,gameY=0,0
         if payload.gameX~=nil then
             gameX,fieldError=Runtime.numberInRange(payload.gameX,-1,1,"input.gameX")
@@ -82,12 +84,12 @@ function Component.install(Runtime)
         end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
             furColorway = furColorway, overallsColorway = overallsColorway,
-            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade }
+            taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade,boost=boost }
     end
 
     function Runtime.normalizeSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "snapshot payload",
-            { "sessionId", "serverTick", "players" }, { "games", "balls" })
+            { "sessionId", "serverTick", "players" }, { "games", "balls", "bike" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "snapshot.sessionId")
         if not sessionId then return nil, fieldError end
@@ -102,6 +104,18 @@ function Component.install(Runtime)
         local players
         if ballShard then players=Runtime.Codec.array({}) else players,fieldError=Runtime.normalizePlayers(payload.players,"snapshot.players") end
         if not players then return nil, fieldError end
+        local bike=payload.bike
+        if bike~=nil then
+            if not players[1] or players[1].sceneId~='commute'
+                or not Runtime.shape(bike,"snapshot.bike",{"token","heading","speed","steer","brake"})
+                or not Runtime.integerInRange(bike.token,1,1e12,"bike.token")
+                or not Runtime.numberInRange(bike.heading,-2*math.pi,2*math.pi,"bike.heading")
+                or not Runtime.numberInRange(bike.speed,0,100,"bike.speed")
+                or not Runtime.numberInRange(bike.steer,-1,1,"bike.steer")
+                or not Runtime.numberInRange(bike.brake,0,1,"bike.brake") then
+                return nil,"snapshot.bike is invalid"
+            end
+        end
         local games
         if payload.games ~= nil then
             if not Runtime.Codec.isArray(payload.games) or #payload.games > 2 then
@@ -206,7 +220,7 @@ function Component.install(Runtime)
                 balls[index]=entry
             end
         end
-        return { sessionId = sessionId, serverTick = serverTick, players = players,
+        return { sessionId = sessionId, serverTick = serverTick, players = players, bike = bike,
             games = games and Runtime.Codec.array(games) or nil,
             balls = balls and Runtime.Codec.array(balls) or nil }
     end
@@ -355,10 +369,17 @@ function Component.install(Runtime)
 
     function Runtime.normalizeTruck(value, label)
         local valid, shapeError = Runtime.shape(value, label,
-            { "state", "backingProgress", "cargoProgress" }, { "jobId", "mode" })
+            { "state", "backingProgress", "cargoProgress" }, { "jobId", "mode", "sceneId" })
         if not valid then return nil, shapeError end
         if not Runtime.TRUCK_STATES[value.state] then return nil, label .. ".state is invalid" end
         local normalized = { state = value.state }
+        if value.sceneId~=nil then
+            if value.sceneId~="warehouse" and value.sceneId~="front_left" and value.sceneId~="front_right" then
+                return nil,label..".sceneId is invalid"
+            end
+            if value.sceneId~="warehouse" and value.mode~="pickup" then return nil,label..".room truck must be a pickup" end
+            normalized.sceneId=value.sceneId
+        end
         local fieldError
         normalized.backingProgress, fieldError = Runtime.numberInRange(
             value.backingProgress, 0, 1, label .. ".backingProgress")
@@ -386,7 +407,8 @@ function Component.install(Runtime)
 
     function Runtime.normalizeEnvironmentSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "environment_snapshot payload",
-            { "sessionId", "serverTick", "bayDoor", "truck" }, { "employees" })
+            { "sessionId", "serverTick", "bayDoor", "truck" },
+            { "employees", "technician", "roomDoors", "deliveryDriver" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "environment_snapshot.sessionId")
@@ -406,13 +428,29 @@ function Component.install(Runtime)
             employees=Runtime.EmployeePose.normalize(payload.employees)
             if not employees then return nil,"environment_snapshot.employees is inconsistent" end
         end
-        return {
-            sessionId = sessionId,
-            serverTick = serverTick,
-            bayDoor = bayDoor,
-            truck = truck,
-            employees = employees,
-        }
+        local technician
+        if payload.technician~=nil then
+            technician=Runtime.TechnicianPose.normalize(payload.technician)
+            if not technician then return nil,"environment_snapshot.technician is inconsistent" end
+        end
+        local deliveryDriver
+        if payload.deliveryDriver~=nil then
+            deliveryDriver=Runtime.DeliveryDriverPose.normalize(payload.deliveryDriver)
+            if not deliveryDriver then return nil,"environment_snapshot.deliveryDriver is inconsistent" end
+        end
+        local roomDoors
+        if payload.roomDoors~=nil then
+            local okay,errorMessage=Runtime.shape(payload.roomDoors,"roomDoors",{"front_left","front_right"})
+            if not okay then return nil,errorMessage end
+            roomDoors={}
+            for _,id in ipairs({"front_left","front_right"}) do
+                roomDoors[id],errorMessage=Runtime.normalizeBayDoor(payload.roomDoors[id],"roomDoors."..id)
+                if not roomDoors[id] then return nil,errorMessage end
+            end
+        end
+        return {sessionId=sessionId,serverTick=serverTick,bayDoor=bayDoor,
+            truck=truck,employees=employees,technician=technician,roomDoors=roomDoors,
+            deliveryDriver=deliveryDriver}
     end
 
     function Runtime.normalizeEmployeeSnapshot(payload)

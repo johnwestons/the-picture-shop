@@ -1,0 +1,5 @@
+Correct only the lower-leg reach in the phase-6 worker shown in reference 2. Reference 1 is the exact identity and proportion anchor. Keep the screen-right leg as the support leg and the screen-left foot lifted. Preserve the head, ears, torso width, arms, overalls, belt, tail, pouch, tools, outline weight and boot size from reference 1. Preserve the upper body and right-side support boot shape from reference 2.
+
+Place the bottom of the screen-right support sole 34 V7-source pixels lower in image-Y than it is in reference 2 after matching head width. This makes its total shift from phase-5 in reference 1 equal to 82 pixels. Extend the screen-right shin and pant leg naturally; do not shift the whole character or enlarge the boot. The screen-left foot remains slightly lifted. Do not change any other proportions or colors.
+
+Single complete north-facing rabbit worker, clean black outlines, true transparent RGBA, no colored fringe, no checkerboard, no glow, shadow, labels, grid, scenery or extra parts.

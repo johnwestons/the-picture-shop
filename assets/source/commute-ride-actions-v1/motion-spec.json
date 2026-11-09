@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "character": "helmeted-rabbit-motorcycle-rider",
+  "animations": {
+    "mount": {
+      "path": "assets/generated/commute-ride-actions-v1/mount-southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "duration": 0.8,
+      "role": "action"
+    },
+    "dismount": {
+      "path": "assets/generated/commute-ride-actions-v1/dismount-southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 6,
+      "loop": false,
+      "duration": 1.1,
+      "role": "action"
+    },
+    "crash": {
+      "path": "assets/generated/commute-ride-actions-v1/crash-southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": false,
+      "duration": 1.35,
+      "role": "action"
+    }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003
+  }
+}

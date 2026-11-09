@@ -67,7 +67,7 @@ function Test.run(context, check)
         applyPlayerColorways = function(fur, overalls)
             appliedFur, appliedOveralls = fur, overalls
         end })
-    OptionsScreen.mousepressed(625, 114, 1)
+    OptionsScreen.mousepressed(543, 114, 1)
     OptionsScreen.mousepressed(292 + (furIndex - 1) * 80 + 36, 301, 1)
     OptionsScreen.mousepressed(292 + (overallsIndex - 1) * 80 + 36, 461, 1)
     Settings.save, Settings.applyAudio, Settings.applyDisplay = previousSave, previousAudio, previousDisplay
@@ -179,7 +179,7 @@ function Test.run(context, check)
         { wrappingSkill = 65 }, { difficulty = "easy" }, "wrapping")
     local allowedLow = EmployeeSchedule.skillAllows(
         { wrappingSkill = 25 }, { difficulty = "easy" }, "wrapping")
-    check("recent_wrapping_skill_gate_and_training_plan_are_consistent",
+    check("recent_all_employees_can_wrap_and_training_improves_their_speed",
         readyToWrap and needsWrapTraining and allowedReady and not allowedReadyReason
         and allowedLow and trainingPlan and trainingPlan.target == 50
         and trainingPlan.remainingHours == 4 and trainingPlan.expectedWageCents == 9200)

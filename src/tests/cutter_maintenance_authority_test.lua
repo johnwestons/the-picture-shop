@@ -193,28 +193,28 @@ function Test.run(context, check)
     }, {})
     local bladeBegun = command(blade, worker, bladeGrant, 2, "begin_blade", {})
     local boltResult
-    for index = 1, 4 do
+    for index = 1, 5 do
         boltResult = command(blade, worker, bladeGrant, 2 + index,
             "remove_blade_bolt", { itemIndex = index })
     end
-    local lifted = command(blade, worker, bladeGrant, 7, "lift_blade", {})
+    local lifted = command(blade, worker, bladeGrant, 8, "lift_blade", {})
     local sleevedRequest = {
-        requestId = 8, resourceId = "cutter", leaseId = bladeGrant.leaseId,
+        requestId = 9, resourceId = "cutter", leaseId = bladeGrant.leaseId,
         action = "sleeve_blade", args = {},
         expectedRevision = blade.authority:resourceRevision("cutter"),
     }
     local sleeved = blade.authority:command(worker, sleevedRequest, {})
     local sleeveReplay = blade.authority:command(worker, sleevedRequest, {})
-    local booked = command(blade, worker, bladeGrant, 9, "book_blade_technician", {})
-    local bookedAgain = command(blade, worker, bladeGrant, 10, "book_blade_technician", {})
+    local booked = command(blade, worker, bladeGrant, 10, "book_blade_technician", {})
+    local bookedAgain = command(blade, worker, bladeGrant, 11, "book_blade_technician", {})
     local weeklyRequest = {
-        requestId = 11, resourceId = "cutter", leaseId = bladeGrant.leaseId,
+        requestId = 12, resourceId = "cutter", leaseId = bladeGrant.leaseId,
         action = "set_weekly_technician", args = { enabled = true },
         expectedRevision = blade.authority:resourceRevision("cutter"),
     }
     local weekly = blade.authority:command(worker, weeklyRequest, {})
     local weeklyReplay = blade.authority:command(worker, weeklyRequest, {})
-    local weeklyAgain = command(blade, worker, bladeGrant, 12,
+    local weeklyAgain = command(blade, worker, bladeGrant, 13,
         "set_weekly_technician", { enabled = true })
     local _, cutterMaintenance = context.machineMaintenance.cutterStatus(blade.state)
     check("cutter_guest_blade_and_technician_workflow_is_host_owned_exactly_once",

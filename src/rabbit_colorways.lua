@@ -21,6 +21,7 @@ Colorways.overalls = {
 local shader
 local shaderFailed = false
 local SHADER_SOURCE = [[
+#ifdef PIXEL
 extern vec3 furTint;
 extern vec3 overallsTint;
 extern float furEnabled;
@@ -73,6 +74,7 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) 
     }
     return pixel;
 }
+#endif
 ]]
 
 local function index(value, choices)
@@ -116,13 +118,26 @@ local function getShader()
 end
 
 function Colorways.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY,
-        shearX, shearY, furIndex, overallsIndex)
+        shearX, shearY, furIndex, overallsIndex, opacity)
     local fur, overalls = Colorways.normalize(furIndex, overallsIndex)
-    if fur == 1 and overalls == 1 then
+    local alpha = tonumber(opacity) or 1
+    if alpha ~= alpha then alpha = 1 end
+    alpha = math.max(0, math.min(1, alpha))
+    if fur == 1 and overalls == 1 and alpha == 1 then
         love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
         return
     end
-    local activeShader = getShader()
+    if fur == 1 and overalls == 1 then
+        love.graphics.push("all")
+        love.graphics.setColor(1, 1, 1, alpha)
+        love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
+        love.graphics.pop()
+        return
+    end
+    local incoming=love.graphics.getShader()
+    local activeShader=incoming and incoming:hasUniform('furTint')
+        and incoming:hasUniform('overallsTint') and incoming:hasUniform('furEnabled')
+        and incoming:hasUniform('overallsEnabled') and incoming or getShader()
     if not activeShader then
         love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
         return
@@ -132,7 +147,7 @@ function Colorways.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, or
     activeShader:send("furEnabled", fur == 1 and 0 or 1)
     activeShader:send("overallsEnabled", overalls == 1 and 0 or 1)
     love.graphics.push("all")
-    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setColor(1, 1, 1, alpha)
     love.graphics.setShader(activeShader)
     love.graphics.draw(image, quad, x, y, rotation, scaleX, scaleY, originX, originY, shearX, shearY)
     love.graphics.pop()

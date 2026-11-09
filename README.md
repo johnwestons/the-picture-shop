@@ -24,7 +24,20 @@ computer shows the shop time as a digital readout at the bottom right. In the
 computer's clock view, the shop can run at 1x, 2x, 5x, or 10x speed; multiplayer
 guests can view the controls, but only the host can change the speed.
 
+Employee speech bubbles explain why work is waiting: insufficient cutter,
+press or wrapping skill, no jobs on the schedule, missing supplies, a machine
+in use or needing service, or blocked access to a skid, shelf or doorway.
+Longer reasons wrap inside the bubble, and multiplayer guests see the current
+host reason. The warning clears when the employee can resume work.
+
 A playable LÖVE 2D vertical slice for an isometric pixel-art print-shop management game.
+
+Buy additional **Manual pallet jacks** from **Otis Wrench > Tools & Maintenance**
+for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
+delivery truck at the loading dock. Employees automatically choose available
+jacks and can transport separate pallets at the same time. Each jack and its
+load survives saving; approach a free jack to operate it yourself. The current
+source uses multiplayer protocol **71**, so all players need the same build.
 
 ## NPC workers and hiring
 
@@ -87,6 +100,19 @@ storage room, break room or empty utility room on the computer's **Warehouse**
 page. The raccoon calls, arrives through the front entrance and builds over four
 game days. Use **E / ROOMS** at the front entrance beside reception to enter a
 completed room. Multiplayer players can occupy different rooms independently.
+**Explore Town** at the warehouse or apartment exit now moves only that player.
+The host can stay at work while guests drive deliveries, visit the apartment or
+shop in the grocery interior in the same hosted world. See the
+[independent-scene implementation and verification](docs/independent_multiplayer_scenes.md).
+
+After completing a storage or utility room, buy its **Truck garage door** for
+**$1,800** on **CritterNet / Warehouse**. The room gains a working truck loading
+bay without losing any of its fifteen storage positions. Pickup trucks use an
+upgraded room, preferring the room where that job's skids are staged. Employees
+request pickup when their assigned job is fully wrapped, use available pallet
+jacks to bring its skids through the room doorway, and load only that truck's
+job manifest. Two employees can load with separate jacks, then return and park
+them. Clear both sides of a doorway if a worker reports that access is blocked.
 
 Bring delivered shop stock to the warehouse entrance, lower it and park the
 pallet jack. In the storage room, use **STOCK** for one of five bottom-row supply spaces,
@@ -121,20 +147,17 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-Download the [Android 61 test installer](https://github.com/johnwestons/the-picture-shop/releases/download/android.61/ThePictureShop-0.1.0-android.61-Install.apk)
-from the [GitHub release](https://github.com/johnwestons/the-picture-shop/releases/tag/android.61).
-The local copy is `output/android-share/0.1.0-android.61/ThePictureShop-0.1.0-android.61-Install.apk`.
-Every multiplayer participant
-needs matching current protocol 41 code. The Regal Moll practice folder is now
-purchase-only through Used Machinery or the computer's Machine Market; it is no
-longer placed on every warehouse floor. This change needs no save reset.
-The arcade has a neon 1980s game selector, and air hockey has a movement wheel
-to the left of the table. Hold and move within the wheel to steer your paddle;
-release to stop. Another finger cannot take over the wheel.
-The handoff includes checksums,
-installation notes, and automated verification reports. See the
-[Android 61 release notes](docs/android_61_release.md) for the included changes
-and remaining physical phone/tablet acceptance.
+The latest Android test installer is [Android 104](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.104/ThePictureShop-0.1.0-android.104-Install.apk).
+Android 104 and the matching PC installer are built from the same clean source
+commit and share the same gameplay and multiplayer protocol. This update improves
+delivery loading and docking, repeat work orders, and machine maintenance
+reliability. Every multiplayer participant needs the same build and protocol.
+Android 68's handoff and device verification are in
+[the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
+[the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
+[the Android 66 release notes](docs/android_66_release.md) and
+[the Android 65 release notes](docs/android_65_release.md). The older
+[Android 61 release notes](docs/android_61_release.md) remain historical.
 
 The open garage doorway now shows a textured outdoor parking-lot sprite, retaining
 the shutter, time-of-day lighting and rain. Test the Regal folder separately in
@@ -145,9 +168,9 @@ tickets and balance changes remain test-page-only. A source snapshot is kept in
 is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
-install. For this handoff, fresh test saves were requested: download the APK first,
-then uninstall only **The Picture Shop** without keeping its app data before
-installing. Installing over the old app instead keeps saves.
+install. Installing over the existing app keeps saves. Android requires the same
+signing identity for an in-place update; the Android 104 playtest package uses the
+project's current debug signing key and is intended for this private tester flow.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
 
@@ -162,7 +185,7 @@ its test saves. This private packaging command does not replace the release gate
 or physical-device multiplayer acceptance.
 
 The Android edition is built from this same Lua source tree; there is no copied mobile gameplay fork.
-With one USB-debugging-enabled phone connected, run `./BUILD_ANDROID.ps1 -Install` in PowerShell.
+With one USB-debugging-enabled phone connected, run `./BUILD_ANDROID.ps1 -Install` in PowerShell 7 or newer.
 The command packages the current game, runs the smoke suite, builds and verifies a signed development
 APK, installs it without deleting existing saves, launches it, and verifies the Picture Shop startup marker.
 Use `./BUILD_ANDROID.ps1 -PackageOnly` when only the testable `.love` archive is needed. See
@@ -609,6 +632,11 @@ should be added as a 128x128 transparent nearest-filtered PNG and registered in 
 
 ## Validation
 
+- Run `tools/run_commute_performance_probe.bat` for repeatable motorcycle frame-time
+  measurements with fresh disposable saves. It checks cold scenery loading, riding,
+  camera rotation, zoom and first-person views; results go under `output/performance/`.
+  See [the November 2 performance audit](docs/performance_audit_20261102.md) for the
+  diagnosed bottlenecks, before/after measurements and remaining startup costs.
 - Double-click `RUN_SMOKE_TEST.bat` to run the isolated domain suites, focused engine integrations,
   audit-coverage manifest, and three-frame render gate. Its report is written to
   `.stabilization/smoke-report.rpt`; the suite layout is documented in `docs/testing.md`.
@@ -641,7 +669,123 @@ should be added as a 128x128 transparent nearest-filtered PNG and registered in 
 
 LÖVE is required for the in-engine smoke test. The asset doctor can run independently with Python and Pillow.
 
+## Towns and the ride home
+
+New games include a town seed preview and named presets. Version 3 seeds arrange
+core businesses and services along a main-street strip or crossroads, with varied
+neighborhood loops, river courses, tributaries, lakes and relief.
+Toggle **Terrain** or press **T** to inspect elevation and water beneath the roads;
+tap buildings to identify them. Existing games and saved presets retain their
+original frozen town. Regenerate a seed in new-game setup to get a new version-3 town.
+
+Main streets include sidewalks, lantern posts, mailboxes, stop signs and road
+markings. Lane counts vary, including center turning lanes and occasional one-way
+neighborhood streets. Curve warnings and guardrails follow road bends and steep
+roadside drops. Fixtures are generated once and use batched geometry; sidewalks
+support walking and riding, while solid furniture and guardrails have collision.
+
+Wooded dirt trails provide off-road shortcuts between paved streets. Small parks,
+picnic clearings and campsites sit beside the trails, with benches, picnic tables,
+tents and fire rings. Both town maps show the brown trails and recreation areas.
+Trail riding retains dirt traction, and the trails and clearings avoid waterways,
+building entrances and parking spaces.
+
+The complete town ground prepares behind a progress screen before the ride appears.
+Riding, turning and zooming then reuse that terrain immediately, including the
+map edges and ground visible from low or downward camera angles.
+
+Use the warehouse's front entrance and choose **Explore Town** to leave on any day.
+Walk back to the warehouse door to return, or visit your apartment along the way.
+Your business clock continues during ordinary outings. Employees, production,
+deliveries and payroll continue under their usual rules; unattended warehouse
+updates are batched to reduce overhead. Staff still need assigned jobs, materials
+and working equipment. Weekend shutdown and the explicit weekend journey remain
+available separately.
+
+Ride Home is enabled by default. Touch players can use **PUT ON GEAR / REMOVE
+GEAR** while on foot; the button disables during the changing animation. Stop and
+dismount at the destination before using its door.
+
+Use **EXIT TO MENU** in the riding or apartment header, or **Options → Save & Main
+Menu**, to save and return to the title screen. Options includes **Resume**, and
+the Motorcycle Controls panel also has a menu exit. These buttons accept touch;
+PC players can open Options with **Esc**. An unsuccessful save keeps the game
+open so you can retry. Multiplayer guests use **Leave Session** without writing
+the host's save. Returning to the title stops the town simulation and bike audio;
+loading a saved ride resumes at its saved position with the bike stopped.
+
+Dismounted outdoor characters, including gear changes, share the mounted rider's
+apparent scale. Their feet remain anchored to the ground across camera zooms.
+
+Press **M** or tap **Town Map** while traveling to open the north-up navigation
+map. The cyan **YOU** arrow follows your current position and heading, switching
+to your walking character after dismounting; the parked bike gets its own marker.
+Numbered buildings match the visible name key, with your destination highlighted
+in gold and your home in green. Terrain, waterways, roads and buildings come from
+your saved town. **M**, **Esc**, or **Close Map** closes it. The same map is available
+in the motorcycle preview, and its key can be changed in Motorcycle Controls.
+
+The motorcycle carries sideways momentum through turns. Pavement provides more
+grip than dirt, and acceleration, braking and cornering share the tires' available
+traction. Brake while steering to start a slide off-road; ease the brake and
+steering, then accelerate as grip returns. Dirt takes longer to brake to a stop.
+The wheels follow the grade under the bike and carry that pitch off a crest. In
+the air, throttle lifts the front wheel and brake helps level the bike. Ease it toward
+level before landing to let the rear tire touch down just before the front.
+Bumps, jumps and landings cause no bike damage.
+
+Hitting a solid obstacle takes speed off the bike in the direction of the hit.
+A slow bump can stop the bike with no damage. A glancing hit can slide along the
+obstacle. A severe direct hit throws the rider off and stops the engine. Walk
+back to the bike and use the usual mount control to continue. Damage reduces top
+speed, down to about 5 mph at maximum damage. The ride header shows bike condition.
+
+Press **O** (controller **Left Shoulder**) or use the cockpit camera button to
+switch the outside view between **Fixed angle** and **Follow rider**. The same
+selector is at the top of **F10 → Motorcycle Controls**, and the choice is saved
+with your local preferences. Fixed angle keeps your chosen orbit as the bike
+turns. Follow rider smoothly stays behind the bike; a manual orbit briefly looks
+around before returning behind, and **C** centers immediately. **P** still switches
+between the outside view and first person. On PC, middle- or right-drag in first
+person looks in the mouse's direction: right looks right, and up looks up.
+
+Park at Majic Blue and enter on foot to visit the mechanic's workshop. The
+repair counter quotes $2 per point of damage, up to $200 for a fully damaged
+bike. Confirm the estimate to pay from household funds and restore performance.
+Condition belongs to each rider's bike and carries across trips and saved games.
+The interior adapts approved art and shop-floor ideas from Majic Blue Mechanics.
+Browse the three upgrade kits, compare the current bike to the quote, and confirm
+payment from household funds. Installed kits persist with that resident's bike;
+the final kit reaches about 60 mph with boost. The **Paint** tab offers eight finishes
+with a rotating preview. A repaint costs $125 from household funds; previewing or
+selecting the current finish costs nothing. Paint persists with each resident's
+bike and appears in the town, workshop and first-person views. **Tab** (controller
+**X** or either shoulder) switches service categories; **Q / R** rotates the paint
+preview. The imported raccoon mechanic uses the original idle and wrench
+animations in the workshop and during service.
+
+Motorcycle rendering and the shop preview retain all sixteen directions across
+parked, mounted and action poses, with independent left/right drawings. Every
+pose must provide a complete sixteen-view atlas; missing art is reported instead
+of silently reducing the direction count. First-person selection and bank follow
+the camera's viewing direction. Direction-order corrections preserve the original
+cardinal/diagonal drawings and repair only genuinely missing intermediate views.
+
+The original pre-seed town has no mechanic lot; generated towns include it.
+Exterior buildings and bridges use procedural geometry; exterior textures remain
+deferred.
+
+See [the integration checklist](docs/ride_home_completion_goal.md) and
+[performance measurements](docs/performance_audit_20261102.md) for validation and
+remaining physical-device checks.
+
 ## Project structure
+
+Before a gameplay playtest, run `RUN_GAMEPLAY_SMOKE_TEST.bat`. This executes the
+desktop/mobile readiness plan, seeded interruption campaigns and physical travel
+journeys, then writes a combined pass/fail report under `output/gameplay-smoke/`.
+See [the gameplay smoke test](docs/gameplay_smoke_test.txt) for coverage, pass rules,
+failure reproduction and verification limits.
 
 `main.lua` delegates every callback to `src/app.lua`. World simulation and rendering are separate,
 screens share `src/screens/ui.lua`, and domain/integration checks live under `src/tests/`. See

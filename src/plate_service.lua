@@ -70,6 +70,7 @@ function Plates.order(state, job, colorIndex)
     local cost = math.max(1, math.ceil(((budget and budget.plateCost) or 38.5) / colors * 100) / 100)
     if (state.money or 0) < cost then return false, "Not enough cash to outsource this plate." end
     state.money = state.money - cost
+    require("src.household_finances").record(state,"services",cost*100)
     plate.status, plate.source = "ordered", "outsourced"
     plate.orderedAtHours = BusinessCalendar.absoluteHours(state)
     plate.readyAtHours = plate.orderedAtHours + 24
@@ -88,7 +89,7 @@ function Plates.beginInHouse(state, job, colorIndex)
         if (stock[id] or 0) < amount then return false, "In-house platemaking needs raw plate, film, adhesive, and chemistry." end
     end
     local kitConsumed, kitError = Procurement.consumePhysicalProduct(state, "plate_room_kit", 1, {
-        allowAbstract = true, stockKey = "raw_press_plates", stockScope = "stock",
+        allowAbstract = true, stockKey = "raw_press_plates", stockScope = "stock", autoShelf = true,
     })
     if not kitConsumed then return false, kitError end
     for id, amount in pairs(required) do stock[id] = stock[id] - amount end

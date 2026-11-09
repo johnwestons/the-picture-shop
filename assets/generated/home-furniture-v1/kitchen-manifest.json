@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "generator": "built-in image_gen",
+  "transparent_background": true,
+  "canvas": [
+    1536,
+    1024
+  ],
+  "cells": [
+    4,
+    2
+  ],
+  "assets": [
+    {
+      "id": "stove",
+      "file": "stove-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-39289687-8936-4de0-81bf-3cd766095476.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 transparent RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. In every cell show the SAME single household object at a different real horizontal rotation, consistent scale and elevated orthographic 30-degree camera with visible tops. Keep the whole object within its own cell, under 320px wide and 420px tall, centered with generous transparent padding. Row 1 facing: southeast (front/right), south (front), southwest (front/left), east (right-facing side). Row 2 facing: northwest (back/right), north (back), northeast (back/left), west (left-facing side). Draw honest rear and side geometry rather than mirroring front controls. Textured, worn-but-usable modest starter furniture, readable dark outlines and softly shaded materials. Genuine transparent alpha around objects, no background, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermark or people. No extra props. Subject: one old cream-enamel freestanding electric stove/oven, approximately 60 cm square and 90 cm high. Four dark circular coil burners on the flat top, low rear control strip, four small dark knobs, closed oven with a dark rectangular glass window and a horizontal metal handle on its FRONT, short dark feet. Plain cream side panels. BACK views have a metal service panel and short coiled electrical cord; no oven window or controls on the back. Stove is off, empty, no pans, no food, no flames. Keep the same model and burner arrangement in all eight views.",
+      "correctionPrompt": null,
+      "sha256": "1fb0d3aacd9708de5d2cf77302a69cd7289fbf24acd06dc0c759e234a841ec55",
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "id": "refrigerator",
+      "file": "refrigerator-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-e6878c60-2ff8-4caf-b26e-8ff0b5eb266f.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 transparent RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. In every cell show the SAME single household object at a different real horizontal rotation, consistent scale and elevated orthographic 30-degree camera with visible tops. Keep the whole object within its own cell, under 320px wide and 420px tall, centered with generous transparent padding. Row 1 facing: southeast (front/right), south (front), southwest (front/left), east (right-facing side). Row 2 facing: northwest (back/right), north (back), northeast (back/left), west (left-facing side). Draw honest rear and side geometry rather than mirroring front controls. Textured, worn-but-usable modest starter furniture, readable dark outlines and softly shaded materials. Genuine transparent alpha around objects, no background, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermark or people. No extra props. Subject: one modest full-height cream-enamel refrigerator, about 60 cm square and 160 cm tall, a small upper freezer door and a larger lower fridge door, both with slim vertical metal handles at the FRONT's right edge, rounded corners, modest scuffs along the bottom and short feet. Plain cream side panels. BACK views show a dark condenser coil and a small compressor access panel, never front door handles. Closed doors, no food, no magnets or stickers. All eight views show the same proportions and handle side.",
+      "correctionPrompt": "Use case: precise-object-edit. Edit this refrigerator sprite sheet; preserve its exact 1536x1024 canvas, 4 columns and 2 rows, eight individual isolated sprites, object scale, painterly style and all other views. Correct ONLY top-row column 3 and bottom-row column 3: these currently duplicate column 1. Top-row column 3 must instead show the front door surfaces on the LEFT visible face and a plain side on the RIGHT visible face, a proper front-left quarter view. Bottom-row column 3 must show the condenser coils on the LEFT visible face and plain cream side on the RIGHT, a proper back-left quarter view. Preserve the top-row column 1 front-right and bottom-row column 1 back-right views. Keep the refrigerator handles physically consistent. Fully transparent alpha background around every sprite and between cells, no ground or shadow. Do not add any text or extra objects.",
+      "sha256": "4b80a3730077fd5f546c906bf24dea466666009abbf8da99f1df540a101d9eef",
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "id": "countertop",
+      "file": "countertop-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-30b1e79c-87b3-4e54-a10b-fd8cddca1b21.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 transparent RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. In every cell show the SAME single household object at a different real horizontal rotation, consistent scale and elevated orthographic 30-degree camera with visible tops. Keep the whole object within its own cell, under 320px wide and 420px tall, centered with generous transparent padding. Row 1 facing: southeast (front/right), south (front), southwest (front/left), east (right-facing side). Row 2 facing: northwest (back/right), north (back), northeast (back/left), west (left-facing side). Draw honest rear and side geometry rather than mirroring front controls. Textured, worn-but-usable modest starter furniture, readable dark outlines and softly shaded materials. Genuine transparent alpha around objects, no background, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermark or people. No extra props. Subject: one freestanding modular kitchen base cabinet with countertop, about 90 cm wide, 60 cm deep and 90 cm high. Worn honey-brown wood, two closed cupboard doors with small dark round pulls ONLY on the front, a short recessed toe-kick, and a light beige laminate worktop overhanging a little. Plain wood back and sides, no handles or doors on the back. Countertop is completely empty, no sink, no tap, no appliance, no wall or backsplash. Same cabinet in all eight rotations.",
+      "correctionPrompt": "Use case: precise-object-edit. Edit this kitchen base-cabinet sprite atlas, preserving its exact 1536x1024 canvas with four columns and two rows, eight individual isolated sprites, style, proportions and all other cells. Correct ONLY top-row column 1: its cupboard doors must appear on the RIGHT visible face of the cabinet and the plain wood side on the LEFT visible face, a proper front-right quarter view. Keep top-row column 3 unchanged with cupboard doors on the LEFT face and plain side on the RIGHT. All other cells unchanged. Countertop stays empty. Preserve genuine transparent alpha around every object and between cells. No background, ground, shadows, text or additional props.",
+      "sha256": "9a8d9a03fbb820d0e7ed01a9d031560c126c40a1447616002386f212594846f7",
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "id": "kitchen_table",
+      "file": "kitchen-table-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-fd85dc65-4a14-4c28-bf1c-9afb49b54d3d.png",
+      "prompt": "Use case: stylized-concept. Production sprite atlas for The Picture Shop, a warm, slightly gritty hand-painted isometric game. Create ONE 1536x1024 transparent RGBA sheet, exactly FOUR columns by TWO rows of equal 384x512 cells. In every cell show the SAME single household object at a different real horizontal rotation, consistent scale and elevated orthographic 30-degree camera with visible tops. Keep the whole object within its own cell, under 320px wide and 420px tall, centered with generous transparent padding. Row 1 facing: southeast (front/right), south (front), southwest (front/left), east (right-facing side). Row 2 facing: northwest (back/right), north (back), northeast (back/left), west (left-facing side). Draw honest rear and side geometry rather than mirroring front controls. Textured, worn-but-usable modest starter furniture, readable dark outlines and softly shaded materials. Genuine transparent alpha around objects, no background, ground, cast floor shadows, checkerboard, grid, text, labels, numbers, watermark or people. No extra props. Subject: one modest small rectangular wooden kitchen table, about 120 cm by 80 cm, simple worn honey-brown plank top, four separate straight square wooden legs and shallow apron rails beneath the top. Entire tabletop completely empty, no chairs, no furniture around it. Maintain the same rectangular proportions, wood grain orientation, edge scuffs and construction through all eight actual rotations. All four legs present with believable perspective and occlusion, ground contact on one plane.",
+      "correctionPrompt": null,
+      "sha256": "542e4351e97beb0fe3c52ec80facb72ab0088235a4de8f8275a9d88fab4164d0",
+      "alphaRange": [
+        0,
+        254
+      ]
+    }
+  ]
+}

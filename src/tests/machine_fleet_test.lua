@@ -38,6 +38,39 @@ function Test.run(context, check)
         and dealer[1].price < online[1].price
         and dealer[2].condition < online[2].condition)
 
+    local offeredModels = {}
+    for _, offer in ipairs(online) do offeredModels[offer.modelId] = true end
+    local legacyState = context.State.new()
+    local folder = {
+        id = "MCH-0090", modelId = "regal_moll", status = "installed", source = "online",
+        purchasePrice = 18000, acquiredAt = 1, cycles = 0, operatingMinutes = 0,
+        variables = { feedRollers = 96, foldGuides = 96 }, maintenance = { serviceCount = 0 },
+        world = { x = 620, y = 430, direction = "northwest" },
+    }
+    local platen = {
+        id = "MCH-0091", modelId = "chandler_price_platen", status = "installed", source = "online",
+        purchasePrice = 5400, acquiredAt = 1, cycles = 0, operatingMinutes = 0,
+        variables = { platenAlignment = 96, grippers = 96, drive = 96 },
+        maintenance = { serviceCount = 0 },
+        world = { x = 660, y = 450, direction = "northwest" },
+    }
+    legacyState.machines.items[#legacyState.machines.items + 1] = folder
+    legacyState.machines.items[#legacyState.machines.items + 1] = platen
+    local retainedFleet = fleet.current(legacyState)
+    local soldDisabledMachine = fleet.sell(legacyState, folder.id, "online")
+    check("rollback_hides_folder_and_platen_but_preserves_legacy_records",
+        #fleet.order == 3 and #online == 3 and offeredModels.polar_115
+        and offeredModels.skid_wrapper and offeredModels.heidelberg_10x15
+        and not offeredModels.regal_moll and not offeredModels.chandler_price_platen
+        and fleet.byId(legacyState, folder.id) == folder
+        and fleet.byId(legacyState, platen.id) == platen
+        and #fleet.installedUnits(legacyState) == 2
+        and fleet.installed(legacyState, "regal_moll") == nil
+        and fleet.installed(legacyState, "chandler_price_platen") == nil
+        and #fleet.owned(legacyState) == 2
+        and not soldDisabledMachine and #retainedFleet.items == 4
+        and fleet.validState(retainedFleet))
+
     state.money = 10000
     local bought, usedCutter = fleet.buy(state, "dealer", 1)
     check("dealer_purchase_installs_unique_floor_machine", bought
@@ -111,12 +144,15 @@ function Test.run(context, check)
         end
     end
     local gearX, gearY = context.machineScreen.lubricationViewCenter("gear")
+    local finishX, finishY = context.machineScreen.lubricationFinishCenter()
+    context.machineScreen.mousepressed(cutterServiceState, finishX, finishY, 1)
+    check("cutter_lubrication_identifies_missing_gear_inspection_near_finish",
+        cutterServiceState.message:find("GEAR: select INSPECT LIGHT", 1, true) ~= nil)
     context.machineScreen.mousepressed(cutterServiceState, gearX, gearY, 1)
     local inspectX, inspectY = context.machineScreen.lubricationToolCenter("inspect")
     context.machineScreen.mousepressed(cutterServiceState, inspectX, inspectY, 1)
     local sightX, sightY = context.machineScreen.lubricationGearSightCenter()
     context.machineScreen.mousepressed(cutterServiceState, sightX, sightY, 1)
-    local finishX, finishY = context.machineScreen.lubricationFinishCenter()
     context.machineScreen.mousepressed(cutterServiceState, finishX, finishY, 1)
     check("cutter_maintenance_hub_launches_detailed_lubrication_minigame",
         maintenanceHub and maintenanceHub.action == "maintenance_hub"
@@ -149,7 +185,7 @@ function Test.run(context, check)
         and centralState.inventory.stock.maintenance_kit == 0)
     local bladeX, bladeY = context.machineScreen.maintenanceTaskCenter("blade")
     local bladeGame = context.machineScreen.mousepressed(cutterServiceState, bladeX, bladeY, 1)
-    for bolt = 1, 4 do
+    for bolt = 1, 5 do
         local boltX, boltY = context.machineScreen.bladeBoltCenter(bolt)
         context.machineScreen.mousepressed(cutterServiceState, boltX, boltY, 1)
     end
@@ -184,19 +220,30 @@ function Test.run(context, check)
         and #fleet.serviceInbox(cutterServiceState) == 1
         and context.jobService.emailInbox(cutterServiceState)[1].serviceNotice == true)
     local missedVisitState = context.State.new()
-    context.businessCalendar.update(missedVisitState,
-        context.config.businessCalendar.secondsPerDay)
     context.machineMaintenance.prepareBladeForTechnician(missedVisitState)
     local visitRequested = context.machineMaintenance.requestTechnician(missedVisitState)
+    -- Choose a deterministic sequence that lands inside the current 2% call-out band.
+    local missedCutterItem=fleet.installed(missedVisitState,"polar_115")
+    local missedCutter=missedCutterItem.maintenance.cutter
+    local machineSequence=tonumber(missedCutterItem.id:match("(%d+)$"))
+    local sequence=0
+    repeat
+        sequence=sequence+1
+    until (missedCutter.nextTechnicianDay*37+(sequence+1)*29+machineSequence*11)%100<2
+    missedCutter.technicianSequence=sequence
     context.businessCalendar.update(missedVisitState,
         context.config.businessCalendar.secondsPerDay)
     local missedVisit = context.machineMaintenance.updateTechnician(missedVisitState)
-    local missedCutter = fleet.installed(missedVisitState, "polar_115").maintenance.cutter
+    missedCutter = fleet.installed(missedVisitState, "polar_115").maintenance.cutter
     check("blade_technician_can_miss_visit_and_email_reschedule_notice",
         visitRequested and missedVisit and missedCutter.bladeInSleeve
-        and missedCutter.nextTechnicianDay == 9
+        and missedCutter.nextTechnicianDay == 8
         and #fleet.serviceInbox(missedVisitState) == 1
-        and fleet.serviceInbox(missedVisitState)[1].subject == "Technician unable to attend")
+        and fleet.serviceInbox(missedVisitState)[1].subject == "Technician unable to attend",
+        string.format("requested=%s updated=%s sleeved=%s next=%s notices=%d subject=%s seq=%d",
+            tostring(visitRequested),tostring(missedVisit),tostring(missedCutter.bladeInSleeve),
+            tostring(missedCutter.nextTechnicianDay),#fleet.serviceInbox(missedVisitState),
+            tostring(fleet.serviceInbox(missedVisitState)[1] and fleet.serviceInbox(missedVisitState)[1].subject),sequence))
 
     local saleValue = fleet.resaleValue(usedCutter, "online")
     local sold, sale = fleet.sell(state, usedCutter.id, "online")
@@ -345,8 +392,26 @@ function Test.run(context, check)
         and deliveredWrapper.status == "installed" and deliveredWrapper.world
         and deliveredWrapper.world.x ~= wrapperDeliveryState.wrapper.x
         and fleet.validState(wrapperDeliveryState.machines))
-    check("empty_machine_flatbed_releases_directly",
-        context.world.closeTruckAfterUnload(websiteState)
+    local driverService=require("src.warehouse_delivery_driver")
+    local driverVisit=driverService.matching(websiteState,onlineOrder.id)
+    for _=1,120 do
+        if not driverVisit or driverVisit.status=="waiting" then break end
+        context.world.update(.1,0,0,context.assets,websiteState)
+    end
+    local driverActor=driverService.actor(websiteState)
+    if driverActor then
+        context.world.player.sceneId="warehouse"
+        context.world.player.x,context.world.player.y=driverActor.x,driverActor.y
+    end
+    local signed=context.world.signDelivery(websiteState,context.world.player)
+    for _=1,180 do
+        if not driverVisit or driverVisit.driverReturned then break end
+        context.world.update(.1,0,0,context.assets,websiteState)
+    end
+    check("machine_delivery_driver_signs_and_returns_before_flatbed_release",
+        signed and driverVisit and driverVisit.driverReturned)
+    check("empty_machine_flatbed_departs_after_driver_returns",
+        driverVisit and driverVisit.driverReturned
         and context.world.truckSnapshot().state == "departing")
     context.world.load()
 

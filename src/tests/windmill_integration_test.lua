@@ -443,6 +443,7 @@ function Test.run(context, check)
     local stock = state.inventory.stock
     stock.raw_press_plates, stock.negative_film, stock.plate_adhesive, stock.plate_chemistry = 1, 1, 1, 1
     stock.black_ink, stock.tympan_sheets, stock.press_wash = 2, 2, 2
+    stock.house_sheets = 1000
     local plateStarted, plate = context.plateService.beginInHouse(state, job, 1)
     for _, action in ipairs({ "expose", "wash", "dry", "mount" }) do
         context.plateService.process(plate, action, 0.98)
@@ -513,6 +514,22 @@ function Test.run(context, check)
         and proofDuringRunReason == "Stop production before pulling another proof."
         and context.windmill.ensure(state).status == "production"
         and context.windmill.ensure(state).counter == proofCounterBeforeRun)
+    local motorStopped=context.windmill.control(state,"motor")
+    local stoppedProcess=context.windmill.ensure(state)
+    check("windmill_stopping_motor_exits_run_and_keeps_approved_work",
+        motorStopped and stoppedProcess.status=="approved" and not stoppedProcess.motor
+        and not stoppedProcess.feeder and not stoppedProcess.impression
+        and stoppedProcess.proofApproved and stoppedProcess.counter==proofCounterBeforeRun)
+    context.windmill.update(.1,state)
+    check("windmill_motor_stop_does_not_consume_sheets",
+        stoppedProcess.counter==proofCounterBeforeRun)
+    local motorRestarted=context.windmill.control(state,"motor")
+    local feederRestarted=context.windmill.control(state,"feeder")
+    local impressionRestarted=context.windmill.control(state,"impression")
+    local runRestarted=context.windmill.startProduction(state)
+    check("windmill_stopped_motor_can_restart_the_same_approved_run",
+        motorRestarted and feederRestarted and impressionRestarted and runRestarted
+        and stoppedProcess.status=="production" and stoppedProcess.counter==proofCounterBeforeRun)
     local feederPaused = context.windmill.control(state, "feeder")
     local counterBeforePause = context.windmill.ensure(state).counter
     local pauseChanged, pauseDurable = context.windmill.update(1, state)
@@ -521,12 +538,21 @@ function Test.run(context, check)
         feederPaused and feederResumed and not pauseChanged and not pauseDurable
         and context.windmill.ensure(state).status == "production"
         and context.windmill.ensure(state).counter == counterBeforePause)
-    local finishedPass = context.windmill.update(10*require("src.business_calendar").secondsPerDay(state)/300, state)
+    local passStep = 10*require("src.business_calendar").secondsPerDay(state)/300
+    local finishedPass = context.windmill.update(passStep, state)
+    for _=1,5 do
+        if context.windmill.ensure(state).status ~= "production" then break end
+        finishedPass = context.windmill.update(passStep, state) or finishedPass
+    end
     local restartedPass, restartedPassReason = context.windmill.startProduction(state)
     check("windmill_completed_pass_cannot_restart_without_a_new_approved_workflow",
         finishedPass and not restartedPass
         and restartedPassReason == "Approve a proof before starting or resuming production."
-        and context.windmill.ensure(state).status == "pass_complete")
+        and context.windmill.ensure(state).status == "pass_complete",
+        string.format("finished=%s restarted=%s reason=%s status=%s good=%d target=%d feed=%d",
+            tostring(finishedPass), tostring(restartedPass), tostring(restartedPassReason),
+            tostring(context.windmill.ensure(state).status), context.windmill.ensure(state).goodSheets or 0,
+            context.windmill.ensure(state).targetSheets or 0, context.windmill.ensure(state).feedRemaining or 0))
     local washBeforeRejectedCleanup = stock.press_wash
     local washUnitsBeforeRejectedCleanup = job.press.actual.washUnits
     local historyBeforeRejectedCleanup = #pallet.press.passHistory

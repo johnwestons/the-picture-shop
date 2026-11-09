@@ -1,4 +1,5 @@
 local MachineMaintenance = require("src.machine_maintenance")
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 local CutterMaintenanceAuthority = {}
 
@@ -39,6 +40,14 @@ local function enabledArguments(arguments)
         return nil, "invalid_enabled", "The technician schedule must be enabled or disabled."
     end
     return { enabled = enabled }
+end
+
+local function bladeGradeArguments(arguments)
+    local grade = type(arguments) == "table" and arguments.bladeGrade
+    if not exactArguments(arguments, { "bladeGrade" }) or not BladeProfiles.isOrderable(grade) then
+        return nil, "invalid_blade_grade", "Choose a listed specialty cutter blade."
+    end
+    return { bladeGrade = grade }
 end
 
 local function clampInteger(value, minimum, maximum)
@@ -96,7 +105,7 @@ function CutterMaintenanceAuthority.newSession()
     return {
         lubrication = nil,
         bladeStage = nil,
-        bladeBolts = { false, false, false, false },
+        bladeBolts = { false, false, false, false, false },
     }
 end
 
@@ -115,6 +124,10 @@ function CutterMaintenanceAuthority.create(options)
 
     function authority.view(session, includeCandidates)
         local view = baseView(includeCandidates == true)
+        local _, cutter = MachineMaintenance.cutterStatus(state)
+        view.bladeGrade = cutter and cutter.bladeGrade or "standard"
+        view.orderedBladeGrade = cutter and cutter.orderedBladeGrade or "none"
+        view.moneyCents = math.max(0, math.floor((tonumber(state.money) or 0) * 100 + 0.5))
         local lubrication = session and session.lubrication
         if lubrication then
             view.candidates, view.genericSheets = nil, nil
@@ -137,7 +150,7 @@ function CutterMaintenanceAuthority.create(options)
             view.candidates, view.genericSheets = nil, nil
             view.serviceStep = serviceStep(session)
             local removed, mask = 0, 0
-            for index = 1, 4 do
+            for index = 1, 5 do
                 if session.bladeBolts[index] then removed = removed + 1; mask = mask + 2^(index-1) end
             end
             view.bladeBoltsDone = removed
@@ -318,7 +331,7 @@ function CutterMaintenanceAuthority.create(options)
                 end
                 lease.private.lubrication = nil
                 lease.private.bladeStage = nil
-                lease.private.bladeBolts = { false, false, false, false }
+                lease.private.bladeBolts = { false, false, false, false, false }
                 return true, "service_cancelled", "Uncommitted cutter service progress was safely discarded."
             end, false)
         end,
@@ -338,8 +351,8 @@ function CutterMaintenanceAuthority.create(options)
                     return false, "blade_unavailable", "The cutter blade is already secured for service."
                 end
                 lease.private.bladeStage = "bolts"
-                lease.private.bladeBolts = { false, false, false, false }
-                return true, "blade_service_started", "Blade removal opened. Remove all four host-tracked bolts."
+                lease.private.bladeBolts = { false, false, false, false, false }
+                return true, "blade_service_started", "Blade removal opened. Remove all five host-tracked bolts."
             end, false)
         end,
     }
@@ -349,7 +362,7 @@ function CutterMaintenanceAuthority.create(options)
         perform = function(lease, player, arguments)
             return perform(lease, player, function()
                 local index = arguments.itemIndex
-                if lease.private.bladeStage ~= "bolts" or index > 4 then
+                if lease.private.bladeStage ~= "bolts" or index > 5 then
                     return false, "wrong_step", "The blade bolts are not ready for that action."
                 end
                 if lease.private.bladeBolts[index] then
@@ -357,7 +370,7 @@ function CutterMaintenanceAuthority.create(options)
                 end
                 lease.private.bladeBolts[index] = true
                 local allRemoved = true
-                for bolt = 1, 4 do allRemoved = allRemoved and lease.private.bladeBolts[bolt] end
+                for bolt = 1, 5 do allRemoved = allRemoved and lease.private.bladeBolts[bolt] end
                 if allRemoved then lease.private.bladeStage = "lift" end
                 return true, "bolt_removed", allRemoved
                     and "All bolts are out. Lift the blade into the handling position."
@@ -371,7 +384,7 @@ function CutterMaintenanceAuthority.create(options)
         perform = function(lease, player)
             return perform(lease, player, function()
                 if lease.private.bladeStage ~= "lift" then
-                    return false, "wrong_step", "Remove all four blade bolts first."
+                    return false, "wrong_step", "Remove all five blade bolts first."
                 end
                 lease.private.bladeStage = "sleeve"
                 return true, "blade_lifted", "Blade lifted safely. Place it in the wooden sleeve."
@@ -389,7 +402,7 @@ function CutterMaintenanceAuthority.create(options)
                 local accepted, result = MachineMaintenance.prepareBladeForTechnician(state)
                 if not accepted then return false, "blade_blocked", result end
                 lease.private.bladeStage = nil
-                lease.private.bladeBolts = { false, false, false, false }
+                lease.private.bladeBolts = { false, false, false, false, false }
                 return true, "blade_sleeved", "Cutter blade removed, sleeved, and saved by the host."
             end, true)
         end,
@@ -406,6 +419,41 @@ function CutterMaintenanceAuthority.create(options)
                 if not accepted then return false, "technician_blocked", result end
                 return true, "technician_booked",
                     "Mara Mouse booked for a blade exchange on game day " .. tostring(result) .. "."
+            end, true)
+        end,
+    }
+
+    commands.install_spare_blade = {
+        normalize = noArguments,
+        perform = function(lease, player)
+            return perform(lease, player, function()
+                if lease.private.lubrication or lease.private.bladeStage then
+                    return false, "service_active", "Finish or cancel the active cutter service first."
+                end
+                local ready, code, message = requireIdleMachine()
+                if not ready then return false, code, message end
+                local accepted, result = MachineMaintenance.installSpareBlade(state)
+                if not accepted then return false, "spare_blade_blocked", result end
+                return true, "spare_blade_installed",
+                    "A sharp purchased spare is installed. The dull blade remains sleeved for courier pickup."
+            end, true)
+        end,
+    }
+
+    commands.order_blade_upgrade = {
+        normalize = bladeGradeArguments,
+        perform = function(lease, player, arguments)
+            return perform(lease, player, function()
+                if lease.private.lubrication or lease.private.bladeStage then
+                    return false, "service_active", "Finish or cancel the active cutter service first."
+                end
+                local ready, code, message = requireIdleMachine()
+                if not ready then return false, code, message end
+                local accepted, result = MachineMaintenance.buyBladeUpgrade(state, arguments.bladeGrade)
+                if not accepted then return false, "blade_upgrade_blocked", result end
+                return true, "blade_upgrade_ordered",
+                    BladeProfiles.get(arguments.bladeGrade).name
+                        .. " ordered. Sleeve the current blade and book Mara; she will fit it at the exchange."
             end, true)
         end,
     }

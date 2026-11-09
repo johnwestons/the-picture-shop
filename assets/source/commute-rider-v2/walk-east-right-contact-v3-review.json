@@ -1,0 +1,19 @@
+{
+  "status": "pose_candidate_pending_sequence_review",
+  "runtimeIntegrated": false,
+  "generator": "built-in imagegen",
+  "source": "walk-east-right-contact-v3.png",
+  "prompt": "walk-east-right-contact-v3-prompt.txt",
+  "identityReference": "output/commute-rider-v2-review/idle-reference-east.png",
+  "poseGuide": "output/commute-rider-pose-guide/east-right-contact-guide.png",
+  "findings": [
+    "Complete painted full-body sprite, not an articulated assembly.",
+    "Visible near/right arm extends behind the hip toward screen-left; far hand extends toward screen-right.",
+    "Visible near/right thigh crosses over the far thigh and reaches the leading screen-right boot; far leg trails screen-left.",
+    "This corrects the repeated same-leg/arm arrangement seen in the earlier contact-pair attempts."
+  ],
+  "remaining": [
+    "Match scale and planted-foot registration to the other seven phases.",
+    "Review complete eight-phase sequence and native moving loop before accepting the walk animation."
+  ]
+}

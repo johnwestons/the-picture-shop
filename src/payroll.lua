@@ -16,7 +16,8 @@ local function bucket(worker,day)
     return row
 end
 function Payroll.accrue(worker,startAt,endAt,finishingCycle,state)
-    if not worker.visible or not worker.clockedIn or worker.phase=="hidden"
+    if not worker.visible and not worker.awayForDelivery or not worker.clockedIn
+        or worker.phase=="hidden" and not worker.awayForDelivery
         or (worker.phase=="break" and worker.breakKind=="meal") then return 0 end
     local t=worker.contract
     local accrued,paidHours=0,0
@@ -32,6 +33,10 @@ function Payroll.accrue(worker,startAt,endAt,finishingCycle,state)
                 local shiftEnd=finishingCycle and (day+1)*24 or shiftStart+Contracts.duration(t)
                 local a=math.max(startAt,day*24,shiftStart)
                 local b=math.min(endAt,(day+1)*24,shiftEnd)
+                if not finishingCycle then
+                    local first,last=Contracts.shiftBounds(t,shiftDay)
+                    if first then a,b=math.max(a,first),math.min(b,last) else b=a end
+                end
                 if b>a then
                     local row=bucket(worker,day)
                     local hours=b-a

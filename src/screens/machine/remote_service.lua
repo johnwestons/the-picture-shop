@@ -12,6 +12,10 @@ function Component.install(Runtime)
             if Runtime.inside(Runtime.maintenanceBack, x, y) then Runtime.Screen.maintenanceView = nil; return true end
             if Runtime.inside(Runtime.oilServiceButton, x, y) then return action("begin_lubrication") end
             if Runtime.inside(Runtime.bladeServiceButton, x, y) then return action("begin_blade") end
+            if Runtime.inside(Runtime.spareBladeButton, x, y) then return action("install_spare_blade") end
+            for grade, rect in pairs(Runtime.bladeUpgradeButtons) do
+                if Runtime.inside(rect, x, y) then return action("order_blade_upgrade", { bladeGrade = grade }) end
+            end
             if Runtime.inside(Runtime.technicianButton, x, y) then return action("book_blade_technician") end
             if Runtime.inside(Runtime.weeklyButton, x, y) then
                 local _, cutter = Runtime.MachineMaintenance.cutterStatus(state)
@@ -46,10 +50,16 @@ function Component.install(Runtime)
             if Runtime.inside(Runtime.maintenanceBack,x,y) then return action("cancel_service") end
             if Runtime.Screen.bladeStage == "bolts" then
                 for index,pos in ipairs(Runtime.bladeBoltPositions()) do
-                    if (x-pos[1])^2+(y-pos[2])^2 <= 24^2 then return action("remove_blade_bolt",{itemIndex=index}) end
+                    if not Runtime.Screen.bladeBolts[index]
+                        and (x-pos[1])^2+(y-pos[2])^2 <= 24^2
+                    then
+                        return action("remove_blade_bolt",{itemIndex=index})
+                    end
                 end
-            elseif Runtime.Screen.bladeStage == "blade" and x>=304 and x<=656 and y>=280 and y<=342 then return action("lift_blade")
-            elseif Runtime.Screen.bladeStage == "sleeve" and x>=330 and x<=630 and y>=445 and y<=505 then return action("sleeve_blade") end
+            elseif Runtime.Screen.bladeStage == "blade" and x>=230 and x<=730 and y>=385 and y<=505 then
+                Runtime.Screen.bladeStage, Runtime.Screen.bladeLiftStarted = "lifting", love.timer.getTime()
+                return action("lift_blade")
+            elseif Runtime.Screen.bladeStage == "sleeve" and x>=290 and x<=670 and y>=380 and y<=520 then return action("sleeve_blade") end
             return true
         elseif Runtime.Screen.maintenanceView == "wrapper_hub" then
             if Runtime.inside(Runtime.maintenanceBack,x,y) then Runtime.Screen.maintenanceView=nil; return true end
@@ -68,6 +78,7 @@ function Component.install(Runtime)
     function Runtime.Screen.syncRemoteService(state, view)
         Runtime.Screen.remoteView = view
         local step = view.serviceStep or "idle"
+        local previousServiceStep = Runtime.Screen.remoteServiceStep
         if state.machineType == "skid_wrapper" then
             if step == "task" then
                 local session = Runtime.Screen.wrapperSession or Runtime.MachineMaintenance.beginWrapperService(state)
@@ -80,11 +91,26 @@ function Component.install(Runtime)
             elseif Runtime.Screen.maintenanceView == "wrapper_task" then Runtime.Screen.wrapperSession,Runtime.Screen.maintenanceView=nil,"wrapper_hub" end
         elseif step:sub(1,6) == "blade_" then
             Runtime.Screen.maintenanceView = "blade"
-            Runtime.Screen.bladeStage = step == "blade_lift" and "blade" or step:sub(7)
+            if step == "blade_lift" then
+                if Runtime.Screen.bladeStage ~= "lifting" then Runtime.Screen.bladeStage = "blade" end
+            elseif step == "blade_sleeve" and previousServiceStep == "blade_lift" then
+                Runtime.Screen.bladeStage = "lifting"
+                Runtime.Screen.bladeLiftStarted = love.timer.getTime()
+            elseif Runtime.Screen.bladeStage ~= "lifting"
+                or love.timer.getTime() - (Runtime.Screen.bladeLiftStarted or 0) >= 0.62
+            then
+                Runtime.Screen.bladeStage = step:sub(7)
+            end
+            local previousBolts = Runtime.Screen.bladeBolts or {}
             Runtime.Screen.bladeBolts = {}
-            for index=1,4 do
-                Runtime.Screen.bladeBolts[index]=view.bladeBoltMask and math.floor(view.bladeBoltMask/2^(index-1))%2==1
+            Runtime.Screen.bladeBoltAnimations = Runtime.Screen.bladeBoltAnimations or {}
+            for index=1,5 do
+                local removed = view.bladeBoltMask and math.floor(view.bladeBoltMask/2^(index-1))%2==1
                     or (view.bladeBoltMask==nil and index <= (view.bladeBoltsDone or 0))
+                Runtime.Screen.bladeBolts[index] = removed
+                if removed and not previousBolts[index] then
+                    Runtime.Screen.bladeBoltAnimations[index] = love.timer.getTime()
+                end
             end
         elseif step ~= "idle" then
             local session = Runtime.Screen.oilSession or Runtime.MachineMaintenance.beginCutterLubrication(state)
@@ -108,6 +134,7 @@ function Component.install(Runtime)
         elseif Runtime.Screen.maintenanceView == "oil" or Runtime.Screen.maintenanceView == "blade" then
             Runtime.Screen.oilSession,Runtime.Screen.bladeStage,Runtime.Screen.bladeBolts,Runtime.Screen.maintenanceView=nil,nil,nil,"hub"
         end
+        Runtime.Screen.remoteServiceStep = step
     end
 end
 

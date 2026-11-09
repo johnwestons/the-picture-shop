@@ -1,0 +1,139 @@
+THE PICTURE SHOP - ANDROID AND CROSS-DEVICE GAMEPLAY ACCEPTANCE
+November 9, 2026
+
+Status: desktop acceptance, the complete S25 Android smoke plan and PC-to-S25
+LAN journeys passed. All 10 Android stages completed with 17,319 checks. The
+normal app launcher was restored after testing, and the S25's temporary test
+identities and harness files were removed.
+
+Environment and method
+Physical Samsung Galaxy S25 Ultra, Android 17, arm64-v8a.
+Windows PC running the repository with the installed LÖVE runtime.
+The phone joined the PC over the actual local Wi-Fi network using the game's
+normal ENet LAN session, discovery, authority, snapshots and reconnect logic.
+ADB controlled the explicitly selected phone and captured its rendered screens.
+
+The game saves were reset at the start, as requested for test saves. The reset
+did not delete existing backup files. Starting fixtures supplied money, machines, stock,
+jobs and positions so late-game steps could be reached without a career grind.
+Interaction commands, rejection replies, production timers, ownership, network
+transport and save validation remained the real game code. Some GUI actions used
+the game's normal control handlers; selected arcade and menu actions used actual
+Android touch events. These are instrumented acceptance journeys, not a claim of
+a complete manual campaign or every possible combination of player actions.
+
+Fixes discovered by physical-device testing
+1. Bike grocery cargo applied on the host but timed out on the phone. The cargo
+   function returned (success, message), while the network interaction expected
+   (success, code, message). Human-readable prose was rejected as a protocol code.
+   Cargo now returns protocol-safe unloaded/blocked codes. Repeated and distant
+   commands get explicit denials, and unloading cannot duplicate food.
+2. Tiny floating-point rounding in visitor movement occasionally produced a
+   direction component just outside [-1,1], rejecting visitor snapshots. Motion
+   direction now normalizes the achieved displacement and respects wire bounds.
+3. The grocery canvas clipped wide-phone toolbar controls, and an outdoor status
+   overlay obscured the grocery title/cart. Toolbar bounds now match the interior
+   canvas; its own header provides time, household funds, cart and instructions.
+4. Grocery and gas-station Options opened but ignored Resume and tab touches.
+   The retained interior controller intercepted menu input. Its touch routing now
+   applies only to the world screen. Four regressions reproduce the failure on
+   the old runtime and verify tab selection and Resume in both interiors.
+
+An Android-only regression-test portability issue was also corrected: float32
+alpha values at byte 128 rounded differently from the desktop double comparison.
+The vehicle silhouette test now compares the authored alpha byte threshold.
+Fixed-coordinate pixel assertions also assumed a 1:1 canvas DPI. Those fixtures
+now explicitly use authored-pixel canvases. The native-DPI truck viewport check
+retains the phone's DPI and converts sample coordinates to actual image pixels;
+its corrected 57-check focused run passed on the S25. No gameplay render path
+was replaced or patched to obtain these results.
+
+Final smoke results
+- desktop-acceptance-final-r2/summary.json: all 19 plan stages and 37 feature
+  groups passed, with 34,634 checks. Source stayed unchanged during that run.
+  The updated core desktop/mobile stages were rerun and passed 11,017 checks each.
+- android-acceptance-complete/summary.json: all 10 Android stages passed with
+  17,319 checks: 11,016 core, 4,173 seeded recovery, 213 apartments, 60 outing,
+  six delivery-route, 457 services, 1,334 commute and 60 scene-exit checks.
+- android-route-final-verified/summary.json: all three seeded delivery routes,
+  every ordered town destination pair, map snapshot and final render markers passed.
+- android-services-commute-verified/summary.json: mobile service and commute
+  stages passed. android-scene-exit-verified/summary.json passed after the
+  reloaded apartment HUD rendered before the header-exit tap.
+- desktop-scene-exit-retest/summary.json: the corresponding desktop scene-exit
+  stage passed 60 checks.
+- Focused S25 retests for the Android viewport fixtures passed: camera follow
+  23 checks, computer viewport 37, and shop rooms 72.
+- The S25 ran signed debug APK 0.1.0-android.103, SHA-256
+  9557c7e43b2c6a2aade6b5bbf923bbe76d0e0ecff87a016ba6febeb4d2610cc2. The APK
+  installed and launched on the S25.
+- The Android runner retries transient ADB losses and foregrounds the game after
+  CHECKS_COMPLETE when Android has opened USB Settings, allowing the final render
+  checks to finish. The final three-seed route run passed through that runner.
+- The initial reconnected-phone route attempt exposed the runner's transient ADB
+  handling; its app-side report later completed. A subsequent standard-runner
+  route execution passed all checks. The first scene-exit attempt tapped before
+  the reloaded HUD was rendered; the fixture now waits for that header, and the
+  no-overlay S25 retest passed.
+
+Live journeys and evidence
+- network-final/summary.json: written estimate, delayed acceptance, stock
+  unloading, deliberate spoiled cut, replacement stock, four correct cuts,
+  wrapping, spoil bill, inspection, pickup loading/departure and paid completion.
+  Wi-Fi was disabled after cut two. The host removed the guest and released the
+  canonical cutter lease; automatic rejoin required a fresh lease and retained
+  exactly the two completed cuts. Final save passed schema validation.
+- press/summary.json: in-house plate timing, six press setup activities, proof,
+  artwork check, approval, production, emergency stop, reset/resume, exactly 450
+  good sheets, clean/unload and exactly one recorded print pass. This physical
+  run preceded the unrelated final menu fixes; press code was unchanged.
+- Shared activity acceptance: hockey and Kombat touch input was observed by the
+  host; cooperative Crisis released its session after phone force-stop; relaunch
+  preserved the guest resident and paid job. Basketball pickup/shot/recovery,
+  exclusive console ownership, independent town travel, cart purchase, apartment
+  arrival, grocery unloading and household completion/cancellation were checked.
+- home-retest/summary.json: successful unload acknowledgment, stale-command denial
+  without extra food, drink completion, washing/cooking cancellation, sleep/wake,
+  independent scenes, durable valid state and rejoin after a host restart.
+
+All evidence paths in this document are relative to:
+  output/live-gameplay-20261109/
+Earlier failed and interrupted attempts are retained for diagnosis. An attempt
+that ended on a fixture error, the intended host background timeout, or a source
+change is not counted as a complete acceptance pass.
+
+Automated device coverage
+The desktop gate runs all 19 stages and 37 named feature groups. The physical
+Android runner executes the 10 mobile/delivery stages inside the installed APK:
+the full suite, three seeded recovery campaigns, all apartment round trips,
+weekday outing, delivery routes, services, commute and scene exits. Each device
+stage uses a fresh isolated test identity and requires all named feature checks,
+render completion and SMOKE_OK. Native Android execution complements the actual
+two-device journeys; controlled network fixtures inside the suite are not
+misrepresented as separate-device sessions.
+
+Repeatable entry points
+  RUN_GAMEPLAY_SMOKE_TEST.bat
+  tools/run_live_network_journey.py
+  tools/run_live_shared_activities.py
+  tools/run_live_home_retest.py
+  tools/run_live_press.py
+
+Set TPS_ANDROID_SERIAL to the selected adb device serial before the physical-device
+runs. The shared-activities journey also requires TPS_HOST_ENDPOINT set to the
+reachable PC address and port (for example, <pc-ip>:22122). The Android smoke runner
+accepts the selected serial through --serial.
+
+The physical-device scripts temporarily install a private diagnostic entry point
+and use isolated test identities, a live PC host and explicit rich starting
+fixtures. These developer acceptance tools are excluded from the APK. The final
+cleanup removed the temporary entry point, controller, reports, overlays and test
+identities, restored the embedded normal launcher, and left the three test slots
+fresh. The pre-existing slot1 backup remained unchanged; no save backup was made.
+
+Scope
+This establishes a repeatable desktop baseline, complete S25 Android smoke pass
+and PC-to-S25 local Wi-Fi multiplayer baseline. Internet/cellular multiplayer,
+other Android models, iOS, prolonged thermal/performance soak and every possible
+player sequence are outside this run. The installed artifact is a signed debug
+playtest APK, not a production release.

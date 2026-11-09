@@ -1,0 +1,348 @@
+{
+  "version": 1,
+  "generator": "built-in image_gen",
+  "transparent_background": true,
+  "canvas": [
+    1536,
+    1024
+  ],
+  "cells": [
+    4,
+    2
+  ],
+  "processing": "PNG files copied unchanged. Runtime alpha cutoff 0.18 and per-frame pivots/scales in src/home_furniture_catalog.lua; powered-TV screen tint is a separate procedural runtime overlay in src/home_furniture_art.lua.",
+  "assets": [
+    {
+      "id": "wardrobe",
+      "file": "wardrobe-eight-directions.png",
+      "subject": "A narrow inexpensive freestanding wooden wardrobe, 90 cm wide, 50 cm deep and 180 cm tall. Warm honey-brown worn wood matching an old wooden desk. Two closed plain front doors with small dark round handles at the central seam, a plain flat top and short squared feet. No mirror, no decorative crown, no drawers, no clothes visible. Back is a plain wood panel with no handles. Maintain identical door/handle locations across rotations. Each view about 230px wide and 400px high.",
+      "prompt": "Use case: stylized-concept.\nAsset type: production eight-direction furniture sprite atlas for an isometric cozy indie game.\nCreate a 1536x1024 landscape RGBA PNG with genuine fully transparent background; eight isolated views of the SAME object in a strict 4-column x 2-row grid, each nominal cell 384x512. Absolutely no backdrop, colored haze, floor, base tile, grid lines, labels, text, watermark, or other objects. Every object fully contained inside its cell with 24px margins and consistent scale across views. Stylized hand-painted warm realistic wood/material textures, dark tidy outline, gently worn starter-apartment look. Fixed elevated orthographic camera showing top and sides, approximately 30 degrees above horizontal, no perspective convergence. Lighting softly from upper left, no ground cast shadow. The OBJECT rotates in 45-degree increments, camera and size stay fixed.\nView order precisely: top-left front three-quarter with front face looking toward lower-right; top-second straight front; top-third opposite front three-quarter with front face toward lower-left; top-fourth exact right side. Bottom-left rear three-quarter; bottom-second straight back; bottom-third opposite rear three-quarter; bottom-fourth exact left side. Front-specific details must disappear on the back. Do not duplicate front views for back views.\nSubject: A narrow inexpensive freestanding wooden wardrobe, 90 cm wide, 50 cm deep and 180 cm tall. Warm honey-brown worn wood matching an old wooden desk. Two closed plain front doors with small dark round handles at the central seam, a plain flat top and short squared feet. No mirror, no decorative crown, no drawers, no clothes visible. Back is a plain wood panel with no handles. Maintain identical door/handle locations across rotations. Each view about 230px wide and 400px high.",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-1531d415-f70d-46e1-ad9b-ed66673c76a9.png",
+      "sha256": "18cadf7df3ca037e218fabd7196f5555ac84b1bf92b6b63866e9f76692dc47de",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.21,
+        "pivots": [
+          [
+            224,
+            426
+          ],
+          [
+            208,
+            423
+          ],
+          [
+            189,
+            426
+          ],
+          [
+            192,
+            441
+          ],
+          [
+            208,
+            401
+          ],
+          [
+            196,
+            424
+          ],
+          [
+            197,
+            401
+          ],
+          [
+            194,
+            441
+          ]
+        ],
+        "footprint": [
+          26,
+          44,
+          95
+        ],
+        "storage": {
+          "key": "clean",
+          "capacity": 8
+        },
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "west": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "east": 8
+        }
+      }
+    },
+    {
+      "id": "cabinet",
+      "file": "cabinet-eight-directions.png",
+      "subject": "A modest freestanding pantry storage cabinet, 80 cm wide, 40 cm deep and 110 cm tall. Faded cream painted wood, worn edges showing brown wood. Two closed front cupboard doors with simple dark pulls at the central seam, short feet, flat wood top. No sink, appliances, drawers or objects on top. Back is a plain wood backing with no handles. Each view about 270px wide and 320px high.",
+      "prompt": "Use case: stylized-concept.\nAsset type: production eight-direction furniture sprite atlas for an isometric cozy indie game.\nCreate a 1536x1024 landscape RGBA PNG with genuine fully transparent background; eight isolated views of the SAME object in a strict 4-column x 2-row grid, each nominal cell 384x512. Absolutely no backdrop, colored haze, floor, base tile, grid lines, labels, text, watermark, or other objects. Every object fully contained inside its cell with 24px margins and consistent scale across views. Stylized hand-painted warm realistic wood/material textures, dark tidy outline, gently worn starter-apartment look. Fixed elevated orthographic camera showing top and sides, approximately 30 degrees above horizontal, no perspective convergence. Lighting softly from upper left, no ground cast shadow. The OBJECT rotates in 45-degree increments, camera and size stay fixed.\nView order precisely: top-left front three-quarter with front face looking toward lower-right; top-second straight front; top-third opposite front three-quarter with front face toward lower-left; top-fourth exact right side. Bottom-left rear three-quarter; bottom-second straight back; bottom-third opposite rear three-quarter; bottom-fourth exact left side. Front-specific details must disappear on the back. Do not duplicate front views for back views.\nSubject: A modest freestanding pantry storage cabinet, 80 cm wide, 40 cm deep and 110 cm tall. Faded cream painted wood, worn edges showing brown wood. Two closed front cupboard doors with simple dark pulls at the central seam, short feet, flat wood top. No sink, appliances, drawers or objects on top. Back is a plain wood backing with no handles. Each view about 270px wide and 320px high.",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-18b4ba61-923a-415a-9513-acd73f440d17.png",
+      "sha256": "b71a27bfa42dbf63e5e03da8bf14f8aaf41eec8ef2fd8781f382812c03f619fe",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.15,
+        "pivots": [
+          [
+            215,
+            406
+          ],
+          [
+            208,
+            421
+          ],
+          [
+            208,
+            406
+          ],
+          [
+            207,
+            436
+          ],
+          [
+            215,
+            418
+          ],
+          [
+            208,
+            423
+          ],
+          [
+            208,
+            418
+          ],
+          [
+            207,
+            443
+          ]
+        ],
+        "footprint": [
+          24,
+          40,
+          65
+        ],
+        "foodCapacity": 32,
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "west": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "east": 8
+        },
+        "rows": [
+          [
+            0,
+            480
+          ],
+          [
+            480,
+            544
+          ]
+        ]
+      }
+    },
+    {
+      "id": "old_tv",
+      "file": "old-tv-eight-directions.png",
+      "subject": "A small old 1980s tabletop CRT television, 50 cm wide, 42 cm deep, 42 cm tall, enclosed in a dark brown woodgrain box with a charcoal plastic bezel, a curved dark unlit gray glass screen, a narrow speaker grille and two small tuning knobs on the FRONT RIGHT beside the screen, four very short rubber feet. No stand, no table, no antenna, no cable, no logos, no image playing. Side is a closed plain woodgrain panel; back is a dark vented bulging plastic panel with NO screen or front controls. All views about 290px wide and 250px high.",
+      "prompt": "Use case: stylized-concept.\nAsset type: production eight-direction furniture sprite atlas for an isometric cozy indie game.\nCreate a 1536x1024 landscape RGBA PNG with genuine fully transparent background; eight isolated views of the SAME object in a strict 4-column x 2-row grid, each nominal cell 384x512. Absolutely no backdrop, colored haze, floor, base tile, grid lines, labels, text, watermark, or other objects. Every object fully contained inside its cell with 24px margins and consistent scale across views. Stylized hand-painted warm realistic wood/material textures, dark tidy outline, gently worn starter-apartment look. Fixed elevated orthographic camera showing top and sides, approximately 30 degrees above horizontal, no perspective convergence. Lighting softly from upper left, no ground cast shadow. The OBJECT rotates in 45-degree increments, camera and size stay fixed.\nView order precisely: top-left front three-quarter with front face looking toward lower-right; top-second straight front; top-third opposite front three-quarter with front face toward lower-left; top-fourth exact right side. Bottom-left rear three-quarter; bottom-second straight back; bottom-third opposite rear three-quarter; bottom-fourth exact left side. Front-specific details must disappear on the back. Do not duplicate front views for back views.\nSubject: A small old 1980s tabletop CRT television, 50 cm wide, 42 cm deep, 42 cm tall, enclosed in a dark brown woodgrain box with a charcoal plastic bezel, a curved dark unlit gray glass screen, a narrow speaker grille and two small tuning knobs on the FRONT RIGHT beside the screen, four very short rubber feet. No stand, no table, no antenna, no cable, no logos, no image playing. Side is a closed plain woodgrain panel; back is a dark vented bulging plastic panel with NO screen or front controls. All views about 290px wide and 250px high.",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-baf407ca-b9a7-4603-ba51-d01894ce3913.png",
+      "sha256": "acb6f410f194a976b9ce35ff26831c60144825ef65afae7bbcf621ac5fd11873",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.105,
+        "pivots": [
+          [
+            205,
+            412
+          ],
+          [
+            198,
+            410
+          ],
+          [
+            200,
+            412
+          ],
+          [
+            218,
+            415
+          ],
+          [
+            205,
+            333
+          ],
+          [
+            198,
+            335
+          ],
+          [
+            200,
+            333
+          ],
+          [
+            218,
+            350
+          ]
+        ],
+        "footprint": [
+          24,
+          28,
+          35
+        ],
+        "small": true,
+        "screen": [
+          [
+            [
+              151,
+              279
+            ],
+            [
+              302,
+              240
+            ],
+            [
+              302,
+              371
+            ],
+            [
+              151,
+              411
+            ]
+          ],
+          [
+            [
+              80,
+              247
+            ],
+            [
+              260,
+              247
+            ],
+            [
+              260,
+              377
+            ],
+            [
+              80,
+              377
+            ]
+          ],
+          [
+            [
+              54,
+              242
+            ],
+            [
+              202,
+              281
+            ],
+            [
+              202,
+              403
+            ],
+            [
+              54,
+              365
+            ]
+          ]
+        ],
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "west": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "east": 8
+        }
+      }
+    },
+    {
+      "id": "trash_can",
+      "file": "trash-can-eight-directions.png",
+      "subject": "A small old rectangular kitchen pedal trash can, 30 cm wide, 35 cm deep and 50 cm high. Dull desaturated teal painted metal with lightly scuffed edges, CLOSED flat hinged lid, simple small black foot pedal centered at the bottom of the FRONT, narrow black hinge at the BACK of the lid. No trash, no bag sticking out, no symbols. Rear views show the hinge and no pedal. All views about 230px wide and 300px high.",
+      "prompt": "Use case: stylized-concept.\nAsset type: production eight-direction furniture sprite atlas for an isometric cozy indie game.\nCreate a 1536x1024 landscape RGBA PNG with genuine fully transparent background; eight isolated views of the SAME object in a strict 4-column x 2-row grid, each nominal cell 384x512. Absolutely no backdrop, colored haze, floor, base tile, grid lines, labels, text, watermark, or other objects. Every object fully contained inside its cell with 24px margins and consistent scale across views. Stylized hand-painted warm realistic wood/material textures, dark tidy outline, gently worn starter-apartment look. Fixed elevated orthographic camera showing top and sides, approximately 30 degrees above horizontal, no perspective convergence. Lighting softly from upper left, no ground cast shadow. The OBJECT rotates in 45-degree increments, camera and size stay fixed.\nView order precisely: top-left front three-quarter with front face looking toward lower-right; top-second straight front; top-third opposite front three-quarter with front face toward lower-left; top-fourth exact right side. Bottom-left rear three-quarter; bottom-second straight back; bottom-third opposite rear three-quarter; bottom-fourth exact left side. Front-specific details must disappear on the back. Do not duplicate front views for back views.\nSubject: A small old rectangular kitchen pedal trash can, 30 cm wide, 35 cm deep and 50 cm high. Dull desaturated teal painted metal with lightly scuffed edges, CLOSED flat hinged lid, simple small black foot pedal centered at the bottom of the FRONT, narrow black hinge at the BACK of the lid. No trash, no bag sticking out, no symbols. Rear views show the hinge and no pedal. All views about 230px wide and 300px high.",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-78aaff82-fee4-48d4-bf90-b99bee195736.png",
+      "sha256": "589d712f057ebc63363df1ae71a2ebeceb790a1014e9f9dc67a96e04a47e22c8",
+      "alphaRange": [
+        0,
+        254
+      ],
+      "registration": {
+        "scale": 0.09,
+        "pivots": [
+          [
+            212,
+            419
+          ],
+          [
+            199,
+            428
+          ],
+          [
+            198,
+            419
+          ],
+          [
+            198,
+            428
+          ],
+          [
+            212,
+            411
+          ],
+          [
+            199,
+            418
+          ],
+          [
+            198,
+            411
+          ],
+          [
+            198,
+            408
+          ]
+        ],
+        "footprint": [
+          18,
+          18,
+          35
+        ],
+        "storage": {
+          "key": "trash",
+          "capacity": 16
+        },
+        "frames": {
+          "southeast": 1,
+          "south": 2,
+          "southwest": 3,
+          "west": 4,
+          "northwest": 5,
+          "north": 6,
+          "northeast": 7,
+          "east": 8
+        }
+      }
+    }
+  ]
+}

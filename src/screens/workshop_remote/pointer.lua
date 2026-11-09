@@ -42,7 +42,14 @@ function Component.install(Runtime)
             local result = Runtime.Screen.sharedComputer.mousepressed(Runtime.Screen.guiState, x, y, button)
             if not Runtime.Screen.waiting and Runtime.Screen.guiState.message~=oldMessage then Runtime.Screen.status=Runtime.Screen.guiState.message end
             if result and result.action == "close" then return Runtime.Screen.canClose() and { action = "close" } or true end
-            if result and result.action == "pickup_ready" then return Runtime.request(sendCommand, "request_pickup", { jobId = result.job.id }) end
+            if result and result.action == "home_activity" then return Runtime.Screen.canClose() and result or true end
+            if result and result.action == "pickup_ready" then
+                local action=result.driverMode=="player" and "request_player_delivery" or "request_pickup"
+                return Runtime.request(sendCommand,action,{jobId=result.job.id})
+            elseif result and result.action=="pickup_mode_changed" then
+                local action=result.driverMode=="player" and "set_player_delivery" or "set_employee_delivery"
+                return Runtime.request(sendCommand,action,{jobId=result.job.id})
+            end
             return result
         end
         if Runtime.Screen.resourceId == "work_phone" then
@@ -163,6 +170,7 @@ function Component.install(Runtime)
                 end
                 return true
             end
+            if Runtime.Screen.view and Runtime.Screen.view.step == "wrapping" then return true end
             local rows = Runtime.wrapperRows(state)
             for index, item in ipairs(rows) do
                 if Runtime.contains(Runtime.wrapperRowRect(index), x, y) then
@@ -208,6 +216,15 @@ function Component.install(Runtime)
                         return Runtime.cutterServiceButtonEnabled("set_weekly_technician", state)
                             and Runtime.request(sendCommand, "set_weekly_technician",
                                 { enabled = Runtime.cutterMaintenanceStatus(state).weeklyTechnician ~= true }) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.installSpare, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("install_spare_blade", state)
+                            and Runtime.request(sendCommand, "install_spare_blade", {}) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.premiumBlade, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "premium_hss")
+                            and Runtime.request(sendCommand, "order_blade_upgrade", { bladeGrade = "premium_hss" }) or true
+                    elseif Runtime.contains(Runtime.CUTTER_SERVICE_CONTROLS.carbideBlade, x, y) then
+                        return Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "carbide_edge")
+                            and Runtime.request(sendCommand, "order_blade_upgrade", { bladeGrade = "carbide_edge" }) or true
                     end
                 elseif serviceStep == "lockout_disconnect" or serviceStep == "lockout_key"
                     or serviceStep == "lockout_tag" or serviceStep == "prep_cartridge"
@@ -249,10 +266,9 @@ function Component.install(Runtime)
                             and Runtime.request(sendCommand, "finish_lubrication", {}) or true
                     end
                 elseif serviceStep == "blade_bolts" then
-                    local nextBolt = (tonumber(view.bladeBoltsDone) or 0) + 1
-                    for index = 1, 4 do
+                    for index = 1, 5 do
                         if Runtime.contains(Runtime.cutterBladeBoltRect(index), x, y) then
-                            return index == nextBolt
+                            return not Runtime.cutterBladeBoltRemoved(view, index)
                                 and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state)
                                 and Runtime.request(sendCommand, "remove_blade_bolt", { itemIndex = index }) or true
                         end

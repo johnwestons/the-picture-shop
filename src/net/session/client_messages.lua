@@ -20,6 +20,19 @@ function Component.install(Runtime)
         then
             return false
         end
+        local home=payload.state.home
+        if type(home)=='table' then
+            if home.networkTownId then
+                if type(self.receivedTown)~='table' or self.receivedTown.id~=home.networkTownId then
+                    self:_queue("error",{message="The island update did not match the joined town."})
+                    return false
+                end
+                home.town=self.receivedTown
+                home.networkTownId=nil
+            else
+                self.receivedTown=home.town
+            end
+        end
         self.lastShopRevision = payload.revision
         self:_queue("shop_state", {
             revision = payload.revision,
@@ -36,6 +49,7 @@ function Component.install(Runtime)
             return false
         end
         self.lastShopRevision = payload.revision
+        self.receivedTown=type(payload.state.home)=='table' and payload.state.home.town or nil
         self.ready = true
         self.status = "Connected to the host"
         self:_queue("ready", {
@@ -88,8 +102,18 @@ function Component.install(Runtime)
                     or (player.resting==true)~=(record.resting==true) then
                     Runtime.copyMotion(player,record,true)
                 end
+                player._rideVX,player._rideVY=0,0
+                player._snapshotAge=0
+                local previous=player._targetRecord
+                if previous and previous.sceneId=='commute' and record.sceneId=='commute'
+                    and record.moving and payload.serverTick-previousTick<=3 then
+                    local elapsed=(payload.serverTick-previousTick)*Runtime.SNAPSHOT_INTERVAL
+                    local vx,vy=(record.x-previous.x)/elapsed,(record.y-previous.y)/elapsed
+                    if vx*vx+vy*vy<40*40 then player._rideVX,player._rideVY=vx,vy end
+                end
                 player._targetX, player._targetY = record.x, record.y
                 player._targetRecord = record
+                player._rideMotion = payload.bike
                 if record.id == self.localId then
                     self.localTarget = record
                 elseif (player.x - record.x) ^ 2 + (player.y - record.y) ^ 2
@@ -130,6 +154,7 @@ function Component.install(Runtime)
         if envelope.type == "welcome" then
             self.sessionId = payload.sessionId
             self.localId = payload.playerId
+            self.residentId = payload.residentId
             self.lastServerTick = payload.serverTick - 1
             self.lastFightTick = -1
             self.fightMatches = {}
@@ -263,8 +288,11 @@ function Component.install(Runtime)
                 self:_queue("environment_state", {
                     serverTick = payload.serverTick,
                     bayDoor = payload.bayDoor,
+                    roomDoors = payload.roomDoors,
                     truck = payload.truck,
                     employees = employees,
+                    technician = payload.technician,
+                    deliveryDriver = payload.deliveryDriver,
                 })
             end
         elseif envelope.type == "employee_snapshot" then
@@ -281,7 +309,14 @@ function Component.install(Runtime)
                     serverTick = payload.serverTick,
                     jack = payload.jack,
                     machines = payload.machines,
+                    jackId = payload.jackId,
                 })
+            end
+        elseif envelope.type=="extra_pallet_jack_snapshot" then
+            if self.ready and payload.sessionId==self.sessionId
+                and payload.serverTick>(self.lastExtraPalletJackTicks[payload.jackId] or -1) then
+                self.lastExtraPalletJackTicks[payload.jackId]=payload.serverTick
+                self:_queue("extra_pallet_jack_state",{jackId=payload.jackId,jack=payload.jack,serverTick=payload.serverTick})
             end
         elseif envelope.type == "forklift_snapshot" then
             if self.ready and payload.sessionId == self.sessionId
@@ -495,7 +530,14 @@ function Component.install(Runtime)
         elseif envelope.type == "pong" then
             local sentAt = self.pendingPing and self.pendingPing[payload.nonce]
             if sentAt then
-                self.rtt = math.max(0, (self.clock() - sentAt) * 1000)
+                local now=self.clock()
+                self.rtt = math.max(0, (now - sentAt) * 1000)
+                self.lastPongAt=now
+                self.pingReceivedCount=(self.pingReceivedCount or 0)+1
+                self.pingMinMs=not self.pingMinMs and self.rtt or math.min(self.pingMinMs,self.rtt)
+                self.pingMaxMs=not self.pingMaxMs and self.rtt or math.max(self.pingMaxMs,self.rtt)
+                self.pingAverageMs=not self.pingAverageMs and self.rtt
+                    or self.pingAverageMs*.8+self.rtt*.2
                 self.pendingPing[payload.nonce] = nil
             end
         elseif envelope.type == "leave" then

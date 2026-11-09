@@ -75,3 +75,8 @@ __pycache__/
 
 # Generated audio audition reel; individual runtime cues remain tracked.
 /assets/audio/sfx/picture_shop_sfx_preview.wav
+
+# Local Codex attachments and generated voice audition previews are not game assets.
+/.codex-attachments/
+/artifacts/npc_voice_previews/
+/smoke-report.rpt

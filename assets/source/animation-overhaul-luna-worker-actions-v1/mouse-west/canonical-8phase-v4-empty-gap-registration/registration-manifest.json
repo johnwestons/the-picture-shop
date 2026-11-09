@@ -1,0 +1,1339 @@
+{
+  "status": "v4 review-only rigid crop registration; no source repaint or runtime promotion",
+  "source_provenance": {
+    "exact_prompt_and_generation_record": {
+      "path": "assets/source/animation-overhaul-luna-worker-actions-v1/mouse-west/canonical-8phase-v3-proportion-consistent/generation-record.md",
+      "sha256": "d5b2262b5559ba382cb4c30a448231c6dc501f07c2bd5db938dea44a46255859",
+      "note": "Contains the verbatim one-generation prompt and reference roles/hashes. V4 changes only deterministic cropping/registration; no new image generation was performed."
+    },
+    "imagegen_raw_result_original_path": "C:\\Users\\johnw\\.codex\\generated_images\\01a17bff-cf8e-7f63-8e8d-221432232467\\exec-a9a38e7a-ccc3-4aa2-9fa3-25267e5f7aa9.png",
+    "reference_hashes": {
+      "primary_k5_proportion_identity_reference": {
+        "path": "assets/source/animation-overhaul-luna-worker-actions-v1/mouse-west/contact5-proportion-correction-v1/field-mouse-worker-k5-proportion-v1-imagegen.png",
+        "sha256": "3cb33fe62981454b7eb8e13b91bfa1c69d61f1a55db30255f0b0fd7e5e67404"
+      },
+      "approved_idle_west_identity_reference": {
+        "path": "assets/generated/technician-motion-v2/field-mouse-technician/idle_west.png",
+        "sha256": "886efc1ad1bf57bedb3a1b98927b82135281b9d53599f080b592e37a979a0f66"
+      },
+      "lower_body_phase_guide_only": {
+        "path": "output/animation-overhaul/luna-worker-actions/mouse-west/field-mouse-technician-west-canonical-8phase-v2-torso-axis-registered-4x2.png",
+        "sha256": "dabb127c54e06133449edbba7901fcafc14fe861cc619ec93a1b1ba77b063e16"
+      }
+    }
+  },
+  "raw_master": {
+    "path": "field-mouse-technician-west-canonical-8phase-v3-master-raw.png",
+    "sha256": "5465fe188fea59a8d9484f27b738a9078dcb77eb0b0724b96ce53a41dbce5ef5",
+    "dimensions_px": [
+      1774,
+      887
+    ],
+    "mode": "RGBA",
+    "expected_generation_source_sha256": "5465fe188fea59a8d9484f27b738a9078dcb77eb0b0724b96ce53a41dbce5ef5",
+    "source_alpha_counts": {
+      "nonzero": 480779,
+      "ge16": 442197
+    }
+  },
+  "source_generation_reference": {
+    "relative_path": "../canonical-8phase-v3-proportion-consistent/field-mouse-technician-west-canonical-8phase-v3-imagegen.png",
+    "sha256": "5465fe188fea59a8d9484f27b738a9078dcb77eb0b0724b96ce53a41dbce5ef5"
+  },
+  "frozen_selection": {
+    "row_y_bounds_half_open": [
+      [
+        0,
+        460
+      ],
+      [
+        460,
+        887
+      ]
+    ],
+    "row_cutline_y": 460,
+    "row_cutline_alpha_ge16_empty_run": [
+      423,
+      490
+    ],
+    "row_cutline_alpha_zero_empty_run": [
+      460,
+      461
+    ],
+    "column_cutlines_by_row": [
+      [
+        479,
+        932,
+        1385
+      ],
+      [
+        502,
+        932,
+        1385
+      ]
+    ],
+    "column_cutline_gaps": [
+      {
+        "row": 0,
+        "cut_x": 479,
+        "left_column_x": 478,
+        "right_column_x": 479,
+        "alpha_ge16_empty_run_xy": [
+          442,
+          515
+        ],
+        "alpha_zero_empty_run_xy": [
+          446,
+          512
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          0,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      },
+      {
+        "row": 0,
+        "cut_x": 932,
+        "left_column_x": 931,
+        "right_column_x": 932,
+        "alpha_ge16_empty_run_xy": [
+          885,
+          958
+        ],
+        "alpha_zero_empty_run_xy": [
+          915,
+          948
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          0,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      },
+      {
+        "row": 0,
+        "cut_x": 1385,
+        "left_column_x": 1384,
+        "right_column_x": 1385,
+        "alpha_ge16_empty_run_xy": [
+          1328,
+          1402
+        ],
+        "alpha_zero_empty_run_xy": [
+          1383,
+          1388
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          0,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      },
+      {
+        "row": 1,
+        "cut_x": 502,
+        "left_column_x": 501,
+        "right_column_x": 502,
+        "alpha_ge16_empty_run_xy": [
+          444,
+          514
+        ],
+        "alpha_zero_empty_run_xy": [
+          496,
+          507
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          0,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      },
+      {
+        "row": 1,
+        "cut_x": 932,
+        "left_column_x": 931,
+        "right_column_x": 932,
+        "alpha_ge16_empty_run_xy": [
+          887,
+          958
+        ],
+        "alpha_zero_empty_run_xy": [
+          919,
+          944
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          0,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      },
+      {
+        "row": 1,
+        "cut_x": 1385,
+        "left_column_x": 1384,
+        "right_column_x": 1385,
+        "alpha_ge16_empty_run_xy": [
+          1330,
+          1402
+        ],
+        "alpha_zero_empty_run_xy": [
+          1385,
+          1386
+        ],
+        "weak_alpha_pixels_on_cut_column": 0,
+        "weak_alpha_pixels_on_adjacent_columns": [
+          1,
+          0
+        ],
+        "alpha_ge16_pixels_on_adjacent_columns": [
+          0,
+          0
+        ]
+      }
+    ],
+    "crop_bounds_half_open_xyxy": [
+      [
+        0,
+        0,
+        479,
+        460
+      ],
+      [
+        479,
+        0,
+        932,
+        460
+      ],
+      [
+        932,
+        0,
+        1385,
+        460
+      ],
+      [
+        1385,
+        0,
+        1774,
+        460
+      ],
+      [
+        0,
+        460,
+        502,
+        887
+      ],
+      [
+        502,
+        460,
+        932,
+        887
+      ],
+      [
+        932,
+        460,
+        1385,
+        887
+      ],
+      [
+        1385,
+        460,
+        1774,
+        887
+      ]
+    ],
+    "frame_order": [
+      "K1 near/pocketed lead contact, far/plain leg trails",
+      "K2 near/pocketed weight-down, far/plain heel releases",
+      "K3 far/plain compact pass, near/pocketed supports",
+      "K4 far/plain knee-up forward, near/pocketed supports",
+      "K5 far/plain lead contact, near/pocketed leg trails",
+      "K6 far/plain weight-down, near/pocketed heel releases",
+      "K7 near/pocketed compact pass, far/plain supports",
+      "K8 near/pocketed knee-up forward, far/plain supports"
+    ],
+    "source_pixels_partition": {
+      "assignment_count_min": 1,
+      "assignment_count_max": 1,
+      "alpha_nonzero_assigned_once": 480779,
+      "alpha_nonzero_source_total": 480779,
+      "alpha_ge16_assigned_once": 442197,
+      "alpha_ge16_source_total": 442197,
+      "all_source_pixels_assigned_exactly_once": true,
+      "strong_foreground_figure_runs_per_row": [
+        4,
+        4
+      ],
+      "one_alpha_ge16_figure_run_per_crop": true
+    },
+    "rendered_foreground_proof": {
+      "alpha_ge16_pixels_outside_render_bbox_plus_fringe": 0,
+      "alpha_ge16_source_pixels_preserved_in_render_crop": true,
+      "weak_alpha_outside_render_crop": "tracked per frame and shown in output review; source partition retains all such pixels, but the detached low-alpha flecks are excluded from final rendered cells"
+    }
+  },
+  "registration": {
+    "global_scale": 0.48214285714285715,
+    "global_scale_fraction": "27/56",
+    "scale_origin": "same frozen whole-master scale as v3; no per-cell or per-part scale fit",
+    "target_broad_head_width_px_reference": 94.5,
+    "target_torso_axis_x_px": 128.0,
+    "target_ground_y_px": 229.0,
+    "body_reference_height_px": 192,
+    "cell_canvas_px": [
+      256,
+      256
+    ],
+    "runtime_strip_dimensions_px": [
+      2048,
+      256
+    ],
+    "paste_offsets_by_phase_xy": [
+      [
+        60,
+        49
+      ],
+      [
+        59,
+        47
+      ],
+      [
+        58,
+        46
+      ],
+      [
+        58,
+        46
+      ],
+      [
+        59,
+        50
+      ],
+      [
+        58,
+        49
+      ],
+      [
+        59,
+        49
+      ],
+      [
+        59,
+        48
+      ]
+    ],
+    "output_alpha_clipping": false,
+    "output_all_edge_alpha_counts_zero": true,
+    "source_crop_edges_alpha_ge16_counts_zero": true
+  },
+  "frames": [
+    {
+      "phase": 1,
+      "role": "K1 near/pocketed lead contact, far/plain leg trails",
+      "raw_crop_bounds_xyxy_exclusive": [
+        0,
+        0,
+        479,
+        460
+      ],
+      "raw_crop_dimensions_px": [
+        479,
+        460
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        72,
+        50,
+        442,
+        417
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        72,
+        50,
+        442,
+        417
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        72,
+        0,
+        268,
+        158
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        72,
+        0,
+        268,
+        158
+      ],
+      "raw_head_width_px": 196,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        64,
+        42,
+        450,
+        425
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        64,
+        42,
+        450,
+        425
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 60,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          410,
+          7,
+          431,
+          24
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        186,
+        185
+      ],
+      "raw_torso_axis_x_px": 206.0,
+      "raw_ground_y_px": 416,
+      "paste_offset_xy_px": [
+        60,
+        49
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        64,
+        53,
+        242,
+        230
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 14895,
+        "alpha_ge16_pixels": 13707,
+        "alpha_ge128_pixels": 13212
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        72,
+        442
+      ]
+    },
+    {
+      "phase": 2,
+      "role": "K2 near/pocketed weight-down, far/plain heel releases",
+      "raw_crop_bounds_xyxy_exclusive": [
+        479,
+        0,
+        932,
+        460
+      ],
+      "raw_crop_dimensions_px": [
+        453,
+        460
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 3,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        36,
+        50,
+        406,
+        420
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        515,
+        50,
+        885,
+        420
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        36,
+        0,
+        233,
+        159
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        515,
+        0,
+        712,
+        159
+      ],
+      "raw_head_width_px": 197,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        28,
+        42,
+        414,
+        428
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        507,
+        42,
+        893,
+        428
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 14,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          155,
+          214,
+          436,
+          460
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        186,
+        186
+      ],
+      "raw_torso_axis_x_px": 171.5,
+      "raw_ground_y_px": 419,
+      "paste_offset_xy_px": [
+        59,
+        47
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        63,
+        51,
+        241,
+        229
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 14382,
+        "alpha_ge16_pixels": 13317,
+        "alpha_ge128_pixels": 12847
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        515,
+        885
+      ]
+    },
+    {
+      "phase": 3,
+      "role": "K3 far/plain compact pass, near/pocketed supports",
+      "raw_crop_bounds_xyxy_exclusive": [
+        932,
+        0,
+        1385,
+        460
+      ],
+      "raw_crop_dimensions_px": [
+        453,
+        460
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 1,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        26,
+        50,
+        396,
+        423
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        958,
+        50,
+        1328,
+        423
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        26,
+        0,
+        222,
+        160
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        958,
+        0,
+        1154,
+        160
+      ],
+      "raw_head_width_px": 196,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        18,
+        42,
+        404,
+        431
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        950,
+        42,
+        1336,
+        431
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 61,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          16,
+          168,
+          451,
+          460
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        186,
+        188
+      ],
+      "raw_torso_axis_x_px": 162.5,
+      "raw_ground_y_px": 422,
+      "paste_offset_xy_px": [
+        58,
+        46
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        62,
+        50,
+        240,
+        230
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 13252,
+        "alpha_ge16_pixels": 12156,
+        "alpha_ge128_pixels": 11687
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        958,
+        1328
+      ]
+    },
+    {
+      "phase": 4,
+      "role": "K4 far/plain knee-up forward, near/pocketed supports",
+      "raw_crop_bounds_xyxy_exclusive": [
+        1385,
+        0,
+        1774,
+        460
+      ],
+      "raw_crop_dimensions_px": [
+        389,
+        460
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 7,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        17,
+        50,
+        381,
+        423
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        1402,
+        50,
+        1766,
+        423
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        17,
+        0,
+        214,
+        160
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        1402,
+        0,
+        1599,
+        160
+      ],
+      "raw_head_width_px": 197,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        9,
+        42,
+        389,
+        431
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        1394,
+        42,
+        1774,
+        431
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 3,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          3,
+          404,
+          8,
+          410
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        183,
+        188
+      ],
+      "raw_torso_axis_x_px": 153.5,
+      "raw_ground_y_px": 422,
+      "paste_offset_xy_px": [
+        58,
+        46
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        62,
+        50,
+        237,
+        230
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 14018,
+        "alpha_ge16_pixels": 12869,
+        "alpha_ge128_pixels": 12374
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        1402,
+        1766
+      ]
+    },
+    {
+      "phase": 5,
+      "role": "K5 far/plain lead contact, near/pocketed leg trails",
+      "raw_crop_bounds_xyxy_exclusive": [
+        0,
+        460,
+        502,
+        887
+      ],
+      "raw_crop_dimensions_px": [
+        502,
+        427
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        71,
+        31,
+        444,
+        395
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        71,
+        491,
+        444,
+        855
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        71,
+        0,
+        268,
+        157
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        71,
+        460,
+        268,
+        617
+      ],
+      "raw_head_width_px": 197,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        63,
+        23,
+        452,
+        403
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        63,
+        483,
+        452,
+        863
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 125,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          136,
+          1,
+          496,
+          330
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        188,
+        183
+      ],
+      "raw_torso_axis_x_px": 206.0,
+      "raw_ground_y_px": 394,
+      "paste_offset_xy_px": [
+        59,
+        50
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        63,
+        54,
+        243,
+        230
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 14784,
+        "alpha_ge16_pixels": 13611,
+        "alpha_ge128_pixels": 13122
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        71,
+        444
+      ]
+    },
+    {
+      "phase": 6,
+      "role": "K6 far/plain weight-down, near/pocketed heel releases",
+      "raw_crop_bounds_xyxy_exclusive": [
+        502,
+        460,
+        932,
+        887
+      ],
+      "raw_crop_dimensions_px": [
+        430,
+        427
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        12,
+        31,
+        385,
+        397
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        514,
+        491,
+        887,
+        857
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        12,
+        0,
+        209,
+        157
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        514,
+        460,
+        711,
+        617
+      ],
+      "raw_head_width_px": 197,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        4,
+        23,
+        393,
+        405
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        506,
+        483,
+        895,
+        865
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 92,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          94,
+          1,
+          417,
+          346
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        188,
+        184
+      ],
+      "raw_torso_axis_x_px": 148.25,
+      "raw_ground_y_px": 396,
+      "paste_offset_xy_px": [
+        58,
+        49
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        62,
+        53,
+        242,
+        229
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 14427,
+        "alpha_ge16_pixels": 13283,
+        "alpha_ge128_pixels": 12823
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        514,
+        887
+      ]
+    },
+    {
+      "phase": 7,
+      "role": "K7 near/pocketed compact pass, far/plain supports",
+      "raw_crop_bounds_xyxy_exclusive": [
+        932,
+        460,
+        1385,
+        887
+      ],
+      "raw_crop_dimensions_px": [
+        453,
+        427
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 1,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        26,
+        31,
+        398,
+        397
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        958,
+        491,
+        1330,
+        857
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        26,
+        0,
+        222,
+        157
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        958,
+        460,
+        1154,
+        617
+      ],
+      "raw_head_width_px": 196,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        18,
+        23,
+        406,
+        405
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        950,
+        483,
+        1338,
+        865
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 41,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          12,
+          13,
+          453,
+          343
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        187,
+        184
+      ],
+      "raw_torso_axis_x_px": 161.5,
+      "raw_ground_y_px": 396,
+      "paste_offset_xy_px": [
+        59,
+        49
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        63,
+        53,
+        243,
+        229
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 13318,
+        "alpha_ge16_pixels": 12268,
+        "alpha_ge128_pixels": 11827
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        958,
+        1330
+      ]
+    },
+    {
+      "phase": 8,
+      "role": "K8 near/pocketed knee-up forward, far/plain supports",
+      "raw_crop_bounds_xyxy_exclusive": [
+        1385,
+        460,
+        1774,
+        887
+      ],
+      "raw_crop_dimensions_px": [
+        389,
+        427
+      ],
+      "raw_crop_edge_alpha_counts": {
+        "top": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "bottom": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "left": {
+          "alpha_nonzero": 0,
+          "alpha_ge16": 0
+        },
+        "right": {
+          "alpha_nonzero": 15,
+          "alpha_ge16": 0
+        }
+      },
+      "raw_alpha_bbox_ge16_xyxy_exclusive": [
+        17,
+        30,
+        385,
+        398
+      ],
+      "raw_alpha_bbox_global_xyxy_exclusive": [
+        1402,
+        490,
+        1770,
+        858
+      ],
+      "raw_broad_head_bbox_ge16_xyxy_exclusive": [
+        17,
+        0,
+        213,
+        158
+      ],
+      "raw_broad_head_bbox_global_xyxy_exclusive": [
+        1402,
+        460,
+        1598,
+        618
+      ],
+      "raw_head_width_px": 196,
+      "render_content_bounds_in_source_crop_xyxy_exclusive": [
+        9,
+        22,
+        389,
+        406
+      ],
+      "render_content_bounds_global_xyxy_exclusive": [
+        1394,
+        482,
+        1774,
+        866
+      ],
+      "render_foreground_threshold_alpha": 16,
+      "render_foreground_padding_px": 8,
+      "source_alpha_nonzero_residue_outside_render_bounds": {
+        "count": 2,
+        "bbox_in_source_crop_xyxy_exclusive": [
+          1,
+          1,
+          363,
+          340
+        ],
+        "classification": "alpha>0 pixels outside alpha>=16 figure bbox plus 3px fringe; source partition retains them; not rendered as detached faint export residue; inspect raw crop if deciding they belong to the figure",
+        "alpha_ge16_pixels_outside_render_bounds": 0
+      },
+      "uniform_scale": 0.48214285714285715,
+      "scaled_crop_dimensions_px": [
+        183,
+        185
+      ],
+      "raw_torso_axis_x_px": 151.75,
+      "raw_ground_y_px": 397,
+      "paste_offset_xy_px": [
+        59,
+        48
+      ],
+      "registered_alpha_bbox_ge16_xyxy_exclusive": [
+        63,
+        52,
+        240,
+        229
+      ],
+      "registered_alpha_counts": {
+        "alpha_nonzero_pixels": 13915,
+        "alpha_ge16_pixels": 12850,
+        "alpha_ge128_pixels": 12366
+      },
+      "registered_edge_alpha_ge16_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "registered_edge_alpha_nonzero_counts": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      },
+      "owned_alpha_ge16_x_run_global": [
+        1402,
+        1770
+      ]
+    }
+  ],
+  "registered_strip": {
+    "path": "field-mouse-technician-west-canonical-8phase-v4-gap-registered-4x2.png",
+    "sha256": "744a660390028bd8d461c157cb8a64414541e6344634562ae9336ee761a3a1f7",
+    "dimensions_px": [
+      1024,
+      512
+    ],
+    "mode": "RGBA"
+  },
+  "runtime_strip": {
+    "path": "field-mouse-technician-west-canonical-8phase-v4-gap-registered-8x1.png",
+    "sha256": "55cb2cd186b169dc9ae5acc6814b40a3ca6ad6a7207c8456b9a1e7244b21992c",
+    "dimensions_px": [
+      2048,
+      256
+    ],
+    "mode": "RGBA",
+    "frame_order": [
+      "K1 near/pocketed lead contact, far/plain leg trails",
+      "K2 near/pocketed weight-down, far/plain heel releases",
+      "K3 far/plain compact pass, near/pocketed supports",
+      "K4 far/plain knee-up forward, near/pocketed supports",
+      "K5 far/plain lead contact, near/pocketed leg trails",
+      "K6 far/plain weight-down, near/pocketed heel releases",
+      "K7 near/pocketed compact pass, far/plain supports",
+      "K8 near/pocketed knee-up forward, far/plain supports"
+    ]
+  }
+}

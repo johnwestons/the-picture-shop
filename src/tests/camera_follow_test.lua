@@ -80,14 +80,28 @@ function Test.run(context,check)
         check("camera_follow_real_app_world_tap_uses_inverse_transform_"..suffix,state.screen=="shop_clock")
         app.draw()
         check("camera_follow_real_app_clock_does_not_follow_"..suffix,
-            not camera.followTarget and (not mobile or near(camera.zoom,1)))
+            not camera.followTarget and (not mobile or not app.cameraTransformsUi() or near(camera.zoom,1)))
         app.keypressed("escape");app.draw()
         localPlayer.x,localPlayer.y=760,570;app.draw()
         settle(camera)
         x,y=camera:worldToScreen(localPlayer.x,localPlayer.y+camera.followOffsetY)
+        local centered=near(x,480) and near(y,339)
+        -- Android keeps wide-phone views inside the warehouse artwork, so
+        -- the follow target can sit off-center near the right/bottom edges.
+        local visibleOnWidePhone=Viewport.fullScreenDevice()
+            and x>=0 and x<=960 and y>=0 and y<=678
+        local target=camera.followTarget
+        local jack=state.palletJack or {}
         check("camera_follow_real_app_rejoins_after_menu_and_movement_"..suffix,
-            state.screen=="world" and near(camera.zoom,worldZoom) and near(x,480) and near(y,339),
-            state.screen.." zoom "..camera.zoom.." expected "..worldZoom.." center "..x..","..y)
+            state.screen=="world" and target==localPlayer and near(camera.zoom,worldZoom)
+                and (centered or visibleOnWidePhone),
+            state.screen.." zoom "..camera.zoom.." expected "..worldZoom.." center "..x..","..y
+                .." camera "..camera.centerX..","..camera.centerY
+                .." target "..(target==localPlayer and "player" or target==nil and "none" or "alternate")
+                .." targetPos "..tostring(target and target.x)..","..tostring(target and target.y)
+                .." worldPlayerSame "..tostring(context.world.player==localPlayer)
+                .." jack "..tostring(jack.operating).." operator "..tostring(jack.operatorPlayerId)
+                .." jackPos "..tostring(jack.x)..","..tostring(jack.y))
         app.keypressed("o");app.draw();click(190,114);click(515,327)
         check("camera_follow_real_options_toggle_persists_locally_"..suffix,
             state.screen=="options" and not app.settings.followPlayerCamera

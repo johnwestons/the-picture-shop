@@ -53,7 +53,9 @@ function Component.install(Runtime)
         {
             difficulty = "hard",
             company = "Keystone Paper Supply",
-            sourceSize = { width = 25, height = 25 },
+            -- Minimum stock overage leaves only 0.25 inches on the tightest
+            -- hard-layout edge, so experienced operators need to hold gauge.
+            sourceSize = { width = 21, height = 13.5 },
             finishedSize = { width = 20, height = 12.5 },
             sheetCounts = { 3000, 3000, 2000 },
             packaging = "flat",
@@ -61,7 +63,7 @@ function Component.install(Runtime)
                 stockDescription = "Uncoated offset sheets",
                 dueDate = "Standard 7-business-day turnaround",
                 grainDirection = "Grain short",
-                notes = "Count and label every finished pallet separately.",
+                notes = "Count and label every finished pallet separately. Stock has only 1 in. of trim overage on each axis.",
             },
         },
     }
@@ -89,13 +91,16 @@ function Component.install(Runtime)
     Runtime.additionalCuttingCompanies = {
         "Cedar & Finch Packaging",
         "Hightide Paper Works",
+        "Town Grocery",
         "Foxglove Print & Mail",
         "Copperline Label Company",
         "Alderbrook Stationery",
         "Westward Carton & Crate",
+        "Majic Blue",
         "Briar Patch Bookbinders",
         "Brightwell Candle Company",
         "Otter Creek Outfitters",
+        "Town Diner",
         "Hearth & Harbor Market",
         "Redtail Coffee Roasters",
         "Stonebridge Seed Company",
@@ -109,6 +114,8 @@ function Component.install(Runtime)
         "Paper Lantern Theater Group",
     }
 
+    -- Stock source is the customer's written choice: these requests mix client
+    -- supplied stock with jobs that ask the shop to use house paper.
     Runtime.pressTemplates = {
         {
             difficulty = "easy",
@@ -154,12 +161,12 @@ function Component.install(Runtime)
             artworkKey = "ad-photos",
             artwork = { key = "ad-photos", displayName = "Maple Street Reading Series Poster",
                 fileName = "maple-street-reading-series.png", suppliedBy = "client", orientation = "portrait" },
-            stockSpec = { suppliedBy = "client", grade = "cover", weight = 90, finish = "uncoated",
-                color = "cream", grain = "long", description = "90 lb cream uncoated cover" },
+            stockSpec = { suppliedBy = "house", grade = "text", weight = 20, finish = "uncoated",
+                color = "white", grain = "long", description = "20 lb house paper" },
             press = { colors = 2, coverage = 0.42, artworkSize = { width = 5.4, height = 8.25 },
                 colorSequence = { "Forest Green", "Black" }, requestedCopies = { 2000 } },
-            details = { stockDescription = "90 lb cream uncoated cover", dueDate = "Six business days",
-                grainDirection = "Grain long", notes = "Client supplied poster art and 100 extra sheets for proofing and spoilage." },
+            details = { stockDescription = "20 lb house paper", dueDate = "Six business days",
+                grainDirection = "Grain long", notes = "Please print the supplied poster artwork on shop-supplied house paper." },
         },
     }
 
@@ -215,6 +222,14 @@ function Component.install(Runtime)
             hash = (hash * 31 + string.byte(job.id, index)) % 2147483647
         end
         return hash
+    end
+
+    -- A steady 45% request rate keeps outbound freight optional while making
+    -- requests repeatable across saves and network clients.
+    function Runtime.outboundDeliveryRequest(job, sequence)
+        local number = Runtime.stableDeliveryHash(job, sequence)
+        local requested = (number * 48271 % 2147483647) % 20 < 9
+        return { requested = requested, offered = false, transport = "customer" }
     end
 
     function Runtime.deliveryService(job, sequence)

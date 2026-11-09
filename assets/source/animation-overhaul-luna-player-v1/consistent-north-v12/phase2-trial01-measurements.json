@@ -1,0 +1,54 @@
+{
+  "title": "North V12 rectangular phase-2 review metrics",
+  "status": "rejected; review-only",
+  "source_sha256": "949dd7442cebbf6dd63a764253608e50e043ef6eceb0cff42e5f251f9918b5d0",
+  "reference_sha256": "c459a2e14236ebccadc7503977f74ecd4e1ebee52ffeb6d58f2cb50091507a5b",
+  "candidate_dimensions": [
+    1070,
+    1470
+  ],
+  "transparent_pixel_count": 1177713,
+  "alpha_gt16_bbox": [
+    273,
+    140,
+    882,
+    1301
+  ],
+  "reference_alpha_gt16_bbox": [
+    169,
+    57,
+    381,
+    467
+  ],
+  "orange_head_bbox": [
+    374,
+    256,
+    698,
+    534
+  ],
+  "reference_orange_head_bbox": [
+    204,
+    98,
+    315,
+    196
+  ],
+  "head_width_normalization_scale": 0.3425925925925926,
+  "candidate_head_normalized_height_px": 397.75,
+  "reference_visible_height_px": 410,
+  "blue_torso_bbox": [
+    372,
+    604,
+    686,
+    952
+  ],
+  "support_sole_bottom_y": 1300,
+  "reference_support_sole_bottom_y": 466,
+  "candidate_normalized_sole_y_relative_to_top": 397.40740740740745,
+  "reference_sole_y_relative_to_top": 409,
+  "normalized_support_sole_shift_px": -11.592592592592553,
+  "required_support_sole_shift_px": 107.29,
+  "red_dominant_partial_alpha_edge_pixels_adjacent_to_transparency": 202,
+  "note": "Red edge pixel count is a visual QA heuristic; edge colors also include orange fur antialias. Checker composite is retained for human review.",
+  "generation_id": "exec-9c44e826-57d9-4b1b-b24f-28a731c386e3",
+  "exact_prompt_sha256": "b4834f5a538a6cf20c2752b78d2d7e0709b19cc2a2453b1ab590624c1deeff55"
+}

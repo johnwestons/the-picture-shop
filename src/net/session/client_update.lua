@@ -2,18 +2,93 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function smoothCommuteMotion(player,dt)
+    local target=player and player._targetRecord
+    if not target or target.sceneId~='commute' then
+        if player then
+            player._visualVelocityX,player._visualVelocityY=nil,nil
+            player._visualIntentX,player._visualIntentY=nil,nil
+            player._visualWalkDistance=nil
+        end
+        return
+    end
+    local alpha=math.min(1,math.max(0,dt)*20)
+    local vx,vy=target.velocityX or 0,target.velocityY or 0
+    if player._visualVelocityX==nil then
+        player._visualVelocityX,player._visualVelocityY=vx,vy
+    else
+        player._visualVelocityX=player._visualVelocityX+(vx-player._visualVelocityX)*alpha
+        player._visualVelocityY=player._visualVelocityY+(vy-player._visualVelocityY)*alpha
+    end
+    local distance=math.max(0,target.animationDistance or 0)/48
+    if player._visualWalkDistance==nil then player._visualWalkDistance=distance
+    else
+        local speed=math.sqrt(player._visualVelocityX^2+player._visualVelocityY^2)
+        player._visualWalkDistance=player._visualWalkDistance+speed*math.max(0,dt)
+        player._visualWalkDistance=player._visualWalkDistance+(distance-player._visualWalkDistance)*alpha
+    end
+    local ix,iy=target.intentX or 0,target.intentY or 0
+    if ix*ix+iy*iy>.01 then
+        local wanted=math.atan2(iy,ix)
+        local current=player._visualIntentX and player._visualIntentY
+            and math.atan2(player._visualIntentY,player._visualIntentX) or wanted
+        local delta=math.atan2(math.sin(wanted-current),math.cos(wanted-current))
+        current=current+delta*alpha
+        player._visualIntentX,player._visualIntentY=math.cos(current),math.sin(current)
+    end
+end
+
 function Component.install(Runtime)
+    Runtime.CLIENT_PING_INTERVAL=2
+    Runtime.CLIENT_PING_TIMEOUT=6
+
+    function Runtime.Session:_updateClientPing(dt)
+        if not self:isClient() or self.terminal or not self.ready or not self.sessionId then return end
+        local now=self.clock()
+        if not Runtime.finite(now) then return end
+        for nonce,sentAt in pairs(self.pendingPing or {}) do
+            if now-sentAt>Runtime.CLIENT_PING_TIMEOUT then
+                self.pendingPing[nonce]=nil
+                self.pingLostCount=(self.pingLostCount or 0)+1
+            end
+        end
+        self.pingAccumulator=(self.pingAccumulator or 0)+math.max(0,dt or 0)
+        if self.pingAccumulator<Runtime.CLIENT_PING_INTERVAL then return end
+        self.pingAccumulator=self.pingAccumulator%Runtime.CLIENT_PING_INTERVAL
+        self.pingNonce=((self.pingNonce or 0)+1)%4294967296
+        local nonce=self.pingNonce
+        local okay=self:_sendToServer('ping',{sessionId=self.sessionId,nonce=nonce})
+        if okay then
+            self.pendingPing=self.pendingPing or {}
+            self.pendingPing[nonce]=now
+            self.lastPingSentAt=now
+            self.pingSentCount=(self.pingSentCount or 0)+1
+        else
+            self.pingSendFailures=(self.pingSendFailures or 0)+1
+        end
+    end
+
     function Runtime.Session:_sendClientInput(dt, context)
         if not self.ready or not self.sessionId then return end
         self.inputAccumulator = self.inputAccumulator + dt
-        if self.inputAccumulator < Runtime.INPUT_INTERVAL then return end
-        self.inputAccumulator = self.inputAccumulator % Runtime.INPUT_INTERVAL
+        local riding=context and context.localPlayer and context.localPlayer.sceneId=='commute'
+        -- Dispatch discrete control edges this frame. Analog variation within
+        -- a direction still uses the normal input rate.
+        local function direction(value)
+            return value and (value > .1 and 1 or value < -.1 and -1) or 0
+        end
+        local changed=riding and (direction(context.inputX)~=direction(self.sentRideX)
+            or direction(context.inputY)~=direction(self.sentRideY) or context.inputBoost~=self.sentRideBoost)
+        if not changed and self.inputAccumulator < Runtime.INPUT_INTERVAL then return end
+        self.inputAccumulator = changed and 0 or self.inputAccumulator % Runtime.INPUT_INTERVAL
+        if riding then self.sentRideX,self.sentRideY,self.sentRideBoost=context.inputX,context.inputY,context.inputBoost end
         self.inputSequence = self.inputSequence + 1
         local ok, errorMessage = self:_sendToServer("input", {
             sessionId = self.sessionId,
             sequence = self.inputSequence,
             moveX = Runtime.clamp(context and context.inputX, -1, 1),
             moveY = Runtime.clamp(context and context.inputY, -1, 1),
+            boost = context and context.inputBoost == true or false,
             gameX = Runtime.clamp(context and context.gameX, -1, 1),
             gameY = Runtime.clamp(context and context.gameY, -1, 1),
             combatButtons = context and context.combatButtons or 0,
@@ -24,19 +99,46 @@ function Component.install(Runtime)
                 or self.localOverallsColorway or 1,
             taskAction = context and context.localPlayer and context.localPlayer.taskAction or "none",
         })
+        if ok and changed and self.transport.flush then self.transport:flush() end
         if not ok then self:_queue("error", { message = errorMessage }) end
     end
 
-    function Runtime.Session:_updateClientVisuals(dt, localPlayer)
+    function Runtime.Session:_updateClientVisuals(dt, context)
         if not self.ready then return end
+        local localPlayer=context and context.localPlayer
+        for _,player in pairs(self.players) do
+            smoothCommuteMotion(player,dt)
+            if player._snapshotAge then
+                player._snapshotAge=player._snapshotAge+dt
+                if player._snapshotAge>.3 then player._rideMotion=nil end
+            end
+        end
+        local function lead(player)
+            if not player or not player._snapshotAge then return 0,0 end
+            local age=math.min(.12,player._snapshotAge)
+            local vx,vy=player._rideVX,player._rideVY
+            local target=player._targetRecord
+            if target and target.sceneId~='commute' then
+                vx,vy=target.velocityX or 0,target.velocityY or 0
+            end
+            return vx*age,vy*age
+        end
         if localPlayer and self.localTarget then
             if (localPlayer.sceneId or "warehouse")~=(self.localTarget.sceneId or "warehouse")
                 or (localPlayer.resting==true)~=(self.localTarget.resting==true) then
                 Runtime.copyMotion(localPlayer,self.localTarget,true)
             end
             localPlayer.resting=self.localTarget.resting==true
-            local dx = self.localTarget.x - localPlayer.x
-            local dy = self.localTarget.y - localPlayer.y
+            local own=self.players[self.localId]
+            localPlayer._rideMotion=own and own._rideMotion
+            localPlayer._visualVelocityX=own and own._visualVelocityX
+            localPlayer._visualVelocityY=own and own._visualVelocityY
+            localPlayer._visualIntentX=own and own._visualIntentX
+            localPlayer._visualIntentY=own and own._visualIntentY
+            localPlayer._visualWalkDistance=own and own._visualWalkDistance
+            local lx,ly=lead(own)
+            local dx = self.localTarget.x + lx - localPlayer.x
+            local dy = self.localTarget.y + ly - localPlayer.y
             local distanceSquared = dx * dx + dy * dy
             if distanceSquared > Runtime.TELEPORT_DISTANCE * Runtime.TELEPORT_DISTANCE then
                 localPlayer.x, localPlayer.y = self.localTarget.x, self.localTarget.y
@@ -49,8 +151,9 @@ function Component.install(Runtime)
         for id, player in pairs(self.players) do
             if id ~= self.localId and player._targetRecord then
                 local startX, startY = player.x, player.y
-                player.x = player.x + (player._targetX - player.x) * alpha
-                player.y = player.y + (player._targetY - player.y) * alpha
+                local lx,ly=lead(player)
+                player.x = player.x + (player._targetX + lx - player.x) * alpha
+                player.y = player.y + (player._targetY + ly - player.y) * alpha
                 local dx, dy = player.x - startX, player.y - startY
                 local distance = math.sqrt(dx * dx + dy * dy)
                 Runtime.copyMotion(player, player._targetRecord, false)
@@ -160,7 +263,8 @@ function Component.install(Runtime)
                 return
             end
             self:_sendClientInput(dt, context)
-            self:_updateClientVisuals(dt, context and context.localPlayer)
+            self:_updateClientPing(dt)
+            self:_updateClientVisuals(dt,context)
             self:_updateClientHighFives()
         end
     end
@@ -173,6 +277,7 @@ function Component.install(Runtime)
             sequence = self.inputSequence,
             moveX = 0,
             moveY = 0,
+            boost = false,
             furColorway = self.localFurColorway or 1,
             overallsColorway = self.localOverallsColorway or 1,
             taskAction = self.localTaskAction or "none",

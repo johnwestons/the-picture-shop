@@ -1,6 +1,16 @@
 -- Job list, artwork, and job detail presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local DeliveryTraffic=require("src.commute.delivery_traffic")
+local BusinessCalendar=require("src.business_calendar")
+
+local function trimLastCharacter(text)
+    for index=#text,1,-1 do
+        local byte=text:byte(index)
+        if byte<128 or byte>=192 then return text:sub(1,index-1) end
+    end
+    return ""
+end
 
 function Component.install(Runtime)
     function Runtime.drawJobList(state, pointerX, pointerY)
@@ -8,8 +18,12 @@ function Component.install(Runtime)
         local jobs, visible, page, maximumPage = Runtime.currentPageJobs(state)
         if #jobs == 0 then
             love.graphics.setColor(0.58, 0.64, 0.66)
-            love.graphics.printf("No jobs in this view", Runtime.LIST.x, Runtime.LIST.y + 155, Runtime.LIST.width, "center")
+            local empty=Runtime.ComputerScreen.tab=="deliveries"
+                and "No inbound deliveries are expected" or "No jobs in this view"
+            love.graphics.printf(empty, Runtime.LIST.x, Runtime.LIST.y + 155, Runtime.LIST.width, "center")
         end
+        local deliveryTab=Runtime.ComputerScreen.tab=="deliveries"
+        local now=deliveryTab and BusinessCalendar.absoluteHours(state) or nil
         for row, job in ipairs(visible) do
             local rect = { x = Runtime.LIST.x + 8, y = Runtime.LIST.y + 14 + (row - 1) * Runtime.ROW_HEIGHT,
                 width = Runtime.LIST.width - 16, height = 38 }
@@ -29,9 +43,33 @@ function Component.install(Runtime)
                 love.graphics.rectangle("fill", rect.x + 2, rect.y + 6, 2, rect.height - 12)
             end
             love.graphics.setColor(0.93, 0.94, 0.92)
-            love.graphics.print(job.id .. "  " .. job.company, rect.x + 8, rect.y + 6)
+            love.graphics.print(job.id .. "  " .. tostring(job.company or job.vendor or "Incoming shipment"), rect.x + 8, rect.y + 6)
             love.graphics.setColor(0.78, 0.86, 0.84)
-            love.graphics.print(Runtime.StatusLabels.get(Runtime.displayStatus(job)), rect.x + 8, rect.y + 21)
+            local progress=not deliveryTab and Runtime.JobFeedback.progress(state,job) or nil
+            local base=deliveryTab and DeliveryTraffic.tracking(job.shipmentRecord or job,now,os.time())
+                or progress and progress.stage or Runtime.StatusLabels.get(Runtime.displayStatus(job))
+            local font = love.graphics.getFont()
+            local subtitle = base
+            local supplemental = progress and progress.alert or progress and progress.blocker
+            local prefix = base .. " • "
+            local maxWidth = rect.width - 18
+            if supplemental and font:getWidth(prefix) < maxWidth then
+                local available = maxWidth - font:getWidth(prefix)
+                while #supplemental > 3 and font:getWidth(supplemental) > available do
+                    supplemental = supplemental:sub(1, -2)
+                end
+                subtitle = prefix .. supplemental
+                if progress and (progress.alert or progress.blocker) and #supplemental < #tostring(progress.alert or progress.blocker) then
+                    subtitle = subtitle .. "…"
+                end
+            end
+            if deliveryTab then
+                while #subtitle>3 and font:getWidth(subtitle)>maxWidth do
+                    subtitle=trimLastCharacter(subtitle)
+                end
+                if subtitle~=base then subtitle=trimLastCharacter(subtitle).."…" end
+            end
+            love.graphics.print(subtitle, rect.x + 8, rect.y + 21)
         end
         love.graphics.setColor(0.72, 0.80, 0.80)
         love.graphics.printf(string.format("Page %d / %d", page, maximumPage), 168, 578, 138, "center")
@@ -66,7 +104,134 @@ function Component.install(Runtime)
             x - 31, y + size + 8, size + 62, "center")
     end
 
-    function Runtime.detailRows(selected)
+    function Runtime.drawJobQualityPreview(job, rect)
+        local preview = Runtime.Reputation.qualityPreview(job)
+        if not preview then return end
+        local accent = preview.rating <= 2 and { 1, 0.48, 0.40, 1 }
+            or preview.rating == 3 and { 1, 0.79, 0.39, 1 }
+            or { 0.53, 0.98, 0.84, 1 }
+        love.graphics.setColor(0.075, 0.11, 0.12, 1)
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.setColor(accent)
+        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 3, 3)
+        love.graphics.rectangle("fill", rect.x + 1, rect.y + 5, 2, rect.height - 10)
+        local factor = preview.offSpec and preview.spoiledSheets > 0
+            and string.format("OFF-SPEC %d%%", math.floor(preview.spoilRate * 100 + 0.5))
+            or preview.offSpec and "OFF-SPEC CUT"
+            or preview.spoiledSheets > 0
+                and string.format("SPOIL %d%%", math.floor(preview.spoilRate * 100 + 0.5))
+            or preview.reworkSheets > 0
+                and string.format("REWORK %s • DELIVERY COMPLETE", Runtime.commaNumber(preview.reworkSheets))
+            or preview.qualityRequirementMet == false
+                and string.format("BELOW CLIENT TARGET %d%%",
+                    math.floor((preview.qualityStandard or 0) * 100 + 0.5))
+            or preview.hasPrintQuality and preview.printQuality <= preview.edgeQuality
+                and preview.printQuality < 0.999
+                and string.format("PRINT QUALITY %d%%", math.floor(preview.printQuality * 100 + 0.5))
+            or preview.edgeQuality < 0.999
+                and string.format("CUT EDGE %d%%", math.floor(preview.edgeQuality * 100 + 0.5))
+            or preview.hasPrintQuality and "CLEAN CUTS + PRINT"
+            or "CLEAN RUN"
+        love.graphics.setColor(0.70, 0.80, 0.80, 1)
+        love.graphics.printf(string.upper(preview.label) .. " • " .. factor,
+            rect.x + 8, rect.y + 20, rect.width - 14, "left")
+        local status = job.inspection and job.inspection.status
+        local inspectionText = status == "passed" and "QC PASS"
+            or status == "held" and "QC HOLD"
+            or status == "rework_in_progress" and "REWORK"
+            or "QC REQUIRED"
+        love.graphics.setColor(0.72, 0.82, 0.82, 1)
+        love.graphics.printf(string.format("%s • %d/5", inspectionText, preview.rating),
+            rect.x + 8, rect.y + 3, rect.width - 14, "left")
+    end
+
+    function Runtime.drawDeliveryTrackerDetail(state,selected,twelveHourTime)
+        Runtime.panel(Runtime.DETAIL,{0.065,0.08,0.10,1},{0.23,0.35,0.38,1})
+        if not selected then
+            love.graphics.setColor(0.58,0.64,0.66)
+            love.graphics.printf("Select an inbound delivery to see its expected arrival and current location.",
+                Runtime.DETAIL.x+28,Runtime.DETAIL.y+150,Runtime.DETAIL.width-56,"center")
+            return
+        end
+        local record=selected.shipmentRecord or selected
+        local delivery=record.delivery or selected.delivery or {}
+        local route=delivery.route or {}
+        local nowHours=BusinessCalendar.absoluteHours(state)
+        local epoch=os.time()
+        local position=DeliveryTraffic.tracking(record,nowHours,epoch)
+        local expected=tonumber(route.arrivalAtHours or delivery.expectedAtHours or delivery.readyAtHours)
+        twelveHourTime=twelveHourTime~=false
+        local scheduled=expected and BusinessCalendar.dateTimeTextAtHours(expected,twelveHourTime)
+            or "Waiting for a confirmed dispatch window"
+        local liveEta
+        local vehicle=route.vehicle
+        if vehicle and vehicle.phase=="at_bay" then liveEta="Arrived at the warehouse loading bay"
+        elseif vehicle and vehicle.phase=="waiting_bay" then liveEta="At the shop; loading bay is occupied"
+        elseif vehicle and route.arrivedAtEpoch then
+            local seconds=route.arrivedAtEpoch-epoch
+            if seconds<=0 then liveEta="Delayed · truck is still on the town route"
+            elseif seconds<60 then liveEta="About 1 minute"
+            else liveEta=string.format("About %d minutes",math.ceil(seconds/60)) end
+        end
+
+        love.graphics.setColor(0.96,0.84,0.30,1)
+        love.graphics.print("INBOUND DELIVERY TRACKER",Runtime.DETAIL.x+20,Runtime.DETAIL.y+18)
+        love.graphics.setColor(0.88,0.93,0.91,1)
+        love.graphics.printf(tostring(selected.id).."  ·  "..tostring(selected.company or selected.vendor or "Millhaven Freight"),
+            Runtime.DETAIL.x+20,Runtime.DETAIL.y+48,Runtime.DETAIL.width-40,"left")
+
+        love.graphics.setColor(0.55,0.80,0.81,1)
+        love.graphics.print("CURRENT LOCATION",Runtime.DETAIL.x+20,Runtime.DETAIL.y+92)
+        love.graphics.setColor(0.45,0.92,0.72,1)
+        love.graphics.printf(position,Runtime.DETAIL.x+20,Runtime.DETAIL.y+114,Runtime.DETAIL.width-40,"left")
+
+        love.graphics.setColor(0.55,0.80,0.81,1)
+        love.graphics.print("EXPECTED ARRIVAL IN MILLHAVEN",Runtime.DETAIL.x+20,Runtime.DETAIL.y+162)
+        love.graphics.setColor(0.90,0.94,0.92,1)
+        love.graphics.printf(scheduled,Runtime.DETAIL.x+20,Runtime.DETAIL.y+184,Runtime.DETAIL.width-40,"left")
+        if liveEta then
+            love.graphics.setColor(0.55,0.80,0.81,1)
+            love.graphics.print("LIVE TRAVEL ESTIMATE",Runtime.DETAIL.x+20,Runtime.DETAIL.y+222)
+            love.graphics.setColor(0.90,0.94,0.92,1)
+            love.graphics.printf(liveEta,Runtime.DETAIL.x+20,Runtime.DETAIL.y+244,Runtime.DETAIL.width-40,"left")
+        end
+
+        love.graphics.setColor(0.55,0.80,0.81,1)
+        love.graphics.print("ROUTE",Runtime.DETAIL.x+20,Runtime.DETAIL.y+282)
+        love.graphics.setColor(0.84,0.89,0.88,1)
+        love.graphics.printf(tostring(route.originCity or "Millhaven").." · "
+            ..tostring(route.originLocation or "Freight Yard").."  →  The Picture Shop warehouse",
+            Runtime.DETAIL.x+20,Runtime.DETAIL.y+304,Runtime.DETAIL.width-40,"left")
+
+        love.graphics.setColor(0.55,0.80,0.81,1)
+        love.graphics.print("SHIPMENT CONTENTS",Runtime.DETAIL.x+20,Runtime.DETAIL.y+352)
+        love.graphics.setColor(0.84,0.89,0.88,1)
+        if selected.orders then
+            if #selected.orders==0 then
+                love.graphics.printf(selected.productName or "Supply shipment",Runtime.DETAIL.x+20,
+                    Runtime.DETAIL.y+374,Runtime.DETAIL.width-40,"left")
+            else
+                for index,order in ipairs(selected.orders) do
+                    if index>3 then break end
+                    love.graphics.printf(tostring(order.id).." · "..tostring(order.productName or "Supplies"),
+                        Runtime.DETAIL.x+20,Runtime.DETAIL.y+374+(index-1)*18,Runtime.DETAIL.width-40,"left")
+                end
+                if #selected.orders>3 then
+                    love.graphics.printf(string.format("and %d more order%s",#selected.orders-3,
+                        #selected.orders==4 and "" or "s"),Runtime.DETAIL.x+20,
+                        Runtime.DETAIL.y+428,Runtime.DETAIL.width-40,"left")
+                end
+            end
+        else
+            local count=#(selected.pallets or {})
+            local contents=selected.stockSpec and selected.stockSpec.description
+                or string.format("Customer paper shipment · %d pallet%s",count,count==1 and "" or "s")
+            love.graphics.printf(contents,Runtime.DETAIL.x+20,Runtime.DETAIL.y+374,
+                Runtime.DETAIL.width-40,"left")
+        end
+    end
+
+    function Runtime.detailRows(selected, state)
         local details = selected.details or {}
         local rows = {
             { text = string.format("Parent: %g × %g in",
@@ -76,9 +241,17 @@ function Component.install(Runtime)
             { text = "Stock: " .. (selected.stockSpec and selected.stockSpec.description
                 or details.stockDescription or "Customer supplied"), width = 310 },
             { text = "Packaging: " .. Runtime.ComputerScreen.packagingText(selected), width = 310 },
-            { text = "Client: " .. tostring(selected.clientTemperament or "standard")
-                .. " • Reputation tier: " .. tostring(selected.reputationTier or "legacy"), width = 310 },
         }
+        local progress = Runtime.JobFeedback.progress(state, selected)
+        if progress then
+            rows[#rows + 1] = { text = string.format("Progress: %s • %s / %s good sheets",
+                progress.stage, Runtime.commaNumber(progress.goodSheets), Runtime.commaNumber(progress.targetSheets))
+                .. (progress.alert and " • STAFF ALERT" or ""),
+                width = Runtime.DETAIL.width - 40 }
+        else
+            rows[#rows + 1] = { text = "Client: " .. tostring(selected.clientTemperament or "standard")
+                .. " • Reputation tier: " .. tostring(selected.reputationTier or "legacy"), width = 310 }
+        end
         if (selected.spoiledSheets or 0) > 0 then
             rows[#rows + 1] = { text = string.format("Cutting waste: %s sheets • $%d redo/replacement charges",
                 Runtime.commaNumber(selected.spoiledSheets), selected.spoilCost or 0), width = Runtime.DETAIL.width - 40 }
@@ -108,10 +281,10 @@ function Component.install(Runtime)
         return rows
     end
 
-    function Runtime.ComputerScreen.jobDetailLayout(selected)
+    function Runtime.ComputerScreen.jobDetailLayout(selected, state)
         local font = love.graphics.getFont()
         local y = Runtime.DETAIL.y + 96
-        local rows = Runtime.detailRows(selected)
+        local rows = Runtime.detailRows(selected, state)
         for _, row in ipairs(rows) do
             local labelWidth = row.label and font:getWidth(row.label) or 0
             local valueWidth = math.max(1, row.width - labelWidth)
@@ -136,13 +309,19 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.drawDetail(state, pointerX, pointerY, assets)
+    function Runtime.drawDetail(state, pointerX, pointerY, assets, twelveHourTime)
         Runtime.panel(Runtime.DETAIL, { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
         if not selected then
             love.graphics.setColor(0.58, 0.64, 0.66)
-            love.graphics.printf("Select a job to view its ticket and pallet progress.",
+            local prompt=Runtime.ComputerScreen.tab=="deliveries"
+                and "Select a shipment to view its tracker." or "Select a job to view its ticket and pallet progress."
+            love.graphics.printf(prompt,
                 Runtime.DETAIL.x + 24, Runtime.DETAIL.y + 145, Runtime.DETAIL.width - 48, "center")
+            return
+        end
+        if Runtime.ComputerScreen.tab=="deliveries" then
+            Runtime.drawDeliveryTrackerDetail(state,selected,twelveHourTime)
             return
         end
         if Runtime.isPurchaseOrder(selected) then
@@ -159,6 +338,12 @@ function Component.install(Runtime)
             love.graphics.print("Delivery state: " .. Runtime.StatusLabels.get(delivery.status), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 212)
             love.graphics.print("Pallet state: " .. Runtime.StatusLabels.get(pallet.status), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 242)
             love.graphics.print("Pallet location: " .. Runtime.StatusLabels.get(pallet.location), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 272)
+            local shipment=Runtime.Procurement.orderById(state,selected.shipmentId) or selected
+            local location=require('src.commute.delivery_traffic').tracking(shipment,
+                require('src.business_calendar').absoluteHours(state),os.time())
+            love.graphics.setColor(0.45,0.88,0.69)
+            love.graphics.printf("Live truck location: "..location,
+                Runtime.DETAIL.x+20,Runtime.DETAIL.y+300,Runtime.DETAIL.width-40,'left')
             love.graphics.setColor(0.55, 0.63, 0.65)
             love.graphics.printf("Purchase orders are paid when placed. Received supplies appear in Inventory.",
                 Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 326, Runtime.DETAIL.width - 40, "left")
@@ -167,10 +352,12 @@ function Component.install(Runtime)
         love.graphics.setColor(0.96, 0.84, 0.30)
         love.graphics.print(selected.id .. "  •  " .. selected.company, Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 18)
         love.graphics.setColor(0.72, 0.79, 0.80)
-        love.graphics.print(Runtime.StatusLabels.get(selected.status), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 44)
+        local progress = Runtime.JobFeedback.progress(state, selected)
+        love.graphics.print(Runtime.StatusLabels.get(selected.status)
+            .. (progress and ("  •  " .. progress.stage) or ""), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 44)
         love.graphics.printf("Inbound: " .. Runtime.JobService.deliverySummary(selected, state),
             Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 66, 310, "left")
-        local layout = Runtime.ComputerScreen.jobDetailLayout(selected)
+        local layout = Runtime.ComputerScreen.jobDetailLayout(selected, state)
         for _, row in ipairs(layout.rows) do
             local rowX = Runtime.DETAIL.x + 20
             if row.label then
@@ -218,6 +405,19 @@ function Component.install(Runtime)
             love.graphics.print(Runtime.StatusLabels.get(pallet.status), Runtime.DETAIL.x + 340, y + 7)
         end
 
+        local qualityReady = Runtime.completionReady(selected)
+            or selected.status == "ready_for_pickup"
+            or selected.status == "pickup_in_progress"
+            or selected.status == "completed"
+        if qualityReady then
+            local rect = Runtime.ComputerScreen.tab == "completed"
+                and { x = Runtime.DETAIL.x + 18, y = Runtime.JOB_PROMO.y,
+                    width = 200, height = Runtime.JOB_PROMO.height }
+                or { x = Runtime.DETAIL.x + 18, y = Runtime.COMPLETE.y,
+                    width = 158, height = Runtime.COMPLETE.height }
+            Runtime.drawJobQualityPreview(selected, rect)
+        end
+
         if Runtime.ComputerScreen.tab == "completed" then
             local sent = Runtime.promotionSentForJob(state, selected)
             local hovered = not sent and pointerX and Runtime.contains(Runtime.JOB_PROMO, pointerX, pointerY)
@@ -228,11 +428,45 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.tab ~= "active" then return end
         local ready = Runtime.completionReady(selected)
-        local hovered = ready and pointerX and Runtime.contains(Runtime.COMPLETE, pointerX, pointerY)
-        local buttonLabel = ready and "SCHEDULE CUSTOMER PICKUP" or "PRODUCTION NOT COMPLETE"
-        if selected.status == "ready_for_pickup" then buttonLabel = "PICKUP AWAITING TRUCK"
+        local inspection = selected.inspection or {}
+        local buttonLabel = ready and (inspection.status == "passed" and "SCHEDULE CUSTOMER PICKUP"
+            or inspection.status == "held" and "REWORK AFFECTED PALLETS"
+            or "INSPECT FINISHED JOB") or "PRODUCTION NOT COMPLETE"
+        if selected.status == "ready_for_pickup" and inspection.status == "passed"
+            and selected.pickup and selected.pickup.status == "awaiting_schedule" then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer" then
+                Runtime.drawComputerButton(Runtime.COMPLETE, "CLIENT PICKUP QUEUED", "disabled")
+                return
+            end
+            local mode=selected.pickup.driverMode or 'employee'
+            local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
+            local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
+            Runtime.drawComputerButton(Runtime.PICKUP_EMPLOYEE,
+                mode=='employee' and 'EMPLOYEE ✓' or 'EMPLOYEE',
+                employeeHover and 'primaryHover' or mode=='employee' and 'primary' or 'secondary')
+            Runtime.drawComputerButton(Runtime.PICKUP_PLAYER,
+                mode=='player' and 'I WILL DELIVER ✓' or 'I WILL DELIVER',
+                playerHover and 'primaryHover' or mode=='player' and 'primary' or 'secondary')
+            return
+        elseif selected.status == "ready_for_pickup" then buttonLabel = "DELIVERY IN PROGRESS"
         elseif selected.status == "pickup_in_progress" then buttonLabel = "PICKUP IN PROGRESS"
         elseif selected.status == "completed" then buttonLabel = "PAID AND COMPLETED" end
+        if ready and inspection.status == 'passed' and selected.status == 'in_production' then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer" then
+                local hovered=pointerX and Runtime.contains(Runtime.COMPLETE,pointerX,pointerY)
+                Runtime.drawComputerButton(Runtime.COMPLETE,"SCHEDULE CUSTOMER PICKUP",
+                    hovered and "primaryHover" or "primary")
+                return
+            end
+            local employeeHover=pointerX and Runtime.contains(Runtime.PICKUP_EMPLOYEE,pointerX,pointerY)
+            local playerHover=pointerX and Runtime.contains(Runtime.PICKUP_PLAYER,pointerX,pointerY)
+            Runtime.drawComputerButton(Runtime.PICKUP_EMPLOYEE,'EMPLOYEE DRIVER',
+                employeeHover and 'primaryHover' or 'primary')
+            Runtime.drawComputerButton(Runtime.PICKUP_PLAYER,'I WILL DELIVER',
+                playerHover and 'primaryHover' or 'secondary')
+            return
+        end
+        local hovered = ready and pointerX and Runtime.contains(Runtime.COMPLETE, pointerX, pointerY)
         Runtime.drawComputerButton(Runtime.COMPLETE, buttonLabel,
             not ready and "disabled" or hovered and "primaryHover" or "primary")
     end

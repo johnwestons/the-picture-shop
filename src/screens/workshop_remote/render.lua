@@ -58,7 +58,7 @@ function Component.install(Runtime)
         elseif Runtime.Screen.resourceId == "vendor" then Runtime.drawVendor(pointerX, pointerY)
         elseif Runtime.Screen.resourceId == "truck" then Runtime.drawTruck(pointerX, pointerY)
         elseif Runtime.Screen.resourceId == "office_computer" then Runtime.drawComputer(state, pointerX, pointerY)
-        elseif Runtime.Screen.resourceId == "skid_wrapper" then Runtime.drawWrapper(state, pointerX, pointerY)
+        elseif Runtime.Screen.resourceId == "skid_wrapper" then Runtime.drawWrapper(state, pointerX, pointerY, assets)
         elseif Runtime.Screen.resourceId == "cutter" then Runtime.drawCutter(state, pointerX, pointerY, assets)
         elseif Runtime.Screen.resourceId == "windmill" then Runtime.drawWindmill(state, pointerX, pointerY) end
         love.graphics.setColor(0.18, 0.21, 0.22)
@@ -242,6 +242,11 @@ function Component.install(Runtime)
             rect = Runtime.CUTTER_SERVICE_CONTROLS.technician
         elseif action == "set_weekly_technician" then
             rect = Runtime.CUTTER_SERVICE_CONTROLS.weekly
+        elseif action == "install_spare_blade" then
+            rect = Runtime.CUTTER_SERVICE_CONTROLS.installSpare
+        elseif action == "order_blade_upgrade" then
+            rect = value == "carbide_edge" and Runtime.CUTTER_SERVICE_CONTROLS.carbideBlade
+                or Runtime.CUTTER_SERVICE_CONTROLS.premiumBlade
         elseif action == "service_advance" then
             rect = Runtime.CUTTER_SERVICE_CONTROLS.advance
         elseif action == "service_view" then

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "status": "installed; root-reviewed phase-3/7 passing-pose corrections; support-foot travel remains open",
+  "scope": "V6 North cycle with corrected opposite-owner passing poses at phases 3 and 7; no extra in-betweens",
+  "runtime_path": "assets/generated/player-walk-v7/walk_north.png",
+  "runtime_sha256": "8a182527de78fe8d0da5a5b8068ec0019ef08da9513bf29dbb2a74b126bcba33",
+  "frame_size": [
+    512,
+    512
+  ],
+  "frame_count": 8,
+  "nominal_fps_at_base_speed": 7.75,
+  "base_strip": "assets/generated/player-walk-v6/walk_north.png",
+  "base_strip_sha256": "7c2a796d8551785c33b6cdc9c8e6c5816dda695975823551d99cabcaf3ab0922",
+  "source_candidate": "output/animation-overhaul/player-north-v9/north-v9-fullbody-normalized-candidate-strip.png",
+  "source_candidate_sha256": "8a182527de78fe8d0da5a5b8068ec0019ef08da9513bf29dbb2a74b126bcba33",
+  "phase_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "changed_phases": [
+    3,
+    7
+  ],
+  "phase_metrics_alpha_gt16_bbox": [
+    [
+      169,
+      57,
+      381,
+      467
+    ],
+    [
+      157,
+      58,
+      376,
+      467
+    ],
+    [
+      144,
+      56,
+      370,
+      468
+    ],
+    [
+      157,
+      57,
+      379,
+      469
+    ],
+    [
+      146,
+      55,
+      361,
+      467
+    ],
+    [
+      137,
+      57,
+      349,
+      467
+    ],
+    [
+      142,
+      58,
+      365,
+      466
+    ],
+    [
+      138,
+      56,
+      354,
+      467
+    ]
+  ],
+  "provenance_report": "output/animation-overhaul/player-north-v9/north-v9-candidate-report.json",
+  "support_foot_motion": {
+    "status": "still under review; the new frames separate pass and support boots but do not lock the support sole to the moving world position",
+    "contact_to_passing_root_travel": 40,
+    "support_sole_local_y_change_px": [
+      0,
+      0
+    ],
+    "pixels_per_pose": 20,
+    "note": "The remaining contact-to-pass drift is about 40 project pixels at the current cadence. No timing or anchor change is included."
+  },
+  "root_review": "The phase-3 right pass and phase-7 left pass now read as distinct, opposite-owner low passing poses at source and runtime sizes. All five authored walk views retain a shared 410px height band (North 408-412px). The selected North median head/torso proxies are 113/112px versus 114/113px in V6; its dark-ink density proxy is 0.05293 versus 0.05210 in V6. Production renderer review passed 32 host/guest captures across desktop and landscape-phone layouts."
+}

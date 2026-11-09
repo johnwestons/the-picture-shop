@@ -132,16 +132,17 @@ function Schedule.minimumSkills(job)
     return {
         cutter=difficulty=="hard" and 80 or difficulty=="medium" and 50 or 0,
         press=job and job.press and pressMinimum or nil,
-        wrapping=difficulty=="hard" and 70 or difficulty=="medium" and 50 or 25,
+        -- Wrapping is a basic finishing step. Skill affects how quickly an
+        -- employee acts at the wrapper, but must never strand finished stock
+        -- before shipping or prevent a qualified production operator from
+        -- completing a job.
+        wrapping=0,
     }
 end
 function Schedule.skillAllows(w,job,stage)
     local minimum=Schedule.minimumSkills(job)
     if stage=="press" and minimum.press and (w.pressSkill or 0)<minimum.press then
         return false,"Press training required"
-    end
-    if stage=="wrapping" and (w.wrappingSkill or 0)<minimum.wrapping then
-        return false,"Pallet-wrapping training required"
     end
     if stage=="cutter" and (w.cutterSkill or 0)<minimum.cutter then
         return false,"Required cutter skill"
@@ -156,9 +157,15 @@ local function activeOther(state,w,machineId,palletId)
     end
     return false
 end
-local function machineReady(state,machine,model)
+local function machineReady(state,machine,model,w,palletId)
     if not machine or machine.modelId~=model or machine.status~="installed" then
         return false,"Scheduled machine is unavailable"
+    end
+    local existingCutterSkid=w and w.assignment and w.assignment.machineId==machine.id
+        and w.assignment.palletId==palletId
+    if model=="polar_115" and machine.maintenance.cutter.technicianStatus=="waiting_for_skid"
+        and not existingCutterSkid then
+        return false,"Weekly blade service is waiting for the current skid to finish"
     end
     local operable,reason=Fleet.canOperate(state,model,machine.id)
     if not operable then return false,reason or "Scheduled machine needs service" end
@@ -238,8 +245,11 @@ local function wrapperPalletReady(state,machine,pallet,job)
             blocked="Order stretch film before shipping pallets";blockedKind="packaging";return
         end
         local packaging=pallet.packaging or (job and job.packaging)
-        if packaging=="boxed" and Procurement.cartonsAvailable(state)<1 then
-            blocked="Order a shipping carton before wrapping this boxed pallet"
+        local cartons=Procurement.cartonsRequired(job,pallet)
+        if packaging=="boxed" and Procurement.cartonsAvailable(state)<cartons then
+            local cartonLabel = cartons == 1 and "carton" or "cartons"
+            blocked=string.format("Order %d shipping %s before wrapping this boxed pallet",
+                cartons, cartonLabel)
             blockedKind="packaging";return
         end
         local supplies={}
@@ -248,7 +258,7 @@ local function wrapperPalletReady(state,machine,pallet,job)
                 stockKey="plasticWrapRolls",autoShelf=true}
         end
         if packaging=="boxed" then
-            supplies[#supplies+1]={productId="shipping_cartons",quantity=1,autoShelf=true}
+            supplies[#supplies+1]={productId="shipping_cartons",quantity=cartons,autoShelf=true}
         end
         local suppliesReady,supplyReason=Procurement.canConsumeStockProducts(state,supplies)
         if not suppliesReady then blocked=supplyReason;blockedKind="packaging";return end
@@ -294,7 +304,7 @@ local function needsMachinePalletTransfer(state,w,stage,machine,pallet,reason)
     end
     return false
 end
-function Schedule.resolve(state,w,row,preferredPalletId)
+function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
     local job=Schedule.job(state,row.jobId)
     if not job then return nil,nil,nil,"Scheduled job is no longer available" end
     if not Schedule.stockArrived(job) then return nil,nil,nil,"Waiting until every skid for this job reaches the shop" end
@@ -308,7 +318,8 @@ function Schedule.resolve(state,w,row,preferredPalletId)
     nextPallet=scheduledPallet
     if pallet and Schedule.stage(job,pallet)=="wrapping"
         and nextPallet and Schedule.stage(job,nextPallet)~="wrapping"
-        and w.carryingPalletId~=pallet.id and (not state.palletJack or state.palletJack.carriedPalletId~=pallet.id) then
+        and w.carryingPalletId~=pallet.id and not (require("src.pallet_jack_fleet").owned(state,w.id)
+            and require("src.pallet_jack_fleet").owned(state,w.id).carriedPalletId==pallet.id) then
         pallet=nil
     end
     if not pallet then pallet=nextPallet end
@@ -323,14 +334,33 @@ function Schedule.resolve(state,w,row,preferredPalletId)
     end
     local models={cutter="polar_115",press="heidelberg_10x15",wrapping="skid_wrapper"}
     local model=models[stage]
-    local machines=stage=="cutter" and {Fleet.byId(state,row.machineId)} or Fleet.installedUnits(state,model)
-    local failure=stage=="cutter" and "Scheduled cutter is unavailable"
+    local machines=Fleet.installedUnits(state,model)
+    local attachedId=stage=="cutter" and pallet.cutterMachineId
+        or stage=="press" and pallet.pressMachineId or nil
+    local currentId=w.assignment and w.assignment.machineModel==model
+        and w.assignment.machineId or nil
+    table.sort(machines,function(a,b)
+        local function priority(machine)
+            if machine.id==attachedId then return 0 end
+            if machine.id==currentId then return 1 end
+            return 2
+        end
+        local left,right=priority(a),priority(b)
+        return left==right and a.id<b.id or left<right
+    end)
+    local failure=stage=="cutter" and "No available paper cutter is installed"
         or stage=="press" and "No Heidelberg Windmill is installed" or "No skid wrapper is installed"
     local transferMachine
     local blockedKind
+    local playerOccupied=false
+    local employeeOccupied=false
     for _,machine in ipairs(machines) do
-        local okay=machineReady(state,machine,model)
-        if okay and not activeOther(state,w,machine.id,pallet.id) then
+        local okay,readinessReason=machineReady(state,machine,model,w,pallet.id)
+        if not okay then failure=readinessReason or failure end
+        if okay and activeOther(state,w,machine.id,pallet.id) then employeeOccupied=true end
+        if okay and canClaim and not canClaim(machine.id) then playerOccupied=true end
+        if okay and (not canClaim or canClaim(machine.id))
+            and not activeOther(state,w,machine.id,pallet.id) then
             local ready,reason,reasonKind
             if stage=="cutter" then ready,reason=cutterPalletReady(state,machine,pallet)
             elseif stage=="press" then ready,reason=pressPalletReady(state,machine,pallet,job)
@@ -348,27 +378,19 @@ function Schedule.resolve(state,w,row,preferredPalletId)
         end
     end
     if transferMachine then
-        local jack=state.palletJack
-        if jack and ((jack.operating and jack.operatorEmployeeId~=w.id)
-            or (jack.carriedPalletId and jack.carriedPalletId~=pallet.id)) then
+        local jack=require("src.pallet_jack_fleet").employee(state,w,pallet.id)
+        if not jack then
             return stage,nil,pallet,"Waiting for the pallet jack",nil,"pallet_jack"
         end
         return stage,transferMachine,pallet,nil,true,blockedKind
     end
+    if playerOccupied then failure="Waiting for the player to release this machine"
+    elseif employeeOccupied then failure="Waiting for another employee to release this machine" end
     return stage,nil,pallet,failure,nil,blockedKind
 end
 local function nextShiftStart(w,now)
     if Contracts.onShift(w.contract,now) then return now end
-    local contract=w.contract
-    local day=math.max(math.floor(now/24),contract.startDay)
-    for _=0,14 do
-        if Contracts.hasDay(contract.days,Contracts.weekday(day)) then
-            local start=day*24+contract.startHour
-            if start>now then return start end
-        end
-        day=day+1
-    end
-    return math.huge
+    return Contracts.nextStart(w.contract,now) or math.huge
 end
 local function hasQueuedJob(q,jobId)
     for _,row in ipairs(q.items) do if row.jobId==jobId then return true end end
@@ -471,12 +493,11 @@ end
 function Schedule.canQueueTeam(state,jobId,machineId)
     local team=Schedule.team(state)
     local job=Schedule.job(state,jobId)
-    local machine=Fleet.byId(state,machineId)
     if not team then return false,"The shop schedule is unavailable." end
     if not job then return false,"Choose an accepted job." end
     if not Schedule.stockArrived(job) then return false,"Wait until every skid for this job has been unloaded at the shop." end
-    if not machine or machine.modelId~="polar_115" or machine.status~="installed" then
-        return false,"Choose an installed cutter."
+    if #Fleet.installedUnits(state,"polar_115")==0 then
+        return false,"Install a paper cutter first."
     end
     local _,total,pallet=Schedule.progress(job)
     if total==0 or not pallet then return false,"This job's production and wrapping are already complete." end
@@ -507,7 +528,7 @@ function Schedule.teamCommand(state,intent,now)
         local okay,message=Schedule.canQueueTeam(state,intent.jobId,intent.machineId)
         if not okay then return false,message end
         team.items[#team.items+1]={id=string.format("TEAM-TASK-%06d",team.nextId),
-            jobId=intent.jobId,machineId=intent.machineId,addedAtHours=now}
+            jobId=intent.jobId,machineId="auto",addedAtHours=now}
         team.nextId=team.nextId+1
         team.revision=team.revision+1
         return true,"Job added to the shop schedule. Day and night shifts share this list."
@@ -561,7 +582,7 @@ local function returnIneligibleTeamJobs(state,w)
     end
     return removed>0
 end
-local function claimTeamJob(state,w,now,allowQueued)
+local function claimTeamJob(state,w,now,allowQueued,canClaim)
     w._waitingForJack=false
     local team=Schedule.team(state)
     local q=Schedule.ensure(w)
@@ -573,10 +594,11 @@ local function claimTeamJob(state,w,now,allowQueued)
             local _,_,pallet=Schedule.progress(job)
             local stage=Schedule.stage(job,pallet)
             local allowed=job and Schedule.skillAllows(w,job,stage)
-            if allowed and #q.items<Schedule.MAX_JOBS and q.nextId<1000000 then
-                local _,machine,readyPallet,reason=Schedule.resolve(state,w,row)
+            if job and #q.items<Schedule.MAX_JOBS and q.nextId<1000000 then
+                local _,machine,readyPallet,reason=Schedule.resolve(state,w,row,nil,canClaim)
+                w._scheduleBlockedReason=w._scheduleBlockedReason or reason
                 if reason=="Waiting for the pallet jack" then w._waitingForJack=true end
-                if not reason and machine and readyPallet then
+                if allowed and not reason and machine and readyPallet then
                     local mirror={id=string.format("TASK-%06d",q.nextId),jobId=row.jobId,
                         machineId=row.machineId,addedAtHours=row.addedAtHours,
                         teamTaskId=row.id,teamWorkerId=w.id}
@@ -586,9 +608,12 @@ local function claimTeamJob(state,w,now,allowQueued)
                     w._scheduleRetryAtHours=nil
                     w._waitingMachineId=nil
                     w._waitingForJack=false
+                    w._scheduleBlockedReason=nil
                     return true,mirror,job,machine,readyPallet
                 end
             end
+        elseif not hasQueuedJob(q,row.jobId) and Schedule.claimed(state,w,row.jobId,true) then
+            w._scheduleBlockedReason=w._scheduleBlockedReason or "Other employees are handling the scheduled jobs"
         end
     end
     return false
@@ -596,10 +621,9 @@ end
 function Schedule.canQueue(state,w,jobId,machineId)
     if w.status~="employed" or w.terminationRequested then return false,"Choose a current employee." end
     local job=Schedule.job(state,jobId)
-    local machine=Fleet.byId(state,machineId)
     if not job then return false,"Choose an accepted job." end
     if not Schedule.stockArrived(job) then return false,"Wait until every skid for this job has been unloaded at the shop." end
-    if not machine or machine.modelId~="polar_115" or machine.status~="installed" then return false,"Choose an installed cutter." end
+    if #Fleet.installedUnits(state,"polar_115")==0 then return false,"Install a paper cutter first." end
     local _,total,p=Schedule.progress(job)
     if total==0 or not p then return false,"This job's production and wrapping are already complete." end
     local stage=Schedule.stage(job,p)
@@ -695,13 +719,13 @@ function Schedule.command(state,w,intent,now)
     local q=Schedule.ensure(w)
     if intent.kind=="queue_employee_job" then
         for _,row in ipairs(q.items) do
-            if row.jobId==intent.jobId and row.machineId==intent.machineId then return true,"This job is already queued; no duplicate was added." end
+            if row.jobId==intent.jobId then return true,"This job is already queued; no duplicate was added." end
         end
         local okay,message=Schedule.canQueue(state,w,intent.jobId,intent.machineId)
         if not okay then return false,message end
         if q.nextId>=1000000 then return false,"This employee's schedule is full." end
         q.items[#q.items+1]={id=string.format("TASK-%06d",q.nextId),jobId=intent.jobId,
-            machineId=intent.machineId,addedAtHours=now}
+            machineId="auto",addedAtHours=now}
         q.nextId=q.nextId+1;q.revision=q.revision+1
         w._scheduleRetryAtHours=nil
         w._waitingMachineId=nil
@@ -732,7 +756,19 @@ function Schedule.command(state,w,intent,now)
     end
     return false,"Unknown schedule action."
 end
-function Schedule.advance(state,w,now)
+function Schedule.idleActivity(state,w)
+    local q,team=Schedule.ensure(w),Schedule.team(state)
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.pendingDriverEmployeeId==w.id then
+        return "Delivery queued; finishing warehouse work"
+    end
+    local teamActive=team and team.enabled and #team.items>0
+    if not q.enabled and not teamActive then return "Work schedule paused" end
+    if (#q.items>0 or teamActive) and w._scheduleBlockedReason then return w._scheduleBlockedReason end
+    if (#q.items>0 or teamActive) and w._waitingForJack then return "Waiting for the pallet jack" end
+    return "No jobs on the schedule"
+end
+function Schedule.advance(state,w,now,canClaim)
     local q=Schedule.ensure(w)
     local team=Schedule.team(state)
     local hasTeamMirror=false
@@ -740,12 +776,20 @@ function Schedule.advance(state,w,now)
     if w.status~="employed" or w.terminationRequested or w.stopRequested or w.assignment or w.training
         or not w.visible or not w.clockedIn or not Contracts.onShift(w.contract,now) then return false end
     if Payroll.balance(w,now,false)>0 then w.activity="Waiting for overdue wages";return false end
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.pendingDriverEmployeeId==w.id then
+        local activity="Delivery queued; finishing warehouse work"
+        if w.activity~=activity then w.activity=activity;return true end
+        return false
+    end
     if w._scheduleRetryAtHours and now<w._scheduleRetryAtHours then return false end
+    w._scheduleBlockedReason=nil
     local releasedIneligible=returnIneligibleTeamJobs(state,w)
     if not q.enabled and not (team and team.enabled and (#team.items>0 or hasTeamMirror)) then
+        w.activity="Work schedule paused"
         return releasedIneligible
     end
-    claimTeamJob(state,w,now)
+    claimTeamJob(state,w,now,nil,canClaim)
     w._scheduleRetryAtHours=nil
     local changed=false
     local scanIndex,scanned=1,0
@@ -763,7 +807,7 @@ function Schedule.advance(state,w,now)
             local _,total,p=Schedule.progress(job)
             if not p then finish(state,q,scanIndex,total>0 and "complete" or "unavailable",now);changed=true
             else
-                local _,machine,readyPallet,reason=Schedule.resolve(state,w,row)
+                local _,machine,readyPallet,reason=Schedule.resolve(state,w,row,nil,canClaim)
                 if reason then
                     lastBlocked=lastBlocked or reason
                     scanIndex=scanIndex+1
@@ -779,6 +823,7 @@ function Schedule.advance(state,w,now)
                         machineId=machine.id,machineModel=machine.modelId,scheduleItemId=row.id}
                     w._blockedWorkHours=0
                     w._waitingMachineId=nil
+                    w._scheduleBlockedReason=nil
                     w.activity="Scheduled job - walking to "..(stage=="cutter" and "cutter"
                         or stage=="press" and "printing press" or "skid wrapper")
                     return true
@@ -787,25 +832,26 @@ function Schedule.advance(state,w,now)
         end
     end
     if lastBlocked then
-        local claimed,row,job,machine,readyPallet=claimTeamJob(state,w,now,true)
+        local claimed,row,job,machine,readyPallet=claimTeamJob(state,w,now,true,canClaim)
         if claimed and row and job and machine and readyPallet then
             local stage=Schedule.stage(job,readyPallet)
             w.assignment={jobId=job.id,palletId=readyPallet.id,cutterMachineId=row.machineId,
                 machineId=machine.id,machineModel=machine.modelId,scheduleItemId=row.id}
             w._blockedWorkHours=0
             w._waitingMachineId=nil
+            w._scheduleBlockedReason=nil
             w.activity="Scheduled job - walking to "..(stage=="cutter" and "cutter"
                 or stage=="press" and "printing press" or "skid wrapper")
             return true
         end
         w.activity=lastBlocked
-        w._waitingMachineId=q.items[1] and q.items[1].machineId or nil
+        w._scheduleBlockedReason=lastBlocked
+        w._waitingMachineId=nil
         w._scheduleRetryAtHours=now+.05
         return changed
     end
     w._waitingMachineId=nil
-    if w._waitingForJack then w.activity="Waiting for the pallet jack"
-    elseif #q.history>0 then w.activity="Work schedule complete" end
+    w.activity=Schedule.idleActivity(state,w)
     return changed
 end
 function Schedule.deferBlocked(state,w)

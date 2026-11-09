@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "batch": "luna-player-north-k03-k04-trial01-canonical-repair-v1",
+  "status": "rejected by root for canonical review; retained immutable as a pose-only reference; no runtime integration",
+  "raw_master": {
+    "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-03-04-trial-01-generated.png",
+    "sha256": "51f3979a1cf7044a66ea30436db897cb0eb8fefd0cb519e601b8f5e006d0ccab",
+    "dimensions_px": [
+      1254,
+      1254
+    ],
+    "transparent_background": true,
+    "low_alpha_note": "Detached alpha specks below threshold 16 extend beyond the subjects; row crops use alpha>16 bounds and retain all pixel values inside the crop."
+  },
+  "exact_prompt_path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-03-04-trial-01-prompt.txt",
+  "exact_prompt": "Create one transparent-background 1024x1024 two-pose reference sheet, not a finished sprite atlas. It must contain exactly TWO separate full-body drawings of the SAME small orange-furred rabbit worker seen directly from behind, walking north away from the camera. Place pose A centered in the TOP horizontal half and pose B centered in the BOTTOM horizontal half, with a clear transparent gap between the two rows. Each row is a separate pose; no text, labels, panel borders, ground plane, cast shadow, background color, motion blur, or extra props. Match the supplied rabbit references exactly: exactly two long orange rabbit ears, one round fluffy white tail, white shirt, blue denim overalls with shoulder straps and brass buttons, brown belt, one brown tool pouch on the rabbit's anatomical right hip (screen-right in this rear view) holding exactly one red handled tool and one yellow handled tool, brown boots, white sleeves. Exactly two arms and two legs, no other appendages, no duplicate limbs. Keep the same recognizable rabbit head, fur texture, brush-painted outlines, palette, outfit details, and body proportions from the references. Both poses must use the SAME camera, straight rear view with no turn, SAME figure size, SAME head span, SAME torso width and length, SAME shoulder and pelvis landmarks, and SAME baseline; do not change character scale or body shape between rows. The full body in each row should occupy about 82 percent of that row's height, with ears and both boots fully inside its row. Keep the figure centered in each row and leave generous horizontal margins. Use the corrected canonical K5 reference for the accepted head-to-torso proportions and outline; use K2 and K6 for the surrounding gait cycle and outfit continuity; use the rigid upper-body reference for exact head and torso construction. Do not copy the old K3/K4 incorrect sole-facing leg arrangement.\n\nTOP ROW, canonical K3 passing pose: the rabbit's ANATOMICAL RIGHT leg, which is on SCREEN-RIGHT from this exact rear view, is the free leg passing forward under the pelvis. Show it crossing inward under the center of the body with a modest bent knee and boot lifted only slightly, toe angled down; it must remain visibly attached to the screen-right hip/thigh. The ANATOMICAL LEFT leg on SCREEN-LEFT is the supporting leg, straight enough to carry weight, with its entire boot planted flat on the ground baseline and not lifted. Do not show the left boot sole toward camera. The right arm counter-swings behind while the left arm swings forward naturally; keep the pouch on the right hip clear and fixed.\n\nBOTTOM ROW, canonical K4 knee-up pose: continue the SAME anatomical right/screen-right leg as the moving leg. Lift its knee clearly beneath and slightly to the screen-right of the pelvis, with the right lower leg folded back and the right boot separated from the planted support boot. The left/screen-left leg stays straight and planted flat on the same ground baseline. If any sole is visible, it belongs ONLY to the raised screen-right boot; never to the planted screen-left boot. Continue opposite arm counter-swing consistently with the right leg advancing. This is a clear but modest knee lift, not an exaggerated kick. Keep the hands anatomically attached, naturally posed, with no hand/prop mergers.\n\nNo mirrors, no side-view, no three-quarter view, no duplicated posing from another limb, no floating feet, no mismatched footline, no changing pouch side, no extra ears, no third ear, no extra limbs, no detached lines or stray marks. The output must have a genuinely transparent background.",
+  "reference_roles": [
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-02-for-k03-k04-ref-v1.png",
+      "role": "left weight-down endpoint and identity",
+      "sha256": "a54a89e818d6d5e8fce44ec3c408bf949e510482529e63c4b3fccb75de15b9f6"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-corrected-canonical-05-for-k03-k04-ref-v1.png",
+      "role": "approved corrected canonical style and rigid proportions",
+      "sha256": "1b55ca0f529776adb290c5ca680e6547772b4df4edafedeb64743ed4ab6e0979"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-06-for-k03-k04-ref-v1.png",
+      "role": "right weight-down endpoint and identity",
+      "sha256": "20d3af83cbf133a5cb75aa9bebd517c797b82415d72f5a3e63beccba89308048"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/references/north-canonical-upper-body-rigid-reference.png",
+      "role": "rigid head and torso design reference",
+      "sha256": "4b1592e17391fa7e09a8cb8ad9bf15199a430514f56a069b4f290eec0b8dca41"
+    }
+  ],
+  "base_inputs": {
+    "original_strip_path": "assets/generated/characters/rabbit-worker/walk_north.png",
+    "original_strip_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+    "base_corrected_n5_proposal_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-phase5-trial06-8frame-proposal.png",
+    "base_corrected_n5_proposal_sha256": "244171ab60f25e618891511062f94add0c8a83851b734b4593330a634c071f8c",
+    "accepted_n5_normalized_sha256": "1b55ca0f529776adb290c5ca680e6547772b4df4edafedeb64743ed4ab6e0979"
+  },
+  "normalization_policy": "one uniform scale for the two-pose raw master, derived from the geometric mean of canonical median head+ears and torso width ratios; per-cell crop and translation only; no cell-specific scale, warp, deformation, mirroring, or pose duplication",
+  "normalization_landmarks": {
+    "canonical_median_head_ears_width_px": 114.0,
+    "canonical_median_torso_width_px": 78.0,
+    "raw_master_head_ears_widths_px": [
+      185.0,
+      184.0
+    ],
+    "raw_master_torso_widths_px": [
+      138.0,
+      147.0
+    ],
+    "raw_master_median_head_ears_width_px": 184.5,
+    "raw_master_median_torso_width_px": 142.5,
+    "shared_uniform_scale": 0.5815594398802423,
+    "anchor_policy": "torso center x=256; lowest visible pixel y=465; these are translations only",
+    "remaining_mismatch": "The raw head-to-torso width ratio is broader than canonical; landmark scale leaves approx. 6% opposing head/torso residuals and both full-body heights approx. 17% shorter than the 410px canonical median. Do not accept by hiding this with per-cell scale."
+  },
+  "pose_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing_candidate_k03",
+    "right_knee_up_candidate_k04",
+    "right_contact_corrected_trial06",
+    "right_weight_down",
+    "left_passing_original",
+    "left_knee_up_original"
+  ],
+  "canonical_cell_selection": [
+    {
+      "cell": 1,
+      "role": "unchanged original left_contact",
+      "exact_original_pixels": true
+    },
+    {
+      "cell": 2,
+      "role": "unchanged original left_weight_down",
+      "exact_original_pixels": true
+    },
+    {
+      "cell": 3,
+      "role": "new K3 right-passing candidate; viewer-right/anatomical-right leg passes, viewer-left supports",
+      "exact_original_pixels": false,
+      "selection": "unselected pending owner and scale review"
+    },
+    {
+      "cell": 4,
+      "role": "new K4 right-knee-up candidate; same viewer-right/anatomical-right leg lifted, viewer-left supports",
+      "exact_original_pixels": false,
+      "selection": "unselected pending owner and scale review"
+    },
+    {
+      "cell": 5,
+      "role": "accepted corrected N5 trial06",
+      "exact_original_pixels": false
+    },
+    {
+      "cell": 6,
+      "role": "unchanged original right_weight_down",
+      "exact_original_pixels": true
+    },
+    {
+      "cell": 7,
+      "role": "unchanged original left_passing; contains pre-existing detached top-line residue flagged separately",
+      "exact_original_pixels": true
+    },
+    {
+      "cell": 8,
+      "role": "unchanged original left_knee_up",
+      "exact_original_pixels": true
+    }
+  ],
+  "normalized_cells": [
+    {
+      "canonical_key": 3,
+      "crop_box_in_row_xyxy": [
+        485,
+        31,
+        780,
+        614
+      ],
+      "raw_row_y_bounds": [
+        0,
+        627
+      ],
+      "alpha_threshold_for_crop_and_bounds": 16,
+      "shared_uniform_scale": 0.5815594398802423,
+      "resampling": "Pillow Lanczos",
+      "resampled_dimensions_px": [
+        172,
+        339
+      ],
+      "resampled_visible_bbox_xyxy": [
+        0,
+        0,
+        172,
+        339
+      ],
+      "paste_xy": [
+        173,
+        126
+      ],
+      "normalized_visible_bbox_xyxy": [
+        173,
+        126,
+        345,
+        465
+      ],
+      "head_ears_width_raw_px": 185.0,
+      "torso_width_raw_px": 138.0,
+      "head_width_after_uniform_scale_px": 107.58849637784482,
+      "torso_width_after_uniform_scale_px": 80.25520270347343,
+      "relative_to_canonical_medians_pct": {
+        "head_ears_width": -5.624125984346651,
+        "torso_width": 2.891285517273623,
+        "subject_height_vs_410px_canonical": -17.31707317073171
+      },
+      "normalized_sha256": "464c31bfbf9b528db9cdfc03062c5db9d96e0e78cec31e84ca21c8d5a8b79b40"
+    },
+    {
+      "canonical_key": 4,
+      "crop_box_in_row_xyxy": [
+        467,
+        8,
+        803,
+        596
+      ],
+      "raw_row_y_bounds": [
+        627,
+        1254
+      ],
+      "alpha_threshold_for_crop_and_bounds": 16,
+      "shared_uniform_scale": 0.5815594398802423,
+      "resampling": "Pillow Lanczos",
+      "resampled_dimensions_px": [
+        195,
+        342
+      ],
+      "resampled_visible_bbox_xyxy": [
+        0,
+        0,
+        195,
+        342
+      ],
+      "paste_xy": [
+        161,
+        123
+      ],
+      "normalized_visible_bbox_xyxy": [
+        161,
+        123,
+        356,
+        465
+      ],
+      "head_ears_width_raw_px": 184.0,
+      "torso_width_raw_px": 147.0,
+      "head_width_after_uniform_scale_px": 107.00693693796458,
+      "torso_width_after_uniform_scale_px": 85.48923766239561,
+      "relative_to_canonical_medians_pct": {
+        "head_ears_width": -6.134265843890718,
+        "torso_width": 9.601586746661027,
+        "subject_height_vs_410px_canonical": -16.58536585365854
+      },
+      "normalized_sha256": "fab02cf40347b86bb9c5a4b8f537016a90a1010ed17e1e20372f1bc9e80dc81a"
+    }
+  ],
+  "outputs": {
+    "k03_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-03-trial-01-uniform.png",
+    "k03_sha256": "464c31bfbf9b528db9cdfc03062c5db9d96e0e78cec31e84ca21c8d5a8b79b40",
+    "k04_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-canonical-04-trial-01-uniform.png",
+    "k04_sha256": "fab02cf40347b86bb9c5a4b8f537016a90a1010ed17e1e20372f1bc9e80dc81a",
+    "review_strip_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-k03-k04-trial01-8frame-proposal.png",
+    "review_strip_sha256": "3169c5e5adc75e0e1e858412477b770170078701deca618003adde45b963d1c5",
+    "review_strip_dimensions_px": [
+      4096,
+      512
+    ],
+    "full8_contact_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-k03-k04-trial01-full8-review.png",
+    "full8_contact_sha256": "3af0fa9155845cf7b2ba22bd32d1709dc4a960f364dc8be16eb2a947ac240016",
+    "neighbor_contact_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-k03-k04-trial01-k02-k05-review.png",
+    "neighbor_contact_sha256": "0a967bb5cc25fac66bc2327d86c1eb119b695000604595fee4363e9ef6733c1a",
+    "nominal_preview_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-k03-k04-trial01-nominal-8phase.gif",
+    "nominal_frame_delay_ms": 130,
+    "half_speed_preview_path": "output/animation-overhaul/luna-player/pose-corrections-v1/north-k03-k04-trial01-half-speed-8phase.gif",
+    "half_speed_frame_delay_ms": 260
+  },
+  "visual_findings": [
+    "K3 viewer-right/anatomical-right leg is the free passing leg under the pelvis; viewer-left boot stays flat on the baseline.",
+    "K4 continues the same viewer-right leg into a distinct knee-up pose; viewer-left support boot stays planted.",
+    "Each pose has exactly two ears, two arms, two legs, one right-side tool pouch, one red tool and one yellow tool; no mirror or extra appendage observed.",
+    "K3 arm counter-swing is readable; K4 arms are less clearly opposed and need owner review.",
+    "Root rejected the pair: the shared-scale result leaves an obvious approximately 17% body-height shrink; K4 counter-swing is also unclear.",
+    "The pair may be used only as a leg-pose/ownership reference for a targeted K3 edit; never as a body-size or proportion reference."
+  ]
+}

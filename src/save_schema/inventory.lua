@@ -6,6 +6,7 @@ function Component.install(Runtime)
     Runtime.WORK_PHONE_KINDS = {
         customer_order = true,
         customer_status = true,
+        customer_complaint = true,
         supplier_status = true,
         service_order = true,
         construction_notice = true,
@@ -22,6 +23,11 @@ function Component.install(Runtime)
             and Runtime.text(value.subject)
             and Runtime.text(value.message)
             and (value.direction == nil or value.direction == "incoming" or value.direction == "outgoing")
+            and Runtime.optionalBoolean(value.connecting)
+            and Runtime.optionalNonnegative(value.connectionRemaining)
+            and (value.connectionRemaining == nil or value.connectionRemaining <= 1)
+            and (value.connecting ~= true or (value.direction == "outgoing"
+                and Runtime.nonnegative(value.connectionRemaining) and value.connectionRemaining > 0))
             and Runtime.nonnegative(value.receivedAtHours)
             and type(value.answered) == "boolean"
             and (value.direction ~= "outgoing" or value.answered)
@@ -39,6 +45,8 @@ function Component.install(Runtime)
                 and Runtime.integer(value.categoryIndex) and value.categoryIndex >= 1 and value.categoryIndex <= 4))
             and (value.kind ~= "outgoing_power" or value.direction == "outgoing")
             and Runtime.optionalPositiveInteger(value.itemIndex)
+            and Runtime.optionalPositiveInteger(value.pendingItemIndex)
+            and Runtime.optionalBoolean(value.checkoutReady)
             and Runtime.optionalText(value.outcome)
             and Runtime.optionalText(value.response)
             and Runtime.optionalNonnegative(value.endedAtHours)
@@ -49,6 +57,7 @@ function Component.install(Runtime)
             and Runtime.positiveInteger(value.nextCallId)
             and Runtime.nonnegative(value.nextCallAtHours)
             and (value.incoming == nil or Runtime.phoneCall(value.incoming))
+            and Runtime.array(value.deferredCalls, Runtime.phoneCall)
             and Runtime.array(value.history, Runtime.phoneCall)
     end
 
@@ -124,12 +133,14 @@ function Component.install(Runtime)
             and Runtime.stock(value.stock)
     end
 
-    function Runtime.placement(value)
+    function Runtime.placement(value, supports64ViewRotation)
         return type(value) == "table"
             and Runtime.number(value.x) and Runtime.number(value.y)
             and Runtime.directions[value.direction] == true
             and type(value.moving) == "boolean"
             and type(value.inMotion) == "boolean"
+            and (value.rotationIndex == nil or (supports64ViewRotation == true
+                and Runtime.integer(value.rotationIndex) and value.rotationIndex >= 1 and value.rotationIndex <= 64))
     end
 
     function Runtime.setupScores(value)

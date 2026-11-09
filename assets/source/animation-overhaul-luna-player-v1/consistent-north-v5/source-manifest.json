@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "scope": "Two passing-pose edit candidates only; no in-betweens and no runtime changes.",
+  "runtime_strip": "assets/generated/player-walk-v4/walk_north.png",
+  "runtime_strip_sha256": "c01210e2a7fc8cb796591ff6aa217f3c6e730af386f9e541366b5f1bc3cf14fc",
+  "phase_order": [
+    "phase3 right passing",
+    "phase7 left passing"
+  ],
+  "source_frames": {
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v4-phase3-source.png": {
+      "sha256": "2da4477ebeb45b439e99744dbbe613373fa2069cb7f93f7d481ee1b5c838a6d5",
+      "copied_from_runtime_phase": 3,
+      "dimensions": [
+        512,
+        512
+      ]
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v4-phase7-source.png": {
+      "sha256": "154de4f439d6bcb486411e98bcdbc52b7e5d0f1dd54686db489fb8a1497d8375",
+      "copied_from_runtime_phase": 7,
+      "dimensions": [
+        512,
+        512
+      ]
+    }
+  },
+  "generated_artifacts": {
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-imagegen-generated-raw.png": {
+      "sha256": "64ba67e32cee106b5ee898545de48b69b2b4e758c7f09a91fef35f1574ec99cc",
+      "role": "imagegen_raw_candidate"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-exact-prompt.txt": {
+      "sha256": "3cc9d5410af38463aad66dfeb6b760b1bc4732187249c282f17c428e49ddba61",
+      "role": "exact_generation_prompt"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-imagegen-generated-raw.png": {
+      "sha256": "d8a36004f4bf77240f6891bdb8b8376c234be1f1aacb6f2923e2328e226a00e9",
+      "role": "imagegen_raw_candidate"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-exact-prompt.txt": {
+      "sha256": "c5d86d246f287bf72329519f8076556677b4dfe91987732a188b1ada8646f8cc",
+      "role": "exact_generation_prompt"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-iteration2-imagegen-generated-raw.png": {
+      "role": "imagegen_raw_candidate",
+      "sha256": "430f4eafabfb7f3ebf21af204bf9c8c05424bf1f3e36f7a595648de2d05d8960",
+      "copied_from_generated_image": "exec-c6e29136-5057-49c5-a42d-7f665ac37172.png"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-iteration2-imagegen-generated-raw.png": {
+      "role": "imagegen_raw_candidate",
+      "sha256": "b9baabd0f641a458127fb80dab0d27428905173ee3f03f9cbb122c5e85c5158f",
+      "copied_from_generated_image": "exec-7892bb35-f02e-44d7-bdc3-c1b996f336e5.png"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-cleanup-edit01-imagegen-generated-raw.png": {
+      "role": "imagegen_cleanup_edit_candidate",
+      "sha256": "e7418be0d40105b8ba831cfd0be52720e126d6f5918b1fb4632afe831dd44850",
+      "copied_from_generated_image": "exec-780bee70-6c9c-4bf7-a1fc-80dbee384330.png"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-cleanup-edit01-imagegen-generated-raw.png": {
+      "role": "imagegen_cleanup_edit_candidate",
+      "sha256": "7b84e7f209c5d26b1908eb7a9e82f550088bd9b9684a149a74cf47394684d2d5",
+      "copied_from_generated_image": "exec-5e8ed386-a88b-49be-a619-9120b9edab0d.png"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-cleanup-edit01-exact-prompt.txt": {
+      "role": "exact_generation_prompt",
+      "sha256": "fafae127801f85a4e3ae9434865ea9b4ddc4856daf00189ae0192fef8dc09b57"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-cleanup-edit01-exact-prompt.txt": {
+      "role": "exact_generation_prompt",
+      "sha256": "6cd6ad8f42182e94e0cd8855b1cf29c119686c86211aa895fbf8100ed99c0a48"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-lowerbody-only-edit01-imagegen-generated-raw.png": {
+      "copied_from_generated_image": "exec-1b90509d-33e0-4b9f-931d-79547d06a76c.png",
+      "sha256": "34df3586c8c04f6414b976936743d3bdb19f9a8e9d580295d952d474f33c42e8",
+      "role": "imagegen_cleanup_edit_candidate"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase7-lowerbody-only-edit01-exact-prompt.txt": {
+      "role": "exact_generation_prompt",
+      "sha256": "a65317aa37cca1388186452084d22ddd73fef4b6b784125d18a4709bf30288e8"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-lowerbody-only-edit01-imagegen-generated-raw.png": {
+      "sha256": "345a25527e882fb753894d6cfcc2e9547d55e7213859d861bb2be0546f57b138",
+      "copied_from_generated_image": "exec-05855ff5-1a5b-45f9-8c65-51ffaea55ee5.png",
+      "role": "imagegen_cleanup_edit_candidate"
+    },
+    "assets/source/animation-overhaul-luna-player-v1/consistent-north-v5/north-v5-phase3-lowerbody-only-edit01-exact-prompt.txt": {
+      "role": "exact_generation_prompt",
+      "sha256": "7dd2075d2b6a8c008313863ff5dd3931052ddcc4005d97e781b6ebde79b33cfe"
+    }
+  },
+  "instructions": "Original north-v4 frames are preserved as source references. Review edited cells for exact two-ear anatomy, stable body scale, opposite leg ownership, compact low passes, clean alpha, and no red fringe before any selection.",
+  "review_status": "All newly generated candidates are uninstalled pending root visual review; no runtime/spec changes.",
+  "generation_provenance_note": "The original iteration2 tool prompt was not retained with its source; its generated image ID is recorded. Cleanup-edit01 exact prompts are preserved verbatim."
+}

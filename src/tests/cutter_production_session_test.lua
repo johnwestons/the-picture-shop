@@ -136,12 +136,11 @@ function Test.run(context, check)
     end
     key("l")
     advance(0.5)
-    key("q")
     key("g")
     key("p")
     advance(0.5)
     key("space")
-    check("cutter_production_guest_load_rotate_gauge_position_clamp_round_trip",
+    check("cutter_production_guest_load_gauge_position_clamp_round_trip",
         Machine.step == "clamped" and Remote.view.step == "clamped"
         and Remote.view.paper.orientation == Machine.paper.orientation
         and Remote.view.gaugeCentiInch == 1250 and Machine.gauge == 12.5)

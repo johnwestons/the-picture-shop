@@ -1,0 +1,98 @@
+{
+  "status": "single-transition review candidate only; not merged into the 16-frame strip and not runtime registered",
+  "transition": "F02; corrected key1 left contact -> corrected key2 left weight-down",
+  "generator": "built-in image_gen",
+  "generation_id": "exec-a72d693d-d865-4a3d-9e0f-8ae12f1d74d8.png",
+  "imagegen_output_original": "C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07\\exec-a72d693d-d865-4a3d-9e0f-8ae12f1d74d8.png",
+  "imagegen_output_staged": "assets\\source\\animation-overhaul-luna-v1\\cat-worker\\generated\\walk_south-f02-midpoint-imagegen-v1.png",
+  "imagegen_sha256": "283e75e1562f9062d08e641af78992e9208f1b5351f82131e0c0ae1f5b63fc3c",
+  "imagegen_dimensions_px": [
+    1254,
+    1254
+  ],
+  "alpha_ge_16_bbox_raw_px": [
+    302,
+    176,
+    962,
+    1122
+  ],
+  "exact_prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/transition-south-f02-single-midpoint-v1.txt",
+  "input_images": [
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key01-transition02-endpoint.png",
+      "role": "corrected key1 start pose; screen-left support",
+      "sha256": "0bc5c5f157786ce3f2e1a3e4273c8b1311f2c0392471b27fffc68940eab00141"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key02-transition02-endpoint.png",
+      "role": "corrected key2 end pose; screen-left support",
+      "sha256": "0765974a7da3198576346bc2dbafd367203b1705afed66daec49d27dd7427b2f"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-leg-role-diagram-v1.png",
+      "role": "screen-left/red vs screen-right/blue leg ownership only",
+      "sha256": "a51ec422c7d799415df3c718c1023992dcce1a244925f50c4308a006e691fe20"
+    }
+  ],
+  "selected_output": "assets\\source\\animation-overhaul-luna-v1\\cat-worker\\canonical-replacements\\walk_south-f02-midpoint-candidate-v1.png",
+  "selected_output_sha256": "c12f60b0dff6ab821deab34adccc10d7f5056b0ba72cd37c407555027a3cba9f",
+  "review_sheet": "output\\animation-overhaul\\luna-cat\\canonical-correction-candidate\\walk_south-f02-v1-key1-midpoint-key2-review.png",
+  "source_key1_sha256": "08e9932b19fbabbee55a3e8073674631aa18bb4057a2097f5e3d982ddb8259a0",
+  "source_key2_sha256": "8c5722da47bf4f4c959a49eb83fc63a9a9887839fafe5d053e4e56e44a5f43e8",
+  "source_key1_bbox_ge_16_px": [
+    123,
+    73,
+    392,
+    458
+  ],
+  "source_key2_bbox_ge_16_px": [
+    123,
+    78,
+    391,
+    458
+  ],
+  "source_key1_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 181,
+    "x_max_px": 234,
+    "x_mid_px": 207.5
+  },
+  "source_key2_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 184,
+    "x_max_px": 236,
+    "x_mid_px": 210.0
+  },
+  "transform": {
+    "uniform_scale_factor_fixed_from_reviewed_F08": 0.40707497,
+    "scale_method": "same fixed master scale as reviewed F08; no per-frame scale fit",
+    "raw_alpha_ge_16_height_px": 946,
+    "scaled_alpha_ge_16_height_px": 385,
+    "endpoint_mean_alpha_ge_16_height_px": 382.5,
+    "raw_torso_axis_x_px": 621.5,
+    "target_torso_axis_x_px": 253.25,
+    "rigid_x_translation_px": 0,
+    "rigid_y_translation_px": 2,
+    "target_support_sole_row_px": 457,
+    "method": "one fixed uniform scale shared with reviewed F08, followed by rigid x/y translations only; no per-part warping or independent scaling"
+  },
+  "candidate_alpha_ge_16_bbox_px": [
+    123,
+    73,
+    392,
+    458
+  ],
+  "candidate_support_anchor": {
+    "ground_y_px": 457,
+    "x_min_px": 180,
+    "x_max_px": 236,
+    "x_mid_px": 208.0
+  },
+  "candidate_support_anchor_x_delta_vs_key1_px": 0.5,
+  "candidate_torso_axis_x_px": 254.0,
+  "candidate_torso_axis_delta_vs_key1_px": 0.0,
+  "candidate_limits": [
+    "Single F02 only; other transitions are unchanged.",
+    "Root visual review required; bounds checks do not establish the intended early swing."
+  ]
+}

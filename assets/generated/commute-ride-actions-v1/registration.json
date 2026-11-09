@@ -1,0 +1,58 @@
+{
+  "status": "runtime_approved",
+  "character": "rabbit-worker",
+  "direction": "southeast",
+  "referenceHeight": 256,
+  "frameSize": 256,
+  "anchor": [
+    128,
+    224
+  ],
+  "actions": {
+    "mount": {
+      "path": "assets/generated/commute-ride-actions-v1/mount-southeast.png",
+      "maskPath": "assets/generated/commute-ride-actions-v1/mount-southeast-mask.png",
+      "source": "assets/source/commute-ride-actions-v1/mount-six-frame-source.png",
+      "sourceSha256": "7ddefcec27c4ba2f8489a477fdcd0673bd4048f8142a7ad804e00bf91c4aa9cd",
+      "sha256": "fb827ae4d811ef9bccc5cd3faa1c3b1c1b60fe24eb982a27beede0c427445615",
+      "frameSize": 256,
+      "frameCount": 6,
+      "duration": 0.8,
+      "normalizationHeight": 228,
+      "anchor": [
+        128,
+        224
+      ]
+    },
+    "dismount": {
+      "path": "assets/generated/commute-ride-actions-v1/dismount-southeast.png",
+      "maskPath": "assets/generated/commute-ride-actions-v1/dismount-southeast-mask.png",
+      "source": "assets/source/commute-ride-actions-v1/dismount-six-frame-source.png",
+      "sourceSha256": "24b2a256760bd2f77b507b071aaee97e0952f0c9386d849f9f918bcc0c7125d6",
+      "sha256": "a04ec432125b0fa7b1d8408221a8c94f077e429f8ea42a90c6e7bf03a5dda470",
+      "frameSize": 256,
+      "frameCount": 6,
+      "duration": 1.1,
+      "normalizationHeight": 200,
+      "anchor": [
+        128,
+        224
+      ]
+    },
+    "crash": {
+      "path": "assets/generated/commute-ride-actions-v1/crash-southeast.png",
+      "maskPath": "assets/generated/commute-ride-actions-v1/crash-southeast-mask.png",
+      "source": "assets/source/commute-ride-actions-v1/crash-eight-frame-source.png",
+      "sourceSha256": "9e7d4bfa00c1f6d82586dd210eadb49a9d3406645000d4ef55ee1cf6bd70cf3c",
+      "sha256": "77b375707dce2cc694a9579911148802b13992d6335d80c1b14b6b03ee250cba",
+      "frameSize": 256,
+      "frameCount": 8,
+      "duration": 1.35,
+      "normalizationHeight": 214,
+      "anchor": [
+        128,
+        232
+      ]
+    }
+  }
+}

@@ -136,12 +136,229 @@ function Smoke.start(context)
     Smoke.report = report
     Smoke.passed = {}
     writeLine("THE_PICTURE_SHOP_SMOKE version=3")
+    writeLine(('SMOKE_CONFIG focus=%s mobile=%s seed=%s identity=%s'):format(
+        os.getenv('PICTURE_SHOP_SMOKE_FOCUS') or 'full',
+        os.getenv('PICTURE_SHOP_MOBILE')=='1' and '1' or '0',
+        os.getenv('PICTURE_SHOP_GAMEPLAY_SEED') or 'none',love.filesystem.getIdentity()))
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=="regal-folder" then
-            require("src.tests.regal_folder_game_test").run(context,check)
-            require("src.tests.lua_limits_test").run(context,check)
+        if focus=='softlock-campaign' then
+            require('src.tests.softlock_campaign_test').run(context,check)
+        elseif focus=='gameplay-recovery' then
+            for _,name in ipairs({'gameplay_journey_audit','recent_feature_regression'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
+        elseif focus=='save-reliability' then
+            require('src.tests.async_save_test').run(context,check)
+        elseif focus=='independent-scenes' then
+            require('src.tests.independent_scenes_test').run(context,check)
+            require('src.tests.independent_scenes_runtime_test').run(context,check)
+            require('src.tests.sound_test').run(context,check)
+        elseif focus=='scene-hud' then
+            require('src.tests.scene_hud_runtime_test').run(context,check)
+        elseif focus=='player-wages' then
+            require('src.tests.guest_payroll_test').run(context,check)
+        elseif focus=='island-variation' then
+            require('src.commute.tests.island_variation_test').run(check)
+        elseif focus=='town-outing' then
+            require('src.commute.tests.outing_runtime_test').run(context,check)
+        elseif focus=='terrain-streaming' then
+            require('src.commute.tests.terrain_cache_test').run(check)
+            require('src.commute.tests.runtime_test').run(context,check)
+        elseif focus=='grass-fields' then
+            require('src.commute.tests.grass_fields_test').run(check)
+        elseif focus=='background-warehouse' then
+            require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='player-delivery' then
+            require('src.tests.player_delivery_test').run(context,check)
+        elseif focus=='guest-job-journey' then
+            require('src.tests.guest_job_journey_test').run(context,check)
+        elseif focus=='delivery-manifest' then
+            require('src.tests.delivery_manifest_test').run(context,check)
+        elseif focus=='ai-watchdog' then
+            require('src.tests.ai_watchdog_test').run(context,check)
+        elseif focus=='home-guide' then
+            require('src.tests.home_guide_test').run(context,check)
+        elseif focus=='network-protocol' then
+            require('src.tests.network_protocol_test').run(context,check)
+        elseif focus=='capabilities' then
+            require('src.tests.multiplayer_capabilities_test').run(context,check)
+        elseif focus=='options' then
+            require('src.tests.options_test').run(context,check)
+        elseif focus=='machine-fleet' then
+            require('src.tests.machine_fleet_test').run(context,check)
+        elseif focus=='employee-capacity' then
+            require('src.tests.employee_capacity_test').run(context,check)
+        elseif focus=='progression' then
+            require('src.tests.progression_balance_test').run(context,check)
+        elseif focus=='shop-workflow' then
+            require('src.tests.shop_workflow_test').run(context,check)
+        elseif focus=='mechanic-paint' then
+            require('src.commute.tests.mechanic_paint_runtime_test').run(context,check)
+        elseif focus=='bike-damage' then
+            for _,name in ipairs({'bike_damage','rider_crash','bike_pitch','bike_pitch_visual','mechanic_shop'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.bike_damage_runtime_test').run(context,check)
+        elseif focus=='vegetation-collision' then
+            for _,name in ipairs({'vegetation_collision','bike_damage','rider_crash','bike_traction','bike_pitch'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+        elseif focus=='motorcycle-effects' then
+            for _,name in ipairs({'bike_particles','bike_tire_motion','bike_action_pose'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.camera_runtime_test').run(context,check)
+        elseif focus=='bike-condition-icon' then
+            require('src.commute.tests.bike_feedback_test').run(check)
+            require('src.commute.tests.bike_art_test').run(check)
+        elseif focus=='motorcycle-camera' then
+            for _,name in ipairs({'camera','follow_camera','camera_controls','bindings','first_person','direction',
+                'bike_action_pages','bike_action_pose','bike_particles','bike_tire_motion','riding_animation','bike_art'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.camera_runtime_test').run(context,check)
+        elseif focus=='scene-exits' then
+            require('src.tests.rabbit_colorways_shader_test').run(check)
+            require('src.tests.menu_exit_test').run(context,check)
+            require('src.tests.scene_exit_runtime_test').run(context,check)
+        elseif focus=='route-map' then
+            require('src.commute.tests.route_map_test').run(check)
+            require('src.commute.tests.route_map_runtime_test').run(context,check)
+        elseif focus=='town-infrastructure' then
+            for _,name in ipairs({'town_center','town_trails','infrastructure','road_markings'})do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.infrastructure_runtime_test').run(context,check)
+        elseif focus=='mechanic-shop' then
+            require('src.commute.tests.mechanic_shop_test').run(check)
+            require('src.commute.tests.mechanic_interior_test').run(check)
+            require('src.commute.tests.mechanic_runtime_test').run(context,check)
+        elseif focus=='apartment-journey' then
+            require('src.commute.tests.apartment_journey_test').run(context,check)
+        elseif focus=='town' then
+            require('src.tests.town_setup_test').run(context,check)
+            require('src.tests.lua_limits_test').run(context,check)
+        elseif focus=='parking' then
+            for _,name in ipairs({'road_markings','trip','town_generation','first_person'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.runtime_test').run(context,check)
+            require('src.tests.save_contract_test').run(context,check)
+        elseif focus=='truck-rendering' then
+            for _,name in ipairs({'delivery_traffic','first_person','truck_cab','cab_viewport',
+                'mobile_vehicle','camera','follow_camera','direction'}) do
+                require('src.commute.tests.'..name..'_test').run(check)
+            end
+            require('src.commute.tests.truck_render_runtime_test').run(context,check)
+        elseif focus=='delivery-docking' then
+            require('src.commute.tests.delivery_docking_test').run(check)
+        elseif focus=='delivery-traffic' then
+            require('src.commute.tests.delivery_docking_test').run(check)
+            require('src.commute.tests.delivery_traffic_test').run(check)
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='ai-motorcycle-traffic' then
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
+            require('src.commute.tests.driving_path_test').run(check)
+            require('src.commute.tests.traffic_actor_index_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='ai-motorcycle-route' then
+            require('src.commute.tests.ai_motorcycle_traffic_test').run(check,nil,true)
+            require('src.commute.tests.traffic_actor_index_test').run(check)
+            require('src.commute.tests.delivery_traffic_density_test').run(check)
+            require('src.commute.tests.traffic_rules_test').run(check)
+        elseif focus=='vehicle-controls' then
+            require('src.commute.tests.bindings_test').run(check)
+            require('src.commute.tests.delivery_traffic_test').run(check)
+        elseif focus=='silhouette-outline' then
+            require('src.commute.tests.silhouette_style_test').run(check)
+        elseif focus=='calendar-redesign' then
+            require('src.tests.computer_calendar_test').run(context,check)
+        elseif focus=='delivery-route-smoke' then
+            require('src.commute.tests.delivery_route_smoke_test').run(check)
+        elseif focus=='truck-cab' then
+            require('src.commute.tests.trip_test').run(check)
+            require('src.commute.tests.mobile_vehicle_test').run(check)
+            require('src.commute.tests.first_person_test').run(check)
+            require('src.commute.tests.truck_cab_test').run(check)
+        elseif focus=='late-game-traffic' then
+            require('src.commute.tests.delivery_traffic_test').run(check)
+            require('src.tests.late_game_load_test').run(context,check)
+        elseif focus=='commute' then
+            require('src.commute.tests.runtime_test').run(context,check)
+            require('src.commute.tests.session_test').run(context,check)
+            for _,name in ipairs({'lua_limits','weekend_flow','home_travel_session','network_protocol','save_contract'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
+        elseif focus=='weekend-playthrough' then
+            require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=='domain-tail' then
+            Suites.runDomainTail(context,check)
+        elseif focus=='recent-features' then
+            require('src.commute.tests.sprint_test').run(check)
+            require('src.commute.tests.structure_geometry_test').run(check)
+            require('src.commute.tests.gas_station_test').run(check)
+            require('src.tests.home_cooking_pose_test').run(context,check)
+            require('src.tests.recent_feature_regression_test').run(context,check)
+            require('src.tests.weekend_flow_test').run(context,check)
+            require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=="home-production" then
+            require("src.tests.home_production_budget_test").run(context,check)
+        elseif focus=="home-furniture" then
+            for _,name in ipairs({"lua_limits","home_furniture","home_scene","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-privacy" then
+            require("src.tests.home_privacy_art_test").run(context,check)
+        elseif focus=="home-held" then
+            require("src.tests.home_held_art_test").run(context,check)
+        elseif focus=="home-shopping" then
+            for _,name in ipairs({"lua_limits","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-residents" then
+            for _,name in ipairs({"lua_limits","home_residents","home_scene","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-needs" then
+            for _,name in ipairs({"lua_limits","home_residents","home_chores","weekend_flow","weekend_runtime",
+                "home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="household-finances" then
+            for _,name in ipairs({"lua_limits","household_finances","weekend_flow","weekend_runtime","home_travel_session","home","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="weekend-flow" then
+            for _,name in ipairs({"lua_limits","weekend_flow","weekend_runtime","home_travel_session","business_deadlines","home","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="friday-closing" then
+            for _,name in ipairs({"weekend_flow","weekend_runtime","employee_schedule","home_travel_session",
+                "room_shipping","truck_authority","multiplayer_session","network_protocol","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="promotion-email" then
+            for _,name in ipairs({"input_status","press_economics","ui_integration",
+                "office_phone_session","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="business-deadlines" then
+            for _,name in ipairs({"lua_limits","business_deadlines","gameplay_quality","save_contract","network_protocol"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home-scene" then
+            for _,name in ipairs({"lua_limits","home_scene","home","network_protocol","multiplayer_session","save_contract"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="home" then
+            for _,name in ipairs({"lua_limits","home","shop_workflow","save_contract","network_protocol","multiplayer_session"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="garage-exterior" then
             require("src.tests.outdoor_weather_test").run(context,check)
             require("src.tests.lua_limits_test").run(context,check)
@@ -162,6 +379,8 @@ function Smoke.start(context)
                 "keyboard_mobile","save_contract"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
+        elseif focus=="machine-64-views" then
+            require("src.tests.machine_64_rotation_test").run(context,check)
         elseif focus=="machine-transport" then
             for _,name in ipairs({"lua_limits","purchased_machine_transport","machine_fleet","multi_machine","pallet_jack_audit",
                 "pallet_state","placement_precision","machine_relocation_authority","machine_relocation_session",
@@ -171,7 +390,7 @@ function Smoke.start(context)
         elseif focus=="cut-stock-margin" then
             JobLoopIntegration.run(context,check,context.jobs)
             CutterIntegration.run(context,check,context.jobs)
-            for _,name in ipairs({"lua_limits","cut_stock_margin","cutter_presentation","cutter_production_session",
+            for _,name in ipairs({"lua_limits","cut_stock_margin","machine_motion","cutter_presentation","cutter_production_session",
                 "progression_balance","shop_workflow","press_economics","save_contract",
                 "guest_job_journey"}) do
                 require("src.tests."..name.."_test").run(context,check)
@@ -188,6 +407,13 @@ function Smoke.start(context)
             Suites.runWarehouseRooms(context,check)
         elseif focus=="domain" then
             Suites.runDomain(context,check)
+        elseif focus=="late-game-performance" then
+            for _,name in ipairs({"async_save","streaming_images","performance_regression","scaling_performance","npc_navigation",
+                "machine_fleet","multi_machine","employees","employee_transport",
+                "pallet_jack_navigation","pallet_jack_fleet","pallet_pickup","pallet_state",
+                "shop_rooms","multiplayer_session","network_protocol","save_contract","asset_pack","options","focus_grace"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="performance" then
             runChecks(context)
             for _,name in ipairs({"performance_regression","scaling_performance","npc_navigation","machine_fleet","multi_machine","asset_pack","save_contract",
@@ -215,17 +441,39 @@ function Smoke.start(context)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="employee-speech" then
+            require("src.tests.employee_speech_test").run(context,check)
         elseif focus=="employee-network" then
             require("src.tests.network_protocol_test").run(context,check)
             require("src.tests.multiplayer_session_test").run(context,check)
             require("src.tests.employees_test").run(context,check)
             require("src.tests.employee_billing_test").run(context,check)
+        elseif focus=="service-reliability" then
+            for _,name in ipairs({"service_reliability","machine_fleet","cutter_maintenance_authority",
+                "cutter_maintenance_session","technician_motion","technician_network"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=="room-shipping" then
+            require("src.tests.room_shipping_test").run(context,check)
+        elseif focus=="pallet-routing" then
+            require("src.tests.pallet_jack_navigation_test").run(context,check)
+        elseif focus=="pallet-fleet" then
+            for _,name in ipairs({"lua_limits","pallet_jack_fleet","employee_transport","employee_schedule",
+                "pallet_state","pallet_storage","warehouse_save","save_contract","vendor_authority","computer_viewport"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="employee-transport" then
             require("src.tests.lua_limits_test").run(context,check)
             require("src.tests.employee_transport_test").run(context,check)
             require("src.tests.worker_animation_test").run(context,check)
             require("src.tests.npc_navigation_test").run(context,check)
             require("src.tests.pallet_pickup_test").run(context,check)
+        elseif focus=="animation" then
+            for _,name in ipairs({"lua_limits", "player_controller", "character_animation", "employee_work_animation", "employee_work_presentation", "technician_motion", "technician_network", "customer_motion", "client_seating",
+                "worker_animation", "npc_navigation", "time_acceleration_motion", "pallet_jack_motion", "pallet_jack_presentation",
+                "title_menu_animation", "warehouse_construction", "mechanic_work_presentation", "machine_motion", "cutter_presentation", "sound", "multiplayer_world_layers", "asset_pack"}) do
+                require("src.tests."..name.."_test").run(context,check)
+            end
         elseif focus=="employee-animation" then
             require("src.tests.customer_motion_test").run(context,check)
             require("src.tests.employee_schedule_test").run(context,check)
@@ -282,6 +530,7 @@ function Smoke.start(context)
             require("src.tests.keyboard_mobile_test").run(context,check)
             require("src.tests.options_test").run(context,check)
         else
+            assert(not focus or focus=='' or focus=='full','Unknown smoke focus: '..tostring(focus))
             runChecks(context)
             Suites.runDomain(context, check)
             Suites.verifyAuditCoverage(Smoke.passed, check)
@@ -293,6 +542,7 @@ function Smoke.start(context)
             or (os.getenv("PICTURE_SHOP_COMPUTER_INVENTORY_PREVIEW") == "1" and "inventory")
             or (os.getenv("PICTURE_SHOP_COMPUTER_WWW_PREVIEW") == "1" and "www")
             or (os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" and "email")
+            or (os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1" and "estimating")
         local pressPreview = os.getenv("PICTURE_SHOP_PRESS_PREVIEW")
         local workPhonePreview = os.getenv("PICTURE_SHOP_WORK_PHONE_PREVIEW")
         if os.getenv("PICTURE_SHOP_WORK_ORDER_PREVIEW") == "1" then

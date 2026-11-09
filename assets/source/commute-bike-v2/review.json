@@ -1,0 +1,32 @@
+{
+  "status": "runtime_static_pilot_native_reviewed",
+  "generator": "built-in imagegen",
+  "source": "mounted-directions-source.png",
+  "prompt": "mounted-directions-prompt.txt",
+  "identity": "../commute-rider-v2/directional-idle-v1.png",
+  "findings": [
+    "All eight mounted views independently authored, no mirroring.",
+    "Longer torso and limbs and smaller helmet relative to body match the suit-up identity.",
+    "Right exhaust / left chain retained; hands on bars and boots on pegs.",
+    "Original parked artwork repacked without resizing changes. Mounted art uniformly resampled at 0.53 for matching bike dimensions.",
+    "320px cells in a 4x2 atlas provide headroom without shrinking the motorcycle."
+  ],
+  "remaining": [
+    "Mount/dismount/ignition and wheel animation remain outstanding; later mounted-action v3 work is separate from this static-body review",
+    "Suited pedestrian gait and body-scale continuity across dressing/walking/mounting remain unfinished"
+  ],
+  "nativeDirectionReview": {
+    "command": "tools/commute_lab/review_bike_native.ps1",
+    "capture": "output/commute-bike-v2-review/native-runtime-directions.png",
+    "result": "All eight parked/mounted views inspected through the actual BikeArt renderer at default camera zoom 1.35. No clipped cells or missing headings. Main world traversal results are recorded below."
+  },
+  "runtimeValidation": {
+    "command": "tools/commute_lab/check_runtime.ps1 -Capture",
+    "result": "1042 PASS; SMOKE_OK",
+    "captures": [
+      "output/commute-runtime/runtime-bridge-home.png",
+      "output/commute-runtime/runtime-bridge-work.png"
+    ],
+    "review": "Both actual route captures visually inspected; regenerated rider visible. Save/load and both complete route traversals passed. Bridge end-on presentation still needs further work independently."
+  }
+}

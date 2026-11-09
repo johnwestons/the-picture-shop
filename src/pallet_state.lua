@@ -2,6 +2,7 @@ local PalletState = {}
 local Config = require("src.config")
 local CutterZones = require("src.cutter_zones")
 local PalletStorage = require("src.pallet_storage")
+local JackFleet = require("src.pallet_jack_fleet")
 local function ownerId(state, modelId)
     local selected = state._operatingMachineId
         or ((state.screen == "machine" or state.screen == "press") and state.machineId)
@@ -27,7 +28,7 @@ end
 local allowedLocations = {
     awaiting_delivery = { warehouse = true, none = true },
     warehouse = { on_pallet_jack = true, on_forklift = true, at_cutter = true, at_press = true, on_employee = true, outbound_truck = true, none = true },
-    on_pallet_jack = { warehouse = true },
+    on_pallet_jack = { warehouse = true, outbound_truck = true },
     on_forklift = { warehouse = true },
     -- Rack/stack transfers are atomic multi-owner operations in PalletStorage.
     -- Recognize their canonical locations without offering a bypass here.
@@ -91,7 +92,9 @@ end
 
 function PalletState.validate(state)
     local errors, ids, atCutter, atPress, onJack, onEmployee = {}, {}, {}, {}, {}, {}
-    local jack = state and state.palletJack or {}
+    local fleetValid, jackLoads = JackFleet.validate(state or {})
+    if not fleetValid then errors[#errors+1]="conflicting pallet jack ownership" end
+    jackLoads=jackLoads or {}
     for _, item in ipairs(allPallets(state)) do
         local pallet = item.pallet
         if type(pallet.id) ~= "string" or pallet.id == "" then
@@ -133,19 +136,16 @@ function PalletState.validate(state)
     for _, count in pairs(atPress) do
         if count > 1 then errors[#errors + 1] = "more than one pallet is owned by the Windmill" end
     end
-    if #onJack > 1 then errors[#errors + 1] = "more than one pallet is owned by the pallet jack" end
-    if jack.carriedPalletId then
-        local carried = ids[jack.carriedPalletId]
+    for palletId in pairs(jackLoads) do
+        local carried = ids[palletId]
         if not carried then
-            errors[#errors + 1] = "pallet jack references missing pallet " .. tostring(jack.carriedPalletId)
+            errors[#errors + 1] = "pallet jack references missing pallet " .. tostring(palletId)
         elseif carried.location ~= "on_pallet_jack" then
             errors[#errors + 1] = tostring(carried.id) .. " is claimed by the jack but located at " .. tostring(carried.location)
         end
-    elseif #onJack > 0 then
-        errors[#errors + 1] = tostring(onJack[1].id) .. " is on the jack but the jack owns nothing"
     end
-    if #onJack == 1 and jack.carriedPalletId ~= onJack[1].id then
-        errors[#errors + 1] = tostring(onJack[1].id) .. " does not match the jack ownership id"
+    for _,pallet in ipairs(onJack) do
+        if not jackLoads[pallet.id] then errors[#errors+1]=pallet.id.." has no pallet jack owner" end
     end
     local workers, workerCarrying = {}, {}
     for _, worker in ipairs(state and state.employment and state.employment.staff or {}) do
@@ -180,6 +180,9 @@ end
 
 function PalletState.reconcile(state)
     if type(state) ~= "table" then return false end
+    -- Fleet saves already have explicit owners. Legacy singleton repair must
+    -- never return the other jacks' legitimate loads to the floor.
+    if state.extraPalletJacks and #state.extraPalletJacks>0 then return PalletState.validate(state) end
     local jackSeat, forkliftSeat = state.palletJack, state.forklift
     if type(jackSeat) == "table" and type(forkliftSeat) == "table"
         and jackSeat.operating == true and forkliftSeat.operating == true
@@ -237,6 +240,22 @@ local function nearCutter(state, pallet, radius)
     return CutterZones.inInputZone(state, pallet, Config.cutterPlacement, radius)
 end
 
+local function machineScene(state,modelId)
+    local selected=ownerId(state,modelId)
+    for _,machine in ipairs(state.machines and state.machines.items or {}) do
+        if machine.id==selected then
+            local world=machine.world or state[modelId=="polar_115" and "cutter" or "windmill"]
+            return world and world.sceneId or "warehouse"
+        end
+    end
+    return "warehouse"
+end
+
+local function sameScene(state,pallet,modelId)
+    return pallet and pallet.world
+        and (pallet.world.sceneId or "warehouse")==machineScene(state,modelId)
+end
+
 function PalletState.cutterCandidates(state, radius)
     local owned, staged = {}, {}
     for _, item in ipairs(allPallets(state)) do
@@ -244,9 +263,11 @@ function PalletState.cutterCandidates(state, radius)
         if not item.vendor and paper then
             local candidate = { job = item.job, pallet = pallet, paper = paper }
             if pallet.location == "at_cutter"
-                and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115") then
+                and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115")
+                and sameScene(state,pallet,"polar_115") then
                 owned[#owned + 1] = candidate
             elseif paper.status ~= "complete" and pallet.location == "warehouse"
+                and sameScene(state,pallet,"polar_115")
                 and not PalletStorage.isSupporting(state,pallet.id) and nearCutter(state, pallet, radius)
             then
                 candidate.inputDistance = CutterZones.inputDistanceSquared(
@@ -343,7 +364,8 @@ function PalletState.transition(state, pallet, target, options)
     end
     if target == "at_cutter" then
         local radius = options.cutterRadius or Config.cutterPlacement.palletInputZoneRadius
-        if source ~= "warehouse" or not nearCutter(state, pallet, radius) then
+        if source ~= "warehouse" or not sameScene(state,pallet,"polar_115")
+            or not nearCutter(state, pallet, radius) then
             return false, "stage the pallet on clear floor beside the cutter"
         end
         for _, item in ipairs(allPallets(state)) do
@@ -356,6 +378,9 @@ function PalletState.transition(state, pallet, target, options)
     if target == "at_press" then
         if source ~= "warehouse" and source ~= "cutter_output" and source ~= "press_output" then
             return false, "stage the pallet on the warehouse floor before press loading"
+        end
+        if not sameScene(state,pallet,"heidelberg_10x15") then
+            return false,"move the pallet into the Windmill's room before loading it"
         end
         for _, item in ipairs(allPallets(state)) do
             if item.pallet ~= pallet and item.pallet.location == "at_press"
@@ -408,7 +433,7 @@ function PalletState.transition(state, pallet, target, options)
     return true, pallet
 end
 
--- Packaging supplies can be consumed directly from an accessible rack. This is a
+-- Purchased supplies can be consumed directly from an accessible rack. This is a
 -- narrow inventory operation: ordinary job pallets still need a real storage
 -- transfer, and a shelf slot is released only when its vendor pallet is empty.
 function PalletState.consumeVendorProduct(state, pallet)

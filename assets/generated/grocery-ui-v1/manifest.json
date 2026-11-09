@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "theme": "Town Grocery hand-painted catalog UI",
+  "products_atlas": "grocery-products-atlas.png",
+  "emblem": "grocery-ui-emblem.png",
+  "frame_size": [128, 128],
+  "atlas_layout": { "columns": 4, "rows": 2 },
+  "products": {
+    "vegetables": { "cell": 0, "x": 0, "y": 0, "category": "produce", "price_cents": 400, "menu_name": "Vegetables — four portions", "sprite_subject": "paper produce bag with fresh vegetables" },
+    "bread": { "cell": 1, "x": 1, "y": 0, "category": "pantry", "price_cents": 300, "menu_name": "Bread — four portions", "sprite_subject": "rustic bread loaf in paper sleeve" },
+    "cereal": { "cell": 2, "x": 2, "y": 0, "category": "pantry", "price_cents": 150, "menu_name": "Cereal box", "sprite_subject": "yellow cereal box with a bowl illustration" },
+    "sandwich": { "cell": 3, "x": 3, "y": 0, "category": "chilled", "price_cents": 250, "menu_name": "Fresh sandwich", "sprite_subject": "sandwich in a clear deli wrapper" },
+    "drink": { "cell": 4, "x": 0, "y": 1, "category": "chilled", "price_cents": 150, "menu_name": "Bottled drink", "sprite_subject": "clear bottled drink with blue label" },
+    "meal": { "cell": 5, "x": 1, "y": 1, "category": "chilled", "price_cents": 500, "menu_name": "Ready meal", "sprite_subject": "single microwave meal tray" },
+    "cup": { "cell": 6, "x": 2, "y": 1, "category": "household", "price_cents": 250, "menu_name": "Basic ceramic cup", "sprite_subject": "cream ceramic mug with blue rim" },
+    "meal_pack": { "cell": 7, "x": 3, "y": 1, "category": "specials", "category_label": "Daily specials", "price_cents": 1400, "menu_name": "Four ready meals", "sprite_subject": "four meal trays bundled together" }
+  },
+  "source": {
+    "products": "assets/source/grocery-ui-v1/grocery-product-icons-transparent-source.png",
+    "emblem": "assets/source/grocery-ui-v1/grocery-ui-emblem-transparent-source.png"
+  },
+  "menu_source": "src/commute/town_store.lua grocery.items and src/home_food_catalog.lua Catalog.PRODUCTS"
+}

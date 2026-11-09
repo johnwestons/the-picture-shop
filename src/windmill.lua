@@ -184,11 +184,13 @@ function Windmill.candidates(state)
                     or BusinessCalendar.absoluteHours(state) >= press.dryUntilHours
                 local world = pallet.world
                 local placement = placementFor(state)
+                local sceneId=placement.sceneId or "warehouse"
                 local distance = world and Footprint.distanceSquared(
                     Footprint.at(placement.x,placement.y,Config.windmillPlacement),
                     Footprint.at(world.x,world.y,Config.palletLogistics)) or math.huge
                 local staged = distance <= Config.windmillPlacement.palletReach ^ 2
                 if paperReady and dry and color <= (job.press.colors or 1)
+                    and world and (world.sceneId or "warehouse")==sceneId
                     and not pallet.wrapped and staged and not Storage.isSupporting(state,pallet.id)
                     and (pallet.location == "warehouse" or pallet.location == "cutter_output"
                         or pallet.location == "press_output")
@@ -258,7 +260,7 @@ function Windmill.completeSetup(state, task, score)
             local plate = job and Plates.ensureJob(job)[p.colorIndex]
             local inkId = plate and plate.inkColor == "Black" and "black_ink" or "color_ink"
             if (stock[inkId] or 0) < 1 then return false, "The correct ink is not in inventory." end
-            local consumed, reason = Procurement.consumeStockProduct(state, inkId, 1)
+            local consumed, reason = Procurement.consumeStockProduct(state, inkId, 1, {autoShelf=true})
             if not consumed then return false, reason end
             if job then
                 local totals = actual(job)
@@ -267,7 +269,7 @@ function Windmill.completeSetup(state, task, score)
             end
         elseif task == "packing" then
             if (stock.tympan_sheets or 0) < 1 then return false, "A clean tympan sheet is required." end
-            local consumed, reason = Procurement.consumeStockProduct(state, "tympan_sheets", 1)
+            local consumed, reason = Procurement.consumeStockProduct(state, "tympan_sheets", 1, {autoShelf=true})
             if not consumed then return false, reason end
             local _, job = Windmill.current(state)
             if job then
@@ -308,8 +310,9 @@ function Windmill.proofReadiness(state)
     if not p.motor then return false, "Start the motor before proofing." end
     if not p.feeder then return false, "Turn the feeder on before proofing." end
     if not p.impression then return false, "Turn impression on before proofing." end
-    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
-        return false, "No proof allowance remains; preserve the remaining client sheets."
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets)
+        and Procurement.housePaperAvailable(state) < 1 then
+        return false, "No proof allowance remains. Order house paper to replace a spoiled proof."
     end
     return true, "Ready to pull one proof sheet."
 end
@@ -343,7 +346,10 @@ function Windmill.control(state, action)
             if not operable then return false, reason end
         end
         p.motor = not p.motor
-        if not p.motor then p.feeder, p.impression = false, false end
+        if not p.motor then
+            p.feeder, p.impression = false, false
+            if p.status=="production" then p.status="approved" end
+        end
     elseif action == "feeder" then if not p.motor then return false, "Start the motor first." end; p.feeder = not p.feeder
     elseif action == "impression" then if not p.motor then return false, "Start the motor first." end; p.impression = not p.impression
     elseif action == "speed_up" then p.speed = clamp(p.speed + 500, 1000, 5500)
@@ -363,6 +369,15 @@ function Windmill.takeProof(state)
     local p, job, pallet = Windmill.current(state)
     local ready, reason = Windmill.proofReadiness(state)
     if not ready then return false, reason end
+    local housePaperUsed = 0
+    if p.feedRemaining <= math.max(0, p.targetSheets - p.goodSheets) then
+        local supplied, supplyError = Procurement.consumeHousePaper(state, 1)
+        if not supplied then return false, supplyError end
+        housePaperUsed = 1
+        p.feedRemaining, p.feedStart = p.feedRemaining + 1, p.feedStart + 1
+        pallet.press.availableSheets = (pallet.press.availableSheets or 0) + 1
+        pallet.press.housePaperSheets = (pallet.press.housePaperSheets or 0) + 1
+    end
     local plate = Plates.ensureJob(job)[p.colorIndex]
     local machine = MachineFleet.installed(state, "heidelberg_10x15")
     local condition = machine and MachineFleet.condition(machine) / 100 or 0
@@ -376,6 +391,11 @@ function Windmill.takeProof(state)
     totals.proofs = (totals.proofs or 0) + 1
     totals.impressions = (totals.impressions or 0) + 1
     totals.spoilage = (totals.spoilage or 0) + 1
+    if housePaperUsed > 0 then
+        totals.housePaperSheets = (totals.housePaperSheets or 0) + housePaperUsed
+        p.warning = "HOUSE PAPER REPLACED THE SPOILED PROOF"
+        state.message = "Proof spoiled; one house-paper sheet replaced it."
+    end
     Windmill.bumpNetworkRevision()
     return true, quality
 end
@@ -456,9 +476,25 @@ function Windmill.update(dt, state)
         + math.max(0, p.speed - 3000) / 25000, 0.01, 0.35)
     local needed = math.max(0, p.targetSheets - p.goodSheets)
     local waste = math.floor(attempted * wasteRate + 0.5)
-    -- Spoilage may use the customer's explicit overage, but never the sheets
-    -- reserved to satisfy the promised good-copy count.
-    waste = math.min(waste, math.max(0, p.feedRemaining - needed))
+    -- First use the client's declared overage, then consume house paper to
+    -- replace spoiled impressions without reducing the promised good count.
+    local spoilageAllowance = math.max(0, p.feedRemaining - needed)
+    local housePaperNeeded = math.max(0, waste - spoilageAllowance)
+    local housePaperUsed = 0
+    if housePaperNeeded > 0 then
+        local supplied = Procurement.consumeHousePaper(state, housePaperNeeded)
+        if supplied then
+            housePaperUsed = housePaperNeeded
+            p.feedRemaining = p.feedRemaining + housePaperNeeded
+            p.feedStart = p.feedStart + housePaperNeeded
+            pallet.press.availableSheets = (pallet.press.availableSheets or 0) + housePaperNeeded
+            pallet.press.housePaperSheets = (pallet.press.housePaperSheets or 0) + housePaperNeeded
+            spoilageAllowance = spoilageAllowance + housePaperNeeded
+            local totals = actual(job)
+            totals.housePaperSheets = (totals.housePaperSheets or 0) + housePaperNeeded
+        end
+    end
+    waste = math.min(waste, spoilageAllowance)
     local good = math.max(0, attempted - waste)
     if good > needed then
         good = needed
@@ -468,7 +504,10 @@ function Windmill.update(dt, state)
     p.feedRemaining = math.max(0, p.feedRemaining - attempted)
     pallet.press.goodSheets = p.goodSheets
     pallet.press.spoilage = (pallet.press.spoilage or 0) + waste
-    p.warning = warning
+    p.warning = housePaperUsed > 0
+        and ((warning and (warning .. " · ") or "")
+            .. string.format("HOUSE PAPER REPLACED %d SPOILED SHEET(S)", housePaperUsed))
+        or warning
     local totals = actual(job)
     totals.impressions = (totals.impressions or 0) + attempted
     totals.spoilage = (totals.spoilage or 0) + waste
@@ -502,21 +541,22 @@ function Windmill.cleanAndUnload(state)
     local output
     local pressMachine = MachineFleet.installed(state,"heidelberg_10x15",pallet.pressMachineId)
     if pressMachine and StagingAreas.hasMachineOutput(state,pressMachine.id) then
-        output = StagingAreas.findMachineOutput(state,pressMachine.id,function(x,y)
-            return StagingAreas.slotClear(state,x,y,pallet.id)
+        output = StagingAreas.findMachineOutput(state,pressMachine.id,function(x,y,sceneId)
+            return StagingAreas.slotClear(state,x,y,pallet.id,sceneId)
         end,false)
         if not output then return false,"The Windmill output staging area is full. Clear a slot or move its zone." end
     end
+    local sceneId=pressMachine and pressMachine.world and pressMachine.world.sceneId or "warehouse"
     local world = output and { x=output.x,y=output.y,direction=output.direction,
-        rotation=output.rotation,spawnProgress=1 } or { x = placement.x + 78, y = placement.y + 42,
-        direction = placement.direction, spawnProgress = 1 }
+        rotation=output.rotation,sceneId=sceneId,spawnProgress=1 } or { x = placement.x + 78, y = placement.y + 42,
+        direction = placement.direction,sceneId=sceneId, spawnProgress = 1 }
     local originalStatus, originalWorld, originalPressMachineId =
         pallet.status, pallet.world, pallet.pressMachineId
     local transitioned, errorMessage = PalletState.transition(state, pallet, "press_output", {
         status = nextPalletStatus, world = world,
     })
     if not transitioned then return false, errorMessage end
-    local consumed, reason = Procurement.consumeStockProduct(state, "press_wash", 1)
+    local consumed, reason = Procurement.consumeStockProduct(state, "press_wash", 1, {autoShelf=true})
     if not consumed then
         pallet.location, pallet.status, pallet.world = "at_press", originalStatus, originalWorld
         pallet.pressMachineId = originalPressMachineId

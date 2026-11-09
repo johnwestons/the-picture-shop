@@ -1,0 +1,351 @@
+{
+  "version": 1,
+  "status": "staged_for_review",
+  "frameSize": 256,
+  "anchor": [
+    128,
+    210
+  ],
+  "directions": [
+    "north",
+    "northeast",
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest"
+  ],
+  "runtimeScale": 0.46,
+  "mirror": false,
+  "animations": {
+    "parked": {
+      "path": "assets/staging/commute-bike-v1/parked.png",
+      "frames": 8,
+      "cells": [
+        {
+          "direction": "north",
+          "sourceRect": [
+            0,
+            0,
+            443,
+            443
+          ],
+          "sourceAnchor": [
+            250,
+            345
+          ],
+          "bbox": [
+            72,
+            61,
+            188,
+            242
+          ]
+        },
+        {
+          "direction": "northeast",
+          "sourceRect": [
+            443,
+            0,
+            887,
+            443
+          ],
+          "sourceAnchor": [
+            673,
+            364
+          ],
+          "bbox": [
+            37,
+            45,
+            203,
+            232
+          ]
+        },
+        {
+          "direction": "east",
+          "sourceRect": [
+            887,
+            0,
+            1351,
+            443
+          ],
+          "sourceAnchor": [
+            1123,
+            376
+          ],
+          "bbox": [
+            12,
+            55,
+            242,
+            216
+          ]
+        },
+        {
+          "direction": "southeast",
+          "sourceRect": [
+            1351,
+            0,
+            1774,
+            443
+          ],
+          "sourceAnchor": [
+            1554,
+            367
+          ],
+          "bbox": [
+            54,
+            70,
+            202,
+            238
+          ]
+        },
+        {
+          "direction": "south",
+          "sourceRect": [
+            0,
+            443,
+            443,
+            887
+          ],
+          "sourceAnchor": [
+            244,
+            743
+          ],
+          "bbox": [
+            71,
+            78,
+            188,
+            251
+          ]
+        },
+        {
+          "direction": "southwest",
+          "sourceRect": [
+            443,
+            443,
+            858,
+            887
+          ],
+          "sourceAnchor": [
+            644,
+            752
+          ],
+          "bbox": [
+            47,
+            73,
+            217,
+            243
+          ]
+        },
+        {
+          "direction": "west",
+          "sourceRect": [
+            858,
+            443,
+            1330,
+            887
+          ],
+          "sourceAnchor": [
+            1088,
+            794
+          ],
+          "bbox": [
+            13,
+            53,
+            245,
+            214
+          ]
+        },
+        {
+          "direction": "northwest",
+          "sourceRect": [
+            1330,
+            443,
+            1774,
+            887
+          ],
+          "sourceAnchor": [
+            1532,
+            772
+          ],
+          "bbox": [
+            56,
+            57,
+            220,
+            235
+          ]
+        }
+      ],
+      "sha256": "c696550e5ae2eb5d9ba5d85241e2c40eaa6e57953476fad7ac7dd851b5f0950e"
+    },
+    "mounted": {
+      "path": "assets/staging/commute-bike-v1/mounted.png",
+      "frames": 8,
+      "cells": [
+        {
+          "direction": "north",
+          "sourceRect": [
+            0,
+            0,
+            443,
+            447
+          ],
+          "sourceAnchor": [
+            244,
+            368
+          ],
+          "bbox": [
+            72,
+            57,
+            188,
+            242
+          ]
+        },
+        {
+          "direction": "northeast",
+          "sourceRect": [
+            443,
+            0,
+            887,
+            447
+          ],
+          "sourceAnchor": [
+            665,
+            399
+          ],
+          "bbox": [
+            46,
+            35,
+            208,
+            224
+          ]
+        },
+        {
+          "direction": "east",
+          "sourceRect": [
+            887,
+            0,
+            1330,
+            447
+          ],
+          "sourceAnchor": [
+            1117,
+            417
+          ],
+          "bbox": [
+            18,
+            33,
+            234,
+            215
+          ]
+        },
+        {
+          "direction": "southeast",
+          "sourceRect": [
+            1330,
+            0,
+            1774,
+            447
+          ],
+          "sourceAnchor": [
+            1552,
+            401
+          ],
+          "bbox": [
+            56,
+            40,
+            207,
+            234
+          ]
+        },
+        {
+          "direction": "south",
+          "sourceRect": [
+            0,
+            447,
+            443,
+            887
+          ],
+          "sourceAnchor": [
+            244,
+            764
+          ],
+          "bbox": [
+            72,
+            55,
+            186,
+            242
+          ]
+        },
+        {
+          "direction": "southwest",
+          "sourceRect": [
+            443,
+            447,
+            874,
+            887
+          ],
+          "sourceAnchor": [
+            642,
+            780
+          ],
+          "bbox": [
+            46,
+            46,
+            206,
+            231
+          ]
+        },
+        {
+          "direction": "west",
+          "sourceRect": [
+            874,
+            447,
+            1330,
+            887
+          ],
+          "sourceAnchor": [
+            1089,
+            802
+          ],
+          "bbox": [
+            20,
+            36,
+            227,
+            214
+          ]
+        },
+        {
+          "direction": "northwest",
+          "sourceRect": [
+            1330,
+            447,
+            1774,
+            887
+          ],
+          "sourceAnchor": [
+            1538,
+            786
+          ],
+          "bbox": [
+            59,
+            46,
+            213,
+            233
+          ]
+        }
+      ],
+      "sha256": "f484acdd430514bd78119434846c4d862b67b20cdadd2f6790daf2709972d6f6"
+    }
+  },
+  "sources": [
+    {
+      "path": "assets/source/commute-bike-v1/parked-directions-source.png",
+      "sha256": "e585534ff4b0728c17cc872995feeaf1b7e314bbf0bb8dc40c98b31adcfb37ac"
+    },
+    {
+      "path": "assets/source/commute-bike-v1/mounted-directions-source.png",
+      "sha256": "c44d65545032ab1b4440a8956082123a5346bb24b848b805724792853423d7ed"
+    }
+  ]
+}

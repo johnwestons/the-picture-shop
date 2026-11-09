@@ -1,0 +1,158 @@
+{
+  "version": 3,
+  "frameCount": 64,
+  "nominalDirectionStepDegrees": 5.625,
+  "runtime": "assets/commute/bike/mounted-upright-64-v2.png",
+  "sourceManifest": "assets/source/commute-bike-turning-v3/source-sheets.json",
+  "baseline": "assets/commute/bike/mounted-upright-64.png",
+  "mechanicalProcessing": "Only transparent-gutter slicing, uniform scaling and anchor registration; no axis deformation, mirroring, morphing or alpha blending.",
+  "excludedDrafts": "Full-64 and generic quadrant studies were rejected for detail loss or changed orientations. Base-07 was rejected for background haze; base-03 and base-04 were refined for helmet proportion continuity.",
+  "jobs": [
+    {
+      "id": "base-00",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column by2-row atlas with8 specific very similar rear views of a motorcycle+rider. Regenerate these EXACT SAME8 views at higher quality and with consistent model proportions. Keep EACH cell's exact view, direction, pose, silhouette landmarks and row-major position. DO NOT invent a generic turntable or rotate them to other angles. ALL8 views in this target show the rider's BACK and the motorcycle's TAIL LIGHT. The first view is directly rear; later views only gradually reveal a little of the RIGHT side. NONE shows the rider's front/chest or headlamp facing the viewer. These are only the first small40degrees of a full turn, NOT a whole rotation. Image2 is the sole STANDARD for identity/proportions/materials: slim brown padded-leather rider, round bronze helmet black visor, bronze/olive dual-sport bike and rack. Correct the slight alternating helmet/body-size differences in target using the same invariant physical rig in all8 cells. Same helmet diameter, torso and limb thickness/length, wheel size, wheelbase, saddle and rider position across all8. Only the tiny yaw change already visible in each target cell. Sharpen the rendering detail while matching its established hand-painted game-sprite style and palette. Output ONLY8 single complete sprites, exactly4 columns x2 rows on a wide2:1 PNG with REAL transparent background and generous clear gutters. High resolution with crisp clean antialiased edges, no matte, alpha haze, colored halos, shadows, scenery, text or lines. Fixed orthographic camera and light. No leaning, tucking, steering-wheel rotation or pose motion. The helmet width is about one quarter of total object height, as in Image2; do not enlarge heads or make rider bulkier. The ground-contact midpoint, helmet height and physical model scale must match continuously cell to cell. Preserve original orientation and preserve mechanical asymmetry; never mirror.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-00-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-ec075ee5-4f05-4a18-85cd-42bcb93ab07a.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "selected": true
+    },
+    {
+      "id": "base-01",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. Every cell is REAR-RIGHT, gradually approaching RIGHT PROFILE. All bikes point toward screen right; the jacket back/rack/tail lamp remain visible. NONE is front-on, none faces left, and none swings back to pure rear. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-01-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-79af12b8-5e43-4544-b045-f597252fd735.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "selected": true
+    },
+    {
+      "id": "base-02",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. Start at RIGHT PROFILE and gradually reveal the rider's FRONT-RIGHT. All bikes still point screen right. The visor/chest and headlight become more visible, never the rider's straight back. NONE is left-facing or rear-on. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-02-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-0b3cafec-675b-4621-be78-43af70177c4e.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "selected": true
+    },
+    {
+      "id": "base-03",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. ALL eight cells are FRONT-RIGHT gradually approaching directly FRONT. The rider's CHEST, black visor and front headlight face the viewer. NONE shows the jacket back or a left profile. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-03-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-2a97ac6a-4142-43ab-9f7a-bde49b40007d.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-03-proportion-draft.png",
+      "selected": false
+    },
+    {
+      "id": "base-04",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. Start directly FRONT, then reveal a little more FRONT-LEFT in each cell. Rider CHEST, visor and headlight stay visible. Bikes gradually point toward screen left. NONE shows the rider's back or turns right. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-04-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-766908ef-b6f4-4141-a933-fb68e4524f36.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-04-proportion-draft.png",
+      "selected": false
+    },
+    {
+      "id": "base-05",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. ALL eight cells are FRONT-LEFT gradually approaching LEFT PROFILE, with noses pointing screen left. Visor/chest visible early, becoming a side view. NONE shows a rear-on or right-facing bike. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-05-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-f3957892-1c94-4005-a33f-2d9f819049d4.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "selected": true
+    },
+    {
+      "id": "base-06",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. Start at LEFT PROFILE, then reveal the rider's BACK-LEFT a little more in each cell. Noses point screen left, rack/tail becomes increasingly visible. NONE is front-on or right-facing. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-06-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-123cd295-a048-4f83-b655-c9a71f09073c.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "selected": true
+    },
+    {
+      "id": "base-07",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. ALL eight cells show the rider's BACK and motorcycle TAIL LIGHT, initially rear-left and gradually almost directly rear. Only a glimpse of LEFT bike side remains near the end. NONE is front-facing or right-profile. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-07-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-8617f497-91af-46ea-98fd-c8f429694567.png",
+      "workspaceResult": null,
+      "selected": false
+    },
+    {
+      "id": "refined-07",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "EDIT TARGET: Image1 is an EXISTING 4-column x2-row sprite atlas with8 specific consecutive motorcycle+rider views. Regenerate these EXACT SAME8 views with better detail and one consistent physical model. Preserve EACH CELL's exact orientation, pose, handedness, silhouette landmarks and row-major position. DO NOT create a generic turntable or reinterpret the angle range. ALL eight cells show the rider's BACK and motorcycle TAIL LIGHT, initially rear-left and gradually almost directly rear. Only a glimpse of LEFT bike side remains near the end. NONE is front-facing or right-profile. This sheet covers only about40degrees of tiny yaw changes, not a full rotation. Image2 is the sole standard for character identity, physical proportions and materials: slim brown padded-leather rider, round bronze full-face helmet/black visor, olive-bronze dual-sport bike, rack and correct exhaust/chain sides. Match that established hand-painted game-sprite style and palette precisely. Correct the target's alternating helmet/body/tire size differences: every cell must show ONE unchanged rig at the same scale, with identical helmet diameter, torso/limb lengths and thickness, tire diameter, wheelbase, saddle height, hand and boot placement. The helmet width is about one quarter of total object height; do not enlarge heads or make rider bulkier. Only the exact tiny yaw differences already shown in Image1 should change. Improve clean fine surface detail at high resolution, not stylization or proportions. Output exactly8 separate complete sprites,4 columns x2 rows, wide2:1 PNG with REAL transparent background, generous clear gutters, crisp antialiased edges without colored halos, matte, haze, shadows, floating specks, text or grid lines. Fixed orthographic camera, lighting and upright seated pose. No lean, tuck, wheel steering or breathing. Keep helmet height, ground-contact midpoint and apparent model scale stable from cell to cell. Each output cell must match its corresponding input cell's physical facing.\nCritical finishing requirement: true clean cutout alpha. No semitransparent gray background, no glow, no red/green fringe, no isolated pixels around the silhouette. Match the clean sharp transparent rendering of Image3, the immediately preceding views, and keep the helmet/body/tire proportions identical to it. Image1 fixes the exact eight orientations. Image2 fixes identity. Image3 fixes continuity with the preceding group.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-07-template.png",
+        "assets/source/commute-bike-turning-v3/identity-transparent.png",
+        "assets/source/commute-bike-turning-v3/views-06-source.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-10054857-9c2b-4c95-a123-38d8412706c4.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "selected": true
+    },
+    {
+      "id": "refined-04",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "Precisely edit Image1, an existing 4-column x 2-row transparent game-sprite atlas. Keep all eight sprites at EXACTLY their current corresponding view angles and poses, in the same row-major cells; these views run only from straight FRONT to FRONT-LEFT, about 180 through219 degrees of a full clockwise turn from rear. Preserve all motorcycle/body geometry, fine painted texture, palette, material identity and mechanical handedness. Correct ONE proportion mismatch: the round bronze helmets are too small relative to the rest of the rig. Increase each helmet's linear diameter by about 9 percent relative to its own bike and body, maintaining the same centre attachment and integrated neck. Make all eight helmets one identical physical size, smoothly projected through the tiny changes in viewing angle. Do not make one cell bigger than its neighbors. Image2 is the preceding eight views; Image3 is the following eight views. The target must match their helmet-to-body-to-wheel proportions continuously at BOTH edges, with no size pop. Retain the slim brown leather rider seated upright with the same hands, feet and posture. Refine details cleanly but avoid changing any design, pose or viewing angle. Output exactly eight complete crisp cutout sprites in a wide2:1 PNG,4 columns by2 rows, generous completely empty transparent gutters, TRUE transparent background with clean antialiased edges. No haze, shadows, glow, red/green fringe, stray pixels, text or grid. Keep camera, lighting and overall model consistent across every cell. Do not create a generic turntable; do not mirror or change the specific orientations in Image1.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-04-proportion-draft.png",
+        "assets/source/commute-bike-turning-v3/views-03-proportion-draft.png",
+        "assets/source/commute-bike-turning-v3/views-05-source.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-b888676c-9a0b-4655-ab6f-876ad28185b6.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "selected": true
+    },
+    {
+      "id": "refined-03",
+      "tool": "built-in image_gen.imagegen",
+      "transparentBackground": true,
+      "prompt": "Edit ONLY Image1, the existing4-column x2-row atlas of eight motorcycle/rider views, maintaining each cell's EXACT current view angle, silhouette geometry and upright seated pose. These eight consecutive angles run from FRONT-RIGHT to nearly straight FRONT; do not reinterpret them as a full turnaround. Correct a subtle physical-model discrepancy: its helmets are slightly undersized toward the frontal views. Make every helmet match the SAME physical round bronze helmet shown on the neighboring groups in Image2 and Image3. Image2 is the immediately preceding angles (right to front-right); Image3 is the immediately following angles (front to front-left). Bring Image1's helmet diameter up slightly, about5percent relative to its own body, so the head-to-torso and head-to-wheel ratios continue smoothly from Image2 through Image1 to Image3. The last frontal views especially must match Image3's first frontal helmet size and shape, eliminating a size change at that boundary. Keep the bike and all torso/limb/hand/boot geometry, seating and position fixed. Preserve slim brown padded leather rider, olive/bronze dual-sport bike, established hand-painted game sprite detail, fixed orthographic camera, lighting, palette, mechanical handedness and high quality. Do not enlarge the whole sprite, lean, steer the front wheel, change posture, or alter the tiny yaw angles already in the target. All eight sprites stay in their exact4-column by2-row arrangement, each a complete crisp cutout, wide2:1 PNG with TRUE TRANSPARENCY and generous empty gutters. No alpha haze, gray background, red/green fringe, shadow, glow, floating pixels, text or grid lines.",
+      "references": [
+        "assets/source/commute-bike-turning-v3/views-03-proportion-draft.png",
+        "assets/source/commute-bike-turning-v3/views-02-source.png",
+        "assets/source/commute-bike-turning-v3/views-04-source.png"
+      ],
+      "generatedOriginal": "C:\\Users\\johnw\\.codex\\generated_images\\01a1a2b5-6afc-79d2-9c64-33624c5e9b16\\exec-1cecdcd3-19ae-4887-9c4a-0dead1add82e.png",
+      "workspaceResult": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "selected": true
+    }
+  ]
+}

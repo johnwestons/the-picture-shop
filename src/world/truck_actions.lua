@@ -4,6 +4,8 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim)
+        local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
+        if not allowed then return false,'riding_gear',reason,requestedKind end
         if requestedKind=="roomGame" then
             local game,action
             if type(desiredState)=="string" then game,action=desiredState:match("^(%a+_?%a*):([%a_]+)$") end
@@ -21,7 +23,7 @@ function Component.install(Runtime)
         end
         if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest" then
             local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,
-                {obstacles=Runtime.movementObstacles,players=function()
+                {assets=Runtime.World._assets,obstacles=Runtime.movementObstacles,players=function()
                     local result={Runtime.World.player}
                     local options=Runtime.World._employeeOptions or {}
                     for _,p in ipairs(options.players and options.players() or {}) do result[#result+1]=p end
@@ -29,8 +31,29 @@ function Component.install(Runtime)
                 end})
             return okay,code,message,requestedKind
         end
-        if require("src.shop_rooms").scene(player)~="warehouse" then
-            return false,"wrong_scene","This control is in the warehouse.",requestedKind
+        local scene=require("src.shop_rooms").scene(player)
+        local door=Runtime.World.doorForScene(scene)
+        if requestedKind=="deliverySignature" then
+            if type(player)~="table" or scene~="warehouse" or desiredState~="sign" then
+                return false,"not_allowed","A delivery signature can only be given from the warehouse.",requestedKind
+            end
+            Runtime.World._state=state or Runtime.World._state
+            local target=require("src.warehouse_delivery_driver").interaction(state)
+            if not target then return false,"unavailable","The driver is not waiting for a signature.",requestedKind end
+            local dx,dy=(tonumber(player.x) or 0)-target.x,(tonumber(player.y) or 0)-target.y
+            local radius=math.max(0,tonumber(target.radius) or 0)+10
+            if dx*dx+dy*dy>radius*radius then
+                return false,"out_of_range","Move closer to the driver to sign for the delivery.",requestedKind
+            end
+            local accepted=Runtime.World.signDelivery(state,player)
+            return accepted,accepted and "accepted" or "state_changed",
+                state and state.message or "The delivery signature could not be completed.",requestedKind
+        end
+        if scene~="warehouse" and not require("src.room_loading_bays").owns(state,scene) then
+            return false,"wrong_scene","This room has no loading bay.",requestedKind
+        end
+        if requestedKind=="truckCargoDoor" and scene~=(Runtime.World.truck.sceneId or "warehouse") then
+            return false,"wrong_scene","This truck is assigned to another loading bay.",requestedKind
         end
         if type(player) ~= "table"
             or (requestedKind ~= "loadingBayDoor" and requestedKind ~= "truckCargoDoor")
@@ -40,7 +63,7 @@ function Component.install(Runtime)
         end
         Runtime.World._state = state or Runtime.World._state
         local target = requestedKind == "loadingBayDoor"
-            and Runtime.World.bayDoor:getInteraction() or Runtime.World.truck:getInteraction()
+            and door:getInteraction() or Runtime.World.truck:getInteraction()
         if not target then
             return false, "unavailable", "That shop control is no longer available.", requestedKind
         end
@@ -85,31 +108,44 @@ function Component.install(Runtime)
             return false, "blocked",
                 state and state.message or "The truck cargo door cannot open right now.", requestedKind
         end
-        if Runtime.World.bayDoor.state == desiredState then
+        if door.state == desiredState then
             return true, "already_applied",
                 "The loading-bay door is already " .. desiredState .. ".", requestedKind
         end
-        local movingTowardDesired = (Runtime.World.bayDoor.state == "opening" and desiredState == "open")
-            or (Runtime.World.bayDoor.state == "closing" and desiredState == "closed")
+        local movingTowardDesired = (door.state == "opening" and desiredState == "open")
+            or (door.state == "closing" and desiredState == "closed")
         if movingTowardDesired then
             return true, "in_progress",
                 "The loading-bay door is already moving " .. desiredState .. ".", requestedKind
-        elseif Runtime.World.bayDoor.state == "opening" or Runtime.World.bayDoor.state == "closing" then
+        elseif door.state == "opening" or door.state == "closing" then
             return false, "state_changed",
                 "The loading-bay door changed state. Wait for it to finish and try again.", requestedKind
         end
-        local accepted = Runtime.World.toggleBayDoor(state)
+        local accepted = Runtime.World.toggleBayDoor(state,scene)
         if accepted then
             return true, "accepted",
                 "Loading-bay switch activated. Door movement is synced from the host device.",
                 requestedKind
         end
-        local code = Runtime.World.bayDoor.state == "opening" or Runtime.World.bayDoor.state == "closing"
+        local code = door.state == "opening" or door.state == "closing"
             and "busy" or "blocked"
         return false, code, state and state.message or "The loading-bay door cannot move right now.", requestedKind
     end
 
+    function Runtime.World.signDelivery(state,player)
+        local accepted,message=require("src.warehouse_delivery_driver").sign(state,player)
+        if state then state.message=message or state.message end
+        return accepted
+    end
+
     function Runtime.World.toggleTruckCargoDoor(state)
+        if Runtime.World.truck.playerDelivery then
+            local run=require('src.player_delivery_loading').context(state)
+            if run and run.status~='loading' then
+                state.message='All pallets are loaded and secured. '..require('src.commute.delivery_run').nextMessage(run)
+                return false
+            end
+        end
         if Runtime.World.truck.mode == "machine_delivery" then
             if state then state.message = "This flatbed has no cargo door. Open its delivery manifest instead." end
             return false
@@ -173,9 +209,26 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.loadPickupPallet(state, palletId)
+        local allowed,reason=require('src.player_delivery_loading').canLoad(state,Runtime.World.truck)
+        if not allowed then state.message=reason;return false,reason end
         if Runtime.World.truck.state ~= "cargo_open" or Runtime.World.truck.mode ~= "pickup" then
             if state then state.message = "Open the scheduled pickup truck before loading pallets." end
             return false
+        end
+        local item=require("src.pallet_state").find(state,palletId)
+        if item and item.pallet.location=='on_pallet_jack' then
+            local jack=state.palletJack
+            local target=Runtime.World.truck:getInteraction()
+            if not jack or not target or jack.carriedPalletId~=palletId
+                or (jack.sceneId or 'warehouse')~=(Runtime.World.truck.sceneId or 'warehouse')
+                or (jack.x-target.x)^2+(jack.y-target.y)^2>135^2 then
+                state.message='Bring the loaded pallet jack to the truck loading apron.'
+                return false,state.message
+            end
+        end
+        if item and item.pallet.world and (item.pallet.world.sceneId or "warehouse")~=(Runtime.World.truck.sceneId or "warehouse") then
+            state.message="Bring this skid to the truck's assigned loading bay before loading."
+            return false,state.message
         end
         local succeeded, pallet, remaining = Runtime.JobService.loadForPickup(
             state, Runtime.World.truck.jobId, palletId, os.time())
@@ -187,11 +240,37 @@ function Component.install(Runtime)
         return succeeded, pallet, remaining
     end
 
+    function Runtime.World.loadEmployeePickup(state,worker,palletId)
+        local truck=Runtime.World.truck
+        local allowed,reason=require('src.player_delivery_loading').canLoad(state,truck)
+        if not allowed then return false,reason end
+        local jack=require("src.pallet_jack_fleet").owned(state,worker.id)
+        if truck.mode~="pickup" or truck.state~="cargo_open" or not jack
+            or jack.carriedPalletId~=palletId or jack.sceneId~=(truck.sceneId or "warehouse") then
+            return false,"Bring this skid to its assigned pickup truck."
+        end
+        local target=truck:getInteraction()
+        if not target or (jack.x-target.x)^2+(jack.y-target.y)^2>135^2 then
+            return false,"Move the pallet jack to the truck loading apron."
+        end
+        local options=Runtime.World._employeeOptions or {}
+        if options.canLoadTruck and not options.canLoadTruck() then return false,"The truck manifest is in use." end
+        local ok,pallet,remaining=Runtime.JobService.loadForPickup(
+            require("src.pallet_jack_fleet").view(state,jack),truck.jobId,palletId,os.time(),worker.id)
+        if ok then state.message="Loaded "..pallet.id.." onto its assigned truck for "..truck.jobId.."." end
+        return ok,pallet,remaining
+    end
+
     function Runtime.World.closeTruckAfterUnload(state)
         if Runtime.World.truck.mode == "machine_delivery" then
             if Runtime.World.truck.state ~= "parked_closed" then return false end
             if Runtime.MachineFleet.remainingOnTruck(state, Runtime.World.truck.jobId) > 0 then
                 if state then state.message = "Unload the machine before releasing the flatbed truck." end
+                return false
+            end
+            local visit=require("src.warehouse_delivery_driver").matching(state,Runtime.World.truck.jobId)
+            if visit and (visit.status~="signed" or not visit.driverReturned) then
+                if state then state.message="The machine is unloaded. Wait for the driver to sign and return to the truck." end
                 return false
             end
             local departing = Runtime.World.truck:depart()

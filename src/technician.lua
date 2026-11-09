@@ -4,9 +4,13 @@ local MachineMaintenance = require("src.machine_maintenance")
 local WindmillPlacement = require("src.windmill_placement")
 local Navigator = require("src.npc_navigation")
 local Fleet = require("src.machine_fleet")
+local GaitMotion = require("src.gait_motion")
+local Animation = require("src.character_animation")
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 local Technician = {}
 local servicePoints=setmetatable({},{__mode="k"})
+local speeds=setmetatable({},{__mode="k"})
 
 local function servicePoint(state,visit,context,dt)
     local model=visit.kind=="windmill" and "heidelberg_10x15" or "polar_115"
@@ -57,7 +61,7 @@ local function targetFor(state, kind)
     return CutterPlacement.operatorPosition(state, Config.cutterPlacement)
 end
 
-function Technician.schedule(state, kind, appointmentDay, recurring)
+function Technician.schedule(state, kind, appointmentDay, recurring, bladeExchange)
     if state.technicianVisit then return false end
     local route = copyRoute(Config.technician.route)
     local x, y = targetFor(state, kind)
@@ -68,8 +72,19 @@ function Technician.schedule(state, kind, appointmentDay, recurring)
         status = "scheduled", visible = false, x = route[1].x, y = route[1].y,
         route = route, waypoint = 2, facing = 1, directionFrame = 4,
         animationClock = 0, serviceTimer = 0,
+        animationDistance = 0, idleClock = 0, intentX = 1, intentY = 0, inMotion = false,
         appointmentDay = appointmentDay, recurring = recurring == true,
     }
+    if kind == "cutter" then
+        bladeExchange=bladeExchange or {}
+        state.technicianVisit.bladeExchange=true
+        state.technicianVisit.removeInstalledBlade=bladeExchange.removeInstalledBlade==true
+        state.technicianVisit.exchangePhase=0
+        state.technicianVisit.bladeKit={
+            woodenSleeve=true,
+            grade=bladeExchange.spareBladeGrade or "standard",
+        }
+    end
     return true, state.technicianVisit
 end
 
@@ -78,6 +93,13 @@ function Technician.ensure(state)
     if type(visit) ~= "table" then return nil end
     visit.route = type(visit.route) == "table" and visit.route or copyRoute(Config.technician.route)
     if visit.kind ~= "windmill" then visit.name = visit.name or "Mara Mouse" end
+    if visit.kind == "cutter" and visit.bladeExchange == nil then
+        -- Upgrade visits saved before the staged service animation with the
+        -- same walk-in exchange flow when that save is loaded again.
+        visit.bladeExchange = true
+        visit.removeInstalledBlade = visit.recurring == true
+        visit.bladeKit = { woodenSleeve=true, grade="standard" }
+    end
     if #visit.route < 2 then
         local x, y = targetFor(state, visit.kind)
         visit.route[#visit.route + 1] = { x = x, y = y }
@@ -87,12 +109,20 @@ function Technician.ensure(state)
     visit.waypoint = tonumber(visit.waypoint) or 2
     visit.animationClock = tonumber(visit.animationClock) or 0
     visit.serviceTimer = tonumber(visit.serviceTimer) or 0
+    visit.exchangePhase = math.max(0,math.floor(tonumber(visit.exchangePhase) or 0))
+    visit.animationDistance = math.max(0, tonumber(visit.animationDistance) or 0)
+    visit.idleClock = math.max(0, tonumber(visit.idleClock) or 0)
+    if not visit.intentX or not visit.intentY then
+        local v=({{-1,0},{0,-1},{0,1},{1,0}})[visit.directionFrame or 4] or {1,0}
+        visit.intentX,visit.intentY=v[1],v[2]
+    end
     return visit
 end
 
 local function moveToward(visit, target, distance)
     local dx, dy = target.x - visit.x, target.y - visit.y
     local length = math.sqrt(dx * dx + dy * dy)
+    if length > .0001 then visit.intentX,visit.intentY=dx/length,dy/length end
     if dx ~= 0 then visit.facing = dx < 0 and -1 or 1 end
     if math.abs(dx) >= math.abs(dy) then
         visit.directionFrame = dx < 0 and 1 or 4
@@ -112,16 +142,69 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
     if not visit then return false end
     dt = math.max(0, tonumber(dt) or 0)
     motionDt = math.max(0, tonumber(motionDt) or dt)
+    visit.inMotion = false
+    local function finishMotion()
+        if visit.inMotion then visit.idleClock=0
+        else
+            visit.idleClock=visit.idleClock+motionDt
+            if motionDt>0 then speeds[visit]=nil end
+        end
+    end
     visit.animationClock = visit.animationClock + motionDt
     if visit.status == "scheduled" then
-        if pauseEntrance then return false end
+        if pauseEntrance then finishMotion();return false end
         visit.status, visit.visible, visit.animationClock = "entering", true, 0
         state.message = visit.kind == "windmill"
             and "The lizard press technician arrived and is walking to the machine."
             or (visit.name .. ", the blade exchange courier, arrived and is walking to the cutter.")
         return true
     elseif visit.status == "servicing" then
+        speeds[visit]=nil
+        visit.idleClock=visit.idleClock+motionDt
         visit.serviceTimer = visit.serviceTimer + dt
+        if visit.kind=="cutter" and visit.bladeExchange then
+            local item,cutter=MachineMaintenance.cutterStatus(state)
+            if not item or not cutter then
+                visit.status,visit.waypoint,visit.animationClock="exiting",#visit.route-1,0
+                state.message=visit.name.." could not service the cutter because it is no longer installed."
+                return true
+            end
+            local phaseDuration=Config.technician.serviceDuration/3
+            local changed=false
+            while visit.serviceTimer>=phaseDuration do
+                visit.serviceTimer=visit.serviceTimer-phaseDuration
+                if visit.exchangePhase==0 then
+                    if visit.removeInstalledBlade then cutter.bladeRemoved,cutter.bladeInSleeve=true,true end
+                    visit.exchangePhase=1
+                    state.message=visit.removeInstalledBlade
+                        and "Mara removed the dull blade and secured it in its wooden sleeve."
+                        or "Mara collected the sleeved dull blade and set out the fresh replacement."
+                    changed=true
+                elseif visit.exchangePhase==1 then
+                    local grade=cutter.orderedBladeGrade or visit.bladeKit and visit.bladeKit.grade or cutter.bladeGrade
+                    if not cutter.spareBladeInstalled then
+                        if BladeProfiles.get(grade) then cutter.bladeGrade=grade end
+                        cutter.orderedBladeGrade=nil
+                        cutter.bladeRemoved=false
+                        cutter.bladeInSleeve=false
+                        item.variables.bladeSharpness=100
+                        cutter.bladeDullNoticeSent=false
+                        item.condition=Fleet.condition(item)
+                    end
+                    visit.exchangePhase=2
+                    state.message=cutter.spareBladeInstalled
+                        and "Mara checked the installed spare blade and finished the exchange."
+                        or "Mara fitted the new blade from its wooden sleeve into the Polar 115."
+                    changed=true
+                else
+                    MachineMaintenance.completeTechnicianVisit(state,visit.kind,visit)
+                    visit.status,visit.waypoint,visit.animationClock="exiting",#visit.route-1,0
+                    state.message=visit.name.." finished the blade exchange and is carrying the sleeved dull blade out."
+                    return true
+                end
+            end
+            return changed
+        end
         if visit.serviceTimer < Config.technician.serviceDuration then return false end
         MachineMaintenance.completeTechnicianVisit(state, visit.kind, visit)
         visit.status, visit.waypoint, visit.animationClock = "exiting", #visit.route - 1, 0
@@ -130,8 +213,12 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
             or (visit.name .. " fitted a freshly sharpened cutter blade and is taking the dull one back.")
         return true
     end
-    if visit.status ~= "entering" and visit.status ~= "exiting" then return false end
-    local travel = Config.technician.speed * motionDt
+    if visit.status ~= "entering" and visit.status ~= "exiting" then finishMotion();return false end
+    local speedMultiplier,accelerationMultiplier=GaitMotion.sample(visit.animationDistance,Config.technician)
+    visit.gaitSpeedMultiplier,visit.gaitAccelerationMultiplier=speedMultiplier,accelerationMultiplier
+    speeds[visit]=math.min(Config.technician.speed*speedMultiplier,
+        (speeds[visit] or 0)+Config.technician.acceleration*accelerationMultiplier*motionDt)
+    local travel = speeds[visit] * motionDt
     while travel > 0 do
         local target = visit.route[visit.waypoint]
         if target and visit.status=="entering" and visit.waypoint==#visit.route
@@ -140,12 +227,17 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
             -- another machine. Share the employees' reachable service approach
             -- selection and follow relocated machines before starting service.
             target=servicePoint(state,visit,navigationContext,motionDt)
-            if not target then visit.inMotion=false;return false end
+            if not target then finishMotion();return false end
             visit.route[#visit.route]={x=target.x,y=target.y}
         end
         if not target then
             if visit.status == "entering" then
                 visit.status, visit.serviceTimer, visit.animationClock = "servicing", 0, 0
+                visit.inMotion=false;speeds[visit]=nil;finishMotion()
+                if visit.kind=="cutter" then
+                    local _,cutter=MachineMaintenance.cutterStatus(state)
+                    if cutter then cutter.technicianStatus="servicing" end
+                end
                 state.message = visit.kind == "windmill"
                     and "The technician is servicing the Heidelberg Windmill."
                     or (visit.name .. " is exchanging the Polar 115 blade.")
@@ -160,12 +252,16 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
         if navigationContext then
             reached,remaining,actualDistance,blocked=Navigator.travel(visit,target,travel,motionDt,navigationContext)
             local dx,dy=visit.x-startX,visit.y-startY
-            visit.inMotion=math.abs(dx)+math.abs(dy)>.001
-            if visit.inMotion then
+            if actualDistance>.001 then
                 visit.directionFrame=math.abs(dx)>=math.abs(dy) and (dx<0 and 1 or 4) or (dy<0 and 2 or 3)
             end
         else
             reached,remaining=moveToward(visit,target,travel)
+            actualDistance=math.sqrt((visit.x-startX)^2+(visit.y-startY)^2)
+        end
+        if actualDistance>.0001 then
+            visit.inMotion=true
+            visit.animationDistance=visit.animationDistance+actualDistance
         end
         visit.navigationBlockedFor=blocked and (visit.navigationBlockedFor or 0)+motionDt or 0
         if visit.navigationBlockedFor>=2 then
@@ -185,6 +281,7 @@ function Technician.update(dt, state, pauseEntrance, motionDt, navigationContext
         travel = remaining
         visit.waypoint = visit.waypoint + (visit.status == "entering" and 1 or -1)
     end
+    finishMotion()
     return false
 end
 
@@ -197,8 +294,8 @@ function Technician.pose(visit)
     if not visit then return 0, 0, 0 end
     local clock = math.max(0, tonumber(visit.animationClock) or 0)
     if visit.status == "entering" or visit.status == "exiting" then
-        if visit.inMotion == false then return 0,0,0 end
-        local phase = clock * Config.technician.walkAnimationRate
+        if visit.inMotion ~= true then return 0,0,0 end
+        local phase = (visit.animationDistance or 0) / (Config.technician.walkPixelsPerFrame * 8) * math.pi * 2
         return 0, -math.abs(math.sin(phase)) * 2, math.sin(phase) * 0.018
     elseif visit.status == "servicing" then
         local phase = clock * Config.technician.serviceAnimationRate
@@ -207,18 +304,62 @@ function Technician.pose(visit)
     return 0, 0, 0
 end
 
-function Technician.draw(assets, state)
-    local visit = Technician.ensure(state)
+function Technician.spritePose(visit,characterAssets)
+    if not visit or not characterAssets then return nil end
+    local character=Config.technician.characters[visit.species=="lizard" and "lizard" or "mouse"]
+    local prefix=visit.status=="servicing" and "service" or visit.inMotion and "walk" or "idle"
+    local action=Animation.authoredAction(prefix,visit.intentX,visit.intentY)
+    -- Missing art remains explicit; never substitute a reversed, mirrored or
+    -- duplicated walk strip to make an incomplete pack look complete.
+    if not characterAssets.hasAction(character,action) then return nil end
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
+    local _,_,count=characterAssets.get(character,action,1)
+    if not count then return nil end
+    local frame=prefix=="walk" and Animation.frameForGait(count,visit.animationDistance,Config.technician.walkPixelsPerFrame)
+        or prefix=="idle" and Animation.frameForIdle(count,visit.idleClock,.65)
+        or Animation.frameForClock(count,visit.animationClock,Config.technician.serviceAnimationRate)
+    return character,action,frame
+end
+
+function Technician.presentation(state)
+    if state and state._technicianPose~=nil then return state._technicianPose or nil end
+    return Technician.ensure(state)
+end
+
+function Technician.draw(assets, state, characterAssets)
+    local visit = Technician.presentation(state)
     if not visit or not visit.visible then return end
-    local image = assets.get("technicianNpcs")
-    local species = visit.species == "lizard" and 2 or 1
-    local sprite = assets.getQuad("technician" .. species .. "_" .. tostring(visit.directionFrame or 1))
-    if not image or not sprite then return end
-    local offsetX, offsetY, rotation = Technician.pose(visit)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.draw(image, sprite.quad, visit.x + offsetX, visit.y + offsetY, rotation,
-        Config.technician.drawScale, Config.technician.drawScale,
-        sprite.width / 2, sprite.height * 0.96)
+    local character,action,frame=Technician.spritePose(visit,characterAssets)
+    if character then
+        local image,quad=characterAssets.get(character,action,frame)
+        local ax,ay=characterAssets.getAnchor(character,action,frame)
+        local scale=Config.technician.worldHeight/Config.characterRendering.referenceHeight
+            *characterAssets.getNormalization(character,action)
+        love.graphics.setColor(1,1,1,1)
+        love.graphics.draw(image,quad,visit.x,visit.y,0,scale,scale,ax,ay)
+    else
+        local image = assets.get("technicianNpcs")
+        local species = visit.species == "lizard" and 2 or 1
+        local sprite = assets.getQuad("technician" .. species .. "_" .. tostring(visit.directionFrame or 1))
+        if image and sprite then
+            local offsetX, offsetY, rotation = Technician.pose(visit)
+            love.graphics.setColor(1, 1, 1)
+            love.graphics.draw(image, sprite.quad, visit.x + offsetX, visit.y + offsetY, rotation,
+                Config.technician.drawScale, Config.technician.drawScale,
+                sprite.width / 2, sprite.height * 0.96)
+        end
+    end
+    local service=state and state.technicianVisit
+    if visit.kind=="cutter" and service and service.bladeExchange then
+        local sleeve=assets.get("woodenBladeSleeve")
+        if sleeve then
+            local scale=70/sleeve:getWidth()
+            local side=(visit.facing or 1)<0 and -1 or 1
+            love.graphics.setColor(1,1,1,1)
+            love.graphics.draw(sleeve,visit.x+side*19,visit.y-27,0,scale,scale,
+                sleeve:getWidth()/2,sleeve:getHeight()/2)
+        end
+    end
 end
 
 return Technician

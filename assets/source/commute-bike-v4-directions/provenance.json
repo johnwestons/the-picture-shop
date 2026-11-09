@@ -1,0 +1,12 @@
+{
+  "purpose": "User-authorized repairs of six missing directional views; retain sixteen runtime directions",
+  "date": "2026-11-02",
+  "sources": {
+    "left-nne": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-b4b295ce-21d1-457b-b710-a373c5629a41.png",
+    "left-ene": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-78f85547-5e71-483d-bfa4-0981a6f78a57.png",
+    "right-nne": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-b9d15cd0-1a3d-4524-83ff-e92f355b71d2.png",
+    "left-mid-nne": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-94dc5725-fcd2-40d5-ae0c-06af649f476b.png",
+    "impact-ene": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-fe8c404a-9059-457b-8487-dcc750387b82.png",
+    "impact-ssw": "C:\\Users\\johnw\\.codex\\generated_images\\01a19d6b-9691-7821-b4b4-171a41ffed6a\\exec-be911b66-8a93-419a-9174-92de7ff1975f.png"
+  }
+}

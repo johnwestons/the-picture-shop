@@ -15,8 +15,18 @@ local CRITTER_NET_VENDORS = {
     equipment = "CritterNet WrenchWorks",
 }
 
-local function autoShelfProduct(productId)
-    return productId == "stretch_film" or productId == "shipping_cartons"
+local SHELF_USABLE_PRODUCTS = {
+    black_ink = true,
+    color_ink = true,
+    press_wash = true,
+    tympan_sheets = true,
+    plate_room_kit = true,
+    maintenance_kit = true,
+}
+
+local function shelfProduct(productId, requested)
+    return type(productId) == "string" and productId ~= ""
+        and (requested == true or SHELF_USABLE_PRODUCTS[productId] == true)
 end
 
 Procurement.categories = {
@@ -58,9 +68,13 @@ Procurement.categories = {
         items = {
             { id = "maintenance_kit", name = "Machine maintenance kit", price = 145, quantity = 1, unit = "kit",
                 retailName = "Machine maintenance kit", retailPrice = 175, retailQuantity = 1 },
+            { id = "cutter_blade", name = "Polar 115 sharpened spare blade", price = 375, quantity = 1, unit = "blade",
+                retailName = "Polar 115 sharpened spare cutter blade", retailPrice = 450, retailQuantity = 1 },
             { id = "safety_supplies", name = "Warehouse safety case", price = 110, quantity = 1, unit = "case",
                 retailName = "Warehouse safety case", retailPrice = 135, retailQuantity = 1,
                 available = false, unavailableReason = "Requires the warehouse safety upgrade." },
+            { id = "pallet_jack", name = "Manual pallet jack", price = 350, quantity = 1, unit = "jack",
+                retailName = "Manual pallet jack", retailPrice = 425, retailQuantity = 1 },
         },
     },
     {
@@ -105,14 +119,76 @@ function Procurement.category(index)
     return Procurement.categories[((tonumber(index) or 1) - 1) % #Procurement.categories + 1]
 end
 
+local SALE_CYCLE_DAYS, SALE_DURATION_DAYS = 7, 2
+local function currentSale(state)
+    local day = math.max(0, math.floor(tonumber(state and state.calendar and state.calendar.totalDays) or 0))
+    local cycle = math.floor(day / SALE_CYCLE_DAYS)
+    if day % SALE_CYCLE_DAYS >= SALE_DURATION_DAYS then return nil end
+    local products = {}
+    for categoryIndex, category in ipairs(Procurement.categories) do
+        for itemIndex, item in ipairs(category.items) do
+            if item.available ~= false and item.retailPrice then
+                products[#products + 1] = { categoryIndex = categoryIndex, itemIndex = itemIndex, item = item }
+            end
+        end
+    end
+    if #products == 0 then return nil end
+    local featured = products[cycle % #products + 1]
+    return {
+        categoryIndex = featured.categoryIndex, itemIndex = featured.itemIndex, item = featured.item,
+        percent = 15 + (cycle % 3) * 5, cycle = cycle,
+    }
+end
+
+function Procurement.currentSale(state) return currentSale(state) end
+
+local function canAppendToShipment(state,shipment,now)
+    local delivery=shipment and shipment.delivery
+    if not shipment or shipment.status~="awaiting_delivery" or not delivery
+        or delivery.status=="received" then return false end
+    local traffic=require("src.commute.delivery_traffic")
+    local route=delivery.route
+    local load,canLoad
+    if route then
+        load,canLoad=traffic.inboundTruckPallets(state,shipment.id)
+        if not canLoad then return false end
+    else
+        if now>(shipment.closesAtHours or -1) then return false end
+        load=Procurement.remainingOnTruck(state,shipment.id)
+        canLoad=true
+    end
+    return canLoad and load+1<=traffic.TRUCK_CAPACITY
+end
+
+function Procurement.retailPrice(state,categoryIndex,itemIndex)
+    categoryIndex = math.floor(tonumber(categoryIndex) or 0)
+    itemIndex = math.floor(tonumber(itemIndex) or 0)
+    local category = Procurement.categories[categoryIndex]
+    local item = category and category.items[itemIndex]
+    if not item or item.available == false or not item.retailPrice then return nil end
+    local regularPrice = item.retailPrice
+    local sale = currentSale(state)
+    if sale and sale.categoryIndex == categoryIndex and sale.itemIndex == itemIndex then
+        return math.max(1, math.floor(regularPrice * (100 - sale.percent) / 100 + 0.5)), regularPrice, sale.percent
+    end
+    return regularPrice, regularPrice, 0
+end
+
 function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local procurement = ensure(state)
+    categoryIndex=math.floor(tonumber(categoryIndex) or 1)
+    itemIndex=math.floor(tonumber(itemIndex) or 0)
     local category = Procurement.category(categoryIndex)
-    local item = category.items[tonumber(itemIndex) or 0]
+    local item = category.items[itemIndex]
     if not item then return false, "That product is not in this sales catalog." end
     if item.available == false then return false, item.unavailableReason or "That product is not available yet." end
     channel = channel == "computer" and "computer" or "salesman"
-    local price = channel == "computer" and item.retailPrice or item.price
+    local price, regularPrice, salePercent
+    if channel=="computer" then
+        price,regularPrice,salePercent=Procurement.retailPrice(state,categoryIndex,itemIndex)
+    else
+        price=item.price
+    end
     local quantity = channel == "computer" and item.retailQuantity or item.quantity
     local productName = channel == "computer" and item.retailName or item.name
     local onlineVendor = CRITTER_NET_VENDORS[category.id] or "CritterNet Marketplace"
@@ -125,10 +201,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local shipment
     for index = #procurement.shipments, 1, -1 do
         local candidate = procurement.shipments[index]
-        if candidate.status == "awaiting_delivery"
-            and candidate.delivery and candidate.delivery.status == "awaiting_schedule"
-            and now <= (candidate.closesAtHours or -1)
-        then shipment = candidate; break end
+        if canAppendToShipment(state,candidate,now) then shipment = candidate; break end
     end
     if not shipment then
         local shipmentNumber = procurement.nextShipmentId
@@ -157,17 +230,24 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
             expectedAtHours = shipment.delivery.expectedAtHours,
         }, pallets = { pallet },
     }
+    require("src.household_finances").purchase(state,item.id,quantity,math.floor(price*100+.5))
     procurement.orders[#procurement.orders + 1] = order
     shipment.orderIds[#shipment.orderIds + 1] = order.id
     state.money = state.money - price
     if channel == "computer" then
+        local receiptBody=string.format(
+            "Payment received for %s from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Your order will arrive at the loading dock.",
+            productName,id,price)
+        if (salePercent or 0)>0 then
+            receiptBody=string.format(
+                "CritterNet sale: %d%% off %s (regular price $%d). You paid $%d. Order %s will arrive at the loading dock.",
+                salePercent,productName,regularPrice,price,id)
+        end
         Inbox.addNotice(state, {
             id = "RECEIPT-" .. id,
             sender = onlineVendor,
             subject = "Receipt for " .. id,
-            body = string.format(
-                "Payment received for %s from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Your order will arrive at the loading dock.",
-                productName, id, price),
+            body = receiptBody,
             noticeKind = "receipt",
             orderId = id,
             total = price,
@@ -188,7 +268,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     return true, order
 end
 
-function Procurement.retailCatalog()
+function Procurement.retailCatalog(state)
     local result = {}
     for categoryIndex, category in ipairs(Procurement.categories) do
         for itemIndex, item in ipairs(category.items) do
@@ -196,6 +276,7 @@ function Procurement.retailCatalog()
                 categoryIndex = categoryIndex, itemIndex = itemIndex,
                 category = category, item = item,
                 available = item.available ~= false and item.retailPrice ~= nil,
+                price = Procurement.retailPrice(state,categoryIndex,itemIndex),
             }
         end
     end
@@ -233,13 +314,59 @@ function Procurement.consumePaper(state, quantity)
     local abstractPaperUsed = remaining
     local consumed, reason = Procurement.consumeStockProducts(state, requirements)
     if not consumed then return false, reason end
+    require("src.household_finances").consume(state,"abstract_paper",abstractPaperUsed)
     state.inventory.paper = math.max(0, (state.inventory.paper or 0) - abstractPaperUsed)
+    return true
+end
+
+function Procurement.housePaperAvailable(state)
+    ensure(state)
+    return math.max(0, state.inventory.stock.house_sheets or 0)
+        + math.max(0, state.inventory.paper or 0)
+end
+
+function Procurement.consumeHousePaper(state, quantity)
+    ensure(state)
+    local needed = math.max(0, math.floor(tonumber(quantity) or 1))
+    if needed == 0 then return true end
+    if Procurement.housePaperAvailable(state) < needed then
+        return false, "Not enough house paper. Order more from the paper supplier."
+    end
+    local stocked = math.max(0, state.inventory.stock.house_sheets or 0)
+    local fromStock = math.min(stocked, needed)
+    if fromStock > 0 then
+        local consumed, reason = Procurement.consumeStockProducts(state, {
+            { productId = "house_sheets", quantity = fromStock, autoShelf = true },
+        })
+        if not consumed then return false, reason end
+    end
+    require("src.household_finances").consume(state,"abstract_paper",needed-fromStock)
+    state.inventory.paper = math.max(0, (state.inventory.paper or 0) - (needed - fromStock))
     return true
 end
 
 function Procurement.cartonsAvailable(state)
     ensure(state)
     return math.max(0, state.inventory.stock.shipping_cartons or 0)
+end
+
+-- A 12-inch shipping carton holds up to one 500-sheet lift of finished work.
+-- Print jobs use their promised good-copy quantity; cut-only jobs use the
+-- finished stock quantity on the pallet.
+function Procurement.cartonsRequired(job, pallet)
+    local packaging = pallet and pallet.packaging or job and job.packaging or "flat"
+    if packaging ~= "boxed" then return 0 end
+    local sheets
+    if job and job.press then
+        sheets = pallet and pallet.press and pallet.press.requiredGoodSheets
+            or pallet and pallet.requestedCopies
+            or pallet and pallet.press and pallet.press.goodSheets
+    else
+        sheets = pallet and pallet.finishedSheets
+        if not sheets or sheets <= 0 then sheets = pallet and pallet.initialSheets end
+    end
+    sheets = math.max(1, math.floor(tonumber(sheets) or 1))
+    return math.max(1, math.ceil(sheets / 500))
 end
 
 function Procurement.consumeCartons(state, quantity)
@@ -258,6 +385,7 @@ function Procurement.inventoryRows(state)
         { id = "shipping_cartons", label = "Shipping cartons", quantity = state.inventory.stock.shipping_cartons or 0, unit = "cartons" },
         { id = "stretch_film", label = "Stretch film", quantity = state.inventory.plasticWrapRolls or 0, unit = "rolls" },
         { id = "maintenance_kit", label = "Maintenance kits", quantity = state.inventory.stock.maintenance_kit or 0, unit = "kits" },
+        { id = "cutter_blade", label = "Sharp cutter blades", quantity = state.inventory.stock.cutter_blade or 0, unit = "blades" },
         { id = "black_ink", label = "Black letterpress ink", quantity = state.inventory.stock.black_ink or 0, unit = "oz" },
         { id = "color_ink", label = "Spot-color ink", quantity = state.inventory.stock.color_ink or 0, unit = "oz" },
         { id = "press_wash", label = "Press wash", quantity = state.inventory.stock.press_wash or 0, unit = "cleanups" },
@@ -344,7 +472,11 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
                 world = world,
             })
             if not transitioned then return false, transitionError end
-            if pallet.productId == "stretch_film" then
+            if pallet.productId == "pallet_jack" then
+                -- Equipment becomes a separate vehicle, not consumable stock.
+                assert(PalletState.transition(state,pallet,"none"))
+                require("src.pallet_jack_fleet").add(state,order.id.."-JACK",point)
+            elseif pallet.productId == "stretch_film" then
                 local inventory = state.inventory
                 inventory.plasticWrapRolls = (inventory.plasticWrapRolls or 0) + pallet.quantity
                 if (inventory.plasticWrapUses or 0) == 0 and inventory.plasticWrapRolls > 0 then
@@ -376,10 +508,10 @@ function Procurement.unload(state, orderId, palletId, spawnPoints, origin)
     return false, "The product pallet was not found on this truck."
 end
 
--- Physical allocation is atomic and never reaches into shelves, vehicles or
--- stacks unless packaging explicitly opts into automatic shelf withdrawal.
--- Maintenance may opt into genuine abstract-only legacy supplies; a delivered
--- but inaccessible pallet must still reserve its share of stock.
+-- Physical allocation is atomic. Press materials and maintenance kits can be
+-- consumed from accessible shelves; other goods need an explicit autoShelf opt-in.
+-- Legacy abstract-only stock remains usable, but an inaccessible pallet still
+-- reserves its share of the inventory counter.
 -- The caller debits abstract stock only after this function succeeds.
 function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     quantity = quantity == nil and 1 or quantity
@@ -413,7 +545,7 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
                 if type(remaining) ~= "number" or remaining ~= remaining or remaining < 0
                     or remaining >= math.huge then return false, "Invalid physical product quantity." end
                 physical = physical + remaining
-                local accessibleShelf = options.autoShelf == true and autoShelfProduct(productId)
+                local accessibleShelf = shelfProduct(productId, options.autoShelf)
                     and pallet.location == "rack" and not PalletStorage.isSupporting(state, pallet.id)
                 if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                     or accessibleShelf then
@@ -425,10 +557,11 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
     end
     local abstract = allowAbstract and math.max(0, stock - physical) or 0
     if accessible + abstract < needed then
-        return false, options.autoShelf == true and autoShelfProduct(productId)
-            and "No packaging supplies are available on the warehouse floor or storage shelf."
+        return false, shelfProduct(productId, options.autoShelf)
+            and "No supplies are available on the warehouse floor or an accessible storage shelf."
             or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
     end
+    require("src.household_finances").ensure(state)
     local committed = {}
     local storageRevision = state.storage and state.storage.revision
     local rackRevisions = {}
@@ -446,7 +579,7 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
         committed[#committed + 1] = previous
         if used == allocation.remaining then
             local moved, reason
-            if pallet.location == "rack" and options.autoShelf == true and autoShelfProduct(productId) then
+            if pallet.location == "rack" and shelfProduct(productId, options.autoShelf) then
                 moved, reason = PalletState.consumeVendorProduct(state,pallet)
             else
                 moved, reason = PalletState.transition(state, pallet, "none", {status="consumed"})
@@ -465,10 +598,11 @@ function Procurement.consumePhysicalProduct(state, productId, quantity, options)
         pallet.remainingQuantity = allocation.remaining - used
         needed = needed - used
     end
+    require("src.household_finances").consume(state,productId,options.financeQuantity or math.floor(quantity))
     return true
 end
 
--- Check the exact stock and floor-access rules used by consumeStockProducts
+-- Check the exact stock, floor, and accessible-shelf rules used by consumeStockProducts
 -- without changing inventory. Machines use this before starting a timed cycle
 -- so a missing or inaccessible supply cannot strand the machine at 100%.
 function Procurement.canConsumeStockProducts(state, requirements)
@@ -519,8 +653,8 @@ function Procurement.canConsumeStockProducts(state, requirements)
                             return false, "Invalid physical product quantity."
                         end
                         physical = physical + remaining
-                        local accessibleShelf = request.autoShelf == true
-                            and autoShelfProduct(request.productId) and pallet.location == "rack"
+                        local accessibleShelf = shelfProduct(request.productId, request.autoShelf)
+                            and pallet.location == "rack"
                             and not PalletStorage.isSupporting(state, pallet.id)
                         if (pallet.location == "warehouse" and not PalletStorage.isSupporting(state, pallet.id))
                             or accessibleShelf then
@@ -531,8 +665,8 @@ function Procurement.canConsumeStockProducts(state, requirements)
             end
             local abstract = math.max(0, stock - physical)
             if accessible + abstract < needed then
-                return false, request.autoShelf == true and autoShelfProduct(request.productId)
-                    and "No packaging supplies are available on the warehouse floor or storage shelf."
+                return false, shelfProduct(request.productId, request.autoShelf)
+                    and "No supplies are available on the warehouse floor or an accessible storage shelf."
                     or "Retrieve and lower supplies onto clear warehouse floor before using them. Remove any pallet stacked above them."
             end
         end
@@ -564,7 +698,7 @@ function Procurement.consumeStockProduct(state, productId, quantity, options)
         return false, "Not enough product stock is available."
     end
     local consumed, reason = Procurement.consumePhysicalProduct(state, productId, needed, {
-        allowAbstract = true, stockKey = stockKey, autoShelf = options.autoShelf == true,
+        allowAbstract = true, stockKey = stockKey, autoShelf = options.autoShelf == true,financeQuantity=options.financeQuantity,
     })
     if not consumed then return false, reason end
     stockContainer[stockKey or productId] = available - needed
@@ -609,10 +743,12 @@ function Procurement.consumeStockProducts(state, requirements)
             end
         end
     end
+    local financeBefore=require("src.household_finances").stockCheckpoint(state)
     for _, request in ipairs(requirements) do
         local consumed, reason = Procurement.consumeStockProduct(
             state, request.productId, request.quantity, request)
         if not consumed then
+            require("src.household_finances").restoreStock(state,financeBefore)
             for _, before in ipairs(pallets) do
                 local pallet = before.pallet
                 pallet.remainingQuantity, pallet.location = before.remainingQuantity, before.location

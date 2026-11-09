@@ -17,6 +17,9 @@ function Component.install(Runtime)
 
     function Runtime.acquireLocalWorkshop(resourceId)
         if not Runtime.workshopAuthority then return false, "Workshop authority is unavailable." end
+        if resourceId=="pallet_jack" then
+            require("src.pallet_jack_fleet").selectPlayer(Runtime.state,Runtime.World.player)
+        end
         Runtime.localWorkshopRequestId = Runtime.localWorkshopRequestId + 1
         local result = Runtime.workshopAuthority:acquire(Runtime.localAuthorityPlayer(), {
             requestId = Runtime.localWorkshopRequestId,

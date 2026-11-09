@@ -1,6 +1,8 @@
 -- Owned machines, placements, deliveries, and fleet normalization.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     -- Derived data belongs to the runtime, never saves or network payloads.
@@ -71,11 +73,17 @@ function Component.install(Runtime)
                 or item.source == "online"
             cutter.bladeRemoved = cutter.bladeRemoved == true
             cutter.bladeInSleeve = cutter.bladeInSleeve == true
+            cutter.spareBladeInstalled = cutter.spareBladeInstalled == true
+            cutter.bladeDullNoticeSent = cutter.bladeDullNoticeSent == true
+            cutter.bladeGrade = BladeProfiles.get(cutter.bladeGrade) and cutter.bladeGrade or "standard"
+            cutter.orderedBladeGrade = BladeProfiles.isUpgrade(cutter.bladeGrade, cutter.orderedBladeGrade)
+                and cutter.orderedBladeGrade or nil
             cutter.weeklyTechnician = cutter.weeklyTechnician == true
             cutter.nextTechnicianDay = tonumber(cutter.nextTechnicianDay)
             cutter.appointmentType = cutter.appointmentType == "weekly" and "weekly"
                 or cutter.appointmentType == "requested" and "requested" or nil
             cutter.technicianSequence = math.max(0, math.floor(tonumber(cutter.technicianSequence) or 0))
+            cutter.technicianRescheduled = cutter.technicianRescheduled == true
         else
             item.maintenance.cutter = nil
         end
@@ -92,6 +100,15 @@ function Component.install(Runtime)
         end
         if type(item.world) == "table" and type(item.world.x) == "number" and type(item.world.y) == "number" then
             item.world.direction = type(item.world.direction) == "string" and item.world.direction or "northwest"
+            local rotationKind = item.modelId == "polar_115" and "cutter"
+                or item.modelId == "skid_wrapper" and "wrapper"
+                or item.modelId == "heidelberg_10x15" and "windmill" or nil
+            if rotationKind then
+                item.world.rotationIndex = MachineRotation.normalizedFrame(rotationKind, item.world, "northwest")
+                item.world.direction = MachineRotation.directionForFrame(rotationKind, item.world.rotationIndex)
+            else
+                item.world.rotationIndex = nil
+            end
         else
             item.world = nil
         end
@@ -122,7 +139,8 @@ function Component.install(Runtime)
         local occupied = {}
         local itemConfig = Runtime.Config[Runtime.definition(item.modelId).placementKey .. "Placement"]
         for _, other in ipairs(fleet.items) do
-            if other ~= item and other.status == "installed" then
+            if other ~= item and other.status == "installed"
+                and Runtime.Fleet.isGameplayEnabled(other.modelId) then
                 local point = other.world or Runtime.placementFor(state, other)
                 if point then
                     local config = Runtime.Config[Runtime.definition(other.modelId).placementKey .. "Placement"]
@@ -183,6 +201,10 @@ function Component.install(Runtime)
         for _, slot in ipairs(Runtime.floorSlots) do
             if clearSlot(slot) then
                 item.world = { x = slot[1], y = slot[2], direction = "northwest" }
+                if item.modelId == "polar_115" or item.modelId == "skid_wrapper"
+                    or item.modelId == "heidelberg_10x15" then
+                    item.world.rotationIndex = 1
+                end
                 return true
             end
         end
@@ -190,6 +212,10 @@ function Component.install(Runtime)
             for x = 345, 775, 55 do
                 if clearSlot({ x, y }) then
                     item.world = { x = x, y = y, direction = "northwest" }
+                    local rotationKind = item.modelId == "polar_115" and "cutter"
+                        or item.modelId == "skid_wrapper" and "wrapper"
+                        or item.modelId == "heidelberg_10x15" and "windmill" or nil
+                    if rotationKind then item.world.rotationIndex = 1 end
                     return true
                 end
             end
@@ -245,17 +271,19 @@ function Component.install(Runtime)
         fleet.items = normalized
         local seenOnFloor = {}
         for _, item in ipairs(fleet.items) do
-            -- Older saves kept spare purchases in storage. Bring those units onto
-            -- the floor when the save is opened under the multi-machine rules.
-            if item.status == "stored" then
-                item.status = "installed"
-                item.world = nil
-            end
-            if (not seenOnFloor[item.modelId] and not Runtime.definition(item.modelId).requiresWorldPosition)
-                or Runtime.assignFloorPosition(state, fleet, item) then
-                seenOnFloor[item.modelId] = true
-            else
-                item.status = "stored"
+            if Runtime.Fleet.isGameplayEnabled(item.modelId) then
+                -- Older saves kept spare purchases in storage. Bring those units
+                -- onto the floor when the save is opened under the multi-machine rules.
+                if item.status == "stored" then
+                    item.status = "installed"
+                    item.world = nil
+                end
+                if (not seenOnFloor[item.modelId] and not Runtime.definition(item.modelId).requiresWorldPosition)
+                    or Runtime.assignFloorPosition(state, fleet, item) then
+                    seenOnFloor[item.modelId] = true
+                else
+                    item.status = "stored"
+                end
             end
         end
         fleet.deliveries = type(fleet.deliveries) == "table" and fleet.deliveries or {}

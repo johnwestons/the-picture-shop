@@ -1,7 +1,11 @@
 local MachineFleet = require("src.machine_fleet")
 local BusinessCalendar = require("src.business_calendar")
+local Procurement = require("src.procurement")
 
 local Maintenance = {}
+local CALL_OUT_PERCENT, LATE_PERCENT = 2, 5
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local Machine = require("src.machine")
 
 local function clamp(value)
     return math.max(0, math.min(1, tonumber(value) or 0))
@@ -320,6 +324,39 @@ function Maintenance.canFinishCutterLubrication(session)
     return true
 end
 
+function Maintenance.nextCutterLubricationStep(session)
+    if not session then return "Open the lubrication procedure." end
+    if session.stage == "lockout" then
+        if not session.lockout.disconnect then return "Turn off the main disconnect." end
+        if not session.lockout.key then return "Remove the disconnect key." end
+        return "Apply the lock and tag."
+    end
+    if session.stage == "prep" then
+        if not session.prep.cartridge then return "Install the grease cartridge." end
+        return "Prime the grease gun."
+    end
+    local points = session.centralInstalled and { session.central } or session.points
+    for _, point in ipairs(points) do
+        if not point.complete then
+            local view = session.centralInstalled and "CENTRAL" or point.view:upper()
+            local name = session.centralInstalled and "fitting" or point.label
+            if not point.cleaned then return view .. ": clean " .. name .. " with RAG." end
+            if session.coupledPoint ~= (session.centralInstalled and "central" or point.id) then
+                return view .. ": couple GREASE GUN to " .. name .. "."
+            end
+            local target = session.centralInstalled and 4 or 2
+            return view .. ": pump " .. (target - point.strokes) .. " more stroke(s)."
+        end
+    end
+    if not session.gear.inspected then
+        return "GEAR: select INSPECT LIGHT and tap the sight glass."
+    end
+    if session.gear.level < 0.42 or session.gear.level > 0.58 then
+        return "GEAR: select GEAR OIL and tap the sight glass."
+    end
+    return "All checks complete. Tap RETURN TO SERVICE."
+end
+
 function Maintenance.lubricationProgress(session)
     if not session then return 0 end
     if session.stage == "lockout" then
@@ -336,7 +373,7 @@ end
 
 function Maintenance.finishCutterLubrication(state, session)
     if not Maintenance.canFinishCutterLubrication(session) then
-        return false, "Complete the lubrication points and inspect the gearbox sight glass first."
+        return false, Maintenance.nextCutterLubricationStep(session)
     end
     local correct = 0
     if session.centralInstalled then correct = session.central.strokes == 4 and 1 or 0
@@ -363,6 +400,45 @@ function Maintenance.prepareBladeForTechnician(state)
     return true, cutter
 end
 
+function Maintenance.installSpareBlade(state)
+    local item, cutter = Maintenance.cutterStatus(state)
+    if not item then return false, "No cutter is installed." end
+    if cutter.orderedBladeGrade then return false, "Let Mara fit the ordered specialty blade at the next exchange." end
+    if not cutter.bladeInSleeve or not cutter.bladeRemoved then
+        return false, "Sleeve the dull blade before installing a spare blade."
+    end
+    if cutter.spareBladeInstalled then return false, "A spare blade is already installed." end
+    local installed, reason = Procurement.consumeStockProduct(state, "cutter_blade", 1, { autoShelf = true })
+    if not installed then return false, reason end
+    cutter.bladeRemoved = false
+    cutter.spareBladeInstalled = true
+    cutter.bladeGrade = "standard"
+    item.variables.bladeSharpness = 100
+    cutter.bladeDullNoticeSent = false
+    item.condition = MachineFleet.condition(item)
+    return true, cutter
+end
+
+function Maintenance.buyBladeUpgrade(state, grade)
+    local item, cutter = Maintenance.cutterStatus(state)
+    if not item then return false, "No cutter is installed." end
+    local profile = BladeProfiles.get(grade)
+    if not profile then return false, "Choose a listed specialty blade." end
+    if grade == cutter.bladeGrade then return false, "That blade grade is already installed." end
+    if not BladeProfiles.isUpgrade(cutter.bladeGrade, grade) then
+        return false, "The installed blade is already a higher grade."
+    end
+    if cutter.orderedBladeGrade then return false, "A specialty blade order is already waiting for installation." end
+    if cutter.spareBladeInstalled then
+        return false, "Wait for the installed spare blade to finish its exchange before ordering another blade."
+    end
+    if (state.money or 0) < profile.price then return false, "The shop cannot afford that specialty blade right now." end
+    state.money = state.money - profile.price
+    cutter.orderedBladeGrade = grade
+    if state.home then require("src.household_finances").record(state, "services", profile.price * 100) end
+    return true, cutter
+end
+
 function Maintenance.requestTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false, "No cutter is installed." end
@@ -370,6 +446,7 @@ function Maintenance.requestTechnician(state)
     if cutter.nextTechnicianDay then return false, "A blade exchange courier is already scheduled." end
     cutter.nextTechnicianDay = state.calendar.totalDays + 1
     cutter.appointmentType = "requested"
+    cutter.technicianRescheduled = false
     return true, cutter.nextTechnicianDay
 end
 
@@ -380,8 +457,11 @@ function Maintenance.setWeeklyTechnician(state, enabled)
     if cutter.weeklyTechnician then
         cutter.nextTechnicianDay = state.calendar.totalDays + 7
         cutter.appointmentType = "weekly"
+        cutter.technicianRescheduled = false
     elseif cutter.appointmentType == "weekly" then
         cutter.nextTechnicianDay, cutter.appointmentType = nil, nil
+        cutter.technicianRescheduled = false
+        if cutter.technicianStatus=="waiting_for_skid" then cutter.technicianStatus=nil end
     end
     return true, cutter
 end
@@ -392,35 +472,79 @@ local function technicianOutcome(item, day)
     return (day * 37 + sequence * 29 + tonumber(item.id:match("(%d+)$")) * 11) % 100
 end
 
+local function cutterIsFinishingSkid(state,item)
+    local busy=false
+    MachineFleet.withUnit(state,item.id,function()
+        local runtime=Machine.forId(item.id)
+        busy=runtime and runtime.step~="idle" and runtime.step~="finished"
+        if not busy and runtime and runtime.step=="idle" then
+            for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+                local assignment=worker.assignment
+                if worker.status=="employed" and assignment and assignment.machineId==item.id
+                    and assignment.palletId then busy=true;break end
+            end
+        end
+    end)
+    return busy
+end
+
 local function updateCutterTechnician(state)
     local item, cutter = Maintenance.cutterStatus(state)
     if not item or not cutter.nextTechnicianDay or state.calendar.totalDays < cutter.nextTechnicianDay then
         return false
     end
+    -- Another visit can occupy the shared technician actor for many updates.
+    -- Waiting for it must not repeatedly roll until this booking gets delayed.
+    if state.technicianVisit then return false end
+    if cutter.weeklyTechnician and not cutter.bladeInSleeve and cutterIsFinishingSkid(state,item) then
+        if cutter.technicianStatus~="waiting_for_skid" then
+            cutter.technicianStatus="waiting_for_skid"
+            state.message="Mara Mouse will arrive after the cutter finishes the current skid. No new skid can start."
+            return true
+        end
+        return false
+    end
     local appointmentDay = cutter.nextTechnicianDay
-    local outcome = technicianOutcome(item, appointmentDay)
-    if outcome < 15 then
+    local arrivalDay = math.max(appointmentDay,state.calendar.totalDays)
+    local outcome = cutter.technicianRescheduled and 100 or technicianOutcome(item, appointmentDay)
+    if outcome < CALL_OUT_PERCENT then
         MachineFleet.addServiceNotice(state, "Technician unable to attend",
             "Mara Mouse cannot make today's blade exchange. The visit is moved to next week.",
             "Mara Mouse — Blade Exchange")
-        cutter.nextTechnicianDay = appointmentDay + 7
+        cutter.nextTechnicianDay = arrivalDay + 7
+        cutter.technicianRescheduled = true
+        cutter.technicianStatus="scheduled"
         state.message = "Mara Mouse emailed: this week's blade exchange was cancelled."
-    elseif outcome < 35 then
+    elseif outcome < CALL_OUT_PERCENT + LATE_PERCENT then
+        local delayDescription = cutter.spareBladeInstalled
+            and "Mara Mouse is running behind and will arrive one business day late to collect the dull blade. Your sharp spare stays installed."
+            or "Mara Mouse is running behind and will arrive one business day late to collect the dull blade and fit a fresh replacement."
         MachineFleet.addServiceNotice(state, "Blade exchange courier running late",
-            "Mara Mouse is running behind and will arrive one business day late to collect the dull blade and install a fresh one.",
+            delayDescription,
             "Mara Mouse — Blade Exchange")
-        cutter.nextTechnicianDay = appointmentDay + 1
+        cutter.nextTechnicianDay = arrivalDay + 1
+        cutter.technicianRescheduled = true
         state.message = "Mara Mouse emailed that the blade exchange is running late."
+    elseif cutter.weeklyTechnician and not cutter.bladeInSleeve then
+        local Technician = require("src.technician")
+        if not Technician.schedule(state, "cutter", arrivalDay, cutter.weeklyTechnician, {
+            removeInstalledBlade=true, spareBladeGrade=cutter.orderedBladeGrade or cutter.bladeGrade,
+        }) then return false end
+        cutter.nextTechnicianDay = nil
+        cutter.technicianStatus = "traveling"
     elseif not cutter.bladeInSleeve then
         MachineFleet.addServiceNotice(state, "Blade was not ready for service",
             "The dull cutter blade was not removed and secured in its wooden sleeve, so Mara Mouse could not collect it or install a fresh blade.",
             "Mara Mouse — Blade Exchange")
         cutter.nextTechnicianDay = cutter.weeklyTechnician and appointmentDay + 7 or nil
         cutter.appointmentType = cutter.weeklyTechnician and "weekly" or nil
+        cutter.technicianRescheduled = false
         state.message = "Mara Mouse could not exchange the cutter blade because the dull blade was not in its wooden sleeve."
     else
         local Technician = require("src.technician")
-        if not Technician.schedule(state, "cutter", appointmentDay, cutter.weeklyTechnician) then return false end
+        if not Technician.schedule(state, "cutter", arrivalDay, cutter.weeklyTechnician, {
+            removeInstalledBlade=false, spareBladeGrade=cutter.orderedBladeGrade or cutter.bladeGrade,
+        }) then return false end
         cutter.nextTechnicianDay = nil
         cutter.technicianStatus = "traveling"
     end
@@ -434,6 +558,7 @@ function Maintenance.requestWindmillTechnician(state)
     if press.technicianDueDay then return false, "A press technician is already scheduled." end
     if (state.money or 0) < 350 then return false, "The $350 service call is not affordable right now." end
     state.money = state.money - 350
+    require("src.household_finances").record(state,"services",35000)
     press.technicianDueDay = state.calendar.totalDays + 1
     press.technicianStatus = "scheduled"
     return true, press.technicianDueDay
@@ -468,22 +593,40 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
     end
     local item, cutter = Maintenance.cutterStatus(state)
     if not item then return false end
-    item.variables.bladeSharpness = 100
+    local spareInstalled = cutter.spareBladeInstalled == true
+    local orderedGrade = cutter.orderedBladeGrade
+    if orderedGrade then
+        cutter.bladeGrade = orderedGrade
+        cutter.orderedBladeGrade = nil
+        item.variables.bladeSharpness = 100
+        cutter.bladeDullNoticeSent = false
+    elseif not spareInstalled then
+        item.variables.bladeSharpness = 100
+        cutter.bladeDullNoticeSent = false
+    end
     item.condition = MachineFleet.condition(item)
     cutter.bladeRemoved, cutter.bladeInSleeve = false, false
+    cutter.spareBladeInstalled = false
     cutter.technicianStatus = "completed"
+    cutter.technicianRescheduled = false
     local appointmentDay = visit and visit.appointmentDay or state.calendar.totalDays
     local recurring = visit and visit.recurring or cutter.weeklyTechnician
     cutter.nextTechnicianDay = recurring and appointmentDay + 7 or nil
     cutter.appointmentType = recurring and "weekly" or nil
     local courier = visit and visit.name or "Mara Mouse"
-    MachineFleet.addServiceNotice(state, "Fresh cutter blade delivered",
-        courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production.",
+    MachineFleet.addServiceNotice(state, spareInstalled and "Dull cutter blade collected" or "Fresh cutter blade delivered",
+        orderedGrade
+            and (courier .. " collected the dull blade and installed your "
+                .. BladeProfiles.get(orderedGrade).name .. ". The Polar 115 is ready for production.")
+            or spareInstalled
+            and (courier .. " collected the dull blade in its wooden sleeve. Your spare blade remains installed and ready for production.")
+            or (courier .. " collected the dull blade in its wooden sleeve and fitted a freshly sharpened replacement. The Polar 115 is ready for production."),
         "Polar 115 Blade Exchange")
     return true
 end
 
 function Maintenance.updateTechnician(state)
+    if BusinessCalendar.isWeekend(state) then return false end
     local cutterChanged = updateCutterTechnician(state)
     local pressChanged = Maintenance.updateWindmillTechnician(state)
     return cutterChanged or pressChanged

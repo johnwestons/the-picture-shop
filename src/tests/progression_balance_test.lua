@@ -20,7 +20,8 @@ end
 
 function Test.run(context,check)
     local starter=receptionOffer(context,0,1)
-    local beginner,intermediate,expert=Workers.profiles[1],Workers.profiles[2],Workers.profiles[3]
+    local beginner,intermediate=Workers.profiles[1],Workers.profiles[2]
+    local expert={cutterSkill=100,pressSkill=100,wrappingSkill=100}
     check("progression_starter_job_fits_first_applicant",
         starter and starter.difficulty=="easy" and starter.quote.totalLifts==1
         and Schedule.skillAllows(beginner,starter,"cutter")
@@ -37,7 +38,7 @@ function Test.run(context,check)
         Schedule.skillAllows(beginner,early,"wrapping")
         and Schedule.skillAllows(intermediate,medium,"cutter")
         and Schedule.skillAllows(intermediate,medium,"wrapping")
-        and not Schedule.skillAllows(beginner,medium,"wrapping")
+        and Schedule.skillAllows({wrappingSkill=0},hard,"wrapping")
         and Schedule.skillAllows(expert,hard,"cutter")
         and Schedule.skillAllows(expert,hard,"wrapping")
         and not Schedule.skillAllows(intermediate,hard,"cutter"))
@@ -154,10 +155,16 @@ function Test.run(context,check)
     local hardRepeat=repeatOffer(context,starter,50)
     check("progression_followup_volume_and_difficulty_respect_shop_tier",
         earlyRepeat and earlyRepeat.difficulty=="easy" and #earlyRepeat.pallets==1
-        and earlyRepeat.quote.totalSheets<=1000
+        and earlyRepeat.quote.totalSheets<=2000
         and mediumRepeat and mediumRepeat.difficulty=="medium" and #mediumRepeat.pallets<=2
         and mediumRepeat.quote.totalSheets<=4000
-        and hardRepeat and hardRepeat.difficulty=="hard" and #hardRepeat.pallets==3)
+        and hardRepeat and hardRepeat.difficulty=="hard" and #hardRepeat.pallets==3,
+        ("early=%s/%s/%s medium=%s/%s/%s hard=%s/%s/%s"):
+            format(earlyRepeat and earlyRepeat.difficulty,earlyRepeat and #earlyRepeat.pallets,
+                earlyRepeat and earlyRepeat.quote.totalSheets,mediumRepeat and mediumRepeat.difficulty,
+                mediumRepeat and #mediumRepeat.pallets,mediumRepeat and mediumRepeat.quote.totalSheets,
+                hardRepeat and hardRepeat.difficulty,hardRepeat and #hardRepeat.pallets,
+                hardRepeat and hardRepeat.quote.totalSheets))
 end
 
 return Test

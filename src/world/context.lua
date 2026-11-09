@@ -56,6 +56,10 @@ function Component.install(Runtime)
             interactionClock = 0,
         },
         bayDoor = Runtime.BayDoor.new(Runtime.Config.loadingBay),
+        roomDoors = {
+            front_left=Runtime.BayDoor.new({interaction=require("src.room_loading_bays").interaction}),
+            front_right=Runtime.BayDoor.new({interaction=require("src.room_loading_bays").interaction}),
+        },
         truck = Runtime.Truck.new(Runtime.Config.truck),
         customer = Runtime.Customer.new(Runtime.Config.customer),
         vendor = Runtime.Customer.new(Runtime.Config.vendor),

@@ -1,0 +1,17 @@
+{
+  "title": "North phase-7 compact-pass lower-leg pose guide; not production art",
+  "source": "output\\animation-overhaul\\luna-player\\consistent-north-v1\\north-consistent-v1-full8-native.png",
+  "source_sha256": "d5b243c9aa6ea7b16530df184fdc26561c247e8657aec3cf07700e8309eb9291",
+  "source_phase": 3,
+  "source_phase_role": "right compact passing with left support",
+  "crop_xyxy_within_phase": [
+    154,
+    355,
+    358,
+    466
+  ],
+  "transformation": "horizontal mirror of trouser-and-boot pose-role crop only; no production frame was mirrored or edited",
+  "output": "assets\\source\\animation-overhaul-luna-player-v1\\consistent-north-v2\\north-v2-phase7-compact-pass-legs-only-pose-guide.png",
+  "output_sha256": "c8db5540b85856389840a0e862d342dc312951de67f08cbedb0c842260d1af8e",
+  "scope_note": "Reference shows lower-leg pose and owner only; do not copy style, upper body, tools, or clothing details from this guide."
+}

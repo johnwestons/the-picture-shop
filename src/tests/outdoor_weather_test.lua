@@ -6,7 +6,7 @@ local Test = {}
 function Test.run(context, check)
     local _, total = Calendar.monthlyCharges()
     local rent = context.config.businessCalendar.monthlyExpenses.rent
-    check("warehouse_rent_uses_small_industrial_lease_estimate", rent == 3500 and total == 3950)
+    check("warehouse_rent_uses_small_industrial_lease_estimate", rent == 3500 and total == 4135)
 
     check("outdoor_daylight_tracks_game_clock", Weather.daylightForHour(2) == 0
         and Weather.daylightForHour(12) == 1 and Weather.daylightForHour(22) == 0)

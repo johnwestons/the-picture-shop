@@ -95,6 +95,30 @@ function Test.run(context,check)
                 wrapper.nearbyPallets(state)[1] and wrapper.nearbyPallets(state)[1].pallet == pallet)
             pallet.world.x = 900
             check("placement_wrapper_rejects_distant_floor_pallet",#wrapper.nearbyPallets(state) == 0)
+            local sideOffsets={{160,0},{108,108},{0,134},{-108,108},
+                {-160,0},{-108,-108},{0,-134},{108,-108}}
+            local allSidesWrap,allSidesInExpandedBand=true,true
+            local expandedBandDetails={}
+            state.inventory.plasticWrapUses=11
+            for _,offset in ipairs(sideOffsets) do
+                pallet.world.x,pallet.world.y=machine.world.x+offset[1],machine.world.y+offset[2]
+                local separation=Floor.distanceSquared(
+                    Floor.at(machine.world.x,machine.world.y,Config.wrapperPlacement),
+                    Floor.at(pallet.world.x,pallet.world.y,Config.palletLogistics))
+                allSidesInExpandedBand=allSidesInExpandedBand
+                    and separation>64^2 and separation<=Config.wrapperPlacement.palletReach^2
+                expandedBandDetails[#expandedBandDetails+1]=string.format("%d,%d=%.1f",
+                    offset[1],offset[2],math.sqrt(separation))
+                pallet.status,pallet.wrapped,pallet.location="cut",false,"warehouse"
+                Wrapper.reset(state)
+                local selected=wrapper.selectPallet(state,pallet.id)
+                local started=selected and wrapper.start(state)
+                local finished=started and wrapper.update(wrapper.cycleTime+.01,state)
+                allSidesWrap=allSidesWrap and finished==true and pallet.wrapped==true
+            end
+            check("placement_wrapper_reaches_skids_staged_beyond_the_old_64px_limit_on_all_sides",
+                allSidesInExpandedBand,table.concat(expandedBandDetails," "))
+            check("placement_wrapper_can_start_and_finish_from_all_eight_sides",allSidesWrap)
         else
             pallet.world.x,pallet.world.y = 770,405
             check("placement_press_detects_pallet_edge_beyond_old_center_radius",

@@ -8,7 +8,13 @@ function Component.install(Runtime)
         -- Do not retain Android keyboard focus when the player taps elsewhere.
         -- The estimate and promotion input hit targets below explicitly opt back in.
         Runtime.ComputerScreen.quoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
         Runtime.ComputerScreen.promoFocused = false
+        if Runtime.ComputerScreen.promoJobId and Runtime.contains(Runtime.PROMO_INPUT, x, y) then
+            Runtime.ComputerScreen.promoFocused = true
+            Runtime.ComputerScreen.tabDropdownOpen = false
+            return { action = "promo_focus" }
+        end
         if x>=738 and x<=872 and y>=107 and y<=132 then
             Runtime.ComputerScreen.tab="clock";Runtime.ComputerScreen.tabDropdownOpen=false;return {action="clock"}
         end
@@ -45,6 +51,14 @@ function Component.install(Runtime)
                 end
                 return {action="blocked"}
             end
+        end
+        if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=='financials' or Runtime.ComputerScreen.tab=='bills'
+            or Runtime.ComputerScreen.tab=='player_wages' then
+            return Runtime.financialsMousepressed(state,x,y)
+        end
+        if Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
+            return Runtime.homeShopMousepressed(state,x,y)
         end
         if Runtime.ComputerScreen.tab=="radio" then
             return require("src.jukebox").mousepressed(state,x,y,button,
@@ -119,11 +133,12 @@ function Component.install(Runtime)
             if site.kind ~= "machines" then
                 local category = Runtime.Procurement.category(site.categoryIndex)
                 for index, item in ipairs(category.items) do
-                    if item.available ~= false and item.retailPrice and Runtime.contains(Runtime.retailBuyRect(index), x, y) then
+                    local price=Runtime.Procurement.retailPrice(state,site.categoryIndex,index)
+                    if item.available ~= false and price and Runtime.contains(Runtime.retailBuyRect(index), x, y) then
                         Runtime.addToCart({
                             key = string.format("supply:%d:%d", site.categoryIndex, index),
                             kind = "supply", categoryIndex = site.categoryIndex, itemIndex = index,
-                            name = item.retailName, price = item.retailPrice,
+                            name = item.retailName, price = price,
                         })
                         state.message = item.retailName .. " added to the Critter Net cart."
                         return { action = "cart_item_added" }
@@ -168,56 +183,44 @@ function Component.install(Runtime)
             end
             return nil
         end
-        if Runtime.ComputerScreen.tab == "bills" then
-            if Runtime.contains(Runtime.PAY_BILLS, x, y) then
-                if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("pay_bills") end
-                local paid, result = Runtime.BusinessCalendar.pay(state)
-                if not paid then state.message = result; return { action = "blocked" } end
-                state.message = string.format("Paid $%.2f in operating bills, customer claims and wages.",result)
-                return { action = "bill_paid", amount = result }
-            end
-            return nil
-        end
         if Runtime.ComputerScreen.tab == "credit" then return Runtime.creditMousepressed(state, x, y) end
         if Runtime.ComputerScreen.tab == "calendar" then
+            if Runtime.ComputerScreen.calendarDayOpen then
+                if Runtime.contains(Runtime.CAL_DAY_CLOSE,x,y) then
+                    Runtime.ComputerScreen.calendarDayOpen=false
+                    return {action='calendar_day_closed'}
+                elseif Runtime.contains(Runtime.CAL_DAY_SCROLL_UP,x,y) then
+                    Runtime.ComputerScreen.calendarDayScroll=math.max(0,
+                        (Runtime.ComputerScreen.calendarDayScroll or 0)-1)
+                    return {action='calendar_day_scroll'}
+                elseif Runtime.contains(Runtime.CAL_DAY_SCROLL_DOWN,x,y) then
+                    local _,_,maximum=Runtime.clampCalendarDayScroll(state)
+                    Runtime.ComputerScreen.calendarDayScroll=math.min(maximum,
+                        (Runtime.ComputerScreen.calendarDayScroll or 0)+1)
+                    return {action='calendar_day_scroll'}
+                elseif Runtime.contains(Runtime.CAL_DAY_DIALOG,x,y) then
+                    return nil
+                end
+                Runtime.ComputerScreen.calendarDayOpen=false
+                return {action='calendar_day_closed'}
+            end
             if Runtime.contains(Runtime.CAL_PREVIOUS, x, y) then
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, -1)
-                Runtime.ComputerScreen.calendarSelectedDay, Runtime.ComputerScreen.calendarScroll = nil, 0
+                Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
                 return { action = "calendar_month" }
             elseif Runtime.contains(Runtime.CAL_NEXT, x, y) then
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, 1)
-                Runtime.ComputerScreen.calendarSelectedDay, Runtime.ComputerScreen.calendarScroll = nil, 0
+                Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
                 return { action = "calendar_month" }
-            end
-            local events, maximum = Runtime.clampCalendarScroll(state)
-            if Runtime.contains(Runtime.CAL_SCROLL_UP, x, y) then
-                Runtime.ComputerScreen.calendarScroll = math.max(0, Runtime.ComputerScreen.calendarScroll - 1)
-                return { action = "calendar_scroll" }
-            elseif Runtime.contains(Runtime.CAL_SCROLL_DOWN, x, y) then
-                Runtime.ComputerScreen.calendarScroll = math.min(maximum, Runtime.ComputerScreen.calendarScroll + 1)
-                return { action = "calendar_scroll" }
             end
             local day = Runtime.calendarDayAt(Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, x, y)
             if day then
                 Runtime.ComputerScreen.calendarSelectedDay = day
-                for index, event in ipairs(events) do
-                    if event.day == day then
-                        Runtime.ComputerScreen.calendarScroll = math.min(maximum, math.max(0, index - 1))
-                        break
-                    end
-                end
+                Runtime.ComputerScreen.calendarDayOpen=true
+                Runtime.ComputerScreen.calendarDayScroll=0
                 return { action = "calendar_day", day = day }
-            end
-            for row = 1, Runtime.CAL_EVENT_LIST.visibleRows do
-                local index = Runtime.ComputerScreen.calendarScroll + row
-                local rect = { x = Runtime.CAL_EVENT_LIST.x, y = Runtime.CAL_EVENT_LIST.y + (row - 1) * Runtime.CAL_EVENT_LIST.rowHeight,
-                    width = Runtime.CAL_EVENT_LIST.width, height = 31 }
-                if events[index] and Runtime.contains(rect, x, y) then
-                    Runtime.ComputerScreen.calendarSelectedDay = events[index].day
-                    return { action = "calendar_event", event = events[index] }
-                end
             end
             return nil
         end
@@ -238,7 +241,7 @@ function Component.install(Runtime)
                     if not succeeded then state.message = tostring(result); return { action = "blocked" } end
                     Runtime.ComputerScreen.promoJobId, Runtime.ComputerScreen.promoText = nil, ""
                     Runtime.ComputerScreen.promoFocused = false
-                    state.message = "Sent " .. result.recipient .. " a 10% returning-client offer."
+                    state.message = "Sent " .. result.recipient .. " a 10% offer. Check EMAIL for a reply after 12 shop hours."
                     return { action = "promotion_sent", promotion = result }
                 end
                 Runtime.ComputerScreen.promoFocused = false
@@ -310,6 +313,40 @@ function Component.install(Runtime)
                 return { action = "email_deleted", email = result }
             end
             local currentEmail = Runtime.selectedEmail(state)
+            if currentEmail and (currentEmail.noticeKind == "customer_case"
+                or currentEmail.noticeKind == "customer_case_resolved") then
+                Runtime.ComputerScreen.quoteFocused = false
+                local caseJob = Runtime.findJob(state.jobs and state.jobs.completed or {}, currentEmail.sourceJobId)
+                local customerCase = caseJob and caseJob.customerCase
+                if customerCase and customerCase.status == "open" then
+                    local response = Runtime.contains(Runtime.EMAIL_ACCEPT, x, y) and "credit"
+                        or Runtime.contains(Runtime.EMAIL_DECLINE, x, y) and "apology"
+                        or Runtime.contains(Runtime.EMAIL_DELETE, x, y) and "decline" or nil
+                    if response then
+                        if Runtime.dependencies.remoteCommand then
+                            return Runtime.remoteAction("customer_case", {
+                                jobId = currentEmail.sourceJobId, response = response,
+                            })
+                        end
+                        local succeeded, result = Runtime.JobService.resolveCustomerCase(
+                            state, currentEmail.sourceJobId, response)
+                        if not succeeded then state.message = tostring(result); return { action = "blocked" } end
+                        state.message = result.responseText or "Customer case resolved."
+                        return { action = "customer_case_resolved", jobId = currentEmail.sourceJobId }
+                    end
+                    return nil
+                end
+                if Runtime.contains(Runtime.EMAIL_DELETE, x, y) then return deleteCurrentEmail(currentEmail) end
+                if Runtime.contains(Runtime.EMAIL_DECLINE, x, y) then
+                    if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("archive", { id = currentEmail.id }) end
+                    Runtime.JobService.dismissInboxNotice(state, currentEmail.id)
+                    Runtime.ComputerScreen.selectedEmailId = nil
+                    Runtime.ComputerScreen.emailSelectionRequired = true
+                    state.message = "Archived the resolved customer case."
+                    return { action = "inbox_notice_dismissed" }
+                end
+                return nil
+            end
             if currentEmail and currentEmail.serviceNotice then
                 Runtime.ComputerScreen.quoteFocused = false
                 if Runtime.contains(Runtime.EMAIL_DELETE, x, y) then return deleteCurrentEmail(currentEmail) end
@@ -359,21 +396,60 @@ function Component.install(Runtime)
             end
             if Runtime.ComputerScreen.tab == "estimating" and currentEmail
                 and currentEmail.job and not currentEmail.awaitingReply
-                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ACCEPT, x, y)
+                and currentEmail.job.outboundDelivery
+                and currentEmail.job.outboundDelivery.requested == true
+                and Runtime.contains(Runtime.EMAIL_DELIVERY_TOGGLE, x, y)
             then
-                if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("estimate", { id = Runtime.ComputerScreen.selectedEmailId, amount = tonumber(Runtime.ComputerScreen.quoteText) }) end
+                Runtime.ComputerScreen.includeDeliveryQuote = not Runtime.ComputerScreen.includeDeliveryQuote
+                if Runtime.ComputerScreen.includeDeliveryQuote
+                    and Runtime.ComputerScreen.deliveryQuoteText == "" then
+                    local terms = Runtime.JobService.deliveryQuoteTerms(currentEmail.job)
+                    Runtime.ComputerScreen.deliveryQuoteText = terms
+                        and tostring(math.floor(terms.recommendedPrice)) or ""
+                end
+                return { action = "delivery_quote_toggled",
+                    included = Runtime.ComputerScreen.includeDeliveryQuote }
+            end
+            if Runtime.ComputerScreen.tab == "estimating" and currentEmail
+                and currentEmail.job and not currentEmail.awaitingReply
+                and Runtime.ComputerScreen.includeDeliveryQuote
+                and Runtime.contains(Runtime.EMAIL_DELIVERY_QUOTE_INPUT, x, y)
+            then
+                Runtime.ComputerScreen.deliveryQuoteFocused = true
+                Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+                return { action = "delivery_quote_focus" }
+            end
+            if Runtime.ComputerScreen.tab == "estimating" and currentEmail
+                and currentEmail.job and not currentEmail.awaitingReply
+                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ESTIMATE_SEND, x, y)
+            then
+                local includeDelivery = Runtime.ComputerScreen.includeDeliveryQuote == true
+                local deliveryAmount = includeDelivery
+                    and tonumber(Runtime.ComputerScreen.deliveryQuoteText) or nil
+                if Runtime.dependencies.remoteCommand then
+                    return Runtime.remoteAction("estimate", {
+                        id = Runtime.ComputerScreen.selectedEmailId,
+                        amount = tonumber(Runtime.ComputerScreen.quoteText),
+                        includeDeliveryQuote = includeDelivery,
+                        deliveryAmount = deliveryAmount,
+                    })
+                end
                 local succeeded, result = Runtime.JobService.submitEmailQuote(
-                    state, Runtime.ComputerScreen.selectedEmailId, tonumber(Runtime.ComputerScreen.quoteText), os.time())
+                    state, Runtime.ComputerScreen.selectedEmailId, tonumber(Runtime.ComputerScreen.quoteText),
+                    os.time(), deliveryAmount, includeDelivery)
                 if not succeeded then state.message = tostring(result); return { action = "blocked" } end
                 Runtime.ComputerScreen.selectedEmailId = nil
                 Runtime.ComputerScreen.emailSelectionRequired = true
                 Runtime.resetQuoteText(state)
-                state.message = string.format("Sent %s a $%d estimate. It expires in 3 days.",
-                    result.job.company, result.amount)
+                state.message = result.offeredDelivery
+                    and string.format("Sent %s a $%d production estimate and $%d delivery quote. Both decisions will arrive in 3 days.",
+                        result.job.company, result.amount, result.deliveryAmount)
+                    or string.format("Sent %s a $%d production estimate. The client will arrange shipment. Reply due in 3 days.",
+                        result.job.company, result.amount)
                 return { action = "estimate_sent", result = result }
             elseif Runtime.ComputerScreen.tab == "estimating" and currentEmail
                 and currentEmail.job and not currentEmail.awaitingReply
-                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_DECLINE, x, y)
+                and Runtime.ComputerScreen.selectedEmailId and Runtime.contains(Runtime.EMAIL_ESTIMATE_DECLINE, x, y)
             then
                 if Runtime.dependencies.remoteCommand then return Runtime.remoteAction("decline", { id = Runtime.ComputerScreen.selectedEmailId }) end
                 local succeeded, result = Runtime.JobService.respondToEmail(
@@ -410,16 +486,74 @@ function Component.install(Runtime)
             end
         end
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
+        if Runtime.ComputerScreen.tab == "active" and selected
+            and Runtime.contains(Runtime.PICKUP_EMPLOYEE,x,y)
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status == "passed" then
+            if selected.status == "ready_for_pickup" then
+                local okay, result = Runtime.JobService.setPickupDriverMode(state,selected.id,"employee")
+                if not okay then state.message=tostring(result);return {action="blocked"} end
+                state.message=selected.id.." is queued for an employee delivery. You can change the choice before loading."
+                return {action="pickup_mode_changed",job=selected,driverMode="employee"}
+            end
+            return {action="pickup_ready",job=selected,driverMode="employee"}
+        end
+        if Runtime.ComputerScreen.tab == "active" and selected
+            and Runtime.contains(Runtime.PICKUP_PLAYER,x,y)
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status == "passed" then
+            if selected.status == "ready_for_pickup" then
+                local okay, result = Runtime.JobService.setPickupDriverMode(state,selected.id,"player")
+                if not okay then state.message=tostring(result);return {action="blocked"} end
+                state.message=selected.id.." is reserved for your delivery. Use Plan Paper Deliveries at the warehouse entrance when ready."
+                return {action="pickup_mode_changed",job=selected,driverMode="player"}
+            end
+            return {action="pickup_ready",job=selected,driverMode="player"}
+        end
+        if Runtime.ComputerScreen.tab=="active" and selected
+            and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
+            and selected.inspection.status=="passed"
+            and (Runtime.contains(Runtime.COMPLETE,x,y)) then
+            if selected.outboundDelivery and selected.outboundDelivery.transport == "customer"
+                and selected.status == "in_production" then
+                return { action = "pickup_ready", job = selected }
+            end
+            return nil
+        end
         if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.COMPLETE, x, y) then
-            return { action = Runtime.completionReady(selected) and "pickup_ready" or "completion_blocked",
-                job = selected }
+            if not Runtime.completionReady(selected) then
+                return { action = "completion_blocked", job = selected }
+            end
+            local inspection = selected.inspection or {}
+            if inspection.status == "passed" then return { action = "pickup_ready", job = selected } end
+            if Runtime.dependencies.remoteCommand then
+                return Runtime.remoteAction(inspection.status == "held" and "quality_rework" or "quality_inspect",
+                    { jobId = selected.id })
+            end
+            if inspection.status == "held" then
+                local succeeded, result = Runtime.JobService.requestQualityRework(state, selected.id)
+                if not succeeded then
+                    state.message = tostring(result)
+                    return { action = "blocked" }
+                end
+                state.message = string.format("Quality rework started for %s. %d replacement sheets will return through the normal production flow.",
+                    selected.id, result.sheets)
+                return { action = "quality_rework", job = selected, result = result }
+            end
+            local succeeded, result = Runtime.JobService.inspectJob(state, selected.id)
+            if not succeeded then state.message = tostring(result); return { action = "blocked" } end
+            state.message = result.status == "passed"
+                and "Sample inspection passed. Schedule the customer pickup when ready."
+                or ("Quality hold: " .. table.concat(result.findings or {}, " "))
+            return { action = "quality_inspection", job = selected, inspection = result }
         end
         if Runtime.ComputerScreen.tab == "completed" and selected
             and not Runtime.promotionSentForJob(state, selected) and Runtime.contains(Runtime.JOB_PROMO, x, y)
         then
             Runtime.ComputerScreen.promoJobId = selected.id
             Runtime.ComputerScreen.promoText = ""
-            Runtime.ComputerScreen.promoFocused = false
+            Runtime.ComputerScreen.promoFocused = true
+            Runtime.ComputerScreen.tabDropdownOpen = false
             Runtime.ComputerScreen.tab = "email"
             return { action = "promotion_compose", job = selected }
         end
@@ -428,9 +562,10 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.wheelmoved(state, _, y)
         if Runtime.ComputerScreen.tab ~= "calendar" or y == 0 then return false end
-        local _, maximum = Runtime.clampCalendarScroll(state)
-        Runtime.ComputerScreen.calendarScroll = math.min(maximum,
-            math.max(0, Runtime.ComputerScreen.calendarScroll - (y > 0 and 1 or -1)))
+        if not Runtime.ComputerScreen.calendarDayOpen then return false end
+        local _,_,maximum=Runtime.clampCalendarDayScroll(state)
+        Runtime.ComputerScreen.calendarDayScroll=math.min(maximum,
+            math.max(0,(Runtime.ComputerScreen.calendarDayScroll or 0)-(y>0 and 1 or -1)))
         return true
     end
 

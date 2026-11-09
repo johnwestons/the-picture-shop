@@ -1,6 +1,25 @@
 -- Ground footprints, independent of the height/transparent canvas of the art.
 local Footprint = {}
 
+-- A rotated rectangular contact patch on an elevated floor. Keep its exact
+-- sloping collision planes instead of replacing it with an axis-aligned box.
+function Footprint.orientedBox(x,y,length,width,angle,projection)
+    local c,s=math.cos(angle),math.sin(angle);projection=projection or .5
+    local result={x=x,y=y,shape="polygon",planes={},points={}}
+    for _,v in ipairs({{length/2,width/2},{-length/2,width/2},{-length/2,-width/2},{length/2,-width/2}}) do
+        result.points[#result.points+1]=x+v[1]*c-v[2]*s
+        result.points[#result.points+1]=y+(v[1]*s+v[2]*c)*projection
+    end
+    result.halfWidth=math.abs(c)*length/2+math.abs(s)*width/2
+    result.halfHeight=(math.abs(s)*length/2+math.abs(c)*width/2)*projection
+    for _,axis in ipairs({{c,s/projection,length/2},{-s,c/projection,width/2},
+        {1,0,result.halfWidth},{0,1,result.halfHeight}}) do
+        local n=math.sqrt(axis[1]^2+axis[2]^2)
+        result.planes[#result.planes+1]={nx=axis[1]/n,ny=axis[2]/n,limit=axis[3]/n}
+    end
+    return result
+end
+
 function Footprint.at(x, y, config)
     return { x = x, y = y + (config.collisionOffsetY or -8),
         halfWidth = config.collisionHalfWidth, halfHeight = config.collisionHalfHeight,
@@ -10,6 +29,62 @@ end
 local function support(shape, x, y, width, height)
     local horizontal, vertical = math.abs(x) * width, math.abs(y) * height
     return shape == "diamond" and math.max(horizontal, vertical) or horizontal + vertical
+end
+
+-- Collision planes depend on dimensions, never position or ownership. Every
+-- worker can share this immutable geometry while keeping fresh world contacts.
+-- Bound the cache so unusual imported dimensions cannot grow it indefinitely.
+local planeCache, planeCount = {}, 0
+local function planeBucket(width, height, mx, my)
+    local heights = planeCache[width]
+    if not heights then heights={};planeCache[width]=heights end
+    local moverWidths = heights[height]
+    if not moverWidths then moverWidths={};heights[height]=moverWidths end
+    local moverHeights = moverWidths[mx]
+    if not moverHeights then moverHeights={};moverWidths[mx]=moverHeights end
+    local bucket = moverHeights[my]
+    if not bucket then bucket={};moverHeights[my]=bucket end
+    return bucket
+end
+local function planesFor(width, height, shape, mx, my, moverShape)
+    local key = (shape == "diamond" and 1 or 0) + (moverShape == "diamond" and 2 or 0)
+    local bucket = planeBucket(width,height,mx,my)
+    local planes = bucket[key]
+    if planes then return planes end
+    planes = { {nx=1,ny=0,limit=width+mx}, {nx=0,ny=1,limit=height+my} }
+    local function diamondAxes(w, h)
+        if w <= 0 or h <= 0 then return end
+        local length = math.sqrt(w*w+h*h)
+        local nx, ny = h/length, w/length
+        local limit = support(shape,nx,ny,width,height) + support(moverShape,nx,ny,mx,my)
+        planes[#planes+1] = {nx=nx,ny=ny,limit=limit}
+        planes[#planes+1] = {nx=nx,ny=-ny,limit=limit}
+    end
+    if shape == "diamond" then diamondAxes(width,height) end
+    if moverShape == "diamond" then diamondAxes(mx,my) end
+    if planeCount >= 128 then
+        planeCache, planeCount = {}, 0
+        bucket = planeBucket(width,height,mx,my)
+    end
+    bucket[key], planeCount = planes, planeCount + 1
+    return planes
+end
+
+-- Build the same contact as `expand(at(...), mover)` without copying the
+-- temporary footprint table. This is useful for stable machine geometry that
+-- is reconstructed with current coordinates for each movement snapshot.
+function Footprint.atExpanded(x, y, config, mover)
+    mover = mover or {}
+    local width, height = config.collisionHalfWidth, config.collisionHalfHeight
+    local mx, my = mover.x or 0, mover.y or 0
+    return {
+        x = x,
+        y = y + (config.collisionOffsetY or -8),
+        halfWidth = width + mx,
+        halfHeight = height + my,
+        shape = "diamond",
+        planes = planesFor(width, height, "diamond", mx, my, mover.shape),
+    }
 end
 
 -- Minkowski expansion: a diamond moving beside a rectangle (or another
@@ -23,25 +98,40 @@ function Footprint.expand(obstacle, mover)
         result.radius = obstacle.radius + math.max(mx, my)
         return result
     end
-    local axes = { {1, 0}, {0, 1} }
-    local function diamondAxes(w, h)
-        if w > 0 and h > 0 then
-            axes[#axes + 1] = {h, w}
-            axes[#axes + 1] = {h, -w}
+    if obstacle.shape=="polygon" then
+        result.points=nil;result.planes={}
+        for _,p in ipairs(obstacle.planes) do
+            result.planes[#result.planes+1]={nx=p.nx,ny=p.ny,limit=p.limit+support(mover.shape,p.nx,p.ny,mx,my)}
         end
-    end
-    if obstacle.shape == "diamond" then diamondAxes(width, height) end
-    if mover.shape == "diamond" then diamondAxes(mx, my) end
-    result.planes = {}
-    for _, axis in ipairs(axes) do
-        local length = math.sqrt(axis[1]^2 + axis[2]^2)
-        local nx, ny = axis[1] / length, axis[2] / length
-        result.planes[#result.planes + 1] = { nx = nx, ny = ny,
-            limit = support(obstacle.shape, nx, ny, width, height)
-                + support(mover.shape, nx, ny, mx, my) }
-    end
+        if mover.shape=="diamond" and mx>0 and my>0 then
+            local n=math.sqrt(mx*mx+my*my)
+            for _,sign in ipairs({-1,1}) do
+                local nx,ny=my/n,sign*mx/n;local radius=0
+                local vertices=Footprint.vertices(obstacle)
+                for i=1,#vertices,2 do radius=math.max(radius,math.abs((vertices[i]-obstacle.x)*nx+(vertices[i+1]-obstacle.y)*ny)) end
+                result.planes[#result.planes+1]={nx=nx,ny=ny,limit=radius+support("diamond",nx,ny,mx,my)}
+            end
+        end
+    else result.planes = planesFor(width,height,obstacle.shape,mx,my,mover.shape) end
     result.halfWidth, result.halfHeight = width + mx, height + my
     return result
+end
+
+-- The movement-obstacle builder owns fresh records, so it can inflate simple
+-- footprints in place instead of allocating a shallow copy for every contact.
+-- Polygon callers retain the non-mutating path because their source vertices
+-- are also needed while constructing the expanded planes.
+function Footprint.expandInPlace(obstacle, mover)
+    if obstacle.shape == "polygon" then return Footprint.expand(obstacle, mover) end
+    local width, height = obstacle.halfWidth, obstacle.halfHeight
+    local mx, my = mover.x or 0, mover.y or 0
+    if not width or not height then
+        obstacle.radius = obstacle.radius + math.max(mx, my)
+        return obstacle
+    end
+    obstacle.planes = planesFor(width, height, obstacle.shape, mx, my, mover.shape)
+    obstacle.halfWidth, obstacle.halfHeight = width + mx, height + my
+    return obstacle
 end
 
 function Footprint.penetration(obstacle, x, y)
@@ -75,16 +165,7 @@ function Footprint.segmentPenetrates(obstacle, x, y, nextX, nextY)
         local t=squared>0 and math.max(0,math.min(1,-(dx*vx+dy*vy)/squared)) or 0
         return (dx+t*vx)^2+(dy+t*vy)^2 < math.max(0,obstacle.radius-.001)^2
     end
-    local planes=obstacle.planes
-    if not planes then
-        planes={{nx=1,ny=0,limit=obstacle.halfWidth},{nx=0,ny=1,limit=obstacle.halfHeight}}
-        if obstacle.shape=="diamond" then
-            local w,h=obstacle.halfWidth,obstacle.halfHeight
-            local length=math.sqrt(w*w+h*h)
-            planes[#planes+1]={nx=h/length,ny=w/length,limit=w*h/length}
-            planes[#planes+1]={nx=h/length,ny=-w/length,limit=w*h/length}
-        end
-    end
+    local planes=obstacle.planes or planesFor(obstacle.halfWidth,obstacle.halfHeight,obstacle.shape,0,0)
     local enter,leave=0,1
     for _,plane in ipairs(planes) do
         local p=dx*plane.nx+dy*plane.ny
@@ -104,8 +185,44 @@ end
 
 function Footprint.vertices(footprint)
     local x, y, w, h = footprint.x, footprint.y, footprint.halfWidth, footprint.halfHeight
+    if footprint.points then return footprint.points end
+    if footprint.shape=="polygon" then
+        local signed,points={},{}
+        for _,p in ipairs(footprint.planes) do for _,sign in ipairs({-1,1}) do signed[#signed+1]={p.nx*sign,p.ny*sign,p.limit} end end
+        for i,a in ipairs(signed) do for j=i+1,#signed do
+            local b=signed[j];local det=a[1]*b[2]-a[2]*b[1]
+            if math.abs(det)>1e-7 then
+                local px,py=(a[3]*b[2]-a[2]*b[3])/det,(a[1]*b[3]-a[3]*b[1])/det
+                local inside=true;for _,p in ipairs(signed) do if px*p[1]+py*p[2]>p[3]+1e-6 then inside=false;break end end
+                if inside then
+                    local duplicate=false;for _,p in ipairs(points) do if (p.x-px)^2+(p.y-py)^2<1e-8 then duplicate=true;break end end
+                    if not duplicate then points[#points+1]={x=px,y=py} end
+                end
+            end
+        end end
+        table.sort(points,function(a,b) return math.atan2(a.y,a.x)<math.atan2(b.y,b.x) end)
+        local vertices={};for _,p in ipairs(points) do vertices[#vertices+1]=x+p.x;vertices[#vertices+1]=y+p.y end
+        return vertices
+    end
     if footprint.shape == "diamond" then return {x,y-h, x+w,y, x,y+h, x-w,y} end
     return {x-w,y-h, x+w,y-h, x+w,y+h, x-w,y+h}
+end
+
+function Footprint.overlaps(left,right,gap)
+    gap=gap or 0
+    local a,b=Footprint.vertices(left),Footprint.vertices(right)
+    for _,vertices in ipairs({a,b}) do
+        for i=1,#vertices,2 do
+            local j=i+2>#vertices and 1 or i+2
+            local nx,ny=vertices[j+1]-vertices[i+1],vertices[i]-vertices[j]
+            local n=math.sqrt(nx*nx+ny*ny);nx,ny=nx/n,ny/n
+            local amin,amax,bmin,bmax=math.huge,-math.huge,math.huge,-math.huge
+            for k=1,#a,2 do local p=a[k]*nx+a[k+1]*ny;amin=math.min(amin,p);amax=math.max(amax,p) end
+            for k=1,#b,2 do local p=b[k]*nx+b[k+1]*ny;bmin=math.min(bmin,p);bmax=math.max(bmax,p) end
+            if amax+gap<=bmin or bmax+gap<=amin then return false end
+        end
+    end
+    return true
 end
 
 local function segmentDistanceSquared(x, y, ax, ay, bx, by)
@@ -130,8 +247,12 @@ function Footprint.pointDistanceSquared(x, y, footprint)
 end
 
 function Footprint.distanceSquared(left, right)
-    local expanded = Footprint.expand(left, {x=right.halfWidth,y=right.halfHeight,shape=right.shape})
-    if Footprint.penetration(expanded, right.x, right.y) >= 0 then return 0 end
+    if left.shape=="polygon" or right.shape=="polygon" then
+        if Footprint.overlaps(left,right) then return 0 end
+    else
+        local expanded = Footprint.expand(left, {x=right.halfWidth,y=right.halfHeight,shape=right.shape})
+        if Footprint.penetration(expanded, right.x, right.y) >= 0 then return 0 end
+    end
     local distance = math.huge
     for _, pair in ipairs({{left,right},{right,left}}) do
         local vertices = Footprint.vertices(pair[1])

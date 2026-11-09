@@ -1,0 +1,15 @@
+Create a review-only, transparent-background sprite-sheet study for the same rear-view orange rabbit worker shown in the reference. The reference strip is the exclusive authority for identity, proportions, fur color/texture, outline weight, camera, lighting, clothing, tail, pouch and tools. Do not redesign the character. Exactly two ears, two arms and two legs. Keep the head, torso, arms, waistband, tail and pouch at one stable V7 scale and center in every pose. Preserve the V7 head-to-torso proportions and dark outline weight. Keep the brown pouch on screen-right with exactly one red and one yellow tool.
+
+Output eight separate full-body cells in a precise 4-column by 2-row contact sheet, read left-to-right then top-to-bottom. No labels, panel borders, grid lines, floor, shadows, background pattern, extra props or watermark. True transparency outside the character. Each cell must have generous empty side margins and enough clear space below the normal foot baseline for the planted leg to articulate; do not crop the feet. All poses use the same rear-view camera and body scale. Keep the body core almost fixed in position and size; change the leg joints and feet naturally instead of stretching the whole character or shifting the body to fake a step.
+
+The eight cells, in order, are:
+1. Left contact: the character's own screen-left boot reaches forward and lands flat; right foot trails.
+2. Left weight-down: left boot remains the support foot, flat to the ground; knees and hips compress slightly; right heel begins lifting. Show a clearly progressed support-leg shape from cell 1 while keeping the same boot size.
+3. Right passing: left leg still supports; right ankle passes compactly beneath the pelvis, with the right boot mostly occluded and its sole not facing the viewer.
+4. Right knee-up / propulsion: left leg supports; right knee bends and lifts in front of the body with a compact boot, not a broad visible sole.
+5. Right contact: the opposite of cell 1; screen-right boot reaches forward and lands flat, left foot trails. Make support ownership visibly switch.
+6. Right weight-down: right boot remains the support foot, flat to the ground; knees and hips compress slightly; left heel begins lifting. Show a clearly progressed support-leg shape from cell 5 while keeping the same boot size.
+7. Left passing: right leg supports; left ankle passes compactly beneath the pelvis, left boot mostly occluded and sole not facing the viewer.
+8. Left knee-up / propulsion: right leg supports; left knee bends and lifts compactly to prepare the next left contact.
+
+Gait is a restrained walk, not a run, leap or exaggerated lunge. The planted boot in cell 2 must visibly occupy a lower position relative to the pelvis than in cell 1, and cell 6 must do the same relative to cell 5, without enlarging the boot or changing the upper body. Give the supporting trousers a plausible bent/extended path with no detached seams, impossible limb intersections or ambiguous foot ownership. Retain the same crisp dark outlines and texture as V7. Each cell must show the complete character with consistent scale and transparent edges.

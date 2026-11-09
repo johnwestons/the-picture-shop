@@ -3,6 +3,29 @@ local mobileMovementProvider = nil
 local ShopClock = require("src.screens.shop_clock")
 local PalletPickup = require("src.pallet_pickup")
 
+local function submitDeliverySignature(context)
+    local state=context.state
+    local screen=context.deliverySignatureScreen
+    local deliveryId=screen and screen.deliveryId and screen.deliveryId()
+    if not deliveryId then
+        state.message="The delivery receipt is no longer available."
+        return true
+    end
+    if context.isNetworkClient and context.isNetworkClient() then
+        local requested=context.requestDeliverySignature and context.requestDeliverySignature()
+        if requested and screen.setPending then screen.setPending(true) end
+        return true
+    end
+    local accepted=context.world.signDelivery
+        and context.world.signDelivery(state,context.world.player)
+    if accepted then
+        screen.clear()
+        state.screen="world"
+        context.saveCurrent()
+    end
+    return true
+end
+
 local function radialDeadzone(x, y, deadzone)
     local magnitude = math.sqrt(x * x + y * y)
     if magnitude <= deadzone then return 0, 0 end
@@ -46,6 +69,7 @@ function Input.closeScreen(context)
     local state = context.state
     if state.screen == "world" or state.screen == "title" then return false end
     local readOnlyScreen = state.screen == "pallet_work_order" or state.screen == "shop_clock"
+        or state.screen == "delivery_signature"
     if state.screen == "workshop_remote" then
         if context.workshopRemoteScreen and not context.workshopRemoteScreen.canClose() then
             state.message = "Wait for the host device to finish the current workshop action."
@@ -74,6 +98,9 @@ function Input.closeScreen(context)
         context.world.cancelVendorReview(state)
     elseif state.screen == "truck_inventory" then
         state.message = "Truck inventory closed. The cargo door remains open."
+    elseif state.screen == "delivery_signature" then
+        if context.deliverySignatureScreen then context.deliverySignatureScreen.clear() end
+        state.message = "Delivery receipt left unsigned."
     elseif state.screen == "machine" then
         state.message = "Exited the machine console."
     elseif state.screen == "computer" then
@@ -106,6 +133,14 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if state.screen=="delivery_signature" then
+        if key=="escape" then return Input.closeScreen(context) end
+        local result=context.deliverySignatureScreen.keypressed(key)
+        if type(result)=="table" and result.action=="sign" then
+            return submitDeliverySignature(context)
+        end
+        return true
+    end
     if context.roomControl and context.roomControl(key) then return true end
     if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
         and context.workshopRemoteScreen.hasMachineModal() then
@@ -324,17 +359,45 @@ function Input.keypressed(key, context)
             return true
         end
         if selected and selected.kind == "palletJack"
+            and selected.target and selected.target.operatorEmployeeId
+        then
+            if networkClient then
+                state.message="The shop host must take an employee-operated pallet jack."
+            elseif context.world.takeEmployeePalletJack
+                and context.world.takeEmployeePalletJack(state,selected.target.jackId,localPlayerId)
+            then context.saveCurrent() end
+            return true
+        end
+        if selected and selected.kind == "palletJack"
             and context.palletJackControl
             and context.palletJackControl("use", selected)
         then
             return true
         end
-        if context.networkInteraction and context.networkInteraction(selected) then return true end
         if selected and selected.kind == "applicant" then
             if networkClient then state.message="The shop owner handles employment applications."
             elseif context.world.requestEmployeeResume(state,selected.target.applicationId) then context.saveCurrent() end
             return true
-        elseif selected and selected.kind == "customer" then
+        elseif selected and selected.kind == "employeeHighFive" then
+            if networkClient then state.message="The shop owner handles employee high fives."
+            elseif context.world.highFiveEmployee
+                and context.world.highFiveEmployee(state,selected.target.employeeId) then context.saveCurrent() end
+            return true
+        end
+        if selected and selected.kind=="deliverySignature" then
+            local target=selected.target or {}
+            local receipt=require("src.warehouse_delivery_driver").receipt(state,target.deliveryId)
+            if receipt and context.deliverySignatureScreen then
+                context.deliverySignatureScreen.enter(receipt)
+                state.screen="delivery_signature"
+                state.message="Review the delivery receipt and sign to accept the shipment."
+            else
+                state.message="The delivery receipt is no longer available."
+            end
+            return true
+        end
+        if context.networkInteraction and context.networkInteraction(selected) then return true end
+        if selected and selected.kind == "customer" then
             local offer, errors = context.jobService.createNextOffer(state, os.time())
             if not offer then
                 state.message = "Could not prepare the job: " .. table.concat(errors or {}, "; ")
@@ -402,9 +465,6 @@ function Input.keypressed(key, context)
             state.screen = "press"
             context.windmill.ensure(state)
             context.pressScreen.enter(state)
-        elseif selected and selected.kind == "regalFolder" then
-            state.screen = "regal_folder"
-            context.regalFolderScreen.enter()
         elseif selected and selected.kind == "palletJack" then
             local palletId = not state.palletJack.carriedPalletId and PalletPickup.selectedId(selected) or nil
             if context.world.handlePalletJack(state, context.assets, palletId) then context.saveCurrent() end
@@ -436,8 +496,6 @@ function Input.keypressed(key, context)
             context.machineScreen.syncGauge()
             if state.machineType == "cutter" then context.saveCurrent() end
         end
-    elseif state.screen == "regal_folder" then
-        return context.regalFolderScreen.keypressed(key)
     elseif state.screen == "computer" then
         return context.computerScreen.keypressed(state, key)
     elseif state.screen == "pallet_work_order" then
@@ -471,6 +529,10 @@ end
 
 function Input.mousepressed(x, y, button, context)
     local state = context.state
+    -- Outdoor ride input belongs to its own controls. Global options/HUD have
+    -- already handled their hits before this warehouse pointer fallback.
+    if state.screen == "world" and context.world and context.world.player
+        and (context.world.player.sceneId == "commute" or context.world.player.sceneId=='grocery') then return true end
     if state.screen=="air_hockey" then
         return require("src.screens.air_hockey_screen").mousepressed(context.airHockeyRuntime,x,y,button)
     end
@@ -566,7 +628,7 @@ function Input.mousepressed(x, y, button, context)
             end
             state.screen = "world"
         end
-        if result.action ~= "blocked" then context.saveCurrent() end
+        if result.action ~= "blocked" and result.action ~= "page_changed" then context.saveCurrent() end
         return true
     end
     if state.screen == "machine" then
@@ -577,18 +639,11 @@ function Input.mousepressed(x, y, button, context)
         end
         if type(result) == "table" and (result.action == "maintenance_completed"
             or result.action == "blade_sleeved" or result.action == "technician_booked"
-            or result.action == "technician_schedule")
+            or result.action == "technician_schedule" or result.action == "spare_blade_installed")
         then
             context.saveCurrent()
         elseif result and state.machineType == "cutter" then
             context.saveCurrent()
-        end
-        return result
-    end
-    if state.screen == "regal_folder" then
-        local result = context.regalFolderScreen.mousepressed(x, y, button)
-        if type(result) == "table" and result.action == "exit" then
-            return Input.closeScreen(context)
         end
         return result
     end
@@ -601,6 +656,12 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "workshop_remote" then
         local result = context.workshopRemoteScreen.mousepressed(state, x, y, button,
             context.requestWorkshopCommand)
+        if type(result)=="table" and result.action=="home_activity" and state.home and require("src.weekend_flow").atHome(state)
+            and context.workshopRemoteScreen.canClose() then
+            Input.closeScreen(context)
+            state.screen="home_activity"
+            return true
+        end
         if type(result) == "table" and result.action == "close" then
             return Input.closeScreen(context)
         end
@@ -627,16 +688,25 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "promotion_sent"
             or result.action == "service_notice_dismissed"
             or result.action == "inbox_notice_dismissed"
+            or result.action == "customer_case_resolved"
             or result.action == "cart_checked_out"
+            or result.action == "quality_inspection"
+            or result.action == "quality_rework"
+            or result.action == "pickup_mode_changed"
             or result.action == "employment_changed"
+            or result.action == "home_changed"
         then
             context.saveCurrent()
         elseif result.action == "completion_blocked" then
             state.message = "Every pallet must be cut, packaged, and stretch-wrapped before completion."
         elseif result.action == "pickup_ready" then
-            local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time())
+            local scheduled, jobOrError = context.jobService.requestPickup(state, result.job, os.time(),result.driverMode)
             if scheduled then
-                state.message = result.job.id .. " is ready. Customer pickup is awaiting a truck."
+                local mode=result.job.pickup and result.job.pickup.driverMode
+                state.message = result.job.id .. (mode=='player'
+                    and ' is complete. Choose Plan Paper Deliveries at the warehouse entrance, then back your truck to the dock and load it.'
+                    or mode=='employee' and ' is complete and queued for employee delivery.'
+                    or ' is ready. Customer pickup is awaiting a truck.')
                 context.saveCurrent()
             else
                 state.message = "Could not schedule pickup: " .. tostring(jobOrError)
@@ -652,6 +722,12 @@ function Input.mousepressed(x, y, button, context)
         local result = context.palletWorkOrderScreen.mousepressed(x, y, button)
         if result and result.action == "close" then return Input.closeScreen(context) end
         return result or false
+    end
+    if state.screen == "delivery_signature" then
+        local result=context.deliverySignatureScreen.mousepressed(x,y,button)
+        if result and result.action=="cancel" then return Input.closeScreen(context) end
+        if result and result.action=="sign" then return submitDeliverySignature(context) end
+        return true
     end
     if state.screen ~= "job_offer" or button ~= 1 then return false end
     local action = context.jobOfferScreen.hitTest(x, y)

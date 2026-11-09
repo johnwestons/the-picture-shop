@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "grocery shopping cart",
+  "runtime_atlas": "cart-roll-atlas.png",
+  "layout": {
+    "columns": 4,
+    "rows": 5,
+    "frame_width": 128,
+    "frame_height": 128,
+    "row_order": ["north", "northeast", "east", "southeast", "south"],
+    "frame_order": ["wheel_a", "wheel_b", "wheel_c", "wheel_d"],
+    "wheel_anchor": { "x": 64, "y": 112 }
+  },
+  "directions": {
+    "north": { "row": 0, "mirror_x": false },
+    "northeast": { "row": 1, "mirror_x": false },
+    "east": { "row": 2, "mirror_x": false },
+    "southeast": { "row": 3, "mirror_x": false },
+    "south": { "row": 4, "mirror_x": false },
+    "southwest": { "row": 3, "mirror_x": true },
+    "west": { "row": 2, "mirror_x": true },
+    "northwest": { "row": 1, "mirror_x": true }
+  },
+  "directional_strips": {
+    "north": { "roll": "roll_north.png", "idle": "idle_north.png" },
+    "northeast": { "roll": "roll_northeast.png", "idle": "idle_northeast.png" },
+    "east": { "roll": "roll_east.png", "idle": "idle_east.png" },
+    "southeast": { "roll": "roll_southeast.png", "idle": "idle_southeast.png" },
+    "south": { "roll": "roll_south.png", "idle": "idle_south.png" }
+  },
+  "motion_spec": "character-motion/shopping-cart.json",
+  "source": "assets/source/grocery-cart-motion-v1/grocery-cart-directions-refined-source.png",
+  "original_source": "assets/source/grocery-cart-motion-v1/grocery-cart-directions-source.png"
+}

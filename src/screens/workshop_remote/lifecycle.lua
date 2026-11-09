@@ -41,8 +41,9 @@ function Component.install(Runtime)
         Runtime.Screen.hostLayout = grant and grant.useHostLayout == true
         Runtime.Screen.sharedMachine = nil
         if Runtime.Screen.hostLayout and (Runtime.Screen.resourceId == "cutter" or Runtime.Screen.resourceId == "skid_wrapper") then
+            local _, machineId = Runtime.MachineResource.parse(Runtime.Screen.leaseResourceId)
             Runtime.Screen.sharedMachine = Runtime.SharedMachineGui.new(Runtime.Screen.resourceId, function() return Runtime.Screen.view end,
-                Runtime.Screen.cutterPresentation, function(action,args) return Runtime.request(Runtime.Screen.sendCommand,action,args) end)
+                Runtime.Screen.cutterPresentation, function(action,args) return Runtime.request(Runtime.Screen.sendCommand,action,args) end, machineId)
             Runtime.Screen.sharedMachine.sync(state)
         end
         Runtime.Screen.sharedComputer, Runtime.Screen.officePending = nil, nil
@@ -54,6 +55,7 @@ function Component.install(Runtime)
         if Runtime.Screen.resourceId == "office_computer" then
             Runtime.Screen.guiState = Runtime.Projection.copy(state)
             Runtime.Screen.sharedComputer = Runtime.ComputerScreen.new({
+                localPlayerId = Runtime.multiplayer and Runtime.multiplayer.localId or 2,
                 warehouseEnabled = Runtime.Config.warehouse and Runtime.Config.warehouse.enabled == true,
                 warehouseFirstStorageOnly = Runtime.Config.warehouse and Runtime.Config.warehouse.firstStorageOnly == true,
                 warehouseRequestPrefix = "WH-" .. tostring(Runtime.Screen.leaseId or "guest"),

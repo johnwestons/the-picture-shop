@@ -408,7 +408,7 @@ end
 function Instance:frameForAction(action, frameCount)
     local motionProfile = self.motionProfiles[self.character]
     if motionProfile and CharacterAnimation.isWalkAction(action) then
-        return CharacterAnimation.frameForDistance(frameCount, self.animationDistance,
+        return CharacterAnimation.frameForGait(frameCount, self.animationDistance,
             motionProfile.walkPixelsPerFrame)
     end
     if action == "sit" and Seating.supports(self.character) then
@@ -533,6 +533,7 @@ end
 
 function Instance:renderPose(characterAssets)
     local action, directionScale = self:poseAction(characterAssets)
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(self.character,action) end
     local _, _, frameCount = characterAssets.get(self.character, action, 1)
     frameCount = frameCount or 1
     local frame = self:frameForAction(action, frameCount)

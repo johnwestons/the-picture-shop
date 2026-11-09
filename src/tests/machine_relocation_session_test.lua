@@ -30,6 +30,8 @@ local function scenario(context, check, purchased)
         local bought
         bought, unit = context.machineFleet.buy(state, "dealer", 1)
         assert(bought)
+    else
+        unit = context.machineFleet.installedUnits(state, "polar_115")[1]
     end
     local pose = unit and unit.world or state.cutter
     local originalX, originalY = state.cutter.x, state.cutter.y
@@ -177,7 +179,12 @@ local function scenario(context, check, purchased)
         activePoseApplied and activeShopApplied and clientReplica.wrapper.moving == false
         and replicaPose.moving == true
         and clientReplica.palletJack.operating
-        and clientReplica.palletJack.operatorPlayerId == client.localId)
+        and clientReplica.palletJack.operatorPlayerId == client.localId,
+        string.format("jack=%s owner=%s/%s shop=%s active=%s pose=%s wrapper=%s hostPose=%s hostJack=%s activeKind=%s",
+            tostring(clientReplica.palletJack.operating), tostring(clientReplica.palletJack.operatorPlayerId),
+            tostring(client.localId), tostring(activeShopApplied), tostring(activePoseApplied),
+            tostring(replicaPose.moving), tostring(clientReplica.wrapper.moving), tostring(state.cutter.moving),
+            tostring(state.palletJack.operating), tostring(require("src.machine_transport").active(state))))
     clientContext.inputX = 1
     client:update(0.15, clientContext)
     host:update(0.15, hostContext)

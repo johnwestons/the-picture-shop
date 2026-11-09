@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "generator": "built-in imagegen",
+  "generations": [
+    {
+      "id": "exec-4af7f838-ae74-4810-a099-513e0c77ebc8",
+      "asset": "concrete-side-bay-imagegen-source.png",
+      "transparentBackground": true,
+      "prompt": "Production-ready 2D painted video-game sprite: orthographic side-elevation segment of a stout modern rural reinforced-concrete road bridge. Repeated mid-span bay, physical proportions roughly 4.8m long by 1.8m total height. A continuous solid concrete parapet wall about 1m above deck with a broad beveled coping cap; below deck a substantial deep box-girder fascia about 0.75m deep, solid and heavy. It must feel clearly car-load-bearing and robust, not like a fence: broad blocky concrete mass, thick parapet, wide continuous fascia, subtly beveled upper planes and shaded underside, fine aggregate texture, a few restrained vertical formwork seams and light rain weathering. Warm pale gray concrete with soft darker gray shading; painterly realistic 2D game art. Clean straight horizontal top and bottom, perfectly vertical ends suitable for repeat tiling, no terminal columns. No timber, no metal, no thin bars, no road surface, no water, no scenery, no checkerboard, no background, no labels. Tight crop around full bridge profile.",
+      "sourceSha256": "be51cd04bc08e4f1d6663e6ccc459de2393b84547a04750022781ebdb08c1bb7",
+      "runtime": "assets/commute/bridge/concrete-side-bay.png",
+      "runtimeSha256": "58c8284b55ff1df50145171366db1f3586bfcb54be601f6b637961bd02fb2a82",
+      "packing": {
+        "sourceSize": [
+          2048,
+          768
+        ],
+        "sourceCrop": [
+          8,
+          98,
+          2038,
+          687
+        ],
+        "topCropPx": 0,
+        "runtimeSize": [
+          2030,
+          589
+        ],
+        "alphaThreshold": 8
+      }
+    },
+    {
+      "id": "exec-afcd1639-e08f-42b6-8115-72cb7e3314db",
+      "asset": "concrete-pier-imagegen-source.png",
+      "transparentBackground": true,
+      "prompt": "Production-ready 2D painted game sprite, isolated on a transparent background: a stout modern rural reinforced-concrete road bridge support pier in straight-on front elevation, viewed across the road width. One complete unit, broad horizontal cap beam sized to support a roughly 6.4m bridge deck, a thick continuous seat/girder, and two widely spaced robust tapered concrete columns descending from the beam to broad flared footings. Heavy load-bearing appearance with substantial cross-sections; bridge deck itself is not shown, keep the top of the cap beam flat. Cool warm-gray concrete, fine painted aggregate, subtle formwork joints, mild dark rain staining on the lower columns, softly lit beveled edges and darker side planes, cohesive stylized painterly realism. Tall upright symmetrical composition, no scenery, no water, no roadway, no ground plane, no background, no checkerboard, no labels, no lettering, no steel lattice, no thin posts. Keep entire support inside canvas with transparent margin.",
+      "sourceSha256": "b4683e10dddc8d32ce85a18a60e61accc02b726cb9ad16c6250344b7a8b1170f",
+      "runtime": "assets/commute/bridge/concrete-pier.png",
+      "runtimeSha256": "f0cf7f96fced4eda0d5367bc7bfcdc8cfb49a73fd0dd1ad2c1c7bdd458098c9c",
+      "packing": {
+        "sourceSize": [
+          1225,
+          1284
+        ],
+        "sourceCrop": [
+          49,
+          0,
+          1176,
+          982
+        ],
+        "topCropPx": 220,
+        "runtimeSize": [
+          1024,
+          892
+        ],
+        "alphaThreshold": 8
+      }
+    },
+    {
+      "id": "exec-7066bb87-d452-411a-979d-1145745fc376",
+      "asset": "asphalt-imagegen-source.png",
+      "transparentBackground": false,
+      "prompt": "Seamlessly tileable square top-down asphalt material texture for a stylized painterly 2D game environment. Medium cool neutral gray road pavement, realistic fine aggregate and tiny irregular stones, subtle mottled charcoal and light-gray variation, matte dry surface, restrained low contrast, visually coherent at 4K source, no cracks larger than hairline, no painted stripes or lane markings, no objects, no shadows, no perspective, no borders or corners, uniformly filled square surface with edges that tile seamlessly.",
+      "sourceSha256": "7981802e324abf3f9ffad9620034e649ce3d19964628ef5c61914e40452a2868",
+      "runtime": "assets/commute/bridge/asphalt.png",
+      "runtimeSha256": "ff6ed44238475622759c06252c203501e84acb9c6db8680736f0210347aa18e7",
+      "packing": {
+        "sourceSize": [
+          1254,
+          1254
+        ],
+        "runtimeSize": [
+          512,
+          512
+        ]
+      }
+    }
+  ],
+  "notes": "The earlier timber rail asset in assets/commute/bridge/rail-bay-manifest.json was rejected by user review and is not referenced by the renderer. Runtime packing is limited to alpha crop, threshold cleanup, uniform resampling, and texture format conversion."
+}

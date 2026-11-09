@@ -103,6 +103,7 @@ function Component.run(Context)
 
     function Context.Machine.reset(state)
         Context.Machine.step, Context.Machine.progress, Context.Machine.loaded = "idle", 0, false
+        Context.Machine.operatorSkill = nil
         Context.Machine.clamp, Context.Machine.clampProgress, Context.Machine.bladeProgress = false, 0, 0
         Context.Machine.leftDown, Context.Machine.rightDown = false, false
         Context.Machine.barrierClear, Context.Machine.emergencyStopped = true, false
@@ -153,6 +154,19 @@ function Component.run(Context)
 
     function Context.Machine.load(state, palletId)
         if Context.Machine.step ~= "idle" and Context.Machine.step ~= "finished" then return false end
+        local machine=Context.MachineFleet.installed(state,"polar_115",Context.machineId)
+        if machine and machine.maintenance.cutter.technicianStatus=="waiting_for_skid" then
+            local assignedCurrentSkid=false
+            for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+                local assignment=worker.assignment
+                if worker.status=="employed" and assignment and assignment.machineId==machine.id
+                    and assignment.palletId==palletId then assignedCurrentSkid=true;break end
+            end
+            if not assignedCurrentSkid then
+                Context.message(state,"Weekly blade service is waiting to begin. Mara Mouse will replace the blade after the current skid is finished.")
+                return false
+            end
+        end
         local operable, machineOrError = Context.MachineFleet.canOperate(state, "polar_115")
         if not operable then Context.message(state, machineOrError); return false end
         local candidates = Context.availablePapers(state)
@@ -180,6 +194,7 @@ function Component.run(Context)
                 if not transitioned then Context.message(state, transitionError); return false end
             end
             Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = selected.paper, selected.pallet, selected.job
+            Context.PaperWork.prepareFirstCut(Context.Machine.paper)
             Context.Machine.legacyPaper = false
             Context.ensureLiftProgress(selected.pallet)
             if wasWarehouse and state and state.inventory then

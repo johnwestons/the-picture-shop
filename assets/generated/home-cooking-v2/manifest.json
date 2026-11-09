@@ -1,0 +1,328 @@
+{
+  "status": "eight-direction stirring integrated; other household action families remain pending",
+  "generator": "built-in image_gen",
+  "copiedWithoutPixelEdits": true,
+  "assets": [
+    {
+      "file": "spoon-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Asset type: eight-direction transparent game sprite atlas of ONE wooden stirring spoon. Use only the wooden spoon in the reference as design/material/style reference. 1536x1024 canvas, FOUR columns TWO rows, 384x512 cells. One entire spoon per cell with generous transparent gutters; no other objects. Fixed elevated orthographic isometric camera around30degrees, fixed upper-left lighting. Natural brown wooden spoon with modest rounded concave bowl and long straight handle, same physical dimensions in all views. Each spoon is held in STIRRING position, handle up toward the imaginary operator, bowl down into an imaginary pot. Author eight genuine 3D perspectives, not screen rotations or mirrored duplicates: row1 EAST (upper handle toward upper-left, bowl lower-right; narrow side thickness of bowl), SOUTHEAST (upper-left handle/lower-right bowl, three-quarter concave bowl visible), SOUTH (handle straight upward, bowl below, concave FRONT visible and slightly foreshortened), SOUTHWEST (upper-right handle/lower-left bowl, three-quarter concave bowl). Row2 WEST (upper-right handle/lower-left bowl, narrow side thickness), NORTHWEST (upper-right handle/lower-left bowl, convex BACK of bowl), NORTH (handle straight up, convex BACK of bowl below), NORTHEAST (upper-left handle/lower-right bowl, convex BACK of bowl). Shaft roughly 70percent of length, bowl30percent. Local endpoints about y80 and430, object fully inside x65..319 y55..455. Clean hand-painted game style, subtle wood grain, crisp dark edges. True transparent background with no colored haze, backdrop, checkerboard, floor, shadows, people, hands, pots, letters, labels or grid.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-e45d3143-5e29-4ec0-8bd4-389589adc2cd.png",
+      "sha256": "f2a754d851643ac06b11d594607c8958e98c3f391d355fabf58148ebc054e9eb",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "saucepan-eight-directions.png",
+      "prompt": "Use case: stylized-concept. Asset type: eight-direction transparent game sprite atlas of ONE small saucepan. Use only the dark blue enamel saucepan in reference top-left cell as exact design/material/style reference. 1536x1024 canvas, FOUR columns TWO rows, 384x512 cells. One entire saucepan per cell, same small pot body, same brown wooden single handle, warm vegetable soup visible, no lid and no steam. Fixed elevated orthographic isometric game camera around30degrees, fixed upper-left lighting, same body size and scale for every view. Reading order row1 EAST, SOUTHEAST, SOUTH, SOUTHWEST; row2 WEST, NORTHWEST, NORTH, NORTHEAST. Direction names describe where the brown handle extends from the pot in the ground plane: E screenRIGHT, SE lowerRIGHT, S towardviewer/down, SW lowerLEFT, W screenLEFT, NW upperLEFT/away, N upward/away, NE upperRIGHT/away. Show correct 3D perspective and foreshortening of the handle, bowl rim, rivets and enamel wear; don't rotate the same picture in the image plane. Body center local(192,300), pot bottom contact localy400 in every cell, body about180pixels wide and120tall; handle extends up to100pixels but remains fully within cell. Entire prop contained localx35..349 y110..430 with transparent gutters. Clean hand-painted game style, subtle texture, readable dark outline matching reference. Genuine transparent background; no colored haze, background, checkerboard, floor, ground shadow, hands, spoon, people, labels, text or grid.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-ba0f568d-64cf-4319-8154-01e42359492f.png",
+      "sha256": "8291cd63a76a575d74212e12e2716d9823a283a7ce6445bbd8d31e306fe255b7",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-east-contact-study.png",
+      "prompt": "Use case: stylized-concept. Asset type: 4-frame cooking animation sprite sheet, 2x2 square grid on genuinely transparent background. Image 1 is exact rabbit character design reference: orange rabbit, white muzzle and tail, blue work overalls, gray shirt, brown boots. Image 2 is cookware reference. Draw four sequential poses of this same rabbit facing EAST, strict right-facing profile under the fixed elevated isometric game camera. All four feet stay planted at same height and stance, same body/head/ears proportions, no walking, no pose mirroring. Full character in each cell, ears and boots fully visible, generous clear margins. Rabbit stirs a small blue saucepan of soup placed on an INVISIBLE waist-high countertop ahead of him to screen right. Include the pot and wooden spoon for contact reference, but NO countertop or other scenery. Right paw holds the upper straight shaft of a long wooden spoon at chest height, bowl remains inside the soup; left paw rests at side, visible and relaxed, never holds spoon. Each panel is a quarter of one small circular stirring cycle: 1 hand/spoon on near-left of pot, 2 far-left, 3 far-right, 4 near-right. Forearm, wrist and shoulder follow the stirring circle visibly; torso and feet remain stable. Keep pot center and bottom fixed in every panel. Pot bottom at waist height, pot rim just above waist, gripping paw about one head-width above rim. Clean hand-painted cartoon game style exactly matching rabbit reference, crisp outlines. No letters, labels, guide lines, shadows, backdrop, haze, or grids. 1254x1254 canvas, two columns and two rows, character anchored around local(260,575), pot around local(450,350).",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-48c8e3a3-5476-4398-bba0-53ceb7fd7264.png",
+      "sha256": "b5bbeed1aac5bf75e68816deceed0a142329efb1523e1b9c83ba5ecb64cbd928",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-east-raised-study.png",
+      "prompt": "Use case: precise-object-edit. Edit this 2x2 four-frame rabbit stirring study. Preserve character identity, planted boots, head size, body height, clothes, direction, canvas and grid. CHANGE ONLY the cooking contact height: the pot is on a tall invisible stove, so RAISE the saucepan in EVERY panel until its BOTTOM is at the rabbit's shoulder/collar height, around local y315, with boots still local y590. Reduce saucepan body to around 140px wide and90px tall, short handle. Raise the stirring right arm naturally with bent elbow, grip near chin height local y215..245, wooden spoon tip inside soup at local y255..270. No lifting or stretching the body. Four distinctive small circular stir poses, forearm and wrist move, pot stays fixed. Left arm relaxed at hip. Keep genuinely transparent background, no surfaces, stove, guide lines, text, labels or haze. Entire feet and ears remain visible.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-0e81a5f7-f6a4-4d21-9803-87e9d288f5b8.png",
+      "sha256": "b3a179b2436440d4d6fabadb3607398a08d962a0230c2d0c89ba819b176346a0",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-east-body.png",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-32525353-89ce-4c54-8690-856974c02425.png",
+      "sha256": "f915e22bc4f26705e6ddbc133cf3447c2ad1a8147240597439305e63300c181d",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-southeast-study.png",
+      "direction": "southeast",
+      "prompt": "Use case: stylized-concept. Create the SOUTHEAST version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to front three-quarter view facing down-right, both eyes visible, right side slightly nearer camera. Small blue saucepan in front and to screen right, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-b091287b-c107-434a-a8fb-e60ed136873e.png",
+      "sha256": "f9bc17ff29752c03f04406074f13fd71ee85132173bf3d215d0b6d7f0ed06040",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-south-study.png",
+      "direction": "south",
+      "prompt": "Use case: stylized-concept. Create the SOUTH version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to direct FRONT view facing viewer, face and both eyes centered, chest and overall bib visible. Small blue saucepan centered in front of the chest, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-5601dc41-ace3-48dd-8356-7a33b071f2b3.png",
+      "sha256": "e4de460694bd6df222686e0650a474edb947d037846cfea714c01f07cf275405",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-southwest-study.png",
+      "direction": "southwest",
+      "prompt": "Use case: stylized-concept. Create the SOUTHWEST version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to front three-quarter view facing down-left, both eyes visible, left side slightly nearer camera. Small blue saucepan in front and to screen left, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-ee5236f3-13d7-43d0-87d6-ac2c10f0dc85.png",
+      "sha256": "c95c8e1da20c4901164606619310df302c45f7e199acc9105c35fcb96744f060",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-west-study.png",
+      "direction": "west",
+      "prompt": "Use case: stylized-concept. Create the WEST version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to strict LEFT-facing profile, nose points screen left. Small blue saucepan to screen left, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-54bc0174-5299-47aa-87ba-c0076a67b541.png",
+      "sha256": "0593f511077c9e5621c1ef13bb5198ca06433b14c4ceb52fee0fc01823856108",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-northwest-study.png",
+      "direction": "northwest",
+      "prompt": "Use case: stylized-concept. Create the NORTHWEST version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to REAR three-quarter view facing up-left, overall back straps and white tail visible, only a sliver of cheek, no front bib. Small blue saucepan ahead to screen left behind the raised hands, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-8a010a36-d364-4424-90dd-8355270414f0.png",
+      "sha256": "56d60b70ceddaf681ca94d22e90f7c078170ee0e53beb7e818929a9e7ef64189",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-north-study.png",
+      "direction": "north",
+      "prompt": "Use case: stylized-concept. Create the NORTH version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to direct REAR view facing away from camera, back of head, back straps and white tail, NO face or front bib. Small blue saucepan ahead, slightly right of head so pot and stirring hand remain readable, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-2c2c3fd5-52a0-47c6-814c-6d74d008168f.png",
+      "sha256": "4618bba9c183cff76cf86988b3360336ded6bf9c38d27e8c715fe5e7b468f45e",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-northeast-study.png",
+      "direction": "northeast",
+      "prompt": "Use case: stylized-concept. Create the NORTHEAST version of this four-frame cooking sprite sheet. Same orange rabbit, clothing, proportions, fixed elevated isometric camera and lighting. Four sequential quarter-circle stirring poses in 2 columns x2 rows on transparent 1254x1254 canvas. Camera never moves: rabbit turns to REAR three-quarter view facing up-right, overall back straps and white tail visible, only sliver of cheek, no front bib. Small blue saucepan ahead to screen right behind the raised hands, bottom at upper chest height as on tall stove, but stove invisible. Right paw grips wooden spoon near chin height, tip stays in soup; left paw relaxed at hip. Four distinct forearm/wrist poses around small stirring circle, stable planted boots and torso, fixed pot location. Each cell contains one full rabbit and pot, ears and boots with generous margins. Preserve design and visual scale from reference. Genuine transparent background with no haze, shadows, labels, text, grid, furniture or other objects.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-7cc2d480-eff0-48d2-b495-154b507c6cb8.png",
+      "sha256": "9ee66c7dc3c677f22186be08d58721463e74bd3dba75642a19c107f7f7085970",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": false
+    },
+    {
+      "file": "stir-southeast-body.png",
+      "direction": "southeast",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-3e17bd97-a7ab-4875-af27-dead69bea8a5.png",
+      "sha256": "e1907d343f35f05031f61aca1a5a7dcedc6827727fd3e1847757be7c373470e2",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-south-body.png",
+      "direction": "south",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-623446e8-a1f4-4f48-9325-98455d6e1850.png",
+      "sha256": "57539664ba274bfb5adb522a105e8049c8da87fc2ccf7b212e638b9c921b05a6",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-southwest-body.png",
+      "direction": "southwest",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-3e1ab009-2034-46f3-aae6-093accaaea80.png",
+      "sha256": "064b514828c902ca99cfec9c37f776bafd5e527e46143c9e309fed847964f725",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-west-body.png",
+      "direction": "west",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-adeca8b4-5f70-4154-abd3-fc1d11c39e60.png",
+      "sha256": "82ebbfea28017de23e1b9c6916f475c705d8216985c9a248d2823bb795171704",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-northwest-body.png",
+      "direction": "northwest",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-53bccd74-4627-49c6-916a-728a96330900.png",
+      "sha256": "41dbea0f6bec7af1c2e93dae7be46bfea54036a12d9ec4916a1b09008937596b",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-north-body.png",
+      "direction": "north",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-f86ec4b5-a52c-4350-95a4-25ca6e2176ca.png",
+      "sha256": "da3357bafb958900215c676e533e3491fcde399d86c14c964c7bb8afeaa0c953",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    },
+    {
+      "file": "stir-northeast-body.png",
+      "direction": "northeast",
+      "prompt": "Use case: precise-object-edit. Remove ONLY all four saucepans, soup and wooden spoons from this four-pose 2x2 sprite sheet, leaving empty transparency where the props were. Reconstruct the tiny finger areas covered by the spoon but keep the exact gripping hand shapes and all arm poses in their current positions. Do not lower arms. Preserve all four rabbits exactly: same direction, camera, scale, feet positions, head, ears, clothes, planted posture, pose timing and canvas layout. Do not add anything. Genuine transparent background, no haze, no shadow, no labels. These are empty-handed body layers; the game will supply separate cookware and spoon layers.",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-18f88651-58b5-464c-8f97-3868d5063531.png",
+      "sha256": "ff143f1500295ad68e77f951d97d8267376f47e793b89948be69b338028be8a8",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1254,
+        1254
+      ],
+      "alphaRange": [
+        0,
+        255
+      ],
+      "runtimeSelected": true
+    }
+  ],
+  "registration": "src/home_cooking_registration.lua",
+  "renderer": "src/home_cooking_art.lua",
+  "review": "src/tests/home_cooking_art_review.lua"
+}

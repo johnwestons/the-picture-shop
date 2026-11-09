@@ -1,0 +1,14 @@
+Use the accepted corrected eight-pose south cat-worker key sheet as the ONLY character identity, costume, style, pixel-scale, lighting, direction and gait reference. The sheet contains eight corrected canonical poses in a 4-column by 2-row order, all facing directly toward camera. Preserve its alternating support-foot ownership: phase 1 screen-left contact, phases 1–4 supported by screen-left; phase 5 screen-right contact, phases 5–8 supported by screen-right. Do not repeat or reverse those roles. Preserve exactly two ears, two arms, two legs and one tail, with the satchel, scarf knot, strap, tools and tail on the same screen sides as the reference.
+
+Create exactly eight genuinely new intermediate walk drawings, arranged as another 4-column by 2-row transparent sheet, read left-to-right then top-to-bottom. These will be inserted after the matching canonical key, so transitions are between neighboring cells in the reference:
+1: between phase 1 left-contact and phase 2 left-weight-down; left foot remains planted while right begins moving.
+2: between phase 2 and phase 3; left supports while right boot passes under the pelvis.
+3: between phase 3 and phase 4; left supports while right knee begins rising.
+4: between phase 4 right-knee-up and phase 5 right-contact; extend the right boot toward the screen-right planted position, almost landing.
+5: between phase 5 right-contact and phase 6 right-weight-down; screen-right foot remains planted as weight begins to settle, screen-left foot releases.
+6: between phase 6 and phase 7; screen-right supports while screen-left boot passes beneath the pelvis.
+7: between phase 7 and phase 8; screen-right supports as screen-left knee begins rising.
+8: between phase 8 left-knee-up and the next phase 1 left-contact; bring the screen-left boot forward toward its floor contact, nearly landing.
+Keep the feet, knees and hip trajectories anatomically connected and intermediate to their adjacent reference poses. Show exactly one supporting planted foot where applicable, and keep that support sole on a consistent ground line. Preserve the original compact stride distance, torso center and deliberate weight bob. Each new drawing must be a real limb-motion in-between, not a duplicate, body translation or recolored frame.
+
+Keep the exact south camera and cat identity from the reference: charcoal-black cat, two pointed ears, two bright eyes, olive-yellow scarf, orange-brown worker jacket, cross-body strap, tool satchel/clasp on screen-right, dark trousers, boots and tail on screen-right. No mirroring, no equipment-side swap, no new objects, no extra/missing anatomy. Match the textured hand-painted pixel art, thick dark outline, warm lighting and scale. Transparent background. No checkerboard, ground, cast shadow, labels, numbers, panel dividers, scenery or watermark.

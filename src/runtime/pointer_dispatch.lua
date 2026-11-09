@@ -3,6 +3,23 @@
 local Component = {}
 
 function Component.install(Runtime)
+    -- Scene panels and town loading can consume all pointer input. Keep the
+    -- global menu controls reachable before those scene controls consume taps.
+    function Runtime.menuAccessPointer(x,y,button)
+        local visibility=require('src.screens.hud_visibility')
+        if visibility.pointer(Runtime,x,y,button) then return true end
+        if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error'
+            or Runtime.state.screen=='critter_kombat' then return false end
+        local screen,bounds=Runtime.optionsAccessLayout()
+        if Runtime.state.screen=='world' and not visibility.isVisible(Runtime) then
+            return Runtime.OptionsScreen.accessHit(x,y,screen,bounds)
+                or Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds)
+        end
+        if Runtime.OptionsScreen.accessHit(x,y,screen,bounds) then Runtime.openOptions();return true end
+        if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery')
+            and Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds) then Runtime.returnToTitle();return true end
+        return false
+    end
     function Runtime.pointerPosition()
         if Runtime.controller and Runtime.controller:isActive() and Runtime.state.screen ~= "world" then
             return Runtime.controller:pointer()
@@ -65,6 +82,7 @@ function Component.install(Runtime)
 
     function Runtime.dispatchGameMousePressed(gameX, gameY, button)
         if Runtime.state.screen == "asset_error" then return end
+        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end
@@ -88,7 +106,9 @@ function Component.install(Runtime)
         end
         if Runtime.multiplayerHudMousepressed(gameX, gameY, button) then return true end
         if Runtime.warehouseControls:mousepressed(gameX,gameY,button) then return true end
-        return Runtime.Input.mousepressed(gameX, gameY, button, Runtime.inputContext)
+        local result=Runtime.Input.mousepressed(gameX, gameY, button, Runtime.inputContext)
+        Runtime.syncMobileKeyboard()
+        return result
     end
 
     function Runtime.dispatchGameMouseReleased(gameX, gameY, button)
@@ -106,6 +126,7 @@ function Component.install(Runtime)
     function Runtime.dispatchMousePressed(x, y, button)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
+        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end
@@ -142,7 +163,9 @@ function Component.install(Runtime)
         end
         if Runtime.multiplayerHudMousepressed(gameX, gameY, button) then return true end
         if Runtime.warehouseControls:mousepressed(gameX,gameY,button) then return true end
-        return Runtime.Input.mousepressed(gameX, gameY, button, Runtime.inputContext)
+        local result=Runtime.Input.mousepressed(gameX, gameY, button, Runtime.inputContext)
+        Runtime.syncMobileKeyboard()
+        return result
     end
 
     function Runtime.dispatchMouseReleased(x, y, button)

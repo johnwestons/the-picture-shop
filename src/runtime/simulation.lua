@@ -1,6 +1,7 @@
 -- Background sessions and game simulation updates.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local Background = require("src.background_warehouse")
 
 function Component.install(Runtime)
     Runtime.serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmillService)
@@ -81,31 +82,51 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.update(dt)
-        Runtime.Assets.pruneCache()
-        Runtime.CharacterAssets.pruneCache()
-        Runtime.WorldRenderer.pruneCache()
-        require("src.jukebox").update(Runtime.state.screen ~= "title" and Runtime.state.screen ~= "asset_error",
-            Runtime.multiplayer:isClient())
-        require("src.jukebox").syncMultiplayer(Runtime.multiplayer)
+        local headlessServer = Runtime.privateServerMode == true
+        if not headlessServer then require("src.image_loader").update() end
+        local employeeHighFive=Runtime.World.player.employeeHighFiveAnimation
+        if employeeHighFive then
+            employeeHighFive.elapsed=(employeeHighFive.elapsed or 0)+math.max(0,tonumber(dt) or 0)
+            if employeeHighFive.elapsed>=employeeHighFive.duration then
+                Runtime.World.player.employeeHighFiveAnimation=nil
+            end
+        end
+        require("src.employee_high_five").update(dt)
+        if Runtime.pollSaves then Runtime.pollSaves() end
+        if not headlessServer then
+            Runtime.Assets.pruneCache()
+            Runtime.CharacterAssets.pruneCache()
+            Runtime.WorldRenderer.pruneCache()
+            require("src.jukebox").update(Runtime.state.screen ~= "title" and Runtime.state.screen ~= "asset_error",
+                Runtime.multiplayer:isClient())
+            require("src.jukebox").syncMultiplayer(Runtime.multiplayer)
+        end
         if Runtime.App.multiplayerFocusGrace:isExpired() then
             Runtime.App.multiplayerFocusGrace:clear()
             Runtime.App.expireBackgroundMultiplayer()
         end
-        Runtime.App.syncPlayerColorways()
-        Runtime.syncCamera()
-        if Runtime.controller then Runtime.controller:update(dt) end
+        if not headlessServer then
+            Runtime.App.syncPlayerColorways()
+            Runtime.syncCamera()
+            if Runtime.controller then Runtime.controller:update(dt) end
+        end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.update(dt, Runtime.CharacterAssets); return end
-        Runtime.DirectIpv4Runtime.updateHosts()
-        Runtime.DirectIpv4Runtime.updateConnection()
-        Runtime.updateLanConvenience(dt)
+        if not headlessServer then
+            Runtime.DirectIpv4Runtime.updateHosts()
+            Runtime.DirectIpv4Runtime.updateConnection()
+            Runtime.updateLanConvenience(dt)
+        end
+        Runtime.updatePrivateServerReconnect(dt)
+        Runtime.updatePrivateServerClientTimer(dt)
         Runtime.Machine.setMultiplayerSingleControl(Runtime.multiplayer:isActive())
-        require("src.basketball_controls").update(dt,Runtime)
+        if not headlessServer then require("src.basketball_controls").update(dt,Runtime) end
         local saveNeeded = false
         local checkpointNeeded = false
-        local networkInputX, networkInputY = 0, 0
+        local networkInputX, networkInputY, networkInputBoost = 0, 0, false
         Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
         Runtime.kombatInputX,Runtime.kombatButtons,Runtime.kombatInputY=0,0,0
         local predictedJackOwner
+        local commuteInputX,commuteInputY,commuteInputBoost=0,0,false
         if Runtime.state.screen ~= "world" and Runtime.PalletJack.isOperator(
             Runtime.state, Runtime.Config.palletJack, Runtime.World.player.id or 1) then
             Runtime.PalletJack.stop(Runtime.state, Runtime.Config.palletJack)
@@ -116,6 +137,7 @@ function Component.install(Runtime)
             and simulationScreen ~= "lan" and simulationScreen ~= "direct"
             and simulationScreen ~= "asset_error"
         local gameDt = dt
+        local shopMotionDt = dt
         if not Runtime.multiplayer:isClient() and simulationActive then
             gameDt = dt * (Runtime.App.gameClockSpeed or 1)
         end
@@ -138,15 +160,70 @@ function Component.install(Runtime)
             Runtime.App.gameClockSaveClock = 0
         end
         if not Runtime.multiplayer:isClient() and simulationActive then
+            local wasClosed=require("src.weekend_flow").shopClosed(Runtime.state)
+            if require("src.weekend_flow").atHome(Runtime.state)
+                and require("src.weekend_flow").shopClosed(Runtime.state)
+                and not (Runtime.World.hasBackgroundClockDebt and Runtime.World.hasBackgroundClockDebt()) then
+                -- Home acceleration is a unanimous sleep choice, independent
+                -- of the host's ordinary shop clock-speed control.
+                gameDt=require("src.home_sleep").calendarStep(Runtime.state,require("src.weekend_runtime").players(Runtime),dt)
+            end
+            if Runtime.World.beginSimulationFrame then
+                local unattended=Background.unattended(Runtime.World.player,
+                    Runtime.multiplayer.remotePlayers and Runtime.multiplayer:remotePlayers() or {})
+                local backgroundChanged
+                gameDt,shopMotionDt,backgroundChanged=Runtime.World.beginSimulationFrame(
+                    Runtime.state,gameDt,dt,unattended,Runtime.Assets)
+                if backgroundChanged then saveNeeded=true end
+            end
+            gameDt=require("src.weekend_flow").limitCalendarStep(Runtime.state,gameDt)
+            local homeBefore=Runtime.BusinessCalendar.absoluteHours(Runtime.state)
             local calendarChanged = Runtime.BusinessCalendar.update(Runtime.state, gameDt)
+            local townCharactersChanged=require("src.commute.town_characters").advance(
+                Runtime.state,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+            local commuterEmployeesChanged=require("src.commute.employee_commute").advance(
+                Runtime.state,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+            if townCharactersChanged or commuterEmployeesChanged then
+                saveNeeded=true
+                if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+            end
+            if require("src.home_residents").advance(Runtime.state,require("src.weekend_runtime").players(Runtime),homeBefore,
+                Runtime.BusinessCalendar.absoluteHours(Runtime.state)) then
+                Runtime.homeNeedsSaveClock=(Runtime.homeNeedsSaveClock or 0)+dt
+                if Runtime.homeNeedsSaveClock>=1 then
+                    Runtime.homeNeedsSaveClock=0;checkpointNeeded=true
+                    if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+                end
+            end
+            if require('src.guest_payroll').advance(Runtime.state,
+                Runtime.multiplayer:isHost() and Runtime.multiplayer:remotePlayers() or {},
+                homeBefore,Runtime.BusinessCalendar.absoluteHours(Runtime.state)) then
+                checkpointNeeded=true
+                Runtime.guestPayrollSyncClock=(Runtime.guestPayrollSyncClock or 0)+dt
+                if Runtime.guestPayrollSyncClock>=1 then
+                    Runtime.guestPayrollSyncClock=0
+                    if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
+                end
+            end
+            if require("src.weekend_flow").update(Runtime.state,false) then saveNeeded=true end
+            local closed=require("src.weekend_flow").shopClosed(Runtime.state)
+            if wasClosed and Runtime.World.updateClosedShopEmployees then
+                local closedStaffChanged=Runtime.World.updateClosedShopEmployees(
+                    Runtime.state,homeBefore,Runtime.BusinessCalendar.absoluteHours(Runtime.state))
+                if closedStaffChanged then saveNeeded=true end
+            end
+            -- The elapsed interval still belongs to the closed shop when its
+            -- endpoint reopens Monday. Queued later time runs next frame.
+            if wasClosed and not closed then gameDt,shopMotionDt=0,0 end
             local emailArrived = Runtime.JobService.updateClientEmails(Runtime.state)
-            local technicianChanged = Runtime.MachineMaintenance.updateTechnician(Runtime.state)
+            local technicianChanged = not closed and not wasClosed and Runtime.MachineMaintenance.updateTechnician(Runtime.state)
+            if (closed or wasClosed) and require("src.shop_shutdown").closedCalendar(Runtime.state) then saveNeeded=true end
             if Runtime.state.screen~="world" and Runtime.state.forklift and Runtime.state.forklift.operating
                 and Runtime.state.forklift.operatorPlayerId==1 then
                 Runtime.World.updateNetworkForklift(Runtime.World.player,0,0,0,Runtime.Assets,Runtime.state)
             end
-            local warehouseChanged=Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
-            local phoneChanged = Runtime.WorkPhone.update(Runtime.state)
+            local warehouseChanged=not closed and not wasClosed and Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
+            local phoneChanged = Runtime.WorkPhone.update(Runtime.state, dt)
             if calendarChanged or emailArrived or technicianChanged or phoneChanged then saveNeeded = true end
             Runtime.warehouseSaveClock=Runtime.warehouseSaveClock+dt
             if warehouseChanged and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
@@ -163,7 +240,12 @@ function Component.install(Runtime)
         elseif Runtime.state.screen == "direct" then
             Runtime.DirectScreen.update(dt)
         elseif Runtime.state.screen == "world" then
-            local directionX, directionY = Runtime.Input.movement()
+            if require('src.commute.runtime').localPart(Runtime) then
+                commuteInputX,commuteInputY,commuteInputBoost=require('src.commute.runtime').localInput(Runtime)
+                networkInputX,networkInputY,networkInputBoost=commuteInputX,commuteInputY,commuteInputBoost
+            else
+            local directionX, directionY = 0, 0
+            if not headlessServer then directionX, directionY = Runtime.Input.movement() end
             if Runtime.basketballCharge or require("src.basketball").isChargingFor(Runtime.state,
                 tonumber(Runtime.World.player.id) or 1) then
                 directionX,directionY=0,0
@@ -171,7 +253,7 @@ function Component.install(Runtime)
             networkInputX, networkInputY = directionX, directionY
             if Runtime.multiplayer:isClient() then
                 local cursorX, cursorY
-                if not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)
@@ -193,13 +275,14 @@ function Component.install(Runtime)
                 end
             else
                 local cursorX, cursorY
-                if not (Runtime.controller and Runtime.controller:isActive()) then
+                if not headlessServer and not (Runtime.controller and Runtime.controller:isActive()) then
                     cursorX, cursorY = Runtime.pointerPosition()
                     if Runtime.App.cameraTransformsWorld() then
                         cursorX, cursorY = Runtime.App.mobileCamera:screenToWorld(cursorX, cursorY)
                     end
                 end
                 if Runtime.World.update(dt, directionX, directionY, Runtime.Assets, Runtime.state, cursorX, cursorY, gameDt) then saveNeeded = true end
+            end
             end
         elseif Runtime.state.screen == "air_hockey" then
             local keyX,keyY=Runtime.Input.movement()
@@ -211,8 +294,6 @@ function Component.install(Runtime)
                 require("src.screens.critter_kombat_screen").controls(Runtime)
         elseif Runtime.state.screen == "machine" and not Runtime.multiplayer:isClient() then
             Runtime.MachineScreen.update(dt)
-        elseif Runtime.state.screen == "regal_folder" then
-            Runtime.RegalFolderScreen.update(dt)
         elseif Runtime.state.screen == "press" and not Runtime.multiplayer:isClient() then
             Runtime.PressScreen.update(dt, Runtime.state)
         elseif Runtime.state.screen == "workshop_remote" then
@@ -220,8 +301,9 @@ function Component.install(Runtime)
         end
         -- World events belong to the host simulation, not to its current screen.
         -- Guests may keep walking and working while the host reads any shop menu.
-        if not Runtime.multiplayer:isClient() and simulationActive and Runtime.state.screen ~= "world" then
-            if Runtime.World.updateSimulation(gameDt, Runtime.Assets, Runtime.state, dt) then saveNeeded = true end
+        if not Runtime.multiplayer:isClient() and simulationActive
+            and (Runtime.state.screen ~= "world" or require("src.commute.runtime").localPart(Runtime)) then
+            if Runtime.World.updateSimulation(gameDt, Runtime.Assets, Runtime.state, shopMotionDt) then saveNeeded = true end
         end
         if not Runtime.multiplayer:isClient() and simulationActive then
             local inputs={}
@@ -273,18 +355,21 @@ function Component.install(Runtime)
             end)
         end
         local advanceAuthoritativeMachines = not Runtime.multiplayer:isClient() and simulationActive
+            and not require("src.weekend_flow").shopClosed(Runtime.state)
         if advanceAuthoritativeMachines then
             if Runtime.serviceNetworkBeforeMachine(gameDt, Runtime.state, function()
-                Runtime.updateMultiplayer(dt, networkInputX, networkInputY, predictedJackOwner)
+                Runtime.updateMultiplayer(dt, networkInputX, networkInputY, predictedJackOwner,networkInputBoost)
             end, function(machineDt, targetState)
                 return Runtime.Windmill.updateAll(machineDt, targetState)
             end) then
                 saveNeeded = true
             end
         else
-            Runtime.updateMultiplayer(dt, networkInputX, networkInputY, predictedJackOwner)
+            Runtime.updateMultiplayer(dt, networkInputX, networkInputY, predictedJackOwner,networkInputBoost)
         end
-        if not Runtime.multiplayer:isClient() and simulationActive and Runtime.Wrapper.updateAll(gameDt, Runtime.state)
+        if simulationActive and require('src.commute.runtime').update(Runtime,dt,commuteInputX,commuteInputY,commuteInputBoost) then saveNeeded=true end
+        if not Runtime.multiplayer:isClient() and simulationActive and not require("src.weekend_flow").shopClosed(Runtime.state)
+            and Runtime.Wrapper.updateAll(gameDt, Runtime.state)
         then
             saveNeeded = true
         end
@@ -297,9 +382,13 @@ function Component.install(Runtime)
                 if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             end
         end
+        if simulationActive then require("src.weekend_runtime").syncUi(Runtime) end
+        if Runtime.App.playerFeedback then Runtime.App.playerFeedback:update(dt) end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
-        Runtime.syncCamera()
-        if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
+        if not headlessServer then
+            Runtime.syncCamera()
+            if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
+        end
         -- Commit the final frame once when several simulations change together.
         if saveNeeded then
             local saved = Runtime.saveCurrent()

@@ -1,0 +1,2940 @@
+{
+  "version": 2,
+  "sourceDirectory": "assets/source/kei-delivery-truck-v1/turntables",
+  "runtimeDirectory": "assets/commute/truck/kei-turntables",
+  "alphaCutoff": 128,
+  "method": "Uniform per-frame scale to a fixed visible roof-to-tire height; horizontal bounds center and tire baseline registered to a common ground anchor. No heading-dependent area or scale correction.",
+  "views": [
+    {
+      "kind": "isometric",
+      "cell": [
+        314,
+        314
+      ],
+      "targetHeight": 144,
+      "groundAnchor": [
+        156.5,
+        282
+      ],
+      "selectedFrames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        14,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        43,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58
+      ],
+      "sourcePages": [
+        {
+          "file": "isometric-64-1.png",
+          "sha256": "60bb8236c8e0b7f0e300ed2ee10965c725c9a89fc4e487785e5fa62f1dfcdcc2"
+        },
+        {
+          "file": "isometric-64-2.png",
+          "sha256": "ad5c2973edd6d8ca138d42513fc90f61b697c986e14dbf936f5114cc3b693d2d"
+        },
+        {
+          "file": "isometric-64-3.png",
+          "sha256": "9128cc6371f481ec1d181ab3213701a198fdc66b1a5d400851930705e20f9b6b"
+        },
+        {
+          "file": "isometric-64-4.png",
+          "sha256": "aa5b0511c2354751cedce9d6b2626ae8511f3176a04fff0dbcd3fbd16095244e"
+        }
+      ],
+      "runtimePages": [
+        {
+          "file": "isometric-64-1.png",
+          "dimensions": [
+            1256,
+            1256
+          ],
+          "sha256": "3d7472bc432e4effdd5bc3915d8286c4077c1d1c01d6f5fd97f5e6f8157ae35c"
+        },
+        {
+          "file": "isometric-64-2.png",
+          "dimensions": [
+            1256,
+            1256
+          ],
+          "sha256": "5773bfb6d9104e592eedce6c7ee6f886e3fb9471ea433ef182dad09783edadf8"
+        },
+        {
+          "file": "isometric-64-3.png",
+          "dimensions": [
+            1256,
+            1256
+          ],
+          "sha256": "e586a584ee83dbc0d5b4ffadbb9c2da1b1f8f77bbb716fb3c50e5e3b7954829f"
+        },
+        {
+          "file": "isometric-64-4.png",
+          "dimensions": [
+            1256,
+            1256
+          ],
+          "sha256": "3e3239161d47e365b682c8015e92a02fd32c813a9d0ab6e56f6e184afcfbd782"
+        }
+      ],
+      "frames": [
+        {
+          "frame": 1,
+          "headingDegrees": 0,
+          "sourceBounds": {
+            "x": 113,
+            "y": 150,
+            "width": 90,
+            "height": 141
+          },
+          "scale": 1.021,
+          "runtimeBounds": {
+            "x": 111,
+            "y": 139,
+            "width": 92,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 2,
+          "headingDegrees": 10,
+          "sourceBounds": {
+            "x": 108,
+            "y": 148,
+            "width": 101,
+            "height": 143
+          },
+          "scale": 1.007,
+          "runtimeBounds": {
+            "x": 106,
+            "y": 139,
+            "width": 102,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 3,
+          "headingDegrees": 20,
+          "sourceBounds": {
+            "x": 97,
+            "y": 147,
+            "width": 119,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 97,
+            "y": 139,
+            "width": 120,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 4,
+          "headingDegrees": 30,
+          "sourceBounds": {
+            "x": 88,
+            "y": 147,
+            "width": 136,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 90,
+            "y": 139,
+            "width": 135,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 5,
+          "headingDegrees": 40,
+          "sourceBounds": {
+            "x": 82,
+            "y": 146,
+            "width": 145,
+            "height": 147
+          },
+          "scale": 0.979,
+          "runtimeBounds": {
+            "x": 86,
+            "y": 139,
+            "width": 142,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 6,
+          "headingDegrees": 50,
+          "sourceBounds": {
+            "x": 74,
+            "y": 146,
+            "width": 159,
+            "height": 147
+          },
+          "scale": 0.979,
+          "runtimeBounds": {
+            "x": 79,
+            "y": 139,
+            "width": 156,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 7,
+          "headingDegrees": 60,
+          "sourceBounds": {
+            "x": 65,
+            "y": 145,
+            "width": 174,
+            "height": 148
+          },
+          "scale": 0.973,
+          "runtimeBounds": {
+            "x": 73,
+            "y": 139,
+            "width": 169,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 8,
+          "headingDegrees": 70,
+          "sourceBounds": {
+            "x": 60,
+            "y": 145,
+            "width": 185,
+            "height": 146
+          },
+          "scale": 0.986,
+          "runtimeBounds": {
+            "x": 65,
+            "y": 139,
+            "width": 183,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 9,
+          "headingDegrees": 78,
+          "sourceBounds": {
+            "x": 57,
+            "y": 145,
+            "width": 191,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 62,
+            "y": 139,
+            "width": 191,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 10,
+          "headingDegrees": 81,
+          "sourceBounds": {
+            "x": 56,
+            "y": 146,
+            "width": 194,
+            "height": 141
+          },
+          "scale": 1.021,
+          "runtimeBounds": {
+            "x": 57,
+            "y": 139,
+            "width": 199,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 11,
+          "headingDegrees": 84,
+          "sourceBounds": {
+            "x": 55,
+            "y": 146,
+            "width": 196,
+            "height": 139
+          },
+          "scale": 1.036,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 139,
+            "width": 203,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 12,
+          "headingDegrees": 86,
+          "sourceBounds": {
+            "x": 57,
+            "y": 147,
+            "width": 194,
+            "height": 136
+          },
+          "scale": 1.059,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 139,
+            "width": 205,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 13,
+          "headingDegrees": 88,
+          "sourceBounds": {
+            "x": 60,
+            "y": 150,
+            "width": 191,
+            "height": 132
+          },
+          "scale": 1.092,
+          "runtimeBounds": {
+            "x": 53,
+            "y": 139,
+            "width": 208,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 14,
+          "headingDegrees": 90,
+          "sourceBounds": {
+            "x": 61,
+            "y": 151,
+            "width": 190,
+            "height": 129
+          },
+          "scale": 1.117,
+          "runtimeBounds": {
+            "x": 51,
+            "y": 139,
+            "width": 212,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 15,
+          "headingDegrees": 93.75,
+          "sourceBounds": {
+            "x": 59,
+            "y": 151,
+            "width": 192,
+            "height": 130
+          },
+          "scale": 1.109,
+          "runtimeBounds": {
+            "x": 50,
+            "y": 139,
+            "width": 214,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 16,
+          "headingDegrees": 97.5,
+          "sourceBounds": {
+            "x": 58,
+            "y": 151,
+            "width": 194,
+            "height": 131
+          },
+          "scale": 1.1,
+          "runtimeBounds": {
+            "x": 50,
+            "y": 139,
+            "width": 214,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 17,
+          "headingDegrees": 101.25,
+          "sourceBounds": {
+            "x": 60,
+            "y": 128,
+            "width": 203,
+            "height": 141
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 52,
+            "y": 139,
+            "width": 210,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 18,
+          "headingDegrees": 105,
+          "sourceBounds": {
+            "x": 59,
+            "y": 129,
+            "width": 203,
+            "height": 141
+          },
+          "scale": 1.021,
+          "runtimeBounds": {
+            "x": 53,
+            "y": 139,
+            "width": 208,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 19,
+          "headingDegrees": 115,
+          "sourceBounds": {
+            "x": 57,
+            "y": 129,
+            "width": 204,
+            "height": 143
+          },
+          "scale": 1.007,
+          "runtimeBounds": {
+            "x": 54,
+            "y": 139,
+            "width": 206,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 20,
+          "headingDegrees": 125,
+          "sourceBounds": {
+            "x": 58,
+            "y": 129,
+            "width": 205,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 139,
+            "width": 204,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 21,
+          "headingDegrees": 135,
+          "sourceBounds": {
+            "x": 62,
+            "y": 132,
+            "width": 200,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 58,
+            "y": 139,
+            "width": 199,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 22,
+          "headingDegrees": 145,
+          "sourceBounds": {
+            "x": 67,
+            "y": 133,
+            "width": 192,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 62,
+            "y": 139,
+            "width": 190,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 23,
+          "headingDegrees": 153,
+          "sourceBounds": {
+            "x": 72,
+            "y": 133,
+            "width": 179,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 68,
+            "y": 139,
+            "width": 177,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 24,
+          "headingDegrees": 160,
+          "sourceBounds": {
+            "x": 85,
+            "y": 134,
+            "width": 160,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 77,
+            "y": 139,
+            "width": 160,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 25,
+          "headingDegrees": 167,
+          "sourceBounds": {
+            "x": 93,
+            "y": 136,
+            "width": 147,
+            "height": 142
+          },
+          "scale": 1.014,
+          "runtimeBounds": {
+            "x": 82,
+            "y": 139,
+            "width": 150,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 26,
+          "headingDegrees": 173,
+          "sourceBounds": {
+            "x": 101,
+            "y": 137,
+            "width": 135,
+            "height": 140
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 87,
+            "y": 139,
+            "width": 139,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 27,
+          "headingDegrees": 178,
+          "sourceBounds": {
+            "x": 108,
+            "y": 138,
+            "width": 120,
+            "height": 139
+          },
+          "scale": 1.036,
+          "runtimeBounds": {
+            "x": 95,
+            "y": 139,
+            "width": 124,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 28,
+          "headingDegrees": 178.333,
+          "sourceBounds": {
+            "x": 104,
+            "y": 137,
+            "width": 119,
+            "height": 139
+          },
+          "scale": 1.036,
+          "runtimeBounds": {
+            "x": 96,
+            "y": 139,
+            "width": 123,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 29,
+          "headingDegrees": 178.667,
+          "sourceBounds": {
+            "x": 99,
+            "y": 137,
+            "width": 132,
+            "height": 142
+          },
+          "scale": 1.014,
+          "runtimeBounds": {
+            "x": 90,
+            "y": 139,
+            "width": 134,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 30,
+          "headingDegrees": 179,
+          "sourceBounds": {
+            "x": 98,
+            "y": 137,
+            "width": 134,
+            "height": 140
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 88,
+            "y": 139,
+            "width": 138,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 31,
+          "headingDegrees": 179.333,
+          "sourceBounds": {
+            "x": 100,
+            "y": 137,
+            "width": 122,
+            "height": 140
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 94,
+            "y": 139,
+            "width": 125,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 32,
+          "headingDegrees": 179.667,
+          "sourceBounds": {
+            "x": 102,
+            "y": 137,
+            "width": 115,
+            "height": 140
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 98,
+            "y": 139,
+            "width": 118,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 33,
+          "headingDegrees": 180,
+          "sourceBounds": {
+            "x": 103,
+            "y": 121,
+            "width": 113,
+            "height": 136
+          },
+          "scale": 1.059,
+          "runtimeBounds": {
+            "x": 97,
+            "y": 139,
+            "width": 120,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 34,
+          "headingDegrees": 190,
+          "sourceBounds": {
+            "x": 90,
+            "y": 120,
+            "width": 121,
+            "height": 137
+          },
+          "scale": 1.051,
+          "runtimeBounds": {
+            "x": 93,
+            "y": 139,
+            "width": 128,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 35,
+          "headingDegrees": 200,
+          "sourceBounds": {
+            "x": 79,
+            "y": 120,
+            "width": 140,
+            "height": 137
+          },
+          "scale": 1.051,
+          "runtimeBounds": {
+            "x": 83,
+            "y": 139,
+            "width": 148,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 36,
+          "headingDegrees": 210,
+          "sourceBounds": {
+            "x": 68,
+            "y": 119,
+            "width": 165,
+            "height": 140
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 72,
+            "y": 139,
+            "width": 169,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 37,
+          "headingDegrees": 220,
+          "sourceBounds": {
+            "x": 63,
+            "y": 120,
+            "width": 182,
+            "height": 141
+          },
+          "scale": 1.021,
+          "runtimeBounds": {
+            "x": 64,
+            "y": 139,
+            "width": 185,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 38,
+          "headingDegrees": 230,
+          "sourceBounds": {
+            "x": 54,
+            "y": 118,
+            "width": 194,
+            "height": 145
+          },
+          "scale": 0.993,
+          "runtimeBounds": {
+            "x": 61,
+            "y": 139,
+            "width": 193,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 39,
+          "headingDegrees": 240,
+          "sourceBounds": {
+            "x": 46,
+            "y": 119,
+            "width": 202,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 56,
+            "y": 139,
+            "width": 202,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 40,
+          "headingDegrees": 250,
+          "sourceBounds": {
+            "x": 43,
+            "y": 118,
+            "width": 207,
+            "height": 143
+          },
+          "scale": 1.014,
+          "runtimeBounds": {
+            "x": 52,
+            "y": 139,
+            "width": 210,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 41,
+          "headingDegrees": 260,
+          "sourceBounds": {
+            "x": 45,
+            "y": 119,
+            "width": 208,
+            "height": 142
+          },
+          "scale": 1.014,
+          "runtimeBounds": {
+            "x": 51,
+            "y": 139,
+            "width": 212,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 42,
+          "headingDegrees": 265,
+          "sourceBounds": {
+            "x": 46,
+            "y": 118,
+            "width": 202,
+            "height": 139
+          },
+          "scale": 1.036,
+          "runtimeBounds": {
+            "x": 52,
+            "y": 139,
+            "width": 210,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 43,
+          "headingDegrees": 270,
+          "sourceBounds": {
+            "x": 42,
+            "y": 117,
+            "width": 205,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 139,
+            "width": 204,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 44,
+          "headingDegrees": 272.143,
+          "sourceBounds": {
+            "x": 39,
+            "y": 115,
+            "width": 212,
+            "height": 152
+          },
+          "scale": 0.947,
+          "runtimeBounds": {
+            "x": 57,
+            "y": 139,
+            "width": 201,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 45,
+          "headingDegrees": 274.286,
+          "sourceBounds": {
+            "x": 41,
+            "y": 117,
+            "width": 211,
+            "height": 155
+          },
+          "scale": 0.929,
+          "runtimeBounds": {
+            "x": 59,
+            "y": 139,
+            "width": 196,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 46,
+          "headingDegrees": 276.429,
+          "sourceBounds": {
+            "x": 42,
+            "y": 118,
+            "width": 210,
+            "height": 155
+          },
+          "scale": 0.929,
+          "runtimeBounds": {
+            "x": 60,
+            "y": 139,
+            "width": 194,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 47,
+          "headingDegrees": 278.571,
+          "sourceBounds": {
+            "x": 43,
+            "y": 120,
+            "width": 213,
+            "height": 147
+          },
+          "scale": 0.979,
+          "runtimeBounds": {
+            "x": 53,
+            "y": 139,
+            "width": 208,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 48,
+          "headingDegrees": 280.714,
+          "sourceBounds": {
+            "x": 47,
+            "y": 121,
+            "width": 210,
+            "height": 143
+          },
+          "scale": 1.007,
+          "runtimeBounds": {
+            "x": 51,
+            "y": 139,
+            "width": 212,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 49,
+          "headingDegrees": 282.857,
+          "sourceBounds": {
+            "x": 63,
+            "y": 119,
+            "width": 196,
+            "height": 137
+          },
+          "scale": 1.051,
+          "runtimeBounds": {
+            "x": 54,
+            "y": 139,
+            "width": 206,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 50,
+          "headingDegrees": 285,
+          "sourceBounds": {
+            "x": 61,
+            "y": 116,
+            "width": 200,
+            "height": 144
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 57,
+            "y": 139,
+            "width": 200,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 51,
+          "headingDegrees": 295,
+          "sourceBounds": {
+            "x": 61,
+            "y": 113,
+            "width": 202,
+            "height": 152
+          },
+          "scale": 0.947,
+          "runtimeBounds": {
+            "x": 61,
+            "y": 139,
+            "width": 192,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 52,
+          "headingDegrees": 305,
+          "sourceBounds": {
+            "x": 64,
+            "y": 111,
+            "width": 195,
+            "height": 156
+          },
+          "scale": 0.923,
+          "runtimeBounds": {
+            "x": 67,
+            "y": 139,
+            "width": 180,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 53,
+          "headingDegrees": 315,
+          "sourceBounds": {
+            "x": 67,
+            "y": 110,
+            "width": 186,
+            "height": 161
+          },
+          "scale": 0.894,
+          "runtimeBounds": {
+            "x": 74,
+            "y": 139,
+            "width": 166,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 54,
+          "headingDegrees": 325,
+          "sourceBounds": {
+            "x": 74,
+            "y": 108,
+            "width": 171,
+            "height": 165
+          },
+          "scale": 0.872,
+          "runtimeBounds": {
+            "x": 83,
+            "y": 139,
+            "width": 148,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 55,
+          "headingDegrees": 334,
+          "sourceBounds": {
+            "x": 82,
+            "y": 106,
+            "width": 153,
+            "height": 166
+          },
+          "scale": 0.867,
+          "runtimeBounds": {
+            "x": 91,
+            "y": 139,
+            "width": 133,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 56,
+          "headingDegrees": 342,
+          "sourceBounds": {
+            "x": 90,
+            "y": 106,
+            "width": 138,
+            "height": 165
+          },
+          "scale": 0.872,
+          "runtimeBounds": {
+            "x": 97,
+            "y": 139,
+            "width": 120,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 57,
+          "headingDegrees": 350,
+          "sourceBounds": {
+            "x": 96,
+            "y": 104,
+            "width": 125,
+            "height": 165
+          },
+          "scale": 0.872,
+          "runtimeBounds": {
+            "x": 102,
+            "y": 139,
+            "width": 110,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 58,
+          "headingDegrees": 357,
+          "sourceBounds": {
+            "x": 104,
+            "y": 104,
+            "width": 102,
+            "height": 161
+          },
+          "scale": 0.894,
+          "runtimeBounds": {
+            "x": 112,
+            "y": 139,
+            "width": 91,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 59,
+          "headingDegrees": 357.5,
+          "sourceBounds": {
+            "x": 92,
+            "y": 102,
+            "width": 120,
+            "height": 165
+          },
+          "scale": 0.872,
+          "runtimeBounds": {
+            "x": 104,
+            "y": 139,
+            "width": 105,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 60,
+          "headingDegrees": 358,
+          "sourceBounds": {
+            "x": 86,
+            "y": 101,
+            "width": 130,
+            "height": 166
+          },
+          "scale": 0.867,
+          "runtimeBounds": {
+            "x": 101,
+            "y": 139,
+            "width": 112,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 61,
+          "headingDegrees": 358.5,
+          "sourceBounds": {
+            "x": 81,
+            "y": 102,
+            "width": 136,
+            "height": 165
+          },
+          "scale": 0.872,
+          "runtimeBounds": {
+            "x": 98,
+            "y": 139,
+            "width": 119,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            157,
+            282
+          ]
+        },
+        {
+          "frame": 62,
+          "headingDegrees": 359,
+          "sourceBounds": {
+            "x": 93,
+            "y": 102,
+            "width": 122,
+            "height": 164
+          },
+          "scale": 0.877,
+          "runtimeBounds": {
+            "x": 103,
+            "y": 139,
+            "width": 107,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156,
+            282
+          ]
+        },
+        {
+          "frame": 63,
+          "headingDegrees": 359.5,
+          "sourceBounds": {
+            "x": 105,
+            "y": 101,
+            "width": 103,
+            "height": 164
+          },
+          "scale": 0.877,
+          "runtimeBounds": {
+            "x": 112,
+            "y": 139,
+            "width": 90,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        },
+        {
+          "frame": 64,
+          "headingDegrees": 360,
+          "sourceBounds": {
+            "x": 104,
+            "y": 100,
+            "width": 102,
+            "height": 164
+          },
+          "scale": 0.877,
+          "runtimeBounds": {
+            "x": 112,
+            "y": 139,
+            "width": 90,
+            "height": 144
+          },
+          "runtimeGroundAnchor": [
+            156.5,
+            282
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "chase",
+      "cell": [
+        405,
+        243
+      ],
+      "targetHeight": 180,
+      "groundAnchor": [
+        202,
+        222
+      ],
+      "selectedFrames": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        15,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        31,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        43,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59
+      ],
+      "sourcePages": [
+        {
+          "file": "chase-64-1.png",
+          "sha256": "3c8aa0dd25ca9af54fe88a65c9eac1083a52f1c6423f28b9221a02b9d286e13b"
+        },
+        {
+          "file": "chase-64-2.png",
+          "sha256": "4c4563b4b86804f99a4e89695bebe2172ca8cf1b4c6313288c6260f336018bee"
+        },
+        {
+          "file": "chase-64-3.png",
+          "sha256": "c8de60ffaf137bc3d440c35ca84e82e66ea5ef56898cd6498d9bc382ed07cbbf"
+        },
+        {
+          "file": "chase-64-4.png",
+          "sha256": "eae329656092802a8e5a96e3ed71a6c1591fc484091e1fca95a66424596c7a47"
+        }
+      ],
+      "runtimePages": [
+        {
+          "file": "chase-64-1.png",
+          "dimensions": [
+            1620,
+            972
+          ],
+          "sha256": "51cf3bedf59ceb441fc5f6319eeb66483aa1ebb854ccead9af92126a3c612eba"
+        },
+        {
+          "file": "chase-64-2.png",
+          "dimensions": [
+            1620,
+            972
+          ],
+          "sha256": "4e612108749c1da7b5564860ad3ef4af2c416ff5fe0a99950acf8c6e5a24dee0"
+        },
+        {
+          "file": "chase-64-3.png",
+          "dimensions": [
+            1620,
+            972
+          ],
+          "sha256": "4cf28b341cfed1225fc2f67f4ce441a8553a292e8f3105b7976aaa6b9d63f4df"
+        },
+        {
+          "file": "chase-64-4.png",
+          "dimensions": [
+            1620,
+            972
+          ],
+          "sha256": "532b2725fff581b7906f8d20d49018be1185099486ed375c8444a37289e7171e"
+        }
+      ],
+      "frames": [
+        {
+          "frame": 1,
+          "headingDegrees": 0,
+          "sourceBounds": {
+            "x": 133,
+            "y": 45,
+            "width": 141,
+            "height": 184
+          },
+          "scale": 0.978,
+          "runtimeBounds": {
+            "x": 134,
+            "y": 43,
+            "width": 137,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 2,
+          "headingDegrees": 10,
+          "sourceBounds": {
+            "x": 127,
+            "y": 45,
+            "width": 154,
+            "height": 183
+          },
+          "scale": 0.984,
+          "runtimeBounds": {
+            "x": 126,
+            "y": 43,
+            "width": 153,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 3,
+          "headingDegrees": 20,
+          "sourceBounds": {
+            "x": 109,
+            "y": 45,
+            "width": 176,
+            "height": 184
+          },
+          "scale": 0.978,
+          "runtimeBounds": {
+            "x": 117,
+            "y": 43,
+            "width": 172,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 4,
+          "headingDegrees": 30,
+          "sourceBounds": {
+            "x": 92,
+            "y": 45,
+            "width": 198,
+            "height": 183
+          },
+          "scale": 0.984,
+          "runtimeBounds": {
+            "x": 105,
+            "y": 43,
+            "width": 195,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 5,
+          "headingDegrees": 40,
+          "sourceBounds": {
+            "x": 81,
+            "y": 42,
+            "width": 214,
+            "height": 183
+          },
+          "scale": 0.984,
+          "runtimeBounds": {
+            "x": 97,
+            "y": 43,
+            "width": 211,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 6,
+          "headingDegrees": 50,
+          "sourceBounds": {
+            "x": 68,
+            "y": 41,
+            "width": 233,
+            "height": 183
+          },
+          "scale": 0.984,
+          "runtimeBounds": {
+            "x": 88,
+            "y": 43,
+            "width": 229,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 7,
+          "headingDegrees": 60,
+          "sourceBounds": {
+            "x": 57,
+            "y": 41,
+            "width": 250,
+            "height": 183
+          },
+          "scale": 0.984,
+          "runtimeBounds": {
+            "x": 79,
+            "y": 43,
+            "width": 247,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 8,
+          "headingDegrees": 70,
+          "sourceBounds": {
+            "x": 47,
+            "y": 41,
+            "width": 270,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 69,
+            "y": 43,
+            "width": 267,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 9,
+          "headingDegrees": 75,
+          "sourceBounds": {
+            "x": 46,
+            "y": 35,
+            "width": 279,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 64,
+            "y": 43,
+            "width": 276,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 10,
+          "headingDegrees": 80,
+          "sourceBounds": {
+            "x": 42,
+            "y": 35,
+            "width": 288,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 59,
+            "y": 43,
+            "width": 287,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 11,
+          "headingDegrees": 82,
+          "sourceBounds": {
+            "x": 39,
+            "y": 35,
+            "width": 292,
+            "height": 180
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 56,
+            "y": 43,
+            "width": 292,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 12,
+          "headingDegrees": 84,
+          "sourceBounds": {
+            "x": 37,
+            "y": 36,
+            "width": 296,
+            "height": 179
+          },
+          "scale": 1.006,
+          "runtimeBounds": {
+            "x": 53,
+            "y": 43,
+            "width": 298,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 13,
+          "headingDegrees": 86,
+          "sourceBounds": {
+            "x": 41,
+            "y": 31,
+            "width": 291,
+            "height": 177
+          },
+          "scale": 1.017,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 43,
+            "width": 295,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 14,
+          "headingDegrees": 88,
+          "sourceBounds": {
+            "x": 41,
+            "y": 32,
+            "width": 291,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 54,
+            "y": 43,
+            "width": 298,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 15,
+          "headingDegrees": 90,
+          "sourceBounds": {
+            "x": 35,
+            "y": 32,
+            "width": 296,
+            "height": 177
+          },
+          "scale": 1.017,
+          "runtimeBounds": {
+            "x": 52,
+            "y": 43,
+            "width": 301,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 16,
+          "headingDegrees": 95,
+          "sourceBounds": {
+            "x": 31,
+            "y": 32,
+            "width": 301,
+            "height": 179
+          },
+          "scale": 1.006,
+          "runtimeBounds": {
+            "x": 51,
+            "y": 43,
+            "width": 303,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 17,
+          "headingDegrees": 100,
+          "sourceBounds": {
+            "x": 61,
+            "y": 50,
+            "width": 299,
+            "height": 174
+          },
+          "scale": 1.04,
+          "runtimeBounds": {
+            "x": 47,
+            "y": 43,
+            "width": 311,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 18,
+          "headingDegrees": 105,
+          "sourceBounds": {
+            "x": 58,
+            "y": 50,
+            "width": 295,
+            "height": 175
+          },
+          "scale": 1.029,
+          "runtimeBounds": {
+            "x": 51,
+            "y": 43,
+            "width": 303,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 19,
+          "headingDegrees": 115,
+          "sourceBounds": {
+            "x": 57,
+            "y": 49,
+            "width": 288,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 55,
+            "y": 43,
+            "width": 295,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 20,
+          "headingDegrees": 125,
+          "sourceBounds": {
+            "x": 65,
+            "y": 49,
+            "width": 276,
+            "height": 177
+          },
+          "scale": 1.017,
+          "runtimeBounds": {
+            "x": 62,
+            "y": 43,
+            "width": 281,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 21,
+          "headingDegrees": 135,
+          "sourceBounds": {
+            "x": 77,
+            "y": 43,
+            "width": 261,
+            "height": 180
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 72,
+            "y": 43,
+            "width": 261,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 22,
+          "headingDegrees": 145,
+          "sourceBounds": {
+            "x": 89,
+            "y": 42,
+            "width": 239,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 84,
+            "y": 43,
+            "width": 237,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 23,
+          "headingDegrees": 155,
+          "sourceBounds": {
+            "x": 98,
+            "y": 41,
+            "width": 212,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 98,
+            "y": 43,
+            "width": 209,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 24,
+          "headingDegrees": 165,
+          "sourceBounds": {
+            "x": 106,
+            "y": 41,
+            "width": 192,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 108,
+            "y": 43,
+            "width": 189,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 25,
+          "headingDegrees": 175,
+          "sourceBounds": {
+            "x": 119,
+            "y": 38,
+            "width": 173,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 117,
+            "y": 43,
+            "width": 172,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 26,
+          "headingDegrees": 175.5,
+          "sourceBounds": {
+            "x": 117,
+            "y": 38,
+            "width": 185,
+            "height": 180
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 110,
+            "y": 43,
+            "width": 185,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 27,
+          "headingDegrees": 176,
+          "sourceBounds": {
+            "x": 104,
+            "y": 38,
+            "width": 211,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 97,
+            "y": 43,
+            "width": 210,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 28,
+          "headingDegrees": 176.5,
+          "sourceBounds": {
+            "x": 99,
+            "y": 38,
+            "width": 196,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 105,
+            "y": 43,
+            "width": 195,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 29,
+          "headingDegrees": 177,
+          "sourceBounds": {
+            "x": 107,
+            "y": 34,
+            "width": 186,
+            "height": 180
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 110,
+            "y": 43,
+            "width": 185,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 30,
+          "headingDegrees": 177.5,
+          "sourceBounds": {
+            "x": 115,
+            "y": 34,
+            "width": 173,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 116,
+            "y": 43,
+            "width": 172,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 31,
+          "headingDegrees": 178,
+          "sourceBounds": {
+            "x": 117,
+            "y": 33,
+            "width": 166,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 121,
+            "y": 43,
+            "width": 163,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 32,
+          "headingDegrees": 179,
+          "sourceBounds": {
+            "x": 120,
+            "y": 32,
+            "width": 164,
+            "height": 185
+          },
+          "scale": 0.973,
+          "runtimeBounds": {
+            "x": 123,
+            "y": 43,
+            "width": 159,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 33,
+          "headingDegrees": 180,
+          "sourceBounds": {
+            "x": 129,
+            "y": 49,
+            "width": 156,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 122,
+            "y": 43,
+            "width": 161,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 34,
+          "headingDegrees": 190,
+          "sourceBounds": {
+            "x": 122,
+            "y": 49,
+            "width": 160,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 121,
+            "y": 43,
+            "width": 163,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 35,
+          "headingDegrees": 200,
+          "sourceBounds": {
+            "x": 119,
+            "y": 49,
+            "width": 184,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 108,
+            "y": 43,
+            "width": 189,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 36,
+          "headingDegrees": 210,
+          "sourceBounds": {
+            "x": 112,
+            "y": 49,
+            "width": 212,
+            "height": 176
+          },
+          "scale": 1.023,
+          "runtimeBounds": {
+            "x": 94,
+            "y": 43,
+            "width": 217,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 37,
+          "headingDegrees": 220,
+          "sourceBounds": {
+            "x": 106,
+            "y": 46,
+            "width": 234,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 84,
+            "y": 43,
+            "width": 237,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 38,
+          "headingDegrees": 230,
+          "sourceBounds": {
+            "x": 94,
+            "y": 46,
+            "width": 258,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 72,
+            "y": 43,
+            "width": 261,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 39,
+          "headingDegrees": 240,
+          "sourceBounds": {
+            "x": 84,
+            "y": 46,
+            "width": 272,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 65,
+            "y": 43,
+            "width": 275,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 40,
+          "headingDegrees": 250,
+          "sourceBounds": {
+            "x": 72,
+            "y": 46,
+            "width": 285,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 59,
+            "y": 43,
+            "width": 288,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 41,
+          "headingDegrees": 260,
+          "sourceBounds": {
+            "x": 71,
+            "y": 44,
+            "width": 287,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 58,
+            "y": 43,
+            "width": 289,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 42,
+          "headingDegrees": 265,
+          "sourceBounds": {
+            "x": 65,
+            "y": 43,
+            "width": 286,
+            "height": 177
+          },
+          "scale": 1.017,
+          "runtimeBounds": {
+            "x": 57,
+            "y": 43,
+            "width": 291,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 43,
+          "headingDegrees": 270,
+          "sourceBounds": {
+            "x": 53,
+            "y": 42,
+            "width": 301,
+            "height": 178
+          },
+          "scale": 1.011,
+          "runtimeBounds": {
+            "x": 50,
+            "y": 43,
+            "width": 305,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 44,
+          "headingDegrees": 272.143,
+          "sourceBounds": {
+            "x": 55,
+            "y": 42,
+            "width": 299,
+            "height": 180
+          },
+          "scale": 1,
+          "runtimeBounds": {
+            "x": 53,
+            "y": 43,
+            "width": 299,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 45,
+          "headingDegrees": 274.286,
+          "sourceBounds": {
+            "x": 66,
+            "y": 40,
+            "width": 282,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 62,
+            "y": 43,
+            "width": 281,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 46,
+          "headingDegrees": 276.429,
+          "sourceBounds": {
+            "x": 75,
+            "y": 40,
+            "width": 257,
+            "height": 182
+          },
+          "scale": 0.989,
+          "runtimeBounds": {
+            "x": 76,
+            "y": 43,
+            "width": 254,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 47,
+          "headingDegrees": 278.571,
+          "sourceBounds": {
+            "x": 88,
+            "y": 40,
+            "width": 227,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 90,
+            "y": 43,
+            "width": 225,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 48,
+          "headingDegrees": 280.714,
+          "sourceBounds": {
+            "x": 103,
+            "y": 40,
+            "width": 192,
+            "height": 181
+          },
+          "scale": 0.994,
+          "runtimeBounds": {
+            "x": 107,
+            "y": 43,
+            "width": 191,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 49,
+          "headingDegrees": 282.857,
+          "sourceBounds": {
+            "x": 54,
+            "y": 43,
+            "width": 296,
+            "height": 186
+          },
+          "scale": 0.968,
+          "runtimeBounds": {
+            "x": 60,
+            "y": 43,
+            "width": 286,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 50,
+          "headingDegrees": 285,
+          "sourceBounds": {
+            "x": 54,
+            "y": 44,
+            "width": 297,
+            "height": 185
+          },
+          "scale": 0.973,
+          "runtimeBounds": {
+            "x": 58,
+            "y": 43,
+            "width": 289,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 51,
+          "headingDegrees": 295,
+          "sourceBounds": {
+            "x": 55,
+            "y": 44,
+            "width": 295,
+            "height": 186
+          },
+          "scale": 0.968,
+          "runtimeBounds": {
+            "x": 60,
+            "y": 43,
+            "width": 285,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 52,
+          "headingDegrees": 305,
+          "sourceBounds": {
+            "x": 62,
+            "y": 44,
+            "width": 280,
+            "height": 188
+          },
+          "scale": 0.957,
+          "runtimeBounds": {
+            "x": 68,
+            "y": 43,
+            "width": 268,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 53,
+          "headingDegrees": 315,
+          "sourceBounds": {
+            "x": 68,
+            "y": 41,
+            "width": 269,
+            "height": 190
+          },
+          "scale": 0.947,
+          "runtimeBounds": {
+            "x": 75,
+            "y": 43,
+            "width": 254,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 54,
+          "headingDegrees": 323,
+          "sourceBounds": {
+            "x": 76,
+            "y": 38,
+            "width": 250,
+            "height": 193
+          },
+          "scale": 0.932,
+          "runtimeBounds": {
+            "x": 86,
+            "y": 43,
+            "width": 233,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 55,
+          "headingDegrees": 331,
+          "sourceBounds": {
+            "x": 83,
+            "y": 36,
+            "width": 234,
+            "height": 195
+          },
+          "scale": 0.923,
+          "runtimeBounds": {
+            "x": 94,
+            "y": 43,
+            "width": 217,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 56,
+          "headingDegrees": 339,
+          "sourceBounds": {
+            "x": 92,
+            "y": 35,
+            "width": 209,
+            "height": 196
+          },
+          "scale": 0.918,
+          "runtimeBounds": {
+            "x": 107,
+            "y": 43,
+            "width": 191,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 57,
+          "headingDegrees": 347,
+          "sourceBounds": {
+            "x": 101,
+            "y": 33,
+            "width": 192,
+            "height": 198
+          },
+          "scale": 0.909,
+          "runtimeBounds": {
+            "x": 115,
+            "y": 43,
+            "width": 175,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 58,
+          "headingDegrees": 353,
+          "sourceBounds": {
+            "x": 111,
+            "y": 33,
+            "width": 173,
+            "height": 197
+          },
+          "scale": 0.913,
+          "runtimeBounds": {
+            "x": 124,
+            "y": 43,
+            "width": 157,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 59,
+          "headingDegrees": 358,
+          "sourceBounds": {
+            "x": 118,
+            "y": 32,
+            "width": 157,
+            "height": 197
+          },
+          "scale": 0.913,
+          "runtimeBounds": {
+            "x": 131,
+            "y": 43,
+            "width": 143,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 60,
+          "headingDegrees": 358.4,
+          "sourceBounds": {
+            "x": 104,
+            "y": 31,
+            "width": 185,
+            "height": 198
+          },
+          "scale": 0.909,
+          "runtimeBounds": {
+            "x": 118,
+            "y": 43,
+            "width": 168,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 61,
+          "headingDegrees": 358.8,
+          "sourceBounds": {
+            "x": 103,
+            "y": 32,
+            "width": 191,
+            "height": 197
+          },
+          "scale": 0.913,
+          "runtimeBounds": {
+            "x": 115,
+            "y": 43,
+            "width": 174,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            201.5,
+            222
+          ]
+        },
+        {
+          "frame": 62,
+          "headingDegrees": 359.2,
+          "sourceBounds": {
+            "x": 114,
+            "y": 32,
+            "width": 178,
+            "height": 197
+          },
+          "scale": 0.913,
+          "runtimeBounds": {
+            "x": 122,
+            "y": 43,
+            "width": 162,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202.5,
+            222
+          ]
+        },
+        {
+          "frame": 63,
+          "headingDegrees": 359.6,
+          "sourceBounds": {
+            "x": 127,
+            "y": 32,
+            "width": 159,
+            "height": 196
+          },
+          "scale": 0.918,
+          "runtimeBounds": {
+            "x": 129,
+            "y": 43,
+            "width": 147,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        },
+        {
+          "frame": 64,
+          "headingDegrees": 360,
+          "sourceBounds": {
+            "x": 135,
+            "y": 32,
+            "width": 144,
+            "height": 196
+          },
+          "scale": 0.918,
+          "runtimeBounds": {
+            "x": 137,
+            "y": 43,
+            "width": 131,
+            "height": 180
+          },
+          "runtimeGroundAnchor": [
+            202,
+            222
+          ]
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "allFrameCellsMeasured": true,
+    "uniformRuntimeGrid": true,
+    "continuity": [
+      {
+        "kind": "isometric",
+        "frameCount": 64,
+        "selectedFrameCount": 40,
+        "minHeight": 144,
+        "maxHeight": 144,
+        "maxHeightError": 0,
+        "maxGroundAnchorError": 0.5,
+        "maxSelectedHeightStep": 0,
+        "includesWrapSeam": true
+      },
+      {
+        "kind": "chase",
+        "frameCount": 64,
+        "selectedFrameCount": 39,
+        "minHeight": 180,
+        "maxHeight": 180,
+        "maxHeightError": 0,
+        "maxGroundAnchorError": 0.5,
+        "maxSelectedHeightStep": 0,
+        "includesWrapSeam": true
+      }
+    ]
+  }
+}

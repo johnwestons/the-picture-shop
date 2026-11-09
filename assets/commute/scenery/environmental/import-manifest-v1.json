@@ -1,0 +1,371 @@
+{
+  "asset_set": "environmental-landmarks-v1",
+  "import_date": "2026-10-28",
+  "import_recipe": {
+    "canvas": [
+      256,
+      256
+    ],
+    "alpha_threshold": 16,
+    "fit_box": [
+      240,
+      240
+    ],
+    "anchor": [
+      128,
+      248
+    ],
+    "resampling": "LANCZOS"
+  },
+  "import_script": "tools/prepare_environmental_landmarks.py",
+  "assets": {
+    "skiff-intact": {
+      "source_file": "assets/staging/environmental-relics/skiff-intact-v1-clean.png",
+      "source_sha256": "92e36ced613f5e1f11508f7cde754f5dfd57be6de9de0eee32b76c8ac5c0c336",
+      "prompt_file": "edge-cleanup-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/skiff-intact.png",
+      "output_sha256": "1380d99d2c59e9534a17b6d34647e4df4d7e7917828bd045c2866c939b04e88e",
+      "resized_subject": [
+        240,
+        214
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "skiff-split": {
+      "source_file": "assets/staging/environmental-relics/skiff-split-v1.png",
+      "source_sha256": "5a3fc9f806bfc485ceb80b35f432a702120a35fc5ddf76b526e700c1cd209cda",
+      "prompt_file": "skiff-split-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/skiff-split.png",
+      "output_sha256": "a79b4d7351f7695e2c908bae8315c35333c3285108bf4cfcb9dbd0bb72abc226",
+      "resized_subject": [
+        240,
+        184
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "skiff-collapsed": {
+      "source_file": "assets/staging/environmental-relics/skiff-collapsed-v1.png",
+      "source_sha256": "ce48af8db790870b245a962d18e5dffff604770b8d7c008c1d4a355039b5d28d",
+      "prompt_file": "skiff-collapsed-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/skiff-collapsed.png",
+      "output_sha256": "9bfb36675a5ec3a2d67460bc7f3d0ac20e2f3ce5a02ad77563b2e883ba57a776",
+      "resized_subject": [
+        240,
+        207
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "fishing-net": {
+      "source_file": "assets/staging/environmental-relics/fishing-net-v1.png",
+      "source_sha256": "2434221b19b589d396db0418d0e4aba1ae85aae5e8506bd475e18d1aac8fcca8",
+      "prompt_file": "fishing-net-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/fishing-net.png",
+      "output_sha256": "51d730b9b42187373d107348ec467bf2428fc721c9968b5a9fe6ef0d8bfe00c9",
+      "resized_subject": [
+        240,
+        137
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "crayfish-trap": {
+      "source_file": "assets/staging/environmental-relics/crayfish-trap-v1.png",
+      "source_sha256": "6fefd519119fc5df5f29076520745cb0889fa7c96174a233d837f4737da40b2f",
+      "prompt_file": "crayfish-trap-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/crayfish-trap.png",
+      "output_sha256": "8a40441a37c32411cbac8ee54ad3159d0b85761dd73099407b55a65121185612",
+      "resized_subject": [
+        240,
+        164
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "fishing-pole": {
+      "source_file": "assets/staging/environmental-relics/fishing-pole-v1.png",
+      "source_sha256": "e4c7f89b4bc0c26b88c25ef77a2b9ba57bc7a1b99b89f343f4b77552674bb161",
+      "prompt_file": "fishing-pole-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/fishing-pole.png",
+      "output_sha256": "a9a3304d003348b919feb197d5ec057bf5cbe9024ed79eec5ababfcd4cc314dc",
+      "resized_subject": [
+        240,
+        237
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "cabin-hearth-remains": {
+      "source_file": "assets/staging/environmental-relics/cabin-hearth-remains-v1.png",
+      "source_sha256": "75b946ddf42fb5e350f1f7b833af485ac3f5eacc5cde866c36fd2898866d5ca7",
+      "prompt_file": "cabin-hearth-remains-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/cabin-hearth-remains.png",
+      "output_sha256": "fed43102d8c810d157edd2c816e5c1486b6909061f6476bae5394f0d5d9cfcc5",
+      "resized_subject": [
+        240,
+        207
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "cabin-partial-ruin": {
+      "source_file": "assets/staging/environmental-relics/cabin-partial-ruin-v1.png",
+      "source_sha256": "ee80199ab3de433a99e7d3cc8e30c83ce0409f8a338bc4c9bd3f1d7571b35c95",
+      "prompt_file": "cabin-partial-ruin-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/cabin-partial-ruin.png",
+      "output_sha256": "b1a8992ad21c827dea3cba2b192dfc0beeb95d10348e6245e00bba8b06f5ddf4",
+      "resized_subject": [
+        240,
+        227
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "cabin-shell-ruin": {
+      "source_file": "assets/staging/environmental-relics/cabin-shell-ruin-v1.png",
+      "source_sha256": "f981de1bbdec4299062b5610eed1460a8489ee669e6790439948f0749a3e1fcb",
+      "prompt_file": "cabin-shell-ruin-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/cabin-shell-ruin.png",
+      "output_sha256": "06d69956a1eef9a35482fd14a42a72849ce84c3eccc1f187c0a27ce003240f95",
+      "resized_subject": [
+        240,
+        203
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "camp-fire-ring": {
+      "source_file": "assets/staging/environmental-relics/camp-fire-ring-v1.png",
+      "source_sha256": "f83f03216fce67a70028cb4863859fff05d2b3f1f34ab15a29734249e69ac3c1",
+      "prompt_file": "camp-fire-ring-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/camp-fire-ring.png",
+      "output_sha256": "3c62de4d3ebf896c8e3570bb761c18af97076512ea37d15074cc77e7bdd8642c",
+      "resized_subject": [
+        240,
+        146
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "camp-collapsed-tent": {
+      "source_file": "assets/staging/environmental-relics/camp-collapsed-tent-v1.png",
+      "source_sha256": "1801b554da792557c1ab411254e1b2798afd0aaaed59f5c80255d358521b4cb7",
+      "prompt_file": "camp-collapsed-tent-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/camp-collapsed-tent.png",
+      "output_sha256": "042a12355e67d150bd9ebb78627616a8e21fdeb516a27e7697b74d8ac84ffccb",
+      "resized_subject": [
+        240,
+        215
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    },
+    "camp-lean-to": {
+      "source_file": "assets/staging/environmental-relics/camp-lean-to-v1.png",
+      "source_sha256": "2ff44f11b6f7d10a01b788ee92b75014613a25e26e80a61d9204e0c515f7cc6f",
+      "prompt_file": "camp-lean-to-v1.prompt.txt",
+      "output_file": "assets/sprites/environmental/camp-lean-to.png",
+      "output_sha256": "20f532d922fe2d5562d1cfd2464dd5c7a5b3c94663ae0e41f0e6985295f6dcdb",
+      "resized_subject": [
+        240,
+        160
+      ],
+      "import_recipe": {
+        "canvas": [
+          256,
+          256
+        ],
+        "alpha_threshold": 16,
+        "fit_box": [
+          240,
+          240
+        ],
+        "anchor": [
+          128,
+          248
+        ],
+        "resampling": "LANCZOS"
+      },
+      "review_gallery": "assets/staging/environmental-relics/review-gallery-native-v2.png",
+      "review_status": "native-scale-gallery-reviewed; in-game camera review pending"
+    }
+  }
+}

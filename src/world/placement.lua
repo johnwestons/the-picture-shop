@@ -2,20 +2,57 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 
+local function appendEmployeeObstacle(obstacles,actor)
+    if actor and actor.visible then
+        local scene=actor.phase=="break" and actor.seatBay or actor.sceneId or "warehouse"
+        if scene=="warehouse" then
+            obstacles[#obstacles+1]={x=actor.x,y=actor.y,radius=14,kind="employee",actor=actor}
+        end
+    end
+end
+
 function Component.install(Runtime)
+    local function appendEmployeeObstacles(obstacles,state)
+        local employment=Runtime.Employees.ensure(state)
+        local poses=state._employeePoses
+        for _,application in ipairs(employment.applications) do
+            local actor
+            if poses then actor=poses[application.id] else actor=application.actor end
+            appendEmployeeObstacle(obstacles,actor)
+        end
+        for _,worker in ipairs(employment.staff) do
+            local actor
+            if poses then actor=poses[worker.id] else actor=worker end
+            appendEmployeeObstacle(obstacles,actor)
+        end
+    end
+
     function Runtime.movementObstacles(state, excludeJack, inflate, excludeCutter, excludeWrapper,
-        excludedPalletId, excludeWindmill, excludeForklift)
+        excludedPalletId, excludeWindmill, excludeForklift, sceneOverride)
         inflate = inflate or { x = 0, y = 0 }
         if type(inflate) == "number" then inflate = { x = inflate, y = inflate } end
+        local hasInflation = inflate.x > 0 or inflate.y > 0
+        if sceneOverride and sceneOverride~="warehouse" then
+            local result=require("src.room_vehicle_access").obstacles(state,sceneOverride,
+                type(excludeJack)=="table" and excludeJack or excludeJack and state.palletJack,excludedPalletId,
+                excludeForklift and state.forklift)
+            for i,o in ipairs(result) do result[i]=Runtime.Footprint.expand(o,inflate) end
+            return result
+        end
         local obstacles = {}
         local activeKind, activePose = Runtime.MachineTransport.active(state)
         -- Moving an extra unit must still collide with the original machine.
         if activePose and activePose ~= state[activeKind] then
             excludeCutter, excludeWrapper, excludeWindmill = false, false, false
         end
-        local firstCutter = Runtime.MachineFleet.installedUnits(state, "polar_115")[1]
-        local firstWrapper = Runtime.MachineFleet.installedUnits(state, "skid_wrapper")[1]
-        local firstWindmill = Runtime.MachineFleet.installedUnits(state, "heidelberg_10x15")[1]
+        -- Reuse one ordered fleet snapshot for the core machines and placed obstacles.
+        local installedUnits=Runtime.MachineFleet.installedUnits(state)
+        local firstCutter,firstWrapper,firstWindmill
+        for _,item in ipairs(installedUnits) do
+            if item.modelId=="polar_115" and not firstCutter then firstCutter=item end
+            if item.modelId=="skid_wrapper" and not firstWrapper then firstWrapper=item end
+            if item.modelId=="heidelberg_10x15" and not firstWindmill then firstWindmill=item end
+        end
         if not excludeCutter and firstCutter and not firstCutter.world then
             local cutterObstacle = Runtime.CutterPlacement.obstacle(state, Runtime.Config.cutterPlacement)
             if cutterObstacle then obstacles[#obstacles + 1] = cutterObstacle end
@@ -28,31 +65,46 @@ function Component.install(Runtime)
             local pressObstacle = Runtime.WindmillPlacement.obstacle(state, Runtime.Config.windmillPlacement)
             if pressObstacle then obstacles[#obstacles + 1] = pressObstacle end
         end
-        for _, item in ipairs(Runtime.MachineFleet.installedUnits(state)) do
-            if item.world and not item.world.moving then
+        local installedMachineFirst = #obstacles + 1
+        for _, item in ipairs(installedUnits) do
+            if item.world and (item.world.sceneId or "warehouse") == "warehouse" and not item.world.moving then
                 local config = Runtime.Config[Runtime.MachineFleet.definition(item.modelId).placementKey .. "Placement"]
-                obstacles[#obstacles + 1] = Runtime.Footprint.at(item.world.x, item.world.y, config)
+                local obstacle
+                if hasInflation then
+                    obstacle = Runtime.Footprint.atExpanded(item.world.x, item.world.y, config, inflate)
+                else
+                    obstacle = Runtime.Footprint.at(item.world.x, item.world.y, config)
+                end
+                obstacles[#obstacles + 1] = obstacle
             end
         end
+        local installedMachineLast = #obstacles
         local customerObstacle = Runtime.World.customer:getObstacle()
         if customerObstacle then obstacles[#obstacles + 1] = customerObstacle end
         local vendorObstacle = Runtime.World.vendor:getObstacle()
         if vendorObstacle then obstacles[#obstacles + 1] = vendorObstacle end
         local technicianObstacle = Runtime.Technician.obstacle(state)
         if technicianObstacle then obstacles[#obstacles + 1] = technicianObstacle end
-        local truckObstacle = Runtime.World.truck:getObstacle()
+        local truckObstacle = (Runtime.World.truck.sceneId or "warehouse")=="warehouse" and Runtime.World.truck:getObstacle()
         if truckObstacle then obstacles[#obstacles + 1] = truckObstacle end
-        for _, obstacle in ipairs(Runtime.PalletLogistics.obstacles(state,
+        Runtime.PalletLogistics.obstacles(state,
             Runtime.Config.palletLogistics.collisionHalfWidth,
             Runtime.Config.palletLogistics.collisionHalfHeight,
-            excludedPalletId)) do
-            if not obstacle.palletSceneId or obstacle.palletSceneId=="warehouse" then
-                obstacles[#obstacles + 1] = obstacle
+            excludedPalletId,nil,obstacles)
+        local JackFleet=require("src.pallet_jack_fleet")
+        for _,jack in ipairs(JackFleet.all(state)) do
+            local excluded=excludeJack==true and jack==state.palletJack or excludeJack==jack
+            if not excluded and (jack.sceneId or "warehouse")=="warehouse" then
+                -- Other jacks remain solid while their employees are driving.
+                local loaded=jack.carriedPalletId~=nil
+                local jackObstacle=Runtime.PalletJack.obstacle(JackFleet.view(state,jack),Runtime.Config.palletJack)
+                if not jackObstacle and jack.operatorEmployeeId then
+                    jackObstacle={x=jack.x,y=jack.y-5,
+                        halfWidth=loaded and Runtime.Config.palletJack.loadedCollisionHalfWidth or Runtime.Config.palletJack.collisionHalfWidth,
+                        halfHeight=loaded and Runtime.Config.palletJack.loadedCollisionHalfHeight or Runtime.Config.palletJack.collisionHalfHeight}
+                end
+                if jackObstacle then obstacles[#obstacles+1]=jackObstacle end
             end
-        end
-        if not excludeJack and (not state.palletJack or (state.palletJack.sceneId or "warehouse")=="warehouse") then
-            local jackObstacle = Runtime.PalletJack.obstacle(state, Runtime.Config.palletJack)
-            if jackObstacle then obstacles[#obstacles + 1] = jackObstacle end
         end
         if not excludeForklift and (not state.forklift or (state.forklift.sceneId or "warehouse")=="warehouse") then
             local liftObstacle = Runtime.Forklift.obstacle(state, Runtime.Config.forklift)
@@ -61,14 +113,14 @@ function Component.install(Runtime)
         for _, obstacle in ipairs(Runtime.WarehouseLayout.obstacles(state)) do obstacles[#obstacles + 1] = obstacle end
         local builder = Runtime.WarehouseConstruction.worker(state)
         if builder then obstacles[#obstacles + 1] = {x=builder.x,y=builder.y,radius=14,kind="construction_worker"} end
-        for _,entry in ipairs(Runtime.Employees.actors(state)) do
-            if require("src.shop_rooms").employeeScene(entry)=="warehouse" then
-                obstacles[#obstacles+1]={x=entry.actor.x,y=entry.actor.y,radius=14,kind="employee",actor=entry.actor}
-            end
-        end
-        if inflate.x > 0 or inflate.y > 0 then
+        appendEmployeeObstacles(obstacles,state)
+        if hasInflation then
+            -- Entries were created for this snapshot; keep expand()'s public
+            -- copy behavior while avoiding copies for these short-lived records.
             for index, obstacle in ipairs(obstacles) do
-                obstacles[index] = Runtime.Footprint.expand(obstacle, inflate)
+                if index < installedMachineFirst or index > installedMachineLast then
+                    obstacles[index] = Runtime.Footprint.expandInPlace(obstacle, inflate)
+                end
             end
         end
         return obstacles
@@ -86,20 +138,12 @@ function Component.install(Runtime)
         local Rooms=require("src.shop_rooms")
         local sceneId=sceneOverride or Rooms.scene(Runtime.World.player)
         local obstacles
-        if sceneId~="warehouse" and kind=="pallet" then
+        if sceneId~="warehouse" then
             assets=Rooms.assets(assets,sceneId,state)
-            obstacles=Rooms.obstacles(state,sceneId)
-            for _,item in ipairs(Runtime.PalletLogistics.physicalPallets(state)) do
-                local world=item.pallet.world
-                if item.pallet.id~=excludedPalletId and world
-                    and (world.sceneId or "warehouse")==sceneId then
-                    obstacles[#obstacles+1]={x=item.x,y=item.y-8,
-                        halfWidth=Runtime.Config.palletLogistics.collisionHalfWidth,
-                        halfHeight=Runtime.Config.palletLogistics.collisionHalfHeight,shape="diamond"}
-                end
-            end
             local jack=state and state.palletJack
-            if jack and jack.sceneId==sceneId then
+            obstacles=require("src.room_vehicle_access").obstacles(state,sceneId,jack,
+                excludedPalletId)
+            if kind=="pallet" and jack and jack.sceneId==sceneId then
                 local obstacle=Runtime.PalletJack.obstacle(state,Runtime.Config.palletJack)
                 if obstacle then obstacles[#obstacles+1]=obstacle end
             end
@@ -136,8 +180,8 @@ function Component.install(Runtime)
         return Runtime.placementValidator(state,assets,"pallet",excludedPalletId,sceneId)(x,y)
     end
 
-    function Runtime.isMachinePlacementClear(state, assets, kind, x, y)
-        return Runtime.placementValidator(state,assets,kind)(x,y)
+    function Runtime.isMachinePlacementClear(state, assets, kind, x, y, sceneId)
+        return Runtime.placementValidator(state,assets,kind,nil,sceneId)(x,y)
     end
 
     function Runtime.activeMachineKind(state)
@@ -161,23 +205,35 @@ function Component.install(Runtime)
         if directionX ~= 0 or directionY ~= 0 then Runtime.World.placementSelection = nil end
         placement.move(moveState, directionX, directionY, dt, config, function(nextX, nextY)
             local halfWidth, halfHeight = config.collisionHalfWidth, config.collisionHalfHeight
-            local obstacles = Runtime.movementObstacles(state, false, {
+            local Rooms=require("src.shop_rooms")
+            local sceneId=Rooms.scene(player)
+            local moveAssets=sceneId~="warehouse" and Rooms.assets(assets,sceneId,state) or assets
+            local obstacles = Runtime.movementObstacles(state, state.palletJack, {
                 x = halfWidth, y = halfHeight, shape = "diamond",
-            }, kind == "cutter", kind == "wrapper", nil, kind == "windmill")
+            }, kind == "cutter", kind == "wrapper", nil, kind == "windmill",false,sceneId)
+            local doorway=sceneId=="warehouse" and Rooms.roomEntrance or Rooms.exit
+            local doorwayRadius=doorway.radius+math.max(halfWidth,halfHeight)+32
+            local function nearDoorway(x,y)
+                return (x-doorway.x)^2+(y-doorway.y)^2<=doorwayRadius^2
+            end
+            if (nearDoorway(item.x,item.y) or nearDoorway(nextX,nextY))
+                and Runtime.Navigation.isAreaWalkable(moveAssets,nextX,nextY,0,0)
+                and Runtime.Navigation.canMoveFrom(moveAssets,item.x,item.y,nextX,nextY,obstacles)
+            then return true end
             if kind == "windmill"
-                and not Runtime.Navigation.isAreaWalkable(assets, item.x, item.y, 0, 0)
+                and not Runtime.Navigation.isAreaWalkable(moveAssets, item.x, item.y, 0, 0)
             then
                 return nextX > halfWidth and nextX < Runtime.Config.baseWidth - halfWidth
                     and nextY > halfHeight and nextY < Runtime.Config.baseHeight - halfHeight
             end
-            if Runtime.Navigation.canMoveAreaFrom(assets, item.x, item.y, nextX, nextY,
+            if Runtime.Navigation.canMoveAreaFrom(moveAssets, item.x, item.y, nextX, nextY,
                 halfWidth, halfHeight, obstacles)
             then return true end
             if kind == "windmill"
-                and not Runtime.Navigation.isAreaWalkable(assets, item.x, item.y, halfWidth, halfHeight)
+                and not Runtime.Navigation.isAreaWalkable(moveAssets, item.x, item.y, halfWidth, halfHeight)
             then
-                return Runtime.Navigation.canMoveFrom(assets, item.x, item.y, nextX, nextY, obstacles)
-                    and Runtime.Navigation.isAreaWalkable(assets, nextX, nextY, 0, 0)
+                return Runtime.Navigation.canMoveFrom(moveAssets, item.x, item.y, nextX, nextY, obstacles)
+                    and Runtime.Navigation.isAreaWalkable(moveAssets, nextX, nextY, 0, 0)
             end
             return false
         end)
@@ -199,7 +255,7 @@ function Component.install(Runtime)
         if kind and (not networkMachineView or localGuestControlsMachine) then
             return kind, item.x, item.y
         end
-        if jack and jack.operating and jack.carriedPalletId then
+        if jack and jack.operating and not jack.operatorEmployeeId and jack.carriedPalletId then
             local x, y = Runtime.PalletJack.dropPosition(state, Runtime.Config.palletJack)
             return "pallet", x, y
         end
@@ -244,16 +300,40 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.findCutterOutput(state, assets, excludedPalletId, machineId)
-        return Runtime.CutterStaging.find(function(x, y)
-            if not Runtime.World.isPalletPlacementClear(state, assets, x, y, excludedPalletId) then return false end
+        machineId=machineId or "MCH-0001"
+        local unit=Runtime.MachineFleet.byId(state,machineId)
+        local sceneId=unit and unit.world and unit.world.sceneId or "warehouse"
+        local function outputClear(x,y,outputScene)
+            if outputScene and outputScene~=sceneId then return false end
+            if not Runtime.World.isPalletPlacementClear(state,assets,x,y,excludedPalletId,sceneId)
+                or not Runtime.StagingAreas.slotClear(state,x,y,excludedPalletId,sceneId) then return false end
             for _,unit in ipairs(Runtime.MachineFleet.installedUnits(state,"polar_115")) do
                 local machine=Runtime.Machine.forId(unit.id)
-                if machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
+                if (unit.world and unit.world.sceneId or "warehouse")==sceneId
+                    and machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
                     and Runtime.Footprint.distanceSquared(Runtime.Footprint.at(x,y,Runtime.Config.palletLogistics),
                         Runtime.Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,Runtime.Config.palletLogistics))<.01 then return false end
             end
             return true
-        end, state, machineId)
+        end
+        if Runtime.StagingAreas.hasMachineOutput(state,machineId,sceneId) then
+            return Runtime.StagingAreas.findMachineOutput(state,machineId,outputClear,false)
+        end
+        local machineState=state
+        if machineId then machineState=setmetatable({_operatingMachineId=machineId},{__index=state}) end
+        return Runtime.CutterZones.findOutput(machineState,Runtime.Config.cutterPlacement,function(x,y)
+            if not Runtime.World.isPalletPlacementClear(state,assets,x,y,excludedPalletId,sceneId) then return false end
+            for _,owned in ipairs(Runtime.MachineFleet.installedUnits(state,"polar_115")) do
+                if (owned.world and owned.world.sceneId or "warehouse")==sceneId then
+                    local machine=Runtime.Machine.forId(owned.id)
+                    if machine.pendingOutput and machine.pallet and machine.pallet.id~=excludedPalletId
+                        and Runtime.Footprint.distanceSquared(Runtime.Footprint.at(x,y,Runtime.Config.palletLogistics),
+                            Runtime.Footprint.at(machine.pendingOutput.x,machine.pendingOutput.y,
+                                Runtime.Config.palletLogistics))<.01 then return false end
+                end
+            end
+            return true
+        end)
     end
 end
 

@@ -14,6 +14,11 @@ Capabilities.MODES = {
 }
 
 Capabilities.INTERACTIONS = {
+    homeTravel = {label="Independent town travel",mode="full",supported={"explore","delivery","shutdown","host_request","guest_ready","host_bring_everyone"}},
+    commute = {label='Shared town and deliveries',mode='candidate',supported={'gear','ride','park','door','independent_arrival','grocery','delivery','host_bring_everyone'}},
+    homeActivity = {label="Individual home routines",mode="full",supported={"fixture_use","floor_rest","eat","cancel","bike_cargo"}},
+    homeDelivery = {label="Shared home deliveries",mode="full",supported={"collect"}},
+    homeFurniture = {label="Home furnishing",mode="full",supported={"move","rotate","store","sell","permissions"}},
     shopEntrance = {label="Shop room entrance",mode="full",supported={"enter_room","leave_room"}},
     roomStock = {label="Storage room stock",mode="full",supported={"store_stock","retrieve_stock"}},
     roomRest = {label="Break room seating",mode="full",supported={"rest","stand"}},
@@ -48,6 +53,11 @@ Capabilities.INTERACTIONS = {
         mode = "read_only",
         supported = { "view_applicant", "inspect_resume_in_hiring" },
     },
+    employeeHighFive = {
+        label = "Employee high five",
+        mode = "read_only",
+        supported = { "view_high_five_request" },
+    },
     vendor = {
         label = "Supplier representative",
         mode = "candidate",
@@ -80,6 +90,11 @@ Capabilities.INTERACTIONS = {
             "offline_host_save_reload",
         },
     },
+    deliverySignature = {
+        label = "Inbound delivery signature",
+        mode = "full",
+        supported = { "sign_delivery" },
+    },
     palletWorkOrder = {
         label = "Pallet work order",
         mode = "read_only",
@@ -94,10 +109,6 @@ Capabilities.INTERACTIONS = {
         label = "Pallet shelving",
         mode = "candidate",
         supported = { "inspect_shelves", "store_pallets", "retrieve_pallets", "stack_pallets", "unstack_pallets" },
-    },
-    regalFolder = {
-        label = "Regal Moll folder practice run", mode = "candidate",
-        supported = { "local_two_station_practice" },
     },
     cutter = {
         label = "Polar cutter",

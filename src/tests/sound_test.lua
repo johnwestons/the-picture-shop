@@ -54,9 +54,39 @@ function Test.run(context, check)
     check("sound_loop_ownership_tracks_warehouse_and_press",
         started.warehouse == "warehouse_ambience_loop"
         and started.press == "press_running_loop")
+    active.pressMotor=false
+    stopped.press=nil
+    instance:syncPersistentLoops(active)
+    check("sound_stopped_motor_is_silent_even_with_stale_production_status",stopped.press==true)
+    active.pressMotor=true;active.screen="title";stopped.press=nil
+    instance:syncPersistentLoops(active)
+    check("sound_title_cannot_keep_a_production_motor_loop",stopped.press==true)
     active.screen, active.pressStatus = "title", "idle"
     instance:syncPersistentLoops(active)
     check("sound_loops_stop_outside_their_owners", stopped.warehouse and stopped.press)
+
+    active.screen,active.pressStatus,active.pressMotor="world","production",true
+    for _,scene in ipairs({"home","commute"}) do
+        active.sceneId=scene;started,stopped={},{}
+        instance:syncPersistentLoops(active)
+        check("sound_shop_loops_do_not_leak_into_"..scene,stopped.warehouse and stopped.press
+            and not started.warehouse and not started.press)
+    end
+    active.sceneId="front_left";started,stopped={},{}
+    instance:syncPersistentLoops(active)
+    check("sound_shop_loops_resume_in_shop_rooms",started.warehouse=="warehouse_ambience_loop"
+        and started.press=="press_running_loop")
+    state.home={commute={independent=true,participants={}}};started,stopped={},{}
+    instance:syncPersistentLoops(active)
+    check('sound_indoor_player_keeps_shop_loops_during_remote_travel',started.warehouse=='warehouse_ambience_loop'
+        and started.press=='press_running_loop')
+    state.home=nil
+    instance.context.world={player={sceneId="home"}}
+    state.screen,state.optionsReturnScreen="options","world"
+    local homeSnapshot=instance:capture();started,stopped={},{}
+    instance:syncPersistentLoops(homeSnapshot)
+    check("sound_options_keeps_apartment_scene_silent",homeSnapshot.screen=="world" and homeSnapshot.sceneId=="home"
+        and stopped.warehouse and not started.warehouse)
 
     local loopVolume
     instance.loops = { warehouse = {

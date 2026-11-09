@@ -1,7 +1,8 @@
 local Animation = {}
+local HighFiveArt = require("src.high_five_art")
 
 function Animation.isWalkAction(action)
-    return type(action) == "string" and (action == "walk" or action:match("^walk_") ~= nil
+    return type(action) == "string" and not action:match("_idle$") and (action == "walk" or action:match("^walk_") ~= nil
         or action == "push" or action:match("^push_") ~= nil)
 end
 
@@ -17,6 +18,15 @@ function Animation.frameForDistance(frameCount, distance, pixelsPerFrame)
     if frameCount <= 1 then return 1 end
     pixelsPerFrame = math.max(1, tonumber(pixelsPerFrame) or 12)
     return math.floor(math.max(0, tonumber(distance) or 0) / pixelsPerFrame) % frameCount + 1
+end
+
+-- Motion profiles describe eight canonical poses per physical stride. Extra
+-- authored drawings subdivide that stride rather than increasing its length.
+-- Keep frameForDistance available for strips with literal per-drawing spacing.
+function Animation.frameForGait(frameCount, distance, pixelsPerPose)
+    frameCount=math.max(1,math.floor(tonumber(frameCount) or 1))
+    local stride=math.max(1,tonumber(pixelsPerPose) or 12)*8
+    return math.floor(math.max(0,tonumber(distance) or 0)*frameCount/stride)%frameCount+1
 end
 
 function Animation.frameForIdle(frameCount, clock, rate)
@@ -52,6 +62,14 @@ function Animation.directionalWalkAction(x, y)
     return directionalAction("walk", x, y)
 end
 
+function Animation.actorWalkAction(actor)
+    local x, y = tonumber(actor.velocityX) or 0, tonumber(actor.velocityY) or 0
+    -- External movement clears controller velocity. Lua treats zero as true,
+    -- so `velocityX or intentX` loses the observed direction in that case.
+    if x * x + y * y < 0.00000001 then x, y = actor.intentX, actor.intentY end
+    return Animation.directionalWalkAction(x, y)
+end
+
 function Animation.directionalPalletJackPushAction(x, y)
     return directionalAction("push", x, y)
 end
@@ -77,9 +95,9 @@ end
 function Animation.frameForPlayerAction(action, frameCount, distance, idleClock,
     pixelsPerFrame, idleRate)
     if Animation.isWalkAction(action) then
-        return Animation.frameForDistance(frameCount, distance, pixelsPerFrame)
+        return Animation.frameForGait(frameCount, distance, pixelsPerFrame)
     end
-    return Animation.frameForClock(frameCount, idleClock, idleRate)
+    return Animation.frameForIdle(frameCount, idleClock, idleRate)
 end
 
 function Animation.frameForPalletJackPush(frameCount, moving, distance, pixelsPerFrame)
@@ -88,8 +106,7 @@ function Animation.frameForPalletJackPush(frameCount, moving, distance, pixelsPe
     -- increase visual cadence without making each step twice as long.
     local subdivision = frameCount / 8
     if not moving then return math.min(frameCount, math.floor(subdivision) + 1) end
-    return Animation.frameForDistance(frameCount, distance,
-        (pixelsPerFrame or 20) / subdivision)
+    return Animation.frameForGait(frameCount, distance,pixelsPerFrame or 20)
 end
 
 function Animation.frameForHighFive(frameCount, elapsed, duration)
@@ -97,6 +114,14 @@ function Animation.frameForHighFive(frameCount, elapsed, duration)
     if frameCount <= 1 then return 1 end
     elapsed = math.max(0, tonumber(elapsed) or 0)
     duration = math.max(0.1, tonumber(duration) or 0.95)
+    if frameCount == #HighFiveArt.durationWeights then
+        local phase, boundary = elapsed / duration, 0
+        for frame, weight in ipairs(HighFiveArt.durationWeights) do
+            boundary = boundary + weight
+            if phase < boundary then return frame end
+        end
+        return frameCount
+    end
     if frameCount == 2 then return elapsed < duration * 0.28 and 1 or 2 end
     if elapsed < duration * 0.18 then return 1 end
     if elapsed < duration * 0.42 then return 2 end

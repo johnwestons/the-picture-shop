@@ -1,0 +1,94 @@
+{
+  "status": "geometry/path reviewed; subsequent arm repairs rejected; no directional runtime relocation or clip installed",
+  "machine_art": "assets/generated/polar-cutter-directions-strip.png",
+  "machine_art_sha256": "6c0774d206f2a39df3de212c8df4a3c0d3392d2d0325fd13f9fbb294261fdf3d",
+  "frame_zero_based": 0,
+  "source_frame_size": 512,
+  "source_controls": [
+    [
+      255,
+      350
+    ],
+    [
+      385,
+      306
+    ]
+  ],
+  "world_origin": [
+    620,
+    405
+  ],
+  "source_anchor": [
+    256,
+    491.52
+  ],
+  "machine_scale": 0.272,
+  "world_controls": [
+    [
+      619.728,
+      366.506
+    ],
+    [
+      655.088,
+      354.538
+    ]
+  ],
+  "proposed_worker_feet": [
+    660,
+    411
+  ],
+  "registered_strip_visible_height": 219,
+  "production_worker_scale": 0.3506849315068493,
+  "normalized_contact_tips": [
+    [
+      13.2,
+      102.1
+    ],
+    [
+      114.0,
+      68.0
+    ]
+  ],
+  "source_boot_anchor": [
+    128,
+    229
+  ],
+  "navigation_probe": "output/animation-overhaul/contact-probe/cutter-contact-navigation-probe.json",
+  "findings": [
+    "Prior world target642,385 lies below actual table lip and was rejected.",
+    "Prior .40 overlay scale does not match registered219px body height.",
+    "Repaired v3 far glove points backward/right toward the other vehicle and is rejected.",
+    "Foot point655,411 is blocked;660,411 is walkable under production obstacles. Root must verify path/contacts before registration.",
+    "Frame-6 native-control candidates v4 and constrained edit v5 were rejected by root; both control contacts remain unresolved and no further cutter generation is authorized.",
+    "Native-control v4 clusters both gloves near A; far glove misses B and is rejected.",
+    "Native-control v5 constrained edit changes head, near hand and boots; rejects contact/body locks. No further cutter generation in this batch.",
+    "Machine floor-origin intent from proposed feet points west. A future accepted contact registration must resolve correct work-view facing, as well as exact operator position."
+  ],
+  "route_probe": "output/animation-overhaul/cat-south-before/cutter-contact-reachable-route-probe.json",
+  "route_review": {
+    "goal": [
+      660,
+      411
+    ],
+    "starts": [
+      [
+        600,
+        560
+      ],
+      [
+        500,
+        500
+      ],
+      [
+        760,
+        450
+      ],
+      [
+        700,
+        520
+      ]
+    ],
+    "all_reachable": true,
+    "segments_collision_checked": true
+  }
+}

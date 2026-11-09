@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local CustomerDemand = require("src.customer_demand")
+local Progression = require("src.job_progression")
 
 function Component.install(Runtime)
     function Runtime.ensureEmails(state)
@@ -24,8 +25,10 @@ function Component.install(Runtime)
         if not service then return "Not assigned" end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local clientReplyHours = Runtime.emailDelay(job, 1, 3)
+        local settings = Runtime.App and Runtime.App.settings
         return Runtime.BusinessCalendar.dateTimeTextAtHours(now + clientReplyHours
-            + (tonumber(service.delayHours) or 0))
+            + (tonumber(service.delayHours) or 0),
+            not (settings and settings.twelveHourTime==false))
     end
 
     function Runtime.estimateRequestEmail(state, job)
@@ -44,7 +47,9 @@ function Component.install(Runtime)
             id = string.format("EMAIL-%04d", number),
             sender = job.company,
             subject = "Job details for " .. job.id,
-            body = "Please review the job details and send an estimate.",
+            body = job.outboundDelivery and job.outboundDelivery.requested
+                and "Please review the job details and send a production estimate. Include shop delivery as a separate option; we may arrange our own transportation if the fee does not work for us."
+                or "Please review the job details and send a production estimate. We will arrange our own transportation for the shipment.",
             sourceJobId = job.id,
             readyAtHours = now + Runtime.emailDelay(job, 2, 5),
             estimateRequest = true,
@@ -91,6 +96,9 @@ function Component.install(Runtime)
             local allowance = completedJob.press and math.max(50, math.ceil(suppliedSheets * 0.03)) or 0
             requestedCopies[index] = suppliedSheets - allowance
         end
+        sheetCounts, requestedCopies = Progression.scaleSheetCounts(sheetCounts, requestedCopies,
+            1, Progression.liftBudget(state), Runtime.Jobs.MAX_PALLETS,
+            Progression.hasProductionTeam(state))
         local source = Runtime.copy(completedJob.sourceSize)
         local finished = Runtime.copy(completedJob.finishedSize)
         if emailNumber % 2 == 0 and source.width ~= source.height then
@@ -107,19 +115,22 @@ function Component.install(Runtime)
         local spec = {
             id = string.format("EMAIL-JOB-%04d", emailNumber),
             company = completedJob.company,
+            customerDestination = completedJob.customerDestination,
             sourceSize = source,
             finishedSize = finished,
             sheetCounts = sheetCounts,
             packaging = emailNumber % 2 == 0 and "boxed" or "flat",
-            difficulty = tier <= 1 and "easy"
+            difficulty = Progression.capDifficulty(state, tier <= 1 and "easy"
                 or tier == 2 and (emailNumber % 3 == 0 and "medium" or "easy")
                 or tier == 3 and ({ "easy", "medium", "hard" })[(emailNumber - 1) % 3 + 1]
                 or ({ "medium", "hard", "hard" })[(emailNumber - 1) % 3 + 1],
+                completedJob.press and "press" or "cutter"),
             artworkKey = artworkKey,
             artwork = Runtime.artworkRecord(artworkKey, artworkSize),
             stockSpec = stockSpec,
             requestChannel = "email",
             deliveryService = Runtime.deliveryService(completedJob, emailNumber),
+            outboundDelivery = Runtime.outboundDeliveryRequest(completedJob, emailNumber),
             details = {
                 stockDescription = stockSpec and stockSpec.description or "Repeat-client supplied stock",
                 dueDate = emailNumber % 3 == 0 and "Priority repeat order" or "Standard repeat-order turnaround",
@@ -145,27 +156,59 @@ function Component.install(Runtime)
         local number = emails.nextEmailId
         local offer = Runtime.repeatOffer(state, completedJob, number)
         if not offer then return false end
+        local appliedCoupon,couponPrices=Runtime.applyAvailablePromotionCoupon(state,offer)
         local followupHours = math.floor((1 + number % 3) * 24
             * CustomerDemand.delayMultiplier(state) + 0.5)
         emails.nextEmailId = number + 1
-        emails.pending[#emails.pending + 1] = {
+        local email={
             id = string.format("EMAIL-%04d", number),
             sender = completedJob.company,
             subject = completedJob.press and "Request for another print job" or "Request for another cutting job",
             body = completedJob.press
-                and "We were happy with the last order and would like an estimate for another cut-and-print job."
-                or "We were happy with the last order and would like an estimate for another paper-cutting job.",
+                and "Please quote another cut-and-print job for us."
+                or "Please quote another paper-cutting job for us.",
             sourceJobId = completedJob.id,
             readyAtHours = Runtime.BusinessCalendar.absoluteHours(state) + followupHours,
             job = offer,
         }
+        if couponPrices then
+            email.promotionId=appliedCoupon.id
+            email.standardPrice=couponPrices.standardPrice
+            email.discountAmount=couponPrices.discountAmount
+            email.discountedTotal=couponPrices.discountedTotal
+            email.body=email.body.." Your 10% coupon is applied."
+        end
+        emails.pending[#emails.pending + 1] = email
         return true
     end
 
     function Runtime.JobService.updateClientEmails(state)
         local emails = Runtime.ensureEmails(state)
+        -- Client communication is held during the Saturday/Sunday shutdown.
+        -- Leave due mail and estimate decisions queued so Monday's first update
+        -- delivers each response through the normal inbox flow.
+        if Runtime.BusinessCalendar.isWeekend(state) then return false end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local delivered = false
+
+        -- Promotions sent by older saves could be marked silent forever. Give
+        -- each of those clients one durable reply under the current email flow.
+        for _,promotion in ipairs(emails.sentPromotions) do
+            if promotion.responseOutcome=="no_response" then
+                promotion.responseOutcome="thank_you"
+                local number=Runtime.nextEmailNumber(emails)
+                Runtime.Inbox.addNotice(state,{
+                    id=string.format("EMAIL-%04d",number),
+                    sender=promotion.recipient,
+                    subject="Thank you for the 10% offer",
+                    body="Thanks for the coupon. We do not have a new job right now, but we will use it on our next order.",
+                    noticeKind="client_thanks",
+                    sourceJobId=promotion.sourceJobId,
+                },0)
+                Runtime.applyCouponToNextPendingOrder(state,promotion.recipient)
+                delivered=true
+            end
+        end
 
         -- A client follows up once or twice if their written request is sitting
         -- unanswered. The reminders stop after that limit; the request remains
@@ -206,8 +249,24 @@ function Component.install(Runtime)
                     local job = email.job
                     local succeeded
                     if email.accepted then
+                        local outbound = job.outboundDelivery
+                        if type(outbound) == "table" then
+                            local productionPrice = math.floor(tonumber(job.quote and job.quote.playerPrice)
+                                or tonumber(email.quotedPrice) or 0)
+                            local deliveryPrice = math.floor(tonumber(email.quotedDeliveryPrice) or 0)
+                            local acceptedDelivery = email.offeredDelivery == true
+                                and email.deliveryAccepted == true
+                                and outbound.requested == true
+                            outbound.offered = email.offeredDelivery == true
+                            outbound.quotedPrice = email.offeredDelivery and deliveryPrice or nil
+                            outbound.transport = acceptedDelivery and "shop" or "customer"
+                            job.quote.totalPrice = productionPrice + (acceptedDelivery and deliveryPrice or 0)
+                        end
                         succeeded = Runtime.JobService.acceptOffer(state, job, os.time())
                     else
+                        if type(email.job.outboundDelivery) == "table" then
+                            email.job.outboundDelivery.transport = "customer"
+                        end
                         succeeded = Runtime.JobService.declineOffer(state, job, os.time())
                     end
                     if succeeded then
@@ -219,11 +278,21 @@ function Component.install(Runtime)
                         email.subject = email.accepted
                             and ("Estimate accepted: " .. job.id)
                             or ("Estimate declined: " .. job.id)
-                        email.body = email.accepted
-                            and string.format("We accept your $%d estimate. Please proceed with the job.",
-                                math.floor(tonumber(email.quotedPrice) or 0))
-                            or string.format("Thank you for the $%d estimate. We have decided not to proceed.",
-                                math.floor(tonumber(email.quotedPrice) or 0))
+                        local productionPrice = math.floor(tonumber(email.quotedPrice) or 0)
+                        local deliveryPrice = math.floor(tonumber(email.quotedDeliveryPrice) or 0)
+                        if not email.accepted then
+                            email.body = string.format("Thank you for the $%d production estimate. We have decided not to proceed.",
+                                productionPrice)
+                        elseif email.offeredDelivery and email.deliveryAccepted then
+                            email.body = string.format("We accept your $%d production estimate and $%d delivery quote ($%d total). Please proceed with the job and shop delivery.",
+                                productionPrice, deliveryPrice, productionPrice + deliveryPrice)
+                        elseif email.offeredDelivery then
+                            email.body = string.format("We accept your $%d production estimate, but will arrange our own transportation rather than the $%d shop delivery. Please proceed with the job.",
+                                productionPrice, deliveryPrice)
+                        else
+                            email.body = string.format("We accept your $%d production estimate. We will arrange our own transportation for the shipment.",
+                                productionPrice)
+                        end
                         email.responseOutcome = email.accepted and "accepted" or "declined"
                         for _, archived in ipairs(emails.archive) do
                             if archived.jobId == job.id and archived.response == "estimate_sent" then

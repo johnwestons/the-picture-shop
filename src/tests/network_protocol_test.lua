@@ -401,6 +401,18 @@ local function runShardedPlayerProtocolRegression(check)
         serverTick = 4000000000,
         players = Codec.array({ precisionRoster[1], precisionRoster[2] }),
     })
+    local rider=player(2,"Ride Guest",128,248)
+    rider.sceneId="commute"
+    local bike={heading=math.pi,speed=17.125,brake=1,steer=-.55,token=999999999999}
+    local sample={sessionId="session-full-precision",serverTick=4000000000,
+        players=Codec.array({rider}),bike=bike}
+    local packet=Protocol.encode("snapshot",sample)
+    local decoded=packet and Protocol.decode(packet)
+    bike.steer=2
+    check("network_protocol_bike_motion_round_trip",
+        decoded and decoded.payload.bike and decoded.payload.bike.steer==-.55
+        and decoded.payload.bike.speed==17.125 and #packet<=Protocol.MAX_PACKET_BYTES
+        and Protocol.encode("snapshot",sample)==nil)
     check("network_protocol_v7_player_updates_are_mtu_safe_shards",
         combinedRosterBytes and #combinedRosterBytes > 1200
         and Protocol.MAX_PACKET_BYTES == 1200

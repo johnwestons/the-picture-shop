@@ -1,0 +1,338 @@
+[
+  {
+    "id": "boost-00",
+    "source": "assets/source/commute-bike-actions-v1/boost-00-source.png",
+    "sha256": "1e57d8d6eeba406a1bc4acd43dcf44f7a2c327e487e25550051deb0aa4e17c03",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-00.generation.json"
+  },
+  {
+    "id": "boost-01",
+    "source": "assets/source/commute-bike-actions-v1/boost-01-source.png",
+    "sha256": "bd2b1ccd988ccb5e269d950fc4b9ecc136d22d93e0558614c94b0b55be6abfb9",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-01.generation.json"
+  },
+  {
+    "id": "boost-02",
+    "source": "assets/source/commute-bike-actions-v1/boost-02-source.png",
+    "sha256": "bef1f3cf494bfc32b5885e1cace1a12c5bf052cf66b662d3a27a5ff74ad5d574",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-02.generation.json"
+  },
+  {
+    "id": "boost-03",
+    "source": "assets/source/commute-bike-actions-v1/boost-03-source.png",
+    "sha256": "b16ff3e1bce7f85165a8e44c7648b6a54ac035f6eb934c1a828ec4a4150bc454",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-03.generation.json"
+  },
+  {
+    "id": "boost-04",
+    "source": "assets/source/commute-bike-actions-v1/boost-04-source.png",
+    "sha256": "b4481ebfa4f7467d92eb69056d657a6c45b23deed8c91a9bf51c7f17de915a48",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-04.generation.json"
+  },
+  {
+    "id": "boost-05",
+    "source": "assets/source/commute-bike-actions-v1/boost-05-source.png",
+    "sha256": "ae2d7269422999b32aeb08a5a96224fd2a0bbdf3d3890e72cd94d700c0c27642",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-05.generation.json"
+  },
+  {
+    "id": "boost-06",
+    "source": "assets/source/commute-bike-actions-v1/boost-06-source.png",
+    "sha256": "e7793d10fb9921b3e595a2844e25ce27aa4a7d360bbc825b0bc0a42faddee6d1",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-06.generation.json"
+  },
+  {
+    "id": "boost-07",
+    "source": "assets/source/commute-bike-actions-v1/boost-07-source.png",
+    "sha256": "b98f6ce54472df4ea123f0ed273824f1e7477ab7d9fba198cfd8c0f3fc9ef7c7",
+    "generationRecord": "assets/source/commute-bike-actions-v1/boost-07.generation.json"
+  },
+  {
+    "id": "brake-00",
+    "source": "assets/source/commute-bike-actions-v1/brake-00-source.png",
+    "sha256": "fc4e874f191710a782d433a7d20d1fa346fb7cc3808a6beecbe78ef19723e181",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-00.generation.json"
+  },
+  {
+    "id": "brake-01",
+    "source": "assets/source/commute-bike-actions-v1/brake-01-source.png",
+    "sha256": "0c4540b25bd5fc114a26ea1ef2ffdc1b1a47f83cfbb940950ed05f068139f87a",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-01.generation.json"
+  },
+  {
+    "id": "brake-02",
+    "source": "assets/source/commute-bike-actions-v1/brake-02-source.png",
+    "sha256": "c8ad85f083dd30381140c8fa4ad385a0baf946a4709b4db71f7f916c6c053726",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-02.generation.json"
+  },
+  {
+    "id": "brake-03",
+    "source": "assets/source/commute-bike-actions-v1/brake-03-source.png",
+    "sha256": "fd9d740e22d7bbf1c9331308505b84d3deee396130f3ecc6f3c77478e6f1949e",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-03.generation.json"
+  },
+  {
+    "id": "brake-04",
+    "source": "assets/source/commute-bike-actions-v1/brake-04-source.png",
+    "sha256": "bc40eb7aae23423ca9fdcf5db40bff68994e425f798873ad9760b93b739be2d7",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-04.generation.json"
+  },
+  {
+    "id": "brake-05",
+    "source": "assets/source/commute-bike-actions-v1/brake-05-source.png",
+    "sha256": "669a93271604d158bdeed89bb2f22f5a420cf67a5f980add17cb5d94727bc57f",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-05.generation.json"
+  },
+  {
+    "id": "brake-06",
+    "source": "assets/source/commute-bike-actions-v1/brake-06-source.png",
+    "sha256": "574e53ae4a3a28e9a41b657f2804e56bee71b86e36c586d4872747f12857f846",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-06.generation.json"
+  },
+  {
+    "id": "brake-07",
+    "source": "assets/source/commute-bike-actions-v1/brake-07-source.png",
+    "sha256": "f0beaceb42ee8a5ab6e40fccffc84d87c91abcfbf4eb84ab46e9bacfea8aad6a",
+    "generationRecord": "assets/source/commute-bike-actions-v1/brake-07.generation.json"
+  },
+  {
+    "id": "turnLeft-00",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-00-lateral-v2-source.png",
+    "sha256": "c595da4b78f5110fcb9ec900859bcfbe1df19d9c8ab02b38437a7a5051450d51",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-00-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-01",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-01-lateral-v2-source.png",
+    "sha256": "f3f9cce36e40e884c13587cfd7a39367edd221b84e1239e278e7fa34485a1af2",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-01-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-02",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-02-lateral-v2-source.png",
+    "sha256": "305b6c0c7bf8b3c5dbfad90edcd1107472364fd59baad118d1453690559d7cad",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-02-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-03",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-03-lateral-v3-source.png",
+    "sha256": "1391ef49cb3dfccd1a36801f93fa82a246640925e08b560e4153c80e795ad731",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-03-lateral-v3.generation.json"
+  },
+  {
+    "id": "turnLeft-04",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-04-lateral-v2-source.png",
+    "sha256": "46b4485e106ff0ad5d29e903a287c4ac1100b5058529eba05d5d0fe1e686b0ab",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-04-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-05",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-05-lateral-v2-source.png",
+    "sha256": "b5a0c1bd7594f623de15cfc3d3f9c723b0116f98ec7c4c3fef878622580df763",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-05-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-06",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-06-lateral-v2-source.png",
+    "sha256": "66cb0c6f4d7e89b67b91f163c5056b523b255f01578e3d69411a305023266b59",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-06-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnLeft-07",
+    "source": "assets/source/commute-bike-actions-v1/turnLeft-07-lateral-v2-source.png",
+    "sha256": "13fb736c632990de1f38402d1f4f2c313efc3490900d7f59cd433d4830e690b8",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnLeft-07-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-00",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-00-lateral-v2-source.png",
+    "sha256": "69ea549f1f652f4fd3fcb52764c77736f370a0aef53ac23dcf68cb541695eda1",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-00-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-01",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-01-lateral-v2-source.png",
+    "sha256": "146ff074d70ee5898464040b9d37be293888ff1a33e1b8f4ffe1feb710664f1f",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-01-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-02",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-02-lateral-v2-source.png",
+    "sha256": "6f09b866470ebd4ed290d58d5092154c8a96902fdf18624c47113f5c12e2a8b0",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-02-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-03",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-03-lateral-v2-source.png",
+    "sha256": "aa63f722c7beffdf6ba9f428631cd083f403c1297018e369a1c2049369a1d2e3",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-03-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-04",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-04-lateral-v2-source.png",
+    "sha256": "fd9fe642884fe5b5317fd9fbe4f18dbf333e601268e42e364823b3798d53439f",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-04-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-05",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-05-lateral-v2-source.png",
+    "sha256": "38d9ff77a498d057ac4003253db36180edb23b623e39c4122733c8c625c30e66",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-05-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-06",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-06-lateral-v2-source.png",
+    "sha256": "91f1b17b2f6dbf85b6a632a8a549af2b51a24e921aca95b4f557bb0b45bfd4db",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-06-lateral-v2.generation.json"
+  },
+  {
+    "id": "turnRight-07",
+    "source": "assets/source/commute-bike-actions-v1/turnRight-07-lateral-v2-source.png",
+    "sha256": "93f66d4eb6382082bffdbc5cd6a463b6f76dcc0fae17b22ffd61623418e2731e",
+    "generationRecord": "assets/source/commute-bike-actions-v1/turnRight-07-lateral-v2.generation.json"
+  },
+  {
+    "id": "aero-00",
+    "source": "assets/source/commute-bike-actions-v1/aero-00-source.png",
+    "sha256": "5cecd43cbc2689ab1a65815d3639f074103dea1628836437f7c897f728b9283e",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-00.generation.json"
+  },
+  {
+    "id": "aero-01",
+    "source": "assets/source/commute-bike-actions-v1/aero-01-source.png",
+    "sha256": "a6dea5b0c8aad12ad9d6cbf44c7719e71e75595e4bbf8a8008a6de06e12bc880",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-01.generation.json"
+  },
+  {
+    "id": "aero-02",
+    "source": "assets/source/commute-bike-actions-v1/aero-02-source.png",
+    "sha256": "a5cbcbe4bb0ef77d8f4fc7e74fc96610a5a6a9f3f6a3d858589868ba17b52747",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-02.generation.json"
+  },
+  {
+    "id": "aero-03",
+    "source": "assets/source/commute-bike-actions-v1/aero-03-source.png",
+    "sha256": "75509720463c344296b3a0ab4ee25482af28f5bac16529d156e4f346780aa0d6",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-03.generation.json"
+  },
+  {
+    "id": "aero-04",
+    "source": "assets/source/commute-bike-actions-v1/aero-04-source.png",
+    "sha256": "f76c042504c22739c417035f378f7622b0947a1d8b9ca85ca7c4544891b9b68c",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-04.generation.json"
+  },
+  {
+    "id": "aero-05",
+    "source": "assets/source/commute-bike-actions-v1/aero-05-source.png",
+    "sha256": "2b5d145b5cbfec5a54f18395b2913cd8a6e42c5fcefeadbfd6a033c94fe451fa",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-05.generation.json"
+  },
+  {
+    "id": "aero-06",
+    "source": "assets/source/commute-bike-actions-v1/aero-06-source.png",
+    "sha256": "c8b2d03b90f48b2a9bbb8a75991eac2a316bd8c6f78b69cdad4d358a8696b5d8",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-06.generation.json"
+  },
+  {
+    "id": "aero-07",
+    "source": "assets/source/commute-bike-actions-v1/aero-07-source.png",
+    "sha256": "1480d58cb2710bafc39336fdf3f8eddb1bb0821e1e3bb040cda4659aa3b31db7",
+    "generationRecord": "assets/source/commute-bike-actions-v1/aero-07.generation.json"
+  },
+  {
+    "id": "shift-00",
+    "source": "assets/source/commute-bike-actions-v1/shift-00-source.png",
+    "sha256": "c055f7b7ee85e43984755ad046246b72fa504ae6018cd13b7f4a3801cd13b2ea",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-00.generation.json"
+  },
+  {
+    "id": "shift-01",
+    "source": "assets/source/commute-bike-actions-v1/shift-01-source.png",
+    "sha256": "cc55986d61389f952bfc90292a10ee9a75c16cfd77ced8dc841c545f25f34e9e",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-01.generation.json"
+  },
+  {
+    "id": "shift-02",
+    "source": "assets/source/commute-bike-actions-v1/shift-02-source.png",
+    "sha256": "a4d604d5448e0038c6be665751c7dca41af7152aeab65d9900af41428a8c0c28",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-02.generation.json"
+  },
+  {
+    "id": "shift-03",
+    "source": "assets/source/commute-bike-actions-v1/shift-03-source.png",
+    "sha256": "f39d6650d9994708ec45be072b66fe716060b178eadeeda9f751792156e0e604",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-03.generation.json"
+  },
+  {
+    "id": "shift-04",
+    "source": "assets/source/commute-bike-actions-v1/shift-04-source.png",
+    "sha256": "c820b3b5d062f0a6e3177a2343ba8804aa2ef668dffe3ea9c9f2b6ce7c077c5c",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-04.generation.json"
+  },
+  {
+    "id": "shift-05",
+    "source": "assets/source/commute-bike-actions-v1/shift-05-source.png",
+    "sha256": "735550d4bf4546f577a87992357c9272e5769bf0a9564bfad6f9a6e65be82d16",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-05.generation.json"
+  },
+  {
+    "id": "shift-06",
+    "source": "assets/source/commute-bike-actions-v1/shift-06-source.png",
+    "sha256": "098ed40226ab700bc8e8b4569fb0f45152f8a3aa9d42da4c258123f178758d4a",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-06.generation.json"
+  },
+  {
+    "id": "shift-07",
+    "source": "assets/source/commute-bike-actions-v1/shift-07-source.png",
+    "sha256": "648a7d1f161506695bf4b942f133e51e275fd07c4341183359bd331ad27ff389",
+    "generationRecord": "assets/source/commute-bike-actions-v1/shift-07.generation.json"
+  },
+  {
+    "id": "impact-00",
+    "source": "assets/source/commute-bike-actions-v1/impact-00-source.png",
+    "sha256": "2039878ab6b46958c6acabd4730f08cf2966bc136d4dc279c77954a1dd270171",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-00.generation.json"
+  },
+  {
+    "id": "impact-01",
+    "source": "assets/source/commute-bike-actions-v1/impact-01-source.png",
+    "sha256": "e8ab7e980770dea3bd697a6e601c040a4f468add7eb310504ecb34b844ef96f3",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-01.generation.json"
+  },
+  {
+    "id": "impact-02",
+    "source": "assets/source/commute-bike-actions-v1/impact-02-source.png",
+    "sha256": "c8b220cb4eab396688034b6900c279f8e0c77d38decc125fa71af349a57ea1c1",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-02.generation.json"
+  },
+  {
+    "id": "impact-03",
+    "source": "assets/source/commute-bike-actions-v1/impact-03-source.png",
+    "sha256": "c624d96bd49333a1fdf41f10732c3c6a92224ffa4854df34c78014a468ed15d1",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-03.generation.json"
+  },
+  {
+    "id": "impact-04",
+    "source": "assets/source/commute-bike-actions-v1/impact-04-source.png",
+    "sha256": "3d186eb0de3ac86442c2a3fe6e6010c92176f21172902d0341f2479d4de592b7",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-04.generation.json"
+  },
+  {
+    "id": "impact-05",
+    "source": "assets/source/commute-bike-actions-v1/impact-05-source.png",
+    "sha256": "6ef172b2b429e981aee6117263b7439ff9bf15d0a0b73780db927d41de820760",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-05.generation.json"
+  },
+  {
+    "id": "impact-06",
+    "source": "assets/source/commute-bike-actions-v1/impact-06-source.png",
+    "sha256": "9214c5eb68bb749c8a7800684daa9086c75114c61cb8a2fbe7a07ccd9d447396",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-06.generation.json"
+  },
+  {
+    "id": "impact-07",
+    "source": "assets/source/commute-bike-actions-v1/impact-07-source.png",
+    "sha256": "4fc1b94615812acb3a0956377c0a391f4155db6eb908eb00bc61a050f3697891",
+    "generationRecord": "assets/source/commute-bike-actions-v1/impact-07.generation.json"
+  }
+]

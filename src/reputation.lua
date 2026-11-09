@@ -48,7 +48,14 @@ local LEGACY_REVIEW_TEXT = {
     [5] = "Excellent quality and a smooth pickup. Highly recommended!",
 }
 
-local CLEAN_JOB_REVIEW_CHANCE = 0.25
+local QUALITY_LABELS = {
+    [1] = "Poor",
+    [2] = "Weak",
+    [3] = "Fair",
+    [4] = "Good",
+    [5] = "Excellent",
+}
+
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -167,40 +174,138 @@ function Reputation.demandMultiplier(state)
     return clamp(1 + (average - 3) * 0.08, 0.84, 1.16)
 end
 
-local function stableJobHash(job)
-    return stableHash(job.id or job.company or "job")
+local function qualityRating(job)
+    local totalSheets = math.max(1, tonumber(job.press and job.quote and job.quote.orderedCopies)
+        or tonumber(job.quote and job.quote.totalSheets) or 1)
+    local goodSheets, hasProductionData = 0, false
+    local offSpec = false
+    local edgeQuality = 1
+    local printQuality = 1
+    local hasPrintQuality = false
+    for _, pallet in ipairs(job.pallets or {}) do
+        if pallet.status ~= "spoiled_discarded" then
+            local finished = math.max(0, tonumber(pallet.finishedSheets) or 0)
+            if finished == 0 and pallet.press then
+                finished = math.max(0, tonumber(pallet.press.goodSheets) or 0)
+            elseif finished == 0 and pallet.status == "wrapped" and pallet.wrapped
+                and math.max(0, tonumber(pallet.remainingSheets) or 0) == 0 then
+                finished = math.max(0, (tonumber(pallet.initialSheets) or 0)
+                    - (tonumber(pallet.damagedSheets) or 0))
+            end
+            goodSheets = goodSheets + finished
+            if finished > 0 then hasProductionData = true end
+            if pallet.paper and finished > 0 then
+                if pallet.paper.offSpec then offSpec = true end
+                edgeQuality = math.min(edgeQuality, tonumber(pallet.paper.cutQuality) or 1)
+            end
+            if finished > 0 and pallet.press then
+                for _, pass in ipairs(pallet.press.passHistory or {}) do
+                    local proofQuality = tonumber(pass.proofQuality)
+                    if proofQuality then
+                        printQuality = math.min(printQuality, proofQuality)
+                        hasPrintQuality = true
+                    end
+                end
+            end
+        end
+    end
+    if job.inspection then hasProductionData = true end
+    -- Older saves did not record final pallet quantities. Keep their review
+    -- preview stable while new jobs rate only defects that reached the client.
+    local spoiledSheets = hasProductionData and math.max(0, totalSheets - goodSheets)
+        or math.max(0, tonumber(job.spoiledSheets) or 0)
+    local spoilRate = spoiledSheets / totalSheets
+    local quality = math.min(edgeQuality, printQuality)
+    local rating
+    if offSpec or spoiledSheets > 0 then
+        -- Only missing quantity or defects still present on delivered pallets count.
+        rating = (offSpec or spoilRate >= 0.20) and 1 or 2
+    elseif quality < 0.73 then
+        rating = 1
+    elseif quality < 0.80 then
+        rating = 2
+    elseif quality < 0.88 then
+        rating = 3
+    elseif quality < 0.95 then
+        rating = 4
+    else
+        rating = 5
+    end
+    local qualityStandard = tonumber(job.qualityStandard)
+    local qualityRequirementMet = qualityStandard == nil or quality >= qualityStandard
+    if qualityStandard and not qualityRequirementMet then
+        rating = math.max(1, rating - 1)
+    end
+    return rating, {
+        edgeQuality = edgeQuality,
+        printQuality = printQuality,
+        hasPrintQuality = hasPrintQuality,
+        quality = quality,
+        offSpec = offSpec,
+        spoiledSheets = spoiledSheets,
+        spoilRate = spoilRate,
+        reworkSheets = math.max(0, tonumber(job.feedback and job.feedback.reworkSheets) or 0),
+        qualityStandard = qualityStandard,
+        qualityRequirementMet = qualityRequirementMet,
+    }
+end
+
+function Reputation.qualityPreview(job)
+    if type(job) ~= "table" then return nil end
+    local rating, details = qualityRating(job)
+    local factor
+    if details.offSpec and details.spoiledSheets > 0 then
+        factor = string.format("Off-spec • %d%% spoilage", math.floor(details.spoilRate * 100 + 0.5))
+    elseif details.offSpec then
+        factor = "Off-spec cut"
+    elseif details.spoiledSheets > 0 then
+        factor = string.format("%d%% spoilage", math.floor(details.spoilRate * 100 + 0.5))
+    elseif details.reworkSheets > 0 then
+        factor = string.format("Reworked %s sheets • delivered quantity complete", tostring(details.reworkSheets))
+    elseif not details.qualityRequirementMet then
+        factor = string.format("Below client quality target %d%%",
+            math.floor((details.qualityStandard or 0) * 100 + 0.5))
+    elseif details.hasPrintQuality and details.printQuality <= details.edgeQuality
+        and details.printQuality < 0.999 then
+        factor = string.format("Print quality %d%%", math.floor(details.printQuality * 100 + 0.5))
+    elseif details.edgeQuality < 0.999 then
+        factor = string.format("Cut edge %d%%", math.floor(details.edgeQuality * 100 + 0.5))
+    else
+        factor = details.hasPrintQuality and "Clean cuts and print • no spoilage"
+            or "Clean cuts • no spoilage"
+    end
+    return {
+        rating = rating,
+        label = QUALITY_LABELS[rating],
+        factor = factor,
+        edgeQuality = details.edgeQuality,
+        printQuality = details.printQuality,
+        hasPrintQuality = details.hasPrintQuality,
+        quality = details.quality,
+        offSpec = details.offSpec,
+        spoiledSheets = details.spoiledSheets,
+        spoilRate = details.spoilRate,
+        reworkSheets = details.reworkSheets,
+        qualityStandard = details.qualityStandard,
+        qualityRequirementMet = details.qualityRequirementMet,
+    }
 end
 
 local function customerReview(job)
-    local totalSheets = math.max(1, tonumber(job.quote and job.quote.totalSheets) or 1)
-    local spoiledSheets = math.max(0, tonumber(job.replacementSheets) or 0,
-        tonumber(job.spoiledSheets) or 0)
-    local offSpec = false
-    local edgeQuality = 1
-    for _, pallet in ipairs(job.pallets or {}) do
-        if pallet.paper then
-            if pallet.paper.offSpec then offSpec = true end
-            edgeQuality = math.min(edgeQuality, tonumber(pallet.paper.cutQuality) or 1)
+    local rating = qualityRating(job)
+    local driverDelivery=job.driverDelivery
+    local deliveryNote
+    if type(driverDelivery)=='table' and integer(driverDelivery.serviceRating,1,5) then
+        -- A standard driver is neutral; poor service can lower the review and
+        -- exceptional service can lift borderline quality results.
+        rating=clamp(math.floor((rating*4+driverDelivery.serviceRating)/5+.5),1,5)
+        if driverDelivery.serviceRating<=2 then
+            deliveryNote=' Delivery service needs improvement.'
+        elseif driverDelivery.serviceRating>=4 then
+            deliveryNote=' Delivery was prompt and handled with care.'
         end
     end
-    local spoilRate = spoiledSheets / totalSheets
-    local rating, hash
-    if offSpec or spoiledSheets > 0 then
-        -- A spoiled or off-spec order always draws a negative review.
-        hash = stableJobHash(job)
-        rating = (offSpec or spoilRate >= 0.20) and 1 or 2
-    elseif edgeQuality < 0.73 then
-        hash = stableJobHash(job)
-        rating = 1
-    elseif edgeQuality < 0.80 then
-        hash = stableJobHash(job)
-        rating = 2
-    else
-        hash = stableJobHash(job)
-        if hash % 100 >= CLEAN_JOB_REVIEW_CHANCE * 100 then return nil end
-        rating = 3 + hash % 3
-    end
-    local text = reviewTextFor(job.id or job.company or "job", rating)
+    local text = reviewTextFor(job.id or job.company or "job", rating)..(deliveryNote or '')
     return rating, text
 end
 
@@ -226,6 +331,37 @@ function Reputation.recordReview(state, job, gameHours)
     return review, Reputation.averageRating(reputation)
 end
 
+function Reputation.adjustReview(state, jobId, delta, replacementText)
+    local reputation = Reputation.ensure(state)
+    for _, review in ipairs(reputation.reviews) do
+        if review.jobId == tostring(jobId) then
+            local prior = review.rating
+            review.rating = clamp(prior + (tonumber(delta) or 0), 1, 5)
+            reputation.ratingTotal = math.max(0, reputation.ratingTotal + review.rating - prior)
+            if type(replacementText) == "string" and replacementText ~= "" then
+                review.text = replacementText
+            end
+            return review, Reputation.averageRating(reputation)
+        end
+    end
+    return nil, Reputation.averageRating(reputation)
+end
+
+function Reputation.backfillCompleted(state)
+    local reputation=Reputation.ensure(state)
+    if reputation.ratingCount>0 or #reputation.reviews>0 then return false end
+    local completed=state.jobs and state.jobs.completed or {}
+    local changed=false
+    for index=math.max(1,#completed-MAX_REVIEWS+1),#completed do
+        local job=completed[index]
+        if type(job)=="table" then
+            local review=Reputation.recordReview(state,job,job.completedAtHours or 0)
+            changed=review~=nil or changed
+        end
+    end
+    return changed
+end
+
 function Reputation.tier(value)
     local score = type(value) == "table" and tonumber(value.score) or tonumber(value) or 0
     if score < 0 then return "Poor", -1 end
@@ -238,7 +374,7 @@ end
 
 function Reputation.priceMultiplier(state)
     local reputation = Reputation.ensure(state)
-    return 1 + reputation.score * (reputation.score >= 0 and 0.004 or 0.002)
+    return 1 + reputation.score * (reputation.score >= 0 and 0.005 or 0.002)
 end
 
 function Reputation.completeJob(state, job)

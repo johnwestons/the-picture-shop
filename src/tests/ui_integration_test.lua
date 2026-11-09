@@ -14,6 +14,13 @@ local function selectComputerTab(context, state, tabId, throughInput)
 end
 
 function Test.run(context, check)
+    local function finishTownBake()
+        local deadline=love.timer.getTime()+90
+        while context.title.mode=="terrain-bake" and love.timer.getTime()<deadline do
+            context.title.update(1/60)
+        end
+        assert(context.title.mode~="terrain-bake","Town terrain preparation timed out")
+    end
     -- Let the title's press/rebound finish before checking its screen transition.
     local function pressTitleKey(key)
         local consumed = context.input.keypressed(key, context.inputContext)
@@ -24,6 +31,24 @@ function Test.run(context, check)
         local consumed = context.input.mousepressed(x, y, 1, context.inputContext)
         context.title.update(0.2)
         return consumed
+    end
+    local function generateTitleTownPreview(seed, throughKeyboard)
+        local townSetup = context.title.townSetup
+        townSetup.seedText = tostring(seed)
+        if throughKeyboard then
+            pressTitleKey("tab")
+            assert(pressTitleKey("return"), "Town preview keyboard action was not accepted")
+        else
+            local generateX, generateY = require("src.screens.town_setup_screen").buttonCenter("generate")
+            assert(pressTitleMouse(generateX, generateY), "Town preview button was not accepted")
+        end
+        local deadline = love.timer.getTime() + 90
+        while townSetup.previewJob and love.timer.getTime() < deadline do
+            context.title.update(1 / 60)
+            love.timer.sleep(0.001)
+        end
+        assert(townSetup.town and not townSetup.previewJob and not townSetup.dirty,
+            "Town preview did not finish: " .. tostring(townSetup.message))
     end
     -- Title actions share one mouse/keyboard path. Exercise them against the
     -- smoke identity so the player's real save directory is never touched.
@@ -90,15 +115,28 @@ function Test.run(context, check)
     pressTitleKey("escape")
     check("title_cancel_shop_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    pressTitleMouse(newX,newY);pressTitleMouse(confirmX,confirmY);pressTitleKey("return")
+    pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("cancel"))
+    check("title_cancel_town_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
     pressTitleMouse(newX, newY)
     pressTitleMouse(confirmX, confirmY)
     for i=1,13 do pressTitleKey("right") end
-    pressTitleMouse(595, 572)
+    pressTitleMouse(require("src.screens.shop_setup_screen").buttonCenter("start"))
+    check("title_shop_setup_opens_town_preview_without_overwriting",
+        context.title.mode=="town-setup" and #titleStarts==0
+        and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    generateTitleTownPreview(4242)
+    local previewTown=context.title.townSetup.town
+    pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("start"))
+    finishTownBake()
     check("title_mouse_setup_creates_selected_shop",
         #titleStarts == 1
         and titleStarts[1].mode == "new"
         and titleStarts[1].saved
-        and context.save.load(3).state.money == 180 and context.save.load(3).state.calendar.secondsPerDay==1980)
+        and context.save.load(3).state.money == 180 and context.save.load(3).state.calendar.secondsPerDay==1980
+        and require("src.commute.town").fingerprint(context.save.load(3).state.home.town)
+            ==require("src.commute.town").fingerprint(previewTown))
     context.input.mousereleased(confirmX, confirmY, 1, context.inputContext)
 
     occupiedState.money = 888
@@ -108,6 +146,9 @@ function Test.run(context, check)
     pressTitleKey("n")
     pressTitleKey("y")
     pressTitleKey("return")
+    generateTitleTownPreview(4243, true)
+    pressTitleKey("return")
+    finishTownBake()
     check("title_keyboard_overwrite_confirmation_starts",
         #titleStarts == 2
         and titleStarts[2].mode == "new"
@@ -120,6 +161,9 @@ function Test.run(context, check)
     pressTitleKey("n")
     check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
     pressTitleKey("return")
+    generateTitleTownPreview(4244, true)
+    pressTitleKey("return")
+    finishTownBake()
     check("title_empty_slot_setup_creates_shop",
         #titleStarts == 3
         and titleStarts[3].mode == "new"
@@ -264,9 +308,25 @@ function Test.run(context, check)
     context.businessCalendar.update(context.state,
         inboundDelay / 24 * context.config.businessCalendar.secondsPerDay + 0.01)
     context.world.update(context.config.truck.scheduleDelay + 0.1, 0, 0, context.assets, context.state)
-    check("accepted_job_schedules_truck", context.world.truckSnapshot().state == "waiting_for_bay"
-        and context.world.truckSnapshot().jobId == context.state.jobs.active[1].id
-        and context.state.jobs.active[1].delivery.status == "scheduled")
+    local deliveryTraffic = require("src.commute.delivery_traffic")
+    local inboundRoute = context.state.jobs.active[1].delivery.route
+    if inboundRoute and inboundRoute.arrivedAtEpoch then
+        -- This integration test drives World directly, outside the normal
+        -- commute runtime that advances the town-road traffic simulation.
+        deliveryTraffic.simulate(context.state, context.state.home.town, 0.1,
+            inboundRoute.arrivedAtEpoch + 1)
+    end
+    context.world.update(context.config.truck.scheduleDelay + 0.1, 0, 0, context.assets, context.state)
+    local scheduledTruck = context.world.truckSnapshot()
+    local scheduledDelivery = context.state.jobs.active[1].delivery
+    check("accepted_job_schedules_truck", scheduledTruck.state == "waiting_for_bay"
+        and scheduledTruck.jobId == context.state.jobs.active[1].id
+        and scheduledDelivery.status == "scheduled",
+        string.format("truck=%s truck_job=%s delivery=%s now=%.3f ready=%.3f route=%s",
+            tostring(scheduledTruck.state), tostring(scheduledTruck.jobId),
+            tostring(scheduledDelivery.status), context.businessCalendar.absoluteHours(context.state),
+            tonumber(scheduledDelivery.readyAtHours) or -1,
+            tostring(scheduledDelivery.route and scheduledDelivery.route.arrivalAtHours)))
     check("truck_auto_opens_bay", context.world.bayDoorSnapshot().state == "opening")
     context.world.update(context.config.loadingBay.duration + 0.1, 0, 0, context.assets, context.state)
     check("truck_backs_after_bay_opens", context.world.bayDoorSnapshot().state == "open"
@@ -333,6 +393,27 @@ function Test.run(context, check)
         and context.state.screen == "world"
         and context.world.truckSnapshot().state == "cargo_closing")
     context.world.update(context.config.truck.cargoDuration + 0.1, 0, 0, context.assets, context.state)
+    local deliveryDriver=require("src.warehouse_delivery_driver")
+    local driverVisit=deliveryDriver.visit(context.state)
+    for _=1,120 do
+        if not driverVisit or driverVisit.status=="waiting" then break end
+        context.world.update(0.1,0,0,context.assets,context.state)
+    end
+    check("delivery_driver_waits_for_signature", driverVisit
+        and driverVisit.status=="waiting")
+    local driverActor=deliveryDriver.actor(context.state)
+    if driverActor then
+        context.world.player.x,context.world.player.y=driverActor.x,driverActor.y
+    end
+    check("delivery_driver_signature_accepted",
+        context.world.signDelivery(context.state,context.world.player)
+        and driverVisit.status=="signed" and not driverVisit.driverReturned)
+    for _=1,180 do
+        if driverVisit.driverReturned then break end
+        context.world.update(0.1,0,0,context.assets,context.state)
+    end
+    check("delivery_driver_returns_before_departure",driverVisit.driverReturned
+        and context.world.truckSnapshot().state=="departing")
     check("empty_truck_departs", context.world.truckSnapshot().state == "departing")
     context.world.update(context.config.truck.backingDuration + 0.1, 0, 0, context.assets, context.state)
     check("truck_departed_and_bay_closing", context.world.truckSnapshot().state == "absent"
@@ -468,47 +549,63 @@ function Test.run(context, check)
     context.state.palletJack.operating = true
     context.state.palletJack.carriedPalletId = nil
     context.state.palletJack.x, context.state.palletJack.y = context.state.cutter.x, context.state.cutter.y
+    local cutterUnit=require("src.machine_fleet").installedUnits(context.state,"polar_115")[1]
+    local function cutterPose() return cutterUnit.world or context.state.cutter end
+    context.state.cutter.rotationIndex=1
+    if cutterUnit.world then
+        cutterUnit.world.rotationIndex=1
+        cutterUnit.world.direction="northwest"
+    end
+    local mountedForCutterMove=context.PalletJack.mount(context.state,context.config.palletJack,1)
     context.world.player.x = context.state.cutter.x
     context.world.player.y = context.state.cutter.y + 70
     context.world.update(0, 0, 0, context.assets, context.state)
+    check("cutter_relocation_test_has_player_control",mountedForCutterMove
+        and context.state.palletJack.operatorPlayerId==1)
     check("cutter_relocate_prompt_requires_active_jack", context.world.getInteraction()
         and context.world.prompt():lower():find("relocate", 1, true))
     context.input.keypressed("m", context.inputContext)
-    check("cutter_relocation_begins", context.world.cutterSnapshot(context.state).moving)
-    local cutterBeforeMove = context.world.cutterSnapshot(context.state)
+    check("cutter_relocation_begins", cutterPose().moving)
+    local cutterBeforeMove = {x=cutterPose().x}
     context.world.update(0.15, -1, 0, context.assets, context.state)
-    check("cutter_relocation_moves", context.world.cutterSnapshot(context.state).x < cutterBeforeMove.x
-        and context.world.cutterSnapshot(context.state).inMotion
+    check("cutter_relocation_moves", cutterPose().x < cutterBeforeMove.x
+        and cutterPose().inMotion
         and context.world.player.moving)
-    check("cutter_floor_sprites_are_twenty_percent_smaller",
-        math.abs(context.config.cutterPlacement.drawScale - 0.272) < 0.0001)
+    check("cutter_384px_views_preserve_machine_footprint",
+        math.abs(context.config.cutterPlacement.frameSize * context.config.cutterPlacement.drawScale
+            - 256 * 0.67) < 0.001)
     context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_north", context.world.cutterSnapshot(context.state).frame == 2)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_northeast", context.world.cutterSnapshot(context.state).frame == 3)
+    check("cutter_rotation_advances_one_of_64_views", cutterPose().rotationIndex == 2
+        and cutterPose().direction == "northwest")
+    for _ = 1, 3 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_north", cutterPose().direction == "north")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_northeast", cutterPose().direction == "northeast")
     if os.getenv("PICTURE_SHOP_CUTTER_PLACEMENT_PREVIEW") == "1" then return end
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_east", context.world.cutterSnapshot(context.state).frame == 4)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_southeast", context.world.cutterSnapshot(context.state).frame == 5)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_south", context.world.cutterSnapshot(context.state).frame == 6)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_southwest", context.world.cutterSnapshot(context.state).frame == 7)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_west", context.world.cutterSnapshot(context.state).frame == 8)
-    context.input.keypressed("q", context.inputContext)
-    check("cutter_rotates_northwest", context.world.cutterSnapshot(context.state).frame == 1)
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_east", cutterPose().direction == "east")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_southeast", cutterPose().direction == "southeast")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_south", cutterPose().direction == "south")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_southwest", cutterPose().direction == "southwest")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_west", cutterPose().direction == "west")
+    for _ = 1, 8 do context.input.keypressed("q", context.inputContext) end
+    check("cutter_rotates_northwest", cutterPose().direction == "northwest")
     context.input.keypressed("e", context.inputContext)
-    check("cutter_relocation_places", not context.world.cutterSnapshot(context.state).moving)
+    check("cutter_relocation_places", not cutterPose().moving)
     check("customer_arrival_identifies_known_print_work",
         context.world.customerArrivalMessage({ currentOffer = { press = { colors = 1 } } })
             == "A customer is waiting at reception with a print job.")
     check("customer_arrival_is_neutral_before_paperwork_exists",
         context.world.customerArrivalMessage({})
             == "A customer is waiting at reception with a client job.")
-    check("windmill_visual_and_footprint_scale_are_reduced_together",
-        math.abs(context.config.windmillPlacement.drawScale - 0.196) < 0.0001
+    check("windmill_64_view_scale_and_footprint_are_configured",
+        math.abs(context.config.windmillPlacement.drawScale - 0.605) < 0.0001
+        and context.config.windmillPlacement.frameSize == 256
+        and context.config.windmillPlacement.frameCount == 64
         and context.config.windmillPlacement.collisionHalfWidth == 50
         and context.config.windmillPlacement.collisionHalfHeight == 17
         and context.config.windmillPlacement.operatorDistanceX == 53
@@ -524,6 +621,7 @@ function Test.run(context, check)
     context.state.windmill.x = context.config.windmillPlacement.spawnX
     context.state.windmill.y = context.config.windmillPlacement.spawnY
     context.state.windmill.direction = "northwest"
+    context.state.windmill.rotationIndex = 1
     context.state.windmill.moving, context.state.windmill.inMotion = false, false
     context.windmill.ensure(context.state).status = "idle"
     context.windmill.ensure(context.state).palletId = nil
@@ -554,10 +652,15 @@ function Test.run(context, check)
     local windmillBeforeMove = context.world.windmillSnapshot(context.state)
     context.world.update(0.1, 0, -1, context.assets, context.state)
     local windmillAfterMove = context.world.windmillSnapshot(context.state)
-    local windmillRotated = context.world.rotateWindmill(context.state)
+    local windmillFirstStep = context.world.rotateWindmill(context.state)
+    local windmillFirstFrame = context.world.windmillSnapshot(context.state)
+    local windmillRotated
+    for _ = 2, 8 do windmillRotated = context.world.rotateWindmill(context.state) end
     local windmillDirection = context.world.windmillSnapshot(context.state).direction
     check("windmill_moves_on_jack_and_rotates", windmillAfterMove.y < windmillBeforeMove.y
-        and windmillAfterMove.inMotion and windmillRotated and windmillDirection == "northeast",
+        and windmillAfterMove.inMotion and windmillFirstStep and windmillRotated
+        and windmillFirstFrame.rotationIndex == 2 and windmillFirstFrame.direction == "northwest"
+        and windmillDirection == "northeast",
         string.format("before=%.2f after=%.2f motion=%s rotated=%s direction=%s",
             windmillBeforeMove.y, windmillAfterMove.y, tostring(windmillAfterMove.inMotion),
             tostring(windmillRotated), tostring(windmillDirection)))
@@ -577,22 +680,29 @@ function Test.run(context, check)
         context.state.money = 12000
         context.computerScreen.enter(context.state)
         selectComputerTab(context, context.state, "www")
-    elseif os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" then
+    elseif os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1"
+        or os.getenv("PICTURE_SHOP_COMPUTER_EMAIL_PREVIEW") == "1" then
         local emailJob = context.jobs.createOffer({
             id = "EMAIL-PREVIEW", company = "Blue Ridge Packaging",
-            sourceSize = { width = 25, height = 19 }, finishedSize = { width = 12.5, height = 9.5 },
-            sheetCounts = { 1000, 750 }, packaging = "boxed", requestChannel = "email",
+            sourceSize = { width = 19, height = 25 }, finishedSize = { width = 9.5, height = 12.5 },
+            sheetCounts = { 1000 }, packaging = "boxed", requestChannel = "email",
             deliveryService = context.jobService.deliveryServiceFor({ id = "EMAIL-PREVIEW" }, 1),
         })
+        emailJob.quote.totalPrice=292
+        emailJob.quote.recommendedPrice=292
+        emailJob.promotionDiscount=.10
         context.state.clientEmails.inbox = { {
             id = "EMAIL-PREVIEW", sender = emailJob.company,
             subject = "Request for another cutting job",
-            body = "Please review this work order and send us your quote.",
-            sourceJobId = "JOB-0001", readyAtHours = 0, receivedAtHours = 0, job = emailJob,
+            body = "Please quote another paper-cutting job for us. Your 10% coupon is applied.",
+            sourceJobId = "JOB-0001", readyAtHours = 0, receivedAtHours = 0,
+            estimateRequest = true, standardPrice = 324, discountAmount = 32,
+            discountedTotal = 292, job = emailJob,
         } }
         context.state.screen = "computer"
         context.computerScreen.enter(context.state)
-        selectComputerTab(context, context.state, "estimating")
+        selectComputerTab(context, context.state,
+            os.getenv("PICTURE_SHOP_COMPUTER_ESTIMATING_PREVIEW") == "1" and "estimating" or "email")
     elseif os.getenv("PICTURE_SHOP_TITLE_PREVIEW") == "1" then
         context.state.screen = "title"
     elseif os.getenv("PICTURE_SHOP_CUTTER_PREVIEW") == "1" then

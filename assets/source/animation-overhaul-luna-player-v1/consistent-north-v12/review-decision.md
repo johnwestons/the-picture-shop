@@ -1,0 +1,9 @@
+# North V12 rectangular phase-2 study — rejected
+
+This was one review-only ImageGen study of the North weight-down pose on an extended portrait canvas. It does not change the installed V7 strip. The generated source is `north-phase2-rectangular-trial01-rejected.png`; its original ImageGen output is `exec-9c44e826-57d9-4b1b-b24f-28a731c386e3.png`.
+
+At the existing 0.1864078 world/source-pixel scale, 20px of northward root travel requires about 107.3 source pixels of support-sole travel. After head-width normalization to V7 phase 1, this study is only 397.8px tall versus 410px for the contact pose, and its support sole shifts about −11.6px instead of +107.3px. The pose therefore fails the planted-foot requirement. The raw image contains 165 red-dominant antialiased edge pixels adjacent to transparency, 157 at alpha 1–8; the checker preview shows no strong halo at game scale, similar to the current V7 source. Edge color remains a QA check, but it is not the main rejection reason for this trial. The pose does not meet the shared body/outline and sole-track gates. Do not install or use this as an in-between source.
+
+The installed five-direction baseline remains coherent in height: North walk is 408–412px, while Northeast, East, Southeast and South are each 410px. That supports preserving current North scale and outline weight as the reference; new poses must meet the North body/outline profile while solving the planted-foot track. The rectangular cell alone does not solve the pose.
+
+The next art gate remains a clean North key cycle with correct support-foot ownership and sole tracks at actual world displacement. Keep the 160px physical stride; stage art at 256x352 half-resolution cells with a 205px head/torso core, then verify planted tracks and transparent-edge quality before adding the 32-pose in-between sequence.

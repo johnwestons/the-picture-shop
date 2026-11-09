@@ -81,9 +81,9 @@ function Component.install(Runtime)
             and (value.orientation == "portrait" or value.orientation == "landscape"))
     end
 
-    function Runtime.stockSpec(value)
+    function Runtime.stockSpec(value, allowHouse)
         return value == nil or (type(value) == "table"
-            and value.suppliedBy == "client"
+            and (value.suppliedBy == "client" or (allowHouse == true and value.suppliedBy == "house"))
             and Runtime.text(value.grade)
             and Runtime.nonnegative(value.weight)
             and Runtime.text(value.finish)
@@ -127,6 +127,7 @@ function Component.install(Runtime)
             and Runtime.text(value.status)
             and Runtime.positiveInteger(value.requiredGoodSheets)
             and Runtime.nonnegativeInteger(value.availableSheets)
+            and Runtime.optionalNonnegativeInteger(value.housePaperSheets)
             and Runtime.nonnegativeInteger(value.completedColors)
             and Runtime.nonnegativeInteger(value.goodSheets)
             and Runtime.nonnegativeInteger(value.spoilage)
@@ -168,7 +169,7 @@ function Component.install(Runtime)
         }) do
             if not Runtime.nonnegative(value[field]) then return false end
         end
-        return true
+        return Runtime.optionalNonnegativeInteger(value.housePaperSheets)
     end
 
     function Runtime.jobPress(value)
@@ -224,6 +225,44 @@ function Component.install(Runtime)
             and Runtime.nonnegative(value.delayHours))
     end
 
+    local function deliveryVehicle(value)
+        if value==nil then return true end
+        if type(value)~='table' then return false end
+        local phases={approaching=true,approaching_wait=true,waiting_bay=true,at_bay=true,
+            departing=true,offmap=true}
+        local kinds={inbound=true,outbound=true}
+        local targets={dock=true,waiting=true,outbound=true,
+            ['waiting-1']=true,['waiting-2']=true,['waiting-3']=true}
+        return require('src.commute.delivery_truck').valid(value)
+            and phases[value.phase]==true
+            and (value.pathKind==nil or kinds[value.pathKind])
+            and (value.pathTarget==nil or targets[value.pathTarget])
+            and (value.pathIndex==nil or Runtime.integer(value.pathIndex) and value.pathIndex>=1 and value.pathIndex<=512)
+            and (value.simRemainder==nil or Runtime.number(value.simRemainder) and value.simRemainder>=0 and value.simRemainder<=1)
+            and Runtime.optionalBoolean(value.noticeSent)
+            and Runtime.optionalBoolean(value.localManeuver)
+            and Runtime.optionalBoolean(value.replanRoute)
+    end
+
+    local function deliveryRoute(value)
+        if value==nil then return true end
+        return type(value)=='table'
+            and Runtime.optionalText(value.originCity)
+            and Runtime.optionalText(value.originLocation)
+            and Runtime.optionalText(value.originCompany)
+            and Runtime.optionalText(value.destination)
+            and Runtime.optionalText(value.destinationCity)
+            and Runtime.optionalText(value.destinationLocation)
+            and Runtime.optionalText(value.origin)
+            and Runtime.optionalText(value.roadTownId)
+            and Runtime.optionalText(value.transportId)
+            and Runtime.optionalNumber(value.startAtHours)
+            and Runtime.optionalNumber(value.arrivalAtHours)
+            and Runtime.optionalNumber(value.departedAtEpoch)
+            and Runtime.optionalNumber(value.arrivedAtEpoch)
+            and deliveryVehicle(value.vehicle)
+    end
+
     function Runtime.delivery(value)
         return value == nil or (type(value) == "table"
             and Runtime.text(value.status)
@@ -234,6 +273,8 @@ function Component.install(Runtime)
             and Runtime.optionalNumber(value.readyAtHours)
             and Runtime.optionalNumber(value.expectedAtHours)
             and Runtime.optionalNumber(value.receivedAtHours)
+            and deliveryRoute(value.route)
+            and deliveryRoute(value.returnRoute)
             and Runtime.deliveryService(value.service))
     end
 

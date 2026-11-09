@@ -1,0 +1,38 @@
+[
+  {
+    "pose": "mounted-impact-brace",
+    "sourceCell": 6,
+    "repair": "impact-ene",
+    "originalSourceSha256": "505ecaa02904510addbcd73a74d01dfb50fdaebfadf6c49b01f9963dc23b7fea"
+  },
+  {
+    "pose": "mounted-impact-brace",
+    "sourceCell": 16,
+    "repair": "impact-ssw",
+    "originalSourceSha256": "505ecaa02904510addbcd73a74d01dfb50fdaebfadf6c49b01f9963dc23b7fea"
+  },
+  {
+    "pose": "mounted-hard-turn-left",
+    "sourceCell": 8,
+    "repair": "left-nne",
+    "originalSourceSha256": "990ff38a6c1eef61e9ebe7b248613c6a933cbd3268ef1812322ff1f61c3d662d"
+  },
+  {
+    "pose": "mounted-hard-turn-left",
+    "sourceCell": 6,
+    "repair": "left-ene",
+    "originalSourceSha256": "990ff38a6c1eef61e9ebe7b248613c6a933cbd3268ef1812322ff1f61c3d662d"
+  },
+  {
+    "pose": "mounted-hard-turn-right",
+    "sourceCell": 8,
+    "repair": "right-nne",
+    "originalSourceSha256": "b2d2a04c30ef089f54821f15896014bc45ef57a5d2dbd3ecd6c3333afb522833"
+  },
+  {
+    "pose": "mounted-turn-left-transition",
+    "sourceCell": 8,
+    "repair": "left-mid-nne",
+    "originalSourceSha256": "568d812630dceaf2ff601f67e2f86a4023ea3d4bfa23dba5459f11a276f59e88"
+  }
+]

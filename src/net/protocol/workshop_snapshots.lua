@@ -11,35 +11,50 @@ function Component.install(Runtime)
         local resources, seen = {}, {}
         for index = 1, #value do
             local resourceLabel = label .. "[" .. index .. "]"
-            local valid, shapeError = Runtime.shape(value[index], resourceLabel,
-                { "resourceId", "revision", "occupied" }, { "ownerPlayerId" })
-            if not valid then return nil, shapeError end
+            local record=value[index]
+            local resourceIdValue,revisionValue,occupiedValue,ownerPlayerIdValue
+            if Runtime.Codec.isArray(record) then
+                if (#record~=3 and #record~=4) then return nil,resourceLabel.." has an invalid tuple length" end
+                for key in pairs(record) do
+                    if type(key)~="number" or key%1~=0 or key<1 or key>#record then
+                        return nil,resourceLabel.." has invalid tuple fields"
+                    end
+                end
+                resourceIdValue,revisionValue,occupiedValue,ownerPlayerIdValue=
+                    record[1],record[2],record[3],record[4]
+            else
+                local valid, shapeError = Runtime.shape(record, resourceLabel,
+                    { "resourceId", "revision", "occupied" }, { "ownerPlayerId" })
+                if not valid then return nil, shapeError end
+                resourceIdValue,revisionValue,occupiedValue,ownerPlayerIdValue=
+                    record.resourceId,record.revision,record.occupied,record.ownerPlayerId
+            end
             local resourceId, fieldError = Runtime.workshopResource(
-                value[index].resourceId, resourceLabel .. ".resourceId")
+                resourceIdValue, resourceLabel .. ".resourceId")
             if not resourceId then return nil, fieldError end
             if seen[resourceId] then return nil, label .. " contains a duplicate resourceId" end
             seen[resourceId] = true
             local revision
             revision, fieldError = Runtime.integerInRange(
-                value[index].revision, 0, Runtime.UINT32_MAX, resourceLabel .. ".revision")
+                revisionValue, 0, Runtime.UINT32_MAX, resourceLabel .. ".revision")
             if revision == nil then return nil, fieldError end
-            if type(value[index].occupied) ~= "boolean" then
+            if type(occupiedValue) ~= "boolean" then
                 return nil, resourceLabel .. ".occupied must be boolean"
             end
             local ownerPlayerId
-            if value[index].ownerPlayerId ~= nil then
+            if ownerPlayerIdValue ~= nil then
                 ownerPlayerId, fieldError = Runtime.integerInRange(
-                    value[index].ownerPlayerId, 1, Runtime.Protocol.MAX_PLAYERS,
+                    ownerPlayerIdValue, 1, Runtime.Protocol.MAX_PLAYERS,
                     resourceLabel .. ".ownerPlayerId")
                 if not ownerPlayerId then return nil, fieldError end
             end
-            if value[index].occupied ~= (ownerPlayerId ~= nil) then
+            if occupiedValue ~= (ownerPlayerId ~= nil) then
                 return nil, resourceLabel .. ".ownerPlayerId must be present exactly when occupied"
             end
             resources[#resources + 1] = {
                 resourceId = resourceId,
                 revision = revision,
-                occupied = value[index].occupied,
+                occupied = occupiedValue,
                 ownerPlayerId = ownerPlayerId,
             }
         end
@@ -58,7 +73,7 @@ function Component.install(Runtime)
     function Runtime.normalizePalletJackState(value, label)
         local valid, shapeError = Runtime.shape(value, label,
             { "x", "y", "direction", "operating", "moving" },
-            { "operatorPlayerId", "operatorEmployeeId", "carriedPalletId", "candidatePalletId", "sceneId" })
+            { "operatorPlayerId", "operatorEmployeeId", "carriedPalletId", "candidatePalletId", "sceneId", "motion" })
         if not valid then return nil, shapeError end
         local x, fieldError = Runtime.numberInRange(
             value.x, -Runtime.MAX_COORDINATE, Runtime.MAX_COORDINATE, label .. ".x")
@@ -113,6 +128,11 @@ function Component.install(Runtime)
                 return nil, label .. ".candidatePalletId requires an operating empty jack"
             end
         end
+        local motion
+        if value.motion~=nil then
+            motion=Runtime.PalletJackPose.normalize(value.motion)
+            if not motion then return nil,label..".motion is invalid" end
+        end
         return {
             x = x,
             y = y,
@@ -124,12 +144,13 @@ function Component.install(Runtime)
             operatorEmployeeId = operatorEmployeeId,
             carriedPalletId = carriedPalletId,
             candidatePalletId = candidatePalletId,
+            motion = motion,
         }
     end
 
     function Runtime.normalizePalletJackSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "pallet_jack_snapshot payload",
-            { "sessionId", "serverTick", "jack", "machines" })
+            { "sessionId", "serverTick", "jack", "machines" }, {"jackId"})
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "pallet_jack_snapshot.sessionId")
@@ -146,12 +167,32 @@ function Component.install(Runtime)
         machines, fieldError = Runtime.MachinePose.normalize(
             payload.machines, jack, Runtime.MAX_COORDINATE, "pallet_jack_snapshot.machines")
         if not machines then return nil, fieldError end
+        local jackId
+        if payload.jackId~=nil then
+            jackId,fieldError=Runtime.token(payload.jackId,Runtime.MAX_TOKEN_BYTES,"pallet_jack_snapshot.jackId")
+            if not jackId then return nil,fieldError end
+        end
         return {
             sessionId = sessionId,
             serverTick = serverTick,
             jack = jack,
             machines = machines,
+            jackId = jackId,
         }
+    end
+
+    function Runtime.normalizeExtraPalletJackSnapshot(payload)
+        local label="extra_pallet_jack_snapshot"
+        local valid,reason=Runtime.shape(payload,label,{"sessionId","serverTick","jackId","jack"})
+        if not valid then return nil,reason end
+        local sessionId=Runtime.token(payload.sessionId,Runtime.MAX_TOKEN_BYTES,label..".sessionId")
+        local tick=Runtime.integerInRange(payload.serverTick,0,Runtime.UINT32_MAX,label..".serverTick")
+        local id=Runtime.token(payload.jackId,Runtime.MAX_TOKEN_BYTES,label..".jackId")
+        local jack=Runtime.normalizePalletJackState(payload.jack,label..".jack")
+        if not sessionId or tick==nil or not id or not jack or jack.operatorPlayerId then
+            return nil,"Invalid extra pallet jack snapshot"
+        end
+        return {sessionId=sessionId,serverTick=tick,jackId=id,jack=jack}
     end
 
     function Runtime.normalizeWorkshopSnapshot(payload)

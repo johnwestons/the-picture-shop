@@ -29,9 +29,10 @@ function Demand.delayMultiplier(state)
     local reputation = tonumber(state and state.reputation and state.reputation.score) or 0
     reputation = math.max(0, math.min(80, reputation))
 
-    -- A new shop starts with fewer inbound leads. Higher reputation gradually
-    -- brings the visitor cadence back up, while the month adjusts it for season.
-    local earlyShopDelay = 1.35 - reputation / 80 * 0.35
+    -- Slow the starting cadence by about 13%, then let a strong reputation
+    -- bring leads in faster than the previous schedule. The month still sets
+    -- the seasonal demand on top of this shop-wide progression.
+    local earlyShopDelay = 1.55 - reputation / 80 * 0.65
     -- Customer reviews can speed up or slow down future inbound sales.
     return earlyShopDelay / season.demand / Reputation.demandMultiplier(state)
 end

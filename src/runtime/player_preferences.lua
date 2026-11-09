@@ -19,6 +19,10 @@ function Component.install(Runtime)
     Runtime.App.gameClockSyncClock = 0
     Runtime.App.gameClockSaveClock = 0
     Runtime.App.setGameClockSpeed = function(speed)
+        if require("src.weekend_flow").atHome(Runtime.state) then
+            Runtime.state.message="At home, use Sleep & Alarms. Time speeds up only when everyone chooses sleep."
+            return false
+        end
         if Runtime.multiplayer:isClient() then
             Runtime.state.message = "Only the host can change game speed."
             return false

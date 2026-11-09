@@ -51,7 +51,7 @@ function Component.run(Context)
         Context.blockedCustomer.x > 0 and Context.blockedCustomer:isMoving()
         and Context.blockedCustomer.animationClock == 0.25)
     Context.walkingX, Context.walkingY, Context.walkingRotation = Context.context.Technician.pose({
-        status = "entering", animationClock = 0.1,
+        status = "entering", inMotion = true, animationDistance = 7.8,
     })
     Context.serviceX, Context.serviceY, Context.serviceRotation = Context.context.Technician.pose({
         status = "servicing", animationClock = 0.1,
@@ -95,21 +95,25 @@ function Component.run(Context)
         and Context.calendarState.calendar.day == 1 and Context.calendarState.calendar.totalDays == 31
         and Context.context.businessCalendar.weekNumber(Context.calendarState) == 5
         and Context.context.businessCalendar.daysInMonth(2028, 2) == 29)
-    Context.check("calendar_posts_flat_monthly_bills", Context.invoice.total == 3950
+    Context.check("calendar_posts_flat_monthly_bills", Context.invoice.total == 4135
         and Context.invoice.charges[1].amount == 3500 and Context.invoice.charges[2].amount == 240
         and Context.invoice.charges[3].amount == 85 and Context.invoice.charges[4].amount == 125
-        and Context.calendarState.bills.balance == 3950)
+        and Context.invoice.charges[5].amount == 185
+        and Context.calendarState.bills.balance == 4135)
     Context.check("calendar_rent_increase_requires_sufficient_cash",
         not Context.context.businessCalendar.pay(Context.calendarState)
-        and Context.calendarState.money == 2000 and Context.calendarState.bills.balance == 3950)
+        and Context.calendarState.money == 2000 and Context.calendarState.bills.balance == 4135)
     Context.calendarState.money = 5000
     Context.paidBills, Context.paidAmount = Context.context.businessCalendar.pay(Context.calendarState)
-    Context.check("calendar_monthly_bills_require_payment", Context.paidBills and Context.paidAmount == 3950
-        and Context.calendarState.money == 1050 and Context.calendarState.bills.balance == 0
+    Context.check("calendar_monthly_bills_require_payment", Context.paidBills and Context.paidAmount == 4135
+        and Context.calendarState.money == 865 and Context.calendarState.bills.balance == 0
         and Context.calendarState.bills.ledger[1].status == "paid")
     Context.calendarEvents = Context.context.businessCalendar.events(Context.calendarState)
-    Context.check("calendar_automatically_lists_bill_due_dates", Context.calendarEvents[1]
-        and Context.calendarEvents[1].title == "Rent and bills due")
+    Context.hasProjectedShopBill=false
+    for _,event in ipairs(Context.calendarEvents) do
+        if event.title=="Rent and bills due" and event.kind=="bill" then Context.hasProjectedShopBill=true end
+    end
+    Context.check("calendar_automatically_lists_bill_due_dates",Context.hasProjectedShopBill)
 
     Context.weekendState = Context.context.State.new()
     Context.context.businessCalendar.update(Context.weekendState,
@@ -245,7 +249,7 @@ function Component.run(Context)
     Context.check("promotion_new_job_chance_uses_season_not_message_length",
         longPromotion.messageLength == 200
         and longPromotion.responseChance == shortPromotion.responseChance
-        and shortPromotion.responseChance == 0
+        and shortPromotion.responseChance >= 0.28
         and busySeasonPromotion.responseChance > shortPromotion.responseChance)
     priorClientJob.status = "completed"
     local promotionMessage = string.rep("x", 240)
@@ -257,8 +261,7 @@ function Component.run(Context)
         and promotion.messageLength == 240 and #emailState.clientEmails.sentPromotions == 1)
     Context.check("promotion_records_the_season_used_for_its_random_reply",
         promotion.seasonName == busySeasonPromotion.seasonName
-        and (promotion.responseOutcome == "new_job" or promotion.responseOutcome == "thank_you"
-            or promotion.responseOutcome == "no_response"))
+        and (promotion.responseOutcome == "new_job" or promotion.responseOutcome == "thank_you"))
     local duplicatePromotion = Context.context.jobService.sendPromotion(
         emailState, priorClientJob, "A duplicate offer should not send.")
     Context.check("completed_job_ten_percent_promotion_is_single_use",

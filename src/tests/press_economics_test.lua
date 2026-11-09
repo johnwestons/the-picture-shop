@@ -151,20 +151,52 @@ function Test.run(context, check)
     repeatState.calendar.month = 1
     local thanked, thankPromotion = context.jobService.sendPromotion(repeatState, legacy, string.rep("a", 41))
     local thankReply = repeatState.clientEmails.pending[#repeatState.clientEmails.pending]
-    local pendingBeforeSilence = #repeatState.clientEmails.pending
-    local silentSource = context.jobs.createOffer({
-        id = "PROMO-SILENT-001", company = "Silent Coupon Client",
+    local pendingBeforeSecond = #repeatState.clientEmails.pending
+    local secondSource = context.jobs.createOffer({
+        id = "PROMO-SECOND-001", company = "Another Coupon Client",
         sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
         sheetCounts = { 500 }, packaging = "flat",
     })
-    silentSource.status = "completed"
-    local silent, silentPromotion = context.jobService.sendPromotion(
-        repeatState, silentSource, "Whenever you are ready.")
-    check("promotions_allow_thank_you_only_and_no_response_outcomes",
-        thanked and thankPromotion.responseOutcome == "thank_you"
-        and thankReply.noticeKind == "client_thanks" and thankReply.job == nil
-        and silent and silentPromotion.responseOutcome == "no_response"
-        and #repeatState.clientEmails.pending == pendingBeforeSilence)
+    secondSource.status = "completed"
+    local secondSent, secondPromotion = context.jobService.sendPromotion(
+        repeatState, secondSource, "Whenever you are ready.")
+    check("promotions_schedule_a_reply_for_every_sent_offer",
+        thanked and (thankPromotion.responseOutcome == "thank_you"
+            or thankPromotion.responseOutcome == "new_job")
+        and thankReply and thankReply.sender == legacy.company
+        and secondSent and (secondPromotion.responseOutcome == "thank_you"
+            or secondPromotion.responseOutcome == "new_job")
+        and #repeatState.clientEmails.pending == pendingBeforeSecond + 1)
+
+    local january=context.State.new()
+    january.calendar.month=1
+    for number=1,6 do
+        local source=assert(context.jobs.createOffer({
+            id=string.format("JAN-PROMO-%02d",number),company="January Client "..number,
+            sourceSize={width=20,height=16},finishedSize={width=10,height=8},
+            sheetCounts={500},packaging="flat"}))
+        source.status="completed"
+        assert(context.jobService.sendPromotion(january,source,"Please visit us again."))
+    end
+    check("january_promotions_all_have_scheduled_replies",
+        #january.clientEmails.pending==6 and #january.clientEmails.sentPromotions==6)
+    local calendar=require("src.business_calendar")
+    calendar.update(january,calendar.secondsPerDay(january)/2)
+    check("january_promotion_replies_arrive_after_twelve_shop_hours",
+        context.jobService.updateClientEmails(january)
+        and #january.clientEmails.pending==0 and #january.clientEmails.inbox==6)
+
+    local oldSave=context.State.new()
+    oldSave.clientEmails.sentPromotions[1]={id="PROMO-OLD-0001",recipient="Old Client",
+        discountPercent=10,customMessage="Please come back.",sentAtHours=0,
+        sourceJobId="OLD-JOB",responseOutcome="no_response"}
+    check("previously_silent_promotion_gets_one_reply",
+        context.jobService.updateClientEmails(oldSave)
+        and oldSave.clientEmails.sentPromotions[1].responseOutcome=="thank_you"
+        and #oldSave.clientEmails.inbox==1
+        and oldSave.clientEmails.inbox[1].sender=="Old Client")
+    context.jobService.updateClientEmails(oldSave)
+    check("previously_silent_promotion_reply_is_idempotent",#oldSave.clientEmails.inbox==1)
 end
 
 return Test

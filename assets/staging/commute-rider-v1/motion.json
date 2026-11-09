@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "character": "shared-suited-critter",
+  "status": "staged_for_review",
+  "animations": {
+    "idle_north": {
+      "path": "assets/staging/commute-rider-v1/idle_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_north": {
+      "path": "assets/staging/commute-rider-v1/walk_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "source_frame_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "source_file": "walk-north-repair-v4.png"
+    },
+    "idle_northeast": {
+      "path": "assets/staging/commute-rider-v1/idle_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_northeast": {
+      "path": "assets/staging/commute-rider-v1/walk_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "source_frame_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "source_file": "walk-northeast-source.png"
+    },
+    "idle_east": {
+      "path": "assets/staging/commute-rider-v1/idle_east.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_east": {
+      "path": "assets/staging/commute-rider-v1/walk_east.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "source_frame_order": [
+        1,
+        2,
+        3,
+        8,
+        5,
+        6,
+        7,
+        8
+      ],
+      "source_file": "walk-east-guide-v3.png",
+      "source_frame_files": [
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v3.png",
+        "walk-east-guide-v4.png"
+      ]
+    },
+    "idle_southeast": {
+      "path": "assets/staging/commute-rider-v1/idle_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_southeast": {
+      "path": "assets/staging/commute-rider-v1/walk_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "source_frame_order": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "source_file": "walk-southeast-source.png"
+    },
+    "idle_south": {
+      "path": "assets/staging/commute-rider-v1/idle_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "directional_idle",
+      "fps": 0.65
+    },
+    "walk_south": {
+      "path": "assets/staging/commute-rider-v1/walk_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "source_frame_order": [
+        1,
+        2,
+        3,
+        8,
+        5,
+        6,
+        7,
+        4
+      ],
+      "source_file": "walk-south-source.png"
+    }
+  },
+  "directions": {
+    "north": {
+      "walk_animation": "walk_north",
+      "idle_animation": "idle_north",
+      "mirror_x": false
+    },
+    "northeast": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": false
+    },
+    "east": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": false
+    },
+    "southeast": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": false
+    },
+    "south": {
+      "walk_animation": "walk_south",
+      "idle_animation": "idle_south",
+      "mirror_x": false
+    },
+    "southwest": {
+      "walk_animation": "walk_southeast",
+      "idle_animation": "idle_southeast",
+      "mirror_x": true
+    },
+    "west": {
+      "walk_animation": "walk_east",
+      "idle_animation": "idle_east",
+      "mirror_x": true
+    },
+    "northwest": {
+      "walk_animation": "walk_northeast",
+      "idle_animation": "idle_northeast",
+      "mirror_x": true
+    }
+  },
+  "gait": {
+    "pose_order": [
+      "left_contact",
+      "left_down",
+      "right_passing",
+      "right_up",
+      "right_contact",
+      "right_down",
+      "left_passing",
+      "left_up"
+    ],
+    "pixels_per_frame": 6.24,
+    "base_speed": 81.6,
+    "speed_multipliers": [
+      0.96,
+      0.94,
+      1.04,
+      1.06,
+      0.96,
+      0.94,
+      1.04,
+      1.06
+    ],
+    "acceleration_multipliers": [
+      0.92,
+      0.9,
+      1.08,
+      1.1,
+      0.92,
+      0.9,
+      1.08,
+      1.1
+    ]
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 2,
+    "detached_component_ratio": 0.003,
+    "baseline_tolerance": 3,
+    "center_tolerance": 14
+  },
+  "runtime": {
+    "world_height_metres": 1.35,
+    "foot_anchor": [
+      128,
+      232
+    ],
+    "metres_per_gait_frame": 0.13,
+    "mirror_rationale": "Shared suit is symmetric, without badges or side-specific accessories. Motorcycle is not mirrored."
+  },
+  "sources": [
+    {
+      "path": "assets/source/commute-rider-v1/directional-idle-source.png",
+      "sha256": "10691259dee6c6933cc59418395ef6e4dc5a9c93da3d4e38c42a51e054ae14b7"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-east-guide-v3.png",
+      "sha256": "9ac7160d7a2e36f849665848dadbae72c7cb41c7231841ef3ecb5f4669e91255"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-east-guide-v4.png",
+      "sha256": "ecca584026d3f650d1fd75a738a0045b9a9aab82c72bcc3d1fc5e98a8e8c7369"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-east-repair-v2.png",
+      "sha256": "52ec5710665c3a9dbe743fc017c6d03927e6b7fe5c9ba082fd59531462d131a8"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-east-source.png",
+      "sha256": "146a470172347ce5b8371eea81292a1d3af65f4dd2c2ac1c7ec7b4593ec3951e"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-north-repair-v2.png",
+      "sha256": "d73e47fba448da93ed8fbbfb48f3209ab33b220fa523a721cc8eae151c4a4347"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-north-repair-v3.png",
+      "sha256": "1dafc05661ecbbcb33d1c16758db6dc7a5edac3de5495870abba3881caddf00f"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-north-repair-v4.png",
+      "sha256": "628200cbd55860c7a9ab2b70ee7f9150f910474d72e111749b8488a39390ba18"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-north-source.png",
+      "sha256": "9b1f114325dbb4e9e8d10ffd834b2e1a5df403de18df55753e8cf6d2e185291f"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-north-swing-study.png",
+      "sha256": "2817a8768e9979a249a2c071c1af57b3d891692d5dae7c88fcbe8a2164a5797a"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-left-half-v1.png",
+      "sha256": "4d920792acec893ba8e100c951426ac5a15115b7dd5e31d2d29c837706e9ec93"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-left-half-v2.png",
+      "sha256": "73b7a53da5dfc6a18ea53b90e7fc317956de30a4886443aae9858a7536de3374"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-repair-v2.png",
+      "sha256": "6ea12bb797a4f98f631e677c6bdd2d72d00fb4858e13894af74028a19f101291"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-repair-v3.png",
+      "sha256": "cc4e29ba6d7a9a62f7c68688a4c0574dcbb91714414660c6259c34005f5f7c14"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-right-half-v1.png",
+      "sha256": "5566b9febf50683ac5cc3b8ca8b56b98229528f30cbcfc91c696e281047d0de4"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-northeast-source.png",
+      "sha256": "45c7643cd3f05bc89081896fad016ad52a94274041f015f881f77f011d88ca36"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-south-source.png",
+      "sha256": "7951096a6d2f39d975cda78b2f612b2abba3117592df7b19ec96f161e64fa6da"
+    },
+    {
+      "path": "assets/source/commute-rider-v1/walk-southeast-source.png",
+      "sha256": "0aafdf4a7c880288873bd0028b32ea1785767e460b0e5858bcaef81488f3cadd"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 -- Keyboard, gauge input, and console control positions.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local CutterMotion = require("src.screens.cutter_motion")
 
 function Component.install(Runtime)
     function Runtime.Screen.keypressed(state, key)
@@ -73,6 +74,9 @@ function Component.install(Runtime)
         elseif Runtime.Screen.maintenanceView == "oil" and Runtime.Screen.oilSession then
             return Runtime.MachineMaintenance.update(Runtime.Screen.oilSession, dt)
         end
+        CutterMotion.observePaperTurn(Runtime.Screen.paperTurn, Runtime.Machine.paper)
+        Runtime.Screen.paperVisualOrientation, Runtime.Screen.paperTurnProgress =
+            CutterMotion.updatePaperTurn(Runtime.Screen.paperTurn, dt)
         return false
     end
 
@@ -197,7 +201,7 @@ function Component.install(Runtime)
         return position[1], position[2]
     end
 
-    function Runtime.Screen.bladeCenter() return 480, 311 end
+    function Runtime.Screen.bladeCenter() return 480, 420 end
     function Runtime.Screen.bladeSleeveCenter() return 480, 475 end
 
     function Runtime.Screen.hasModal() return Runtime.Screen.loadMenu ~= nil or Runtime.Screen.maintenanceView ~= nil or Runtime.Screen.helpOpen end

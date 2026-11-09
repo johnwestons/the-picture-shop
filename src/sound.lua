@@ -1,5 +1,7 @@
 local Sound = {}
 Sound.__index = Sound
+local MachineFleet = require("src.machine_fleet")
+local PHONE_RING_MAX_SECONDS = 8
 
 local CATALOG = {
     ui_click = { path = "assets/audio/sfx/ui_click.wav", volume = 0.55 },
@@ -17,13 +19,57 @@ local CATALOG = {
     press_running_loop = {
         path = "assets/audio/sfx/press_running_loop.wav", volume = 0.48, loop = true,
     },
-    wrapper_cycle = { path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68 },
+    wrapper_cycle = {
+        path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68, loop = true,
+    },
     maintenance_tool = { path = "assets/audio/sfx/maintenance_tool.wav", volume = 0.72 },
     warehouse_ambience_loop = {
         path = "assets/audio/sfx/warehouse_ambience_loop.wav", volume = 0.34,
         loop = true, group = "ambient",
     },
 }
+
+local PHONE_CUES = {
+    phone_ring_loop = { volume = 0.58, loop = true },
+    phone_ringback_loop = { volume = 0.38, loop = true },
+}
+
+local function toneEnvelope(time, intervals)
+    for _, interval in ipairs(intervals) do
+        if time >= interval[1] and time < interval[2] then
+            return math.min(1, (time - interval[1]) / 0.015,
+                (interval[2] - time) / 0.015)
+        end
+    end
+    return 0
+end
+
+local function makePhoneTone(self, name, duration, intervals)
+    if not love or not love.sound or type(love.sound.newSoundData) ~= "function" then return end
+    local sampleRate = 22050
+    local sampleCount = math.floor(duration * sampleRate)
+    local ok, data = pcall(love.sound.newSoundData, sampleCount, sampleRate, 16, 1)
+    if not ok or not data then
+        self.phoneCueError = "Could not create " .. name .. ": " .. tostring(data)
+        return
+    end
+    for sample = 0, sampleCount - 1 do
+        local time = sample / sampleRate
+        local envelope = toneEnvelope(time, intervals)
+        local value = 0.22 * envelope * (
+            math.sin(2 * math.pi * 440 * time) + math.sin(2 * math.pi * 480 * time))
+        data:setSample(sample, value)
+    end
+    local sourceOk, source = pcall(love.audio.newSource, data, "static")
+    if not sourceOk or not source then
+        self.phoneCueError = "Could not load " .. name .. ": " .. tostring(source)
+        if data.release then pcall(data.release, data) end
+        return
+    end
+    source:setLooping(true)
+    self.prototypes[name] = source
+    self.generatedAudio[#self.generatedAudio + 1] = data
+end
 
 local ERROR_WORDS = {
     "could not", "not enough", "is blocked", "is missing", "requires",
@@ -78,6 +124,7 @@ function Sound.new(context)
     return setmetatable({
         context = context,
         prototypes = {},
+        generatedAudio = {},
         active = {},
         loops = {},
         errors = {},
@@ -85,6 +132,8 @@ function Sound.new(context)
         previous = nil,
         clock = 0,
         lastPlayed = {},
+        phoneRingOwner = nil,
+        phoneRingElapsed = 0,
         masterVolume = 1.0,
         sfxVolume = 0.85,
         ambientVolume = 0.42,
@@ -111,6 +160,10 @@ function Sound:initialize()
             report(self, "Could not load " .. spec.path .. ": " .. tostring(source))
         end
     end
+    -- Build the telephone tones from short dual-frequency ring patterns so
+    -- calls have audio without adding large binary assets to the game.
+    makePhoneTone(self, "phone_ring_loop", 2.0, { { 0.0, 0.38 }, { 0.52, 0.90 } })
+    makePhoneTone(self, "phone_ringback_loop", 1.0, { { 0.0, 0.38 }, { 0.52, 0.96 } })
     self.previous = self:capture()
     self:syncPersistentLoops(self.previous)
     print(string.format("[SOUND] Loaded %d/%d cues", self:loadedCount(), self:catalogCount()))
@@ -125,12 +178,14 @@ end
 
 function Sound:loadedCount()
     local total = 0
-    for _ in pairs(self.prototypes) do total = total + 1 end
+    for name in pairs(CATALOG) do
+        if self.prototypes[name] then total = total + 1 end
+    end
     return total
 end
 
 function Sound:volumeFor(name, multiplier)
-    local spec = CATALOG[name]
+    local spec = CATALOG[name] or PHONE_CUES[name]
     if not spec or self.muted then return 0 end
     local group = spec.group == "ambient" and self.ambientVolume or self.sfxVolume
     return self.masterVolume * group * spec.volume * (multiplier or 1)
@@ -138,10 +193,12 @@ end
 
 function Sound:play(name, options)
     options = options or {}
+    if options.loopOwner then return self:startLoop(name, options.loopOwner) end
     local spec, prototype = CATALOG[name], self.prototypes[name]
     if not spec or not prototype or self.paused then return nil end
     local cooldown = tonumber(options.cooldown) or 0
-    if cooldown > 0 and self.clock - (self.lastPlayed[name] or -math.huge) < cooldown then return nil end
+    local cooldownKey = options.cooldownKey and (name .. ":" .. tostring(options.cooldownKey)) or name
+    if cooldown > 0 and self.clock - (self.lastPlayed[cooldownKey] or -math.huge) < cooldown then return nil end
     local source = cloneSource(prototype)
     if not source then
         report(self, "Could not clone cue " .. tostring(name))
@@ -151,14 +208,14 @@ function Sound:play(name, options)
     source:setVolume(self:volumeFor(name, options.volume))
     source:play()
     self.active[#self.active + 1] = source
-    self.lastPlayed[name] = self.clock
+    self.lastPlayed[cooldownKey] = self.clock
     return source
 end
 
 function Sound:startLoop(name, owner)
     owner = owner or name
     if self.loops[owner] then return self.loops[owner] end
-    local spec, prototype = CATALOG[name], self.prototypes[name]
+    local spec, prototype = CATALOG[name] or PHONE_CUES[name], self.prototypes[name]
     if not spec or not spec.loop or not prototype or self.paused then return nil end
     local source = cloneSource(prototype)
     if not source then report(self, "Could not clone loop " .. tostring(name)); return nil end
@@ -167,6 +224,33 @@ function Sound:startLoop(name, owner)
     source:play()
     self.loops[owner] = { name = name, source = source }
     return source
+end
+
+function Sound:syncPhoneAudio(snapshot, dt)
+    local activeShop = snapshot.screen ~= "title" and snapshot.screen ~= "lan"
+        and snapshot.screen ~= "direct" and snapshot.screen ~= "asset_error"
+    local call = activeShop and snapshot.phoneCall or nil
+    local incomingOwner = call and call.direction == "incoming" and not call.answered
+        and call.id and ("phone:ring:" .. tostring(call.id)) or nil
+    local ringback = call and call.direction == "outgoing" and call.connecting
+        and call.id and ("phone:ringback:" .. tostring(call.id)) or nil
+    if incomingOwner ~= self.phoneRingOwner then
+        self.phoneRingOwner = incomingOwner
+        self.phoneRingElapsed = 0
+    elseif incomingOwner and not self.paused then
+        self.phoneRingElapsed = self.phoneRingElapsed + math.max(0, tonumber(dt) or 0)
+    end
+    local incoming = incomingOwner and self.phoneRingElapsed < PHONE_RING_MAX_SECONDS
+        and incomingOwner or nil
+    for owner, entry in pairs(self.loops) do
+        if (entry.name == "phone_ring_loop" and owner ~= incoming)
+            or (entry.name == "phone_ringback_loop" and owner ~= ringback)
+        then
+            self:stopLoop(owner)
+        end
+    end
+    if incoming then self:startLoop("phone_ring_loop", incoming) end
+    if ringback then self:startLoop("phone_ringback_loop", ringback) end
 end
 
 function Sound:stopLoop(owner)
@@ -192,10 +276,38 @@ function Sound:capture()
     end
     local press = pressPlacement.process or {}
     local jack = state.palletJack or {}
+    local phoneCall = state.workPhone and state.workPhone.incoming
     local effectiveScreen = state.screen == "options" and state.optionsReturnScreen
         or state.screen
+    local resident=state.home and world and world.player and require("src.home_residents").display(state,world.player)
+    local cutters, presses, wrappers
+    if machine and type(machine.forId) == "function" then
+        cutters, presses = {}, {}
+        for _, unit in ipairs(MachineFleet.installedUnits(state, "polar_115")) do
+            local runtime = machine.forId(unit.id)
+            cutters[unit.id] = {
+                step = runtime.step,
+                clamp = runtime.clamp == true,
+            }
+        end
+        local installedPresses = MachineFleet.installedUnits(state, "heidelberg_10x15")
+        for index, unit in ipairs(installedPresses) do
+            local placement = unit.world or (index == 1 and (state.windmill or {})) or {}
+            local process = placement.process or {}
+            presses[unit.id] = { motor = process.motor == true, status = process.status }
+        end
+        if wrapper and type(wrapper.forId) == "function" then
+            wrappers = {}
+            for _, unit in ipairs(MachineFleet.installedUnits(state, "skid_wrapper")) do
+                wrappers[unit.id] = { step = wrapper.forId(unit.id).step }
+            end
+        end
+    end
     return {
         screen = effectiveScreen,
+        sceneId = world and world.player and world.player.sceneId or "warehouse",
+        personalAlarm=resident and resident.alarmAt,
+        lastPersonalAlarm=resident and resident.lastAlarmAt,
         message = state.message,
         money = tonumber(state.money) or 0,
         completedJobs = count(state.jobs and state.jobs.completed),
@@ -203,25 +315,73 @@ function Sound:capture()
         truck = world and world.truck and world.truck.state,
         pallet = jack.carriedPalletId,
         wrapper = wrapper and wrapper.step,
+        wrappers = wrappers,
         cutterStep = machine and machine.step,
         cutterClamp = machine and machine.clamp == true,
+        cutters = cutters,
+        presses = presses,
         pressMotor = press.motor == true,
         pressStatus = press.status,
+        phoneCall = phoneCall and {
+            id = phoneCall.id, direction = phoneCall.direction,
+            answered = phoneCall.answered, connecting = phoneCall.connecting,
+        } or nil,
     }
 end
 
 function Sound:syncPersistentLoops(snapshot)
+    local scene=snapshot.sceneId or "warehouse"
+    local shopScene=scene=="warehouse" or scene=="front_left" or scene=="front_right"
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
+        and shopScene
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
-    if snapshot.pressStatus == "production" then
+    if snapshot.presses ~= nil then
+        local activeOwners = {}
+        for id, press in pairs(snapshot.presses) do
+            local owner = "press:" .. tostring(id)
+            if inShop and press.motor and press.status == "production" then
+                self:startLoop("press_running_loop", owner)
+                activeOwners[owner] = true
+            end
+        end
+        for owner, entry in pairs(self.loops) do
+            if entry.name == "press_running_loop"
+                and (owner == "press" or (type(owner) == "string" and owner:sub(1, 6) == "press:"))
+                and not activeOwners[owner]
+            then
+                self:stopLoop(owner)
+            end
+        end
+    elseif inShop and snapshot.pressMotor and snapshot.pressStatus == "production" then
         self:startLoop("press_running_loop", "press")
     else
         self:stopLoop("press")
     end
+    local activeWrappers={}
+    if inShop and snapshot.wrappers~=nil then
+        for id,wrapper in pairs(snapshot.wrappers) do
+            if wrapper.step=="wrapping" then
+                local owner="wrapper:"..tostring(id)
+                self:startLoop("wrapper_cycle",owner)
+                activeWrappers[owner]=true
+            end
+        end
+    elseif inShop and snapshot.wrapper=="wrapping" then
+        self:startLoop("wrapper_cycle","wrapper")
+        activeWrappers.wrapper=true
+    end
+    for owner,entry in pairs(self.loops) do
+        if entry.name=="wrapper_cycle" and not activeWrappers[owner] then
+            self:stopLoop(owner)
+        end
+    end
 end
 
 function Sound:handleTransitions(before, after)
+    if before.personalAlarm and after.lastPersonalAlarm==before.personalAlarm and after.lastPersonalAlarm~=before.lastPersonalAlarm then
+        self:play("job_complete",{cooldown=.5,volume=.65})
+    end
     if before.door ~= after.door and (after.door == "opening" or after.door == "closing") then
         self:play("loading_door", { cooldown = 0.25 })
     end
@@ -236,17 +396,55 @@ function Sound:handleTransitions(before, after)
         if before.pallet == nil and after.pallet ~= nil then self:play("pallet_pickup")
         elseif before.pallet ~= nil and after.pallet == nil then self:play("pallet_place") end
     end
-    if before.wrapper ~= after.wrapper and after.wrapper == "wrapping" then
-        self:play("wrapper_cycle", { cooldown = 0.5 })
+    if before.wrappers ~= nil or after.wrappers ~= nil then
+        local ids = {}
+        for id in pairs(before.wrappers or {}) do ids[id] = true end
+        for id in pairs(after.wrappers or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.wrappers or {})[id] or {}, (after.wrappers or {})[id] or {}
+            if old.step ~= current.step and current.step == "wrapping" then
+                self:play("wrapper_cycle", { loopOwner = "wrapper:" .. tostring(id) })
+            end
+        end
+    elseif before.wrapper ~= after.wrapper and after.wrapper == "wrapping" then
+        self:play("wrapper_cycle", { loopOwner = "wrapper" })
     end
-    if before.cutterClamp ~= after.cutterClamp and after.cutterClamp then
-        self:play("cutter_clamp", { cooldown = 0.15 })
+    if before.cutters ~= nil or after.cutters ~= nil then
+        local ids = {}
+        for id in pairs(before.cutters or {}) do ids[id] = true end
+        for id in pairs(after.cutters or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.cutters or {})[id] or {}, (after.cutters or {})[id] or {}
+            if old.clamp ~= current.clamp and current.clamp then
+                self:play("cutter_clamp", { cooldown = 0.15, cooldownKey = id })
+            end
+            if old.step ~= current.step and current.step == "cutting" then
+                self:play("cutter_cut", { cooldown = 0.25, cooldownKey = id })
+            end
+        end
+    else
+        -- Keep direct transition callers and older sound snapshots working.
+        if before.cutterClamp ~= after.cutterClamp and after.cutterClamp then
+            self:play("cutter_clamp", { cooldown = 0.15 })
+        end
+        if before.cutterStep ~= after.cutterStep and after.cutterStep == "cutting" then
+            self:play("cutter_cut", { cooldown = 0.25 })
+        end
     end
-    if before.cutterStep ~= after.cutterStep and after.cutterStep == "cutting" then
-        self:play("cutter_cut", { cooldown = 0.25 })
-    end
-    if before.pressMotor ~= after.pressMotor and after.pressMotor then
-        self:play("press_start", { cooldown = 0.5 })
+    if before.presses ~= nil or after.presses ~= nil then
+        local ids = {}
+        for id in pairs(before.presses or {}) do ids[id] = true end
+        for id in pairs(after.presses or {}) do ids[id] = true end
+        for id in pairs(ids) do
+            local old, current = (before.presses or {})[id] or {}, (after.presses or {})[id] or {}
+            if old.motor ~= current.motor and current.motor then
+                self:play("press_start", { cooldown = 0.5, cooldownKey = id })
+            end
+        end
+    else
+        if before.pressMotor ~= after.pressMotor and after.pressMotor then
+            self:play("press_start", { cooldown = 0.5 })
+        end
     end
     if before.completedJobs < after.completedJobs then
         self:play("job_complete", { cooldown = 0.5 })
@@ -277,7 +475,38 @@ function Sound:update(dt)
     local current = self:capture()
     if self.previous and not self.paused then self:handleTransitions(self.previous, current) end
     self:syncPersistentLoops(current)
+    self:syncPhoneAudio(current, dt)
+    self:syncCommuteAudio(dt)
     self.previous = current
+end
+
+function Sound:syncCommuteAudio(dt)
+    local state,world=self.context.state,self.context.world
+    local trip=state.home and state.home.commute
+    local screen=state.screen=='options' and state.optionsReturnScreen or state.screen
+    local part=trip and screen=='world' and world and world.player
+        and trip.participants[require('src.home_residents').key(world.player)]
+    if not part or part.interior then
+        if self.commuteAudio then self.commuteAudio:release();self.commuteAudio=nil end
+        return
+    end
+    if not self.commuteAudio then
+        self.commuteAudio=require('src.commute.audio').new()
+        self.commuteAudio:setPaused(self.paused)
+        self.commuteAudio:setMuted(self.muted)
+    end
+    self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume)
+    if part.rider.vehicle=='truck' and part.rider.truck then
+        local truck=part.rider.truck
+        local speed=truck.speed or 0
+        local throttle=truck.throttle or math.min(1,speed/8)
+        self.commuteAudio:update(dt,{speed=speed,throttle=throttle,brake=truck.brake,
+            rpm=1400+speed*135+throttle*650},truck.engine~=false,
+            {truck=true,truckSoundSet=require('src.commute.delivery_truck').audioProfile(truck)})
+        return
+    end
+    self.commuteAudio:update(dt,require('src.commute.audio').partBike(part),part.rider.gear.engine,
+        {horn=part.rider.bike.horn==true})
 end
 
 function Sound:pointerPressed(button, screen)
@@ -290,6 +519,7 @@ function Sound:setPaused(paused)
     paused = paused == true
     if paused == self.paused then return end
     self.paused = paused
+    if self.commuteAudio then self.commuteAudio:setPaused(paused) end
     if paused then
         for _, entry in pairs(self.loops) do entry.source:pause() end
     else
@@ -301,6 +531,7 @@ end
 
 function Sound:setMuted(muted)
     self.muted = muted == true
+    if self.commuteAudio then self.commuteAudio:setMuted(self.muted) end
     for owner, entry in pairs(self.loops) do
         entry.source:setVolume(self:volumeFor(entry.name))
         if self.muted and entry.source:isPlaying() then entry.source:pause()
@@ -312,6 +543,7 @@ function Sound:setLevels(master, sfx, ambient)
     self.masterVolume = math.max(0, math.min(1, tonumber(master) or self.masterVolume))
     self.sfxVolume = math.max(0, math.min(1, tonumber(sfx) or self.sfxVolume))
     self.ambientVolume = math.max(0, math.min(1, tonumber(ambient) or self.ambientVolume))
+    if self.commuteAudio then self.commuteAudio:setLevels(self.masterVolume,self.sfxVolume,self.ambientVolume) end
     for _, entry in pairs(self.loops) do
         entry.source:setVolume(self:volumeFor(entry.name))
     end
@@ -329,6 +561,7 @@ function Sound:status()
 end
 
 function Sound:shutdown()
+    if self.commuteAudio then self.commuteAudio:release();self.commuteAudio=nil end
     for owner in pairs(self.loops) do self:stopLoop(owner) end
     for _, source in ipairs(self.active) do
         source:stop()
@@ -338,7 +571,11 @@ function Sound:shutdown()
         source:stop()
         if source.release then pcall(source.release, source) end
     end
-    self.active, self.prototypes, self.previous = {}, {}, nil
+    for _, data in ipairs(self.generatedAudio) do
+        if data.release then pcall(data.release, data) end
+    end
+    self.active, self.prototypes, self.generatedAudio, self.previous = {}, {}, {}, nil
+    self.phoneRingOwner, self.phoneRingElapsed = nil, 0
     self.initialized = false
 end
 

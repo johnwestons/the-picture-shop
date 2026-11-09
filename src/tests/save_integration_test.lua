@@ -52,6 +52,7 @@ function Test.run(context, check, economy, jobs)
     economy.wrapper.x = 705
     economy.wrapper.y = 455
     economy.wrapper.direction = "northeast"
+    economy.wrapper.rotationIndex = 18
     economy.vendorCategory = 4
     context.machineFleet.recordUse(economy, "polar_115", 12)
     context.businessCalendar.update(economy, 31 * context.config.businessCalendar.secondsPerDay)
@@ -89,7 +90,7 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.nextJobId == 100
         and loaded.state.calendar.month == 2
         and loaded.state.calendar.day == 1
-        and loaded.state.bills.balance == 3950
+        and loaded.state.bills.balance == 4135
         and loaded.state.bills.ledger[1].status == "unpaid")
     check("save_inventory_round_trip", loaded
         and loaded.state.inventory.plasticWrapRolls == 3
@@ -119,7 +120,8 @@ function Test.run(context, check, economy, jobs)
     check("save_wrapper_placement_round_trip", loaded
         and loaded.state.wrapper.x == 705
         and loaded.state.wrapper.y == 455
-        and loaded.state.wrapper.direction == "northeast")
+        and loaded.state.wrapper.direction == "northeast"
+        and loaded.state.wrapper.rotationIndex == 18)
     check("save_machine_condition_round_trip", loaded
         and loaded.state.machines.items[1].id == "MCH-0001"
         and loaded.state.machines.items[1].cycles == 12
@@ -140,6 +142,7 @@ function Test.run(context, check, economy, jobs)
     check("save_state_apply_round_trip", context.State.applySave(appliedRoundTrip, loaded)
         and appliedRoundTrip.wrapper.x == 705
         and appliedRoundTrip.wrapper.direction == "northeast"
+        and appliedRoundTrip.wrapper.rotationIndex == 18
         and appliedRoundTrip.inventory.plasticWrapUses == 7
         and appliedRoundTrip.cutterMemory["1"][3] == 11.5
         and appliedRoundTrip.palletJack.carriedPalletId == "JOB-0099-P01"

@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "created": "2026-11-01",
+  "tool": "image_gen.imagegen",
+  "transparentBackground": true,
+  "coordinateContract": "Furniture x/y is the center of the floor-contact footprint in 960x678 world space. Facing is the foot of a bed or the direction a seated person looks. Runtime uses shared placement_grid and floor_footprint.orientedBox with vertical floor projection 0.5. Individual frame pivots are measured in atlas-cell pixels.",
+  "runtimeNotes": "Original generated PNGs are copied without pixel edits. RGBA alpha ranges 0..254. Low-alpha generated haze is discarded at 0.18 by the runtime shader. All eight views rendered and inspected in output/home-implementation/furniture-{bed,chair}-directions.png. Scale was checked beside the player and doorways in all four apartments. Side views are somewhat flatter than diagonal views and may benefit from later art refinement.",
+  "assets": [
+    {
+      "kind": "bed",
+      "path": "bed-eight-directions.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "427c52c6994cf7d772205d70cb1eb1f49ceed655e77fb7f5548e87d21ef92a07",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-81ec75c4-3fa7-4b37-b1e7-17edd22b9ccb.png",
+      "reference": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-e41967f3-06d9-4ea7-b903-6789da43024d.png",
+      "copiedWithoutPixelEdits": true,
+      "scale": 0.28,
+      "nominalColumns": 4,
+      "rows": 2,
+      "actualColumnRects": [
+        {
+          "x": 0,
+          "width": 448
+        },
+        {
+          "x": 448,
+          "width": 256
+        },
+        {
+          "x": 704,
+          "width": 448
+        },
+        {
+          "x": 1152,
+          "width": 384
+        }
+      ],
+      "rowHeight": 512,
+      "directions": [
+        "southeast",
+        "south",
+        "southwest",
+        "east",
+        "northwest",
+        "north",
+        "northeast",
+        "west"
+      ],
+      "pivots": [
+        [
+          228,
+          370
+        ],
+        [
+          128,
+          370
+        ],
+        [
+          224,
+          370
+        ],
+        [
+          180,
+          335
+        ],
+        [
+          228,
+          335
+        ],
+        [
+          128,
+          340
+        ],
+        [
+          224,
+          335
+        ],
+        [
+          180,
+          330
+        ]
+      ],
+      "floorLength": 96,
+      "floorWidth": 42,
+      "initialPrompt": "Production game sprite sheet, wide 1536x1024 canvas, exactly 4 columns and 2 rows of equal 384x512 cells. Eight views of ONE identical object, true orthographic elevated isometric camera at 30 degrees, warm slightly gritty painterly textures and crisp outlines for The Picture Shop animal life-simulation game. Genuine transparent background, no floor, no oval shadow, no text, labels, border, grid, other furniture, or characters. Each object fully inside its cell with generous transparent margins, same physical scale and centered ground-contact pivot in every cell. The object rotates in 45 degree increments while camera and lighting remain fixed. View order reading left to right: front faces screen bottom-right (southeast), straight down (south), bottom-left (southwest), straight left (west), upper-left (northwest, rear view), straight up (north, rear view), upper-right (northeast, rear view), straight right (east). Every rear view must show the real back geometry rather than a mirrored front. Object: a modest narrow SINGLE BED for one adult, an old honey-brown wooden frame, tall simple headboard at the head, very low footboard at the foot, visible four short wooden legs, off-white mattress, ONE cream pillow at the head and a faded muted teal-blue blanket. The bed's front facing direction above refers to the FOOT of the bed. Headboard and pillow always stay together at the opposite end from the front/foot. It is a full length bed about 2 meters long and 0.9 meters wide, never shorten or widen the bed between directions. Render the entire bed including legs, no sleeper, no surrounding scene. Eight distinct rotations. Use the tall cell space to show the full long bed even in the straight-up/down views.",
+      "editPrompt": "Edit this bed sprite atlas into usable transparent game art. Preserve the exact same bed design and eight distinct rotations. REMOVE ALL of the brown/black glowing background completely to true transparent alpha: no colored haze, vignette, drop shadows, floor or backdrop, including between the legs. Canvas stays 1536x1024, exactly four equal columns (384px) and two equal rows (512px). SHRINK each bed so it is fully contained INSIDE ITS OWN CELL with at least 40px clear transparent padding left and right and 45px top and bottom. Especially the two diagonal beds on the left must not cross the x=384 column boundary. All eight beds should have the same physical scale. Keep elevated camera showing the mattress top in the two sideways views as well, not a flat side elevation. Reading order preserves reference: southeast, south, southwest, east, northwest, north, northeast, west (direction of the foot end). No text, grids or outlines around cells. Only eight isolated wooden beds on transparent alpha."
+    },
+    {
+      "kind": "chair",
+      "path": "chair-eight-directions.png",
+      "width": 1536,
+      "height": 1024,
+      "sha256": "456f0eeae49496de478fc63a351d97edf7afdb07de33e5d26648cfa071e85e80",
+      "source": "C:/Users/johnw/.codex/generated_images/01a19537-3c85-7ea3-bc63-34b03179b30e/exec-419c2413-7db0-43c8-a2b0-25fa2ab4d523.png",
+      "copiedWithoutPixelEdits": true,
+      "scale": 0.16,
+      "columns": 4,
+      "rows": 2,
+      "cellWidth": 384,
+      "cellHeight": 512,
+      "directions": [
+        "southeast",
+        "south",
+        "southwest",
+        "west",
+        "northeast",
+        "north",
+        "northwest",
+        "east"
+      ],
+      "pivots": [
+        [
+          205,
+          370
+        ],
+        [
+          192,
+          385
+        ],
+        [
+          168,
+          370
+        ],
+        [
+          192,
+          385
+        ],
+        [
+          205,
+          310
+        ],
+        [
+          192,
+          325
+        ],
+        [
+          168,
+          310
+        ],
+        [
+          192,
+          325
+        ]
+      ],
+      "floorLength": 24,
+      "floorWidth": 24,
+      "orderingNote": "Registered actual visible facing, including the side/rear views whose generated positions differ from the requested order.",
+      "prompt": "Production sprite atlas for a painterly isometric life-simulation game. Exactly eight true rotations of the SAME modest worn wooden kitchen chair with straight square backrest, four legs and faded ochre seat cushion. Wide 1536x1024 transparent canvas, 4 columns x2 rows. Every chair SMALL within its cell: maximum silhouette 230 pixels wide and 320 pixels high centered within a 384x512 cell. At least 65 pixels transparent padding horizontally and vertically. Camera is elevated orthographic at 30 degrees, sees the TOP of the seat in ALL eight orientations. Keep consistent physical scale, material and lighting. Row1 left to right: seated person would face bottom-right/southeast, directly down/south (front of chair), bottom-left/southwest, directly right/east. Row2: person would face upper-left/northwest (back of chair visible), directly up/north (solid backrest visible), upper-right/northeast (back visible), directly left/west. Front and rear must genuinely differ. Warm subdued wood, detailed hand-painted texture with readable dark contours at 40px game size. No people, tables, props, words, labels, numbers, border, floor, ground shadows or decorative background. Genuine transparent alpha around and through the chair legs; no cast-shadow blob. Only eight isolated views of the chair."
+    }
+  ]
+}

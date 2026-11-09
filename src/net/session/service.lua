@@ -77,6 +77,7 @@ function Component.install(Runtime)
                 if event.type == "connect" then
                     local ok, helloError = self:_sendToServer("hello", {
                         clientNonce = self.clientNonce,
+                        residentToken = self.residentToken,
                         name = self.localName,
                         character = self.localCharacter,
                         furColorway = self.localFurColorway or 1,
@@ -213,6 +214,8 @@ function Component.install(Runtime)
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
                     players = Runtime.Codec.array({ record }),
+                    bike = record.sceneId=='commute' and context and context.getBikeMotion
+                        and context.getBikeMotion(record.id) or nil,
                     games = index==1 and Runtime.Codec.array(games) or nil,
                     balls = nil,
                 })
@@ -275,15 +278,23 @@ function Component.install(Runtime)
                         sessionId = self.sessionId,
                         serverTick = self.serverTick,
                         bayDoor = environment.bayDoor,
+                        roomDoors = environment.roomDoors,
                         truck = environment.truck,
-                        employees = environment.employees and #environment.employees<=4 and environment.employees or nil,
+                        employees = environment.employees and #environment.employees<=3 and environment.employees or nil,
+                        technician = environment.technician,
+                        deliveryDriver = environment.deliveryDriver,
                     })
                 if not environmentOk then self:_queue("error", { message = environmentError }) end
-                if environment.employees and #environment.employees>4 then
+                if environment.employees and #environment.employees>3 then
                     local employeeOk,employeeError=self:_broadcastJoined("employee_snapshot",{
                         sessionId=self.sessionId,serverTick=self.serverTick,employees=environment.employees})
                     if not employeeOk then self:_queue("error",{message=employeeError}) end
                 end
+            end
+            for _,unit in ipairs(context and context.getExtraPalletJackSnapshots and context.getExtraPalletJackSnapshots() or {}) do
+                local sent,reason=self:_broadcastJoined("extra_pallet_jack_snapshot",{
+                    sessionId=self.sessionId,serverTick=self.serverTick,jackId=unit.id,jack=unit.jack})
+                if not sent then self:_queue("error",{message=reason}) end
             end
             local palletJack = context and context.getPalletJackSnapshot
                 and context.getPalletJackSnapshot() or nil
@@ -295,6 +306,7 @@ function Component.install(Runtime)
                         sessionId = self.sessionId,
                         serverTick = self.serverTick,
                         jack = palletJack,
+                        jackId = context.getPalletJackId and context.getPalletJackId() or nil,
                         machines = machinePoses,
                     })
                 if os.getenv("PICTURE_SHOP_ACCEPTANCE_HOST_SLOT") then
@@ -407,14 +419,30 @@ function Component.install(Runtime)
                 self.shopStateAccumulator = 0
             else
                 local revision = self.shopRevision + 1
+                local state = shop.state
+                local town = state.home and state.home.town
+                if town and town.id and town.id == self.broadcastTownId then
+                    -- The reliable stream already delivered this frozen layout.
+                    local delta, home = {}, {}
+                    for key,value in pairs(state) do delta[key]=value end
+                    for key,value in pairs(state.home) do
+                        if key~='town' then home[key]=value end
+                    end
+                    delta.home=home
+                    home.networkTownId=town.id
+                    state=delta
+                end
                 local stateOk, stateError, recipientCount = self:_broadcastJoined("shop_state", {
                     sessionId = self.sessionId,
                     revision = revision,
-                    state = shop.state,
+                    state = state,
                 })
                 self.shopStateAccumulator = 0
                 if stateOk then
-                    if recipientCount > 0 then self.shopRevision = revision end
+                    if recipientCount > 0 then
+                        self.shopRevision = revision
+                        self.broadcastTownId = town and town.id
+                    end
                     self.shopDirty = false
                     self.shopFallbackAccumulator = 0
                 else

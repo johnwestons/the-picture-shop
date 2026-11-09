@@ -1,0 +1,176 @@
+{
+  "assetId": "commute-rider-rig-east-v1",
+  "historicalStatus": "retired_user_rejected_articulated_sprites",
+  "sourceImage": "assets/source/commute-rider-rig-east-v1/parts-atlas-v1.png",
+  "sourceDimensionsPx": [
+    1254,
+    1254
+  ],
+  "sourceSha256": "f1565afc58436412a65dc6af294d0e3bbc23f0c66d34477d266d28f08d5238a3",
+  "extraction": "alpha-connected-component mechanical crops; no pixels repainted",
+  "paddingPx": 18,
+  "parts": [
+    {
+      "areaPx": 87937,
+      "bboxPx": [
+        159,
+        26,
+        387,
+        503
+      ],
+      "name": "body",
+      "label": "Helmet, torso, pelvis",
+      "cropBoxPx": [
+        141,
+        8,
+        405,
+        521
+      ],
+      "path": "parts/body.png"
+    },
+    {
+      "areaPx": 38783,
+      "bboxPx": [
+        550,
+        149,
+        740,
+        466
+      ],
+      "name": "upper_arm_near",
+      "label": "Near upper arm",
+      "cropBoxPx": [
+        532,
+        131,
+        758,
+        484
+      ],
+      "path": "parts/upper_arm_near.png"
+    },
+    {
+      "areaPx": 32823,
+      "bboxPx": [
+        994,
+        153,
+        1158,
+        466
+      ],
+      "name": "upper_arm_far",
+      "label": "Far upper arm",
+      "cropBoxPx": [
+        976,
+        135,
+        1176,
+        484
+      ],
+      "path": "parts/upper_arm_far.png"
+    },
+    {
+      "areaPx": 32736,
+      "bboxPx": [
+        160,
+        557,
+        371,
+        821
+      ],
+      "name": "forearm_glove_near",
+      "label": "Near forearm and glove",
+      "cropBoxPx": [
+        142,
+        539,
+        389,
+        839
+      ],
+      "path": "parts/forearm_glove_near.png"
+    },
+    {
+      "areaPx": 29102,
+      "bboxPx": [
+        556,
+        564,
+        756,
+        813
+      ],
+      "name": "forearm_glove_far",
+      "label": "Far forearm and glove",
+      "cropBoxPx": [
+        538,
+        546,
+        774,
+        831
+      ],
+      "path": "parts/forearm_glove_far.png"
+    },
+    {
+      "areaPx": 43801,
+      "bboxPx": [
+        935,
+        499,
+        1139,
+        837
+      ],
+      "name": "thigh_near",
+      "label": "Near thigh",
+      "cropBoxPx": [
+        917,
+        481,
+        1157,
+        855
+      ],
+      "path": "parts/thigh_near.png"
+    },
+    {
+      "areaPx": 42048,
+      "bboxPx": [
+        178,
+        866,
+        368,
+        1194
+      ],
+      "name": "thigh_far",
+      "label": "Far thigh",
+      "cropBoxPx": [
+        160,
+        848,
+        386,
+        1212
+      ],
+      "path": "parts/thigh_far.png"
+    },
+    {
+      "areaPx": 53234,
+      "bboxPx": [
+        540,
+        868,
+        803,
+        1193
+      ],
+      "name": "shin_boot_near",
+      "label": "Near shin and boot",
+      "cropBoxPx": [
+        522,
+        850,
+        821,
+        1211
+      ],
+      "path": "parts/shin_boot_near.png"
+    },
+    {
+      "areaPx": 47508,
+      "bboxPx": [
+        949,
+        871,
+        1192,
+        1190
+      ],
+      "name": "shin_boot_far",
+      "label": "Far shin and boot",
+      "cropBoxPx": [
+        931,
+        853,
+        1210,
+        1208
+      ],
+      "path": "parts/shin_boot_far.png"
+    }
+  ]
+}

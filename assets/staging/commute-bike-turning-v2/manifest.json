@@ -1,0 +1,1271 @@
+{
+  "version": 2,
+  "character": "commute-motorcycle-rider",
+  "specType": "vehicle_pose",
+  "status": "staged_for_visual_review",
+  "frameCount": 64,
+  "frameSize": 320,
+  "columns": 8,
+  "rows": 8,
+  "anchor": [
+    160,
+    260
+  ],
+  "runtimeScale": 0.46,
+  "mirror": false,
+  "preservedOriginalFrames": 32,
+  "source": "assets/source/commute-bike-turning-v2/upright-between-32-paired-source.png",
+  "sourceSha256": "17c76af01c2db9d6073ed28d34cc18a6992b369948b842556093cfad89aa8619",
+  "base": "assets/commute/bike/mounted-upright-32.png",
+  "baseSha256": "f308a27a62586958e5eb7f3802ad4d40bfcbeaf48a7118b7d5a104b6f4741e93",
+  "frames": [
+    {
+      "frame": 1,
+      "yawFromRearDegrees": 0.0,
+      "source": "approved32",
+      "sourceCell": 1,
+      "sha256": "220c87e5f225e2075fc44979f0c73757cd484783ef9a63a2a1ef5d225b089252",
+      "bbox": [
+        104,
+        69,
+        217,
+        285
+      ]
+    },
+    {
+      "frame": 2,
+      "yawFromRearDegrees": 5.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        222,
+        222
+      ],
+      "sourceAnchor": [
+        118.5,
+        184.48148148148147
+      ],
+      "uniformScale": 1.35,
+      "adjacentHeadTop": 69.0,
+      "adjacentTireBottom": 285.0,
+      "sha256": "39b8ee9ab3de240a741cf24c528abe608c59b4025f5609b9c03b9103457de37f",
+      "bbox": [
+        102,
+        69,
+        218,
+        286
+      ]
+    },
+    {
+      "frame": 3,
+      "yawFromRearDegrees": 11.25,
+      "source": "approved32",
+      "sourceCell": 2,
+      "sha256": "d86700a321799927d8b3c2efb6fc3b7116098aae732a434a222946880a28f45b",
+      "bbox": [
+        105,
+        69,
+        214,
+        285
+      ]
+    },
+    {
+      "frame": 4,
+      "yawFromRearDegrees": 16.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 2,
+      "sourceRect": [
+        222,
+        0,
+        443,
+        222
+      ],
+      "sourceAnchor": [
+        120.0,
+        185.0279069767442
+      ],
+      "uniformScale": 1.3354037267080745,
+      "adjacentHeadTop": 69.0,
+      "adjacentTireBottom": 284.0,
+      "sha256": "748df5db2784251db5eca5cfe84c82c6300aa4fa8765474f95eb12f49cf32f22",
+      "bbox": [
+        100,
+        70,
+        218,
+        283
+      ]
+    },
+    {
+      "frame": 5,
+      "yawFromRearDegrees": 22.5,
+      "source": "approved32",
+      "sourceCell": 3,
+      "sha256": "282041866150020ddbdebc155cd2d7580e46c7ddbca30fea7a12e7af2b9a0e17",
+      "bbox": [
+        91,
+        69,
+        228,
+        283
+      ]
+    },
+    {
+      "frame": 6,
+      "yawFromRearDegrees": 28.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 3,
+      "sourceRect": [
+        443,
+        0,
+        665,
+        222
+      ],
+      "sourceAnchor": [
+        118.5,
+        185.09859154929578
+      ],
+      "uniformScale": 1.33125,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 282.5,
+      "sha256": "621a48c3a16cbd9da620faf4f6690e77d58944e3ef6a2104c350587a9e6c1ba5",
+      "bbox": [
+        90,
+        71,
+        231,
+        284
+      ]
+    },
+    {
+      "frame": 7,
+      "yawFromRearDegrees": 33.75,
+      "source": "approved32",
+      "sourceCell": 4,
+      "sha256": "a0c54ab61fdcaf390aacc968fca6cd4b05dc0fe08cd246124bff72c09559d6bb",
+      "bbox": [
+        84,
+        70,
+        237,
+        282
+      ]
+    },
+    {
+      "frame": 8,
+      "yawFromRearDegrees": 39.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 4,
+      "sourceRect": [
+        665,
+        0,
+        887,
+        222
+      ],
+      "sourceAnchor": [
+        119.5,
+        186.20047732696898
+      ],
+      "uniformScale": 1.3176100628930818,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 279.5,
+      "sha256": "0ce989f43af3975699c02f598a323bad60444b280ac46539b23470a49e932981",
+      "bbox": [
+        82,
+        71,
+        240,
+        281
+      ]
+    },
+    {
+      "frame": 9,
+      "yawFromRearDegrees": 45.0,
+      "source": "approved32",
+      "sourceCell": 5,
+      "sha256": "cd6527bfb67e6b175bc131a18effc2c0b23539e68d9ea64476d52fd533f20455",
+      "bbox": [
+        74,
+        70,
+        245,
+        277
+      ]
+    },
+    {
+      "frame": 10,
+      "yawFromRearDegrees": 50.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 5,
+      "sourceRect": [
+        887,
+        0,
+        1109,
+        222
+      ],
+      "sourceAnchor": [
+        117.5,
+        186.2621359223301
+      ],
+      "uniformScale": 1.3205128205128205,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 275.5,
+      "sha256": "3db7c8f1782dffe3d70c3b1d8b7208204b05438dae84f6d7ee61128291a9580a",
+      "bbox": [
+        72,
+        70,
+        248,
+        275
+      ]
+    },
+    {
+      "frame": 11,
+      "yawFromRearDegrees": 56.25,
+      "source": "approved32",
+      "sourceCell": 6,
+      "sha256": "5a626b77a0c6285e96e8c565491908299795424fe68c2f56b623c04e65804576",
+      "bbox": [
+        67,
+        69,
+        253,
+        274
+      ]
+    },
+    {
+      "frame": 12,
+      "yawFromRearDegrees": 61.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 6,
+      "sourceRect": [
+        1109,
+        0,
+        1330,
+        222
+      ],
+      "sourceAnchor": [
+        120.5,
+        188.19753086419755
+      ],
+      "uniformScale": 1.3064516129032258,
+      "adjacentHeadTop": 69.0,
+      "adjacentTireBottom": 271.5,
+      "sha256": "6120a81d71b54089f82a67c10ca9e940cee6eaa394ee9810dead38c5ce2ff13c",
+      "bbox": [
+        64,
+        69,
+        257,
+        271
+      ]
+    },
+    {
+      "frame": 13,
+      "yawFromRearDegrees": 67.5,
+      "source": "approved32",
+      "sourceCell": 7,
+      "sha256": "ee21706e1c55a80c04f52d062472a02afa91ae94b1e21bd3e08bfc7d6fd9ffe9",
+      "bbox": [
+        63,
+        69,
+        257,
+        269
+      ]
+    },
+    {
+      "frame": 14,
+      "yawFromRearDegrees": 73.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 7,
+      "sourceRect": [
+        1330,
+        0,
+        1552,
+        222
+      ],
+      "sourceAnchor": [
+        124.5,
+        188.6126582278481
+      ],
+      "uniformScale": 1.299342105263158,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 267.0,
+      "sha256": "8957e98a2944732439ab0dea51d074eeadc5bc484e5a64560364d9909d7bf690",
+      "bbox": [
+        58,
+        70,
+        261,
+        267
+      ]
+    },
+    {
+      "frame": 15,
+      "yawFromRearDegrees": 78.75,
+      "source": "approved32",
+      "sourceCell": 8,
+      "sha256": "05d6f6167a6b2cc4ff507c57ed072b695f3af29a4c20bd34596834f2eb6a0b3f",
+      "bbox": [
+        61,
+        70,
+        260,
+        265
+      ]
+    },
+    {
+      "frame": 16,
+      "yawFromRearDegrees": 84.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 8,
+      "sourceRect": [
+        1552,
+        0,
+        1774,
+        222
+      ],
+      "sourceAnchor": [
+        123.5,
+        191.03896103896105
+      ],
+      "uniformScale": 1.2748344370860927,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 262.5,
+      "sha256": "282b0763b7db6644e1f26c7dc9857efcfa6dd6affc6b4eb59e547af0122bfcca",
+      "bbox": [
+        58,
+        70,
+        263,
+        262
+      ]
+    },
+    {
+      "frame": 17,
+      "yawFromRearDegrees": 90.0,
+      "source": "approved32",
+      "sourceCell": 9,
+      "sha256": "680b9ffa18aeb2279938357e873eeb8d2a28ba85c9493b4025cb18457c99b341",
+      "bbox": [
+        58,
+        70,
+        261,
+        260
+      ]
+    },
+    {
+      "frame": 18,
+      "yawFromRearDegrees": 95.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 9,
+      "sourceRect": [
+        0,
+        222,
+        222,
+        443
+      ],
+      "sourceAnchor": [
+        123.5,
+        189.07291666666666
+      ],
+      "uniformScale": 1.2972972972972974,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 262.5,
+      "sha256": "499f39b9bf5977e4a45c2a13f47366b8c14aac6b6ae26ce8b3d3cfbd82cd9d23",
+      "bbox": [
+        55,
+        70,
+        264,
+        263
+      ]
+    },
+    {
+      "frame": 19,
+      "yawFromRearDegrees": 101.25,
+      "source": "approved32",
+      "sourceCell": 10,
+      "sha256": "1b822d28c8eb837dcdbb9b463b316343b4f28b86d81e0902809c9b7f69e3b76d",
+      "bbox": [
+        60,
+        71,
+        259,
+        265
+      ]
+    },
+    {
+      "frame": 20,
+      "yawFromRearDegrees": 106.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 10,
+      "sourceRect": [
+        222,
+        222,
+        443,
+        443
+      ],
+      "sourceAnchor": [
+        122.5,
+        186.28934010152284
+      ],
+      "uniformScale": 1.3133333333333332,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 267.5,
+      "sha256": "b9812e85f212a584bf1d900f4a9a81204a3f15d3c54ac794956c85a98ccb096e",
+      "bbox": [
+        59,
+        71,
+        260,
+        267
+      ]
+    },
+    {
+      "frame": 21,
+      "yawFromRearDegrees": 112.5,
+      "source": "approved32",
+      "sourceCell": 11,
+      "sha256": "b8403a0f0c42ff7ff11baf727a04da37a708b4675d405e18f265673015965ad8",
+      "bbox": [
+        68,
+        70,
+        253,
+        270
+      ]
+    },
+    {
+      "frame": 22,
+      "yawFromRearDegrees": 118.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 11,
+      "sourceRect": [
+        443,
+        222,
+        665,
+        443
+      ],
+      "sourceAnchor": [
+        122.5,
+        185.3821339950372
+      ],
+      "uniformScale": 1.3344370860927153,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 271.5,
+      "sha256": "c76c0df058271d562fc7bd0be2c43192f02281998ad5d5bf6947c62896af8470",
+      "bbox": [
+        68,
+        70,
+        251,
+        271
+      ]
+    },
+    {
+      "frame": 23,
+      "yawFromRearDegrees": 123.75,
+      "source": "approved32",
+      "sourceCell": 12,
+      "sha256": "3ffb0de319178c4c35d152f3e756651a6007f7b2e5b5ba8aea93bee03063787f",
+      "bbox": [
+        80,
+        70,
+        238,
+        273
+      ]
+    },
+    {
+      "frame": 24,
+      "yawFromRearDegrees": 129.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 12,
+      "sourceRect": [
+        665,
+        222,
+        887,
+        443
+      ],
+      "sourceAnchor": [
+        124.5,
+        183.43170731707318
+      ],
+      "uniformScale": 1.3398692810457515,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 275.5,
+      "sha256": "c98c945c3ddbb8a87ac8934112d5b2ff3a4319c0fd0adeba226bf1442557da2e",
+      "bbox": [
+        83,
+        70,
+        237,
+        276
+      ]
+    },
+    {
+      "frame": 25,
+      "yawFromRearDegrees": 135.0,
+      "source": "approved32",
+      "sourceCell": 13,
+      "sha256": "c64393d5b4924c6849915ebbe19f6ea67a786e6c11d92eed497577c0b8a047a2",
+      "bbox": [
+        93,
+        71,
+        228,
+        278
+      ]
+    },
+    {
+      "frame": 26,
+      "yawFromRearDegrees": 140.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 13,
+      "sourceRect": [
+        887,
+        222,
+        1109,
+        443
+      ],
+      "sourceAnchor": [
+        124.5,
+        184.72727272727275
+      ],
+      "uniformScale": 1.3312101910828025,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 279.0,
+      "sha256": "9c87bd5f0074b71a455b1cc095f8e3812adb1263f7f34a0f010c92b75772bc91",
+      "bbox": [
+        100,
+        70,
+        222,
+        278
+      ]
+    },
+    {
+      "frame": 27,
+      "yawFromRearDegrees": 146.25,
+      "source": "approved32",
+      "sourceCell": 14,
+      "sha256": "7d8e6ad2f0d4596c2d7b096bee7938d85e4e7e5c80e79437b60d7ff52e43bbf1",
+      "bbox": [
+        103,
+        69,
+        218,
+        280
+      ]
+    },
+    {
+      "frame": 28,
+      "yawFromRearDegrees": 151.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 14,
+      "sourceRect": [
+        1109,
+        222,
+        1330,
+        443
+      ],
+      "sourceAnchor": [
+        125.0,
+        184.0141176470588
+      ],
+      "uniformScale": 1.3449367088607596,
+      "adjacentHeadTop": 69.0,
+      "adjacentTireBottom": 281.5,
+      "sha256": "f806a25cf17fd677b34aad35529bb13e66787eddfd5451c6010da497446efcd0",
+      "bbox": [
+        106,
+        70,
+        214,
+        281
+      ]
+    },
+    {
+      "frame": 29,
+      "yawFromRearDegrees": 157.5,
+      "source": "approved32",
+      "sourceCell": 15,
+      "sha256": "19cfc6acfe9e77f9e742c5c99fbb8e982d695a21ac35cd434e0f034497716488",
+      "bbox": [
+        110,
+        69,
+        209,
+        283
+      ]
+    },
+    {
+      "frame": 30,
+      "yawFromRearDegrees": 163.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 15,
+      "sourceRect": [
+        1330,
+        222,
+        1552,
+        443
+      ],
+      "sourceAnchor": [
+        121.5,
+        182.32167832167832
+      ],
+      "uniformScale": 1.3575949367088607,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 284.0,
+      "sha256": "1debf8bf2699dbbdaf307bcb29cae4c5aa4bfd06a578317ba3bd57e7f766fa20",
+      "bbox": [
+        106,
+        69,
+        214,
+        284
+      ]
+    },
+    {
+      "frame": 31,
+      "yawFromRearDegrees": 168.75,
+      "source": "approved32",
+      "sourceCell": 16,
+      "sha256": "b99aa17ddbe87bdd5e27d9f80ecef40fbca0aed3c704a55634b20a98427cb031",
+      "bbox": [
+        107,
+        70,
+        213,
+        285
+      ]
+    },
+    {
+      "frame": 32,
+      "yawFromRearDegrees": 174.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 16,
+      "sourceRect": [
+        1552,
+        222,
+        1774,
+        443
+      ],
+      "sourceAnchor": [
+        119.0,
+        181.30394431554524
+      ],
+      "uniformScale": 1.3639240506329113,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 285.5,
+      "sha256": "b31cfcb11b3baf94ba4366b32a61c04d4fb95fc9091d026f6f4059aaf8ac2696",
+      "bbox": [
+        106,
+        70,
+        215,
+        286
+      ]
+    },
+    {
+      "frame": 33,
+      "yawFromRearDegrees": 180.0,
+      "source": "approved32",
+      "sourceCell": 17,
+      "sha256": "2a74dee54ed47e54d339312ddcf0ea190fdc01ab4570e225ff60c49251376bed",
+      "bbox": [
+        103,
+        70,
+        218,
+        286
+      ]
+    },
+    {
+      "frame": 34,
+      "yawFromRearDegrees": 185.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 17,
+      "sourceRect": [
+        0,
+        443,
+        222,
+        665
+      ],
+      "sourceAnchor": [
+        117.0,
+        183.18561484918794
+      ],
+      "uniformScale": 1.3553459119496856,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 285.5,
+      "sha256": "c89cbbe72ef52043a1fbf5c01c546506d76cd016ca60c2526ba1ccbcb0b7f24b",
+      "bbox": [
+        105,
+        71,
+        217,
+        285
+      ]
+    },
+    {
+      "frame": 35,
+      "yawFromRearDegrees": 191.25,
+      "source": "approved32",
+      "sourceCell": 18,
+      "sha256": "2d89ccbb9ec85f92e9c0f8e0ef0a9d2e4d85bd2c5a14c40392e455ba388dffae",
+      "bbox": [
+        105,
+        70,
+        215,
+        285
+      ]
+    },
+    {
+      "frame": 36,
+      "yawFromRearDegrees": 196.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 18,
+      "sourceRect": [
+        222,
+        443,
+        443,
+        665
+      ],
+      "sourceAnchor": [
+        116.0,
+        182.95337995337997
+      ],
+      "uniformScale": 1.3575949367088607,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 284.5,
+      "sha256": "09303367c6d2cc650f8821c95dc8cc9597c7035276823e3b855f5b74e9a4e09b",
+      "bbox": [
+        102,
+        70,
+        218,
+        285
+      ]
+    },
+    {
+      "frame": 37,
+      "yawFromRearDegrees": 202.5,
+      "source": "approved32",
+      "sourceCell": 19,
+      "sha256": "3275b199b260765e4ed1203e05c4a6175f346c321c567ab0b2b8d7c4a3a3ce3a",
+      "bbox": [
+        97,
+        70,
+        222,
+        284
+      ]
+    },
+    {
+      "frame": 38,
+      "yawFromRearDegrees": 208.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 19,
+      "sourceRect": [
+        443,
+        443,
+        665,
+        665
+      ],
+      "sourceAnchor": [
+        117.0,
+        183.97892271662764
+      ],
+      "uniformScale": 1.3512658227848102,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 283.0,
+      "sha256": "3df9f134bdc2a978aea4645304657c52631683dc0aff9b426b89ff47578bf188",
+      "bbox": [
+        93,
+        69,
+        227,
+        282
+      ]
+    },
+    {
+      "frame": 39,
+      "yawFromRearDegrees": 213.75,
+      "source": "approved32",
+      "sourceCell": 20,
+      "sha256": "1e653e454dc22d70eb5e0f67e0daeee62ef46c979b0fa450b35fbf2053b61148",
+      "bbox": [
+        85,
+        69,
+        236,
+        282
+      ]
+    },
+    {
+      "frame": 40,
+      "yawFromRearDegrees": 219.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 20,
+      "sourceRect": [
+        665,
+        443,
+        887,
+        665
+      ],
+      "sourceAnchor": [
+        116.0,
+        184.17814726840854
+      ],
+      "uniformScale": 1.3493589743589745,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 280.0,
+      "sha256": "b009af7c4b460aab4454754deb9e1025b44295e6210b811411aff8057211fc36",
+      "bbox": [
+        81,
+        69,
+        241,
+        280
+      ]
+    },
+    {
+      "frame": 41,
+      "yawFromRearDegrees": 225.0,
+      "source": "approved32",
+      "sourceCell": 21,
+      "sha256": "f8a3c5ad9f2f946722807286066fbc7985b4ec65e40a2059a73311c155e6fa49",
+      "bbox": [
+        74,
+        70,
+        246,
+        278
+      ]
+    },
+    {
+      "frame": 42,
+      "yawFromRearDegrees": 230.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 21,
+      "sourceRect": [
+        887,
+        443,
+        1109,
+        665
+      ],
+      "sourceAnchor": [
+        113.5,
+        186.30900243309
+      ],
+      "uniformScale": 1.3258064516129033,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 275.5,
+      "sha256": "5d5092108f18babeb2661b8d3f5106184132f38f5fc6adf2b54edd1c46e3c010",
+      "bbox": [
+        70,
+        70,
+        249,
+        275
+      ]
+    },
+    {
+      "frame": 43,
+      "yawFromRearDegrees": 236.25,
+      "source": "approved32",
+      "sourceCell": 22,
+      "sha256": "23bd7529d44cdade5c393658c9f3fc5ccf67b08bd59f3fb2eadf10ff106d8d22",
+      "bbox": [
+        67,
+        70,
+        252,
+        273
+      ]
+    },
+    {
+      "frame": 44,
+      "yawFromRearDegrees": 241.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 22,
+      "sourceRect": [
+        1109,
+        443,
+        1330,
+        665
+      ],
+      "sourceAnchor": [
+        114.5,
+        187.64764267990074
+      ],
+      "uniformScale": 1.3169934640522876,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 271.0,
+      "sha256": "147ded9cc78bacc267abcb4b0f5fb206e86df87b953756dde813704be20ae1e7",
+      "bbox": [
+        63,
+        69,
+        257,
+        271
+      ]
+    },
+    {
+      "frame": 45,
+      "yawFromRearDegrees": 247.5,
+      "source": "approved32",
+      "sourceCell": 23,
+      "sha256": "9f7e7a0b5ed835ff0bff933a346886e4a90d2f9b96a680def177861db855472c",
+      "bbox": [
+        61,
+        69,
+        258,
+        269
+      ]
+    },
+    {
+      "frame": 46,
+      "yawFromRearDegrees": 253.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 23,
+      "sourceRect": [
+        1330,
+        443,
+        1552,
+        665
+      ],
+      "sourceAnchor": [
+        113.0,
+        188.66161616161617
+      ],
+      "uniformScale": 1.3112582781456954,
+      "adjacentHeadTop": 69.0,
+      "adjacentTireBottom": 267.0,
+      "sha256": "8d765a7296ef2c3a0b09423e2cac8d2cbe0d219e52b074e061420b7b2a11b198",
+      "bbox": [
+        58,
+        69,
+        262,
+        268
+      ]
+    },
+    {
+      "frame": 47,
+      "yawFromRearDegrees": 258.75,
+      "source": "approved32",
+      "sourceCell": 24,
+      "sha256": "a5c6ad82f2d8ffe505359b1acee0365e3dba574f858f265e50b8f59adbb743ba",
+      "bbox": [
+        61,
+        69,
+        260,
+        265
+      ]
+    },
+    {
+      "frame": 48,
+      "yawFromRearDegrees": 264.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 24,
+      "sourceRect": [
+        1552,
+        443,
+        1774,
+        665
+      ],
+      "sourceAnchor": [
+        111.0,
+        190.0699481865285
+      ],
+      "uniformScale": 1.2953020134228188,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 262.5,
+      "sha256": "5394cfff40597c22e89e358b829c8e1ee5af66af57b1e88820b2ada7d7e67ae1",
+      "bbox": [
+        56,
+        70,
+        264,
+        264
+      ]
+    },
+    {
+      "frame": 49,
+      "yawFromRearDegrees": 270.0,
+      "source": "approved32",
+      "sourceCell": 25,
+      "sha256": "60a45b6dfd454aa5e04ce75e670ddda8186264717a12781784ea6b52bc95cc98",
+      "bbox": [
+        61,
+        70,
+        258,
+        260
+      ]
+    },
+    {
+      "frame": 50,
+      "yawFromRearDegrees": 275.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 25,
+      "sourceRect": [
+        0,
+        665,
+        222,
+        887
+      ],
+      "sourceAnchor": [
+        112.0,
+        189.4543080939948
+      ],
+      "uniformScale": 1.2939189189189189,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 262.0,
+      "sha256": "bf44ff7d1eef99bbb225e981ce3295db5ff66d61519429a38abe33cc3961db29",
+      "bbox": [
+        59,
+        70,
+        261,
+        262
+      ]
+    },
+    {
+      "frame": 51,
+      "yawFromRearDegrees": 281.25,
+      "source": "approved32",
+      "sourceCell": 26,
+      "sha256": "882ecd75d99dbe755558ecbfdd566ff3a4e9d2629146a89de58ff4ac8211a4f5",
+      "bbox": [
+        64,
+        71,
+        255,
+        264
+      ]
+    },
+    {
+      "frame": 52,
+      "yawFromRearDegrees": 286.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 26,
+      "sourceRect": [
+        222,
+        665,
+        443,
+        887
+      ],
+      "sourceAnchor": [
+        110.5,
+        188.02551020408163
+      ],
+      "uniformScale": 1.3066666666666666,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 266.5,
+      "sha256": "eaca77135dddf99e0ccee3952d80099dbfa4733f9f1d1c482ca2409bc0c213cf",
+      "bbox": [
+        64,
+        70,
+        255,
+        266
+      ]
+    },
+    {
+      "frame": 53,
+      "yawFromRearDegrees": 292.5,
+      "source": "approved32",
+      "sourceCell": 27,
+      "sha256": "229109c31354fcb84eef4aadfaa62562907bb174596dd3a0d6148259d0aadc03",
+      "bbox": [
+        70,
+        70,
+        249,
+        269
+      ]
+    },
+    {
+      "frame": 54,
+      "yawFromRearDegrees": 298.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 27,
+      "sourceRect": [
+        443,
+        665,
+        665,
+        887
+      ],
+      "sourceAnchor": [
+        112.5,
+        186.32506203473946
+      ],
+      "uniformScale": 1.325657894736842,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 271.5,
+      "sha256": "a7d533f2cd8ce8939908def148375dea5c289084d59acde9b6dce16c9242d696",
+      "bbox": [
+        71,
+        70,
+        250,
+        272
+      ]
+    },
+    {
+      "frame": 55,
+      "yawFromRearDegrees": 303.75,
+      "source": "approved32",
+      "sourceCell": 28,
+      "sha256": "98f45ae87b810408f63b6d7646fd1f6443e3e11eb998cf56713bb44d681cbac0",
+      "bbox": [
+        79,
+        70,
+        241,
+        274
+      ]
+    },
+    {
+      "frame": 56,
+      "yawFromRearDegrees": 309.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 28,
+      "sourceRect": [
+        665,
+        665,
+        887,
+        887
+      ],
+      "sourceAnchor": [
+        113.0,
+        185.3560975609756
+      ],
+      "uniformScale": 1.3311688311688312,
+      "adjacentHeadTop": 70.5,
+      "adjacentTireBottom": 275.5,
+      "sha256": "e87652a4192918abcd2287883bd676af4b521a6f28a1567bc4d760d1c619aeb9",
+      "bbox": [
+        84,
+        70,
+        238,
+        276
+      ]
+    },
+    {
+      "frame": 57,
+      "yawFromRearDegrees": 315.0,
+      "source": "approved32",
+      "sourceCell": 29,
+      "sha256": "2212a8a1642a16628a4af486d3edccf568de7909d1c38efc7b8b6b80e0bc6343",
+      "bbox": [
+        87,
+        71,
+        233,
+        277
+      ]
+    },
+    {
+      "frame": 58,
+      "yawFromRearDegrees": 320.625,
+      "source": "generatedMidpoint32",
+      "sourceCell": 29,
+      "sourceRect": [
+        887,
+        665,
+        1109,
+        887
+      ],
+      "sourceAnchor": [
+        113.5,
+        183.9090909090909
+      ],
+      "uniformScale": 1.3483870967741935,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 279.0,
+      "sha256": "861953dbcff6e906b68bc92199a25c09aff5c002762f1149dc238ee12b9dd304",
+      "bbox": [
+        93,
+        70,
+        226,
+        279
+      ]
+    },
+    {
+      "frame": 59,
+      "yawFromRearDegrees": 326.25,
+      "source": "approved32",
+      "sourceCell": 30,
+      "sha256": "c1f20b8cc72a1c5cd006f4b8e37aa717a09a7cf6a1df33fac2b5e3741c8193e5",
+      "bbox": [
+        93,
+        69,
+        225,
+        281
+      ]
+    },
+    {
+      "frame": 60,
+      "yawFromRearDegrees": 331.875,
+      "source": "generatedMidpoint32",
+      "sourceCell": 30,
+      "sourceRect": [
+        1109,
+        665,
+        1330,
+        887
+      ],
+      "sourceAnchor": [
+        112.5,
+        182.5211267605634
+      ],
+      "uniformScale": 1.3653846153846154,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 282.5,
+      "sha256": "88fe5b653fa6bb9ff20ea0d09474201c6217206fe665d456ec9ec287176b130e",
+      "bbox": [
+        99,
+        69,
+        221,
+        283
+      ]
+    },
+    {
+      "frame": 61,
+      "yawFromRearDegrees": 337.5,
+      "source": "approved32",
+      "sourceCell": 31,
+      "sha256": "a35671728fd1de1c8e39fe79e152d5841196b759316465ac3706534a3e10c813",
+      "bbox": [
+        102,
+        70,
+        219,
+        284
+      ]
+    },
+    {
+      "frame": 62,
+      "yawFromRearDegrees": 343.125,
+      "source": "generatedMidpoint32",
+      "sourceCell": 31,
+      "sourceRect": [
+        1330,
+        665,
+        1552,
+        887
+      ],
+      "sourceAnchor": [
+        116.0,
+        181.74418604651163
+      ],
+      "uniformScale": 1.3694267515923566,
+      "adjacentHeadTop": 70.0,
+      "adjacentTireBottom": 285.0,
+      "sha256": "4e161e2cfa5be45a50160b8e99d1a8415f2a05329ccddf1466d3370b468c2849",
+      "bbox": [
+        102,
+        70,
+        220,
+        285
+      ]
+    },
+    {
+      "frame": 63,
+      "yawFromRearDegrees": 348.75,
+      "source": "approved32",
+      "sourceCell": 32,
+      "sha256": "4eae4cf054afd031045dff6c703f2174c9273f36ecee1e78b062f223661836bf",
+      "bbox": [
+        107,
+        70,
+        214,
+        286
+      ]
+    },
+    {
+      "frame": 64,
+      "yawFromRearDegrees": 354.375,
+      "source": "generatedMidpoint32",
+      "sourceCell": 32,
+      "sourceRect": [
+        1552,
+        665,
+        1774,
+        887
+      ],
+      "sourceAnchor": [
+        114.5,
+        181.4652777777778
+      ],
+      "uniformScale": 1.375796178343949,
+      "adjacentHeadTop": 69.5,
+      "adjacentTireBottom": 285.5,
+      "sha256": "3d61639ed1ae59442d0f23e8a81b06b0cc93102e0db281a5199192c174464a06",
+      "bbox": [
+        102,
+        69,
+        219,
+        285
+      ]
+    }
+  ]
+}

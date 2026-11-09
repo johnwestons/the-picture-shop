@@ -1,0 +1,6 @@
+Use case: precise-object-edit
+Asset type: one transparent 512×512 frame for the existing rear-view rabbit-worker walk cycle.
+Input images: Image 1 is the exact phase-7 frame and the sole character identity/style reference. Image 2 is only a guide to the compact, low foot presentation; do not copy its body or character details.
+Primary request: Correct only the legs and boots into the opposite compact passing pose. Keep the head, ears, torso, arms, tail, overalls, shirt, pouch, tools, colors, outline weight, and character proportions from Image 1.
+Phase: Phase 7, left passing. The viewer-right leg is planted and stays flat at the shared ground line. The anatomical-left/viewer-left ankle passes directly under the pelvis; keep its knee low and boot just barely above the ground. The free boot angles along the floor, sole points down and remains hidden, showing only a narrow rear/side edge. This is a low pass, not a lifted knee or airborne stride.
+Constraints: Same 512×512 canvas, same camera, visible character scale and center. Preserve exactly two ears, two arms, two legs and two boots. Clean true transparency beyond a continuous dark outline. No red/blue fringe, glow, matte, stray pixels, shadow, text, border, extra anatomy or changes above the hips.

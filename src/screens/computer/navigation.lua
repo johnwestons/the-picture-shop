@@ -5,6 +5,9 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.tabById(tabId)
         if tabId == "online" then tabId = "www" end
+        local financialAliases={bills='bills',player_wages='players',payroll='staff',shop_budget='overview'}
+        local financialAlias=financialAliases[tabId]
+        if financialAlias then Runtime.ComputerScreen.financialSection=financialAlias;tabId='financials' end
         for _, tab in ipairs(Runtime.visibleTabs()) do
             if tab.id == tabId then return tab end
         end
@@ -48,10 +51,21 @@ function Component.install(Runtime)
 
     function Runtime.calendarMonthEvents(state, year, month, twelveHourTime)
         local result = {}
-        for _, event in ipairs(Runtime.BusinessCalendar.events(state,twelveHourTime)) do
+        for _, event in ipairs(Runtime.BusinessCalendar.events(state,twelveHourTime,year,month)) do
             if event.year == year and event.month == month then result[#result + 1] = event end
         end
         return result
+    end
+
+    function Runtime.calendarDayEvents(state,year,month,day,twelveHourTime)
+        local shop,town={},{}
+        for _,event in ipairs(Runtime.calendarMonthEvents(state,year,month,twelveHourTime)) do
+            if event.day==day then
+                local target=event.kind=='town' and town or shop
+                target[#target+1]=event
+            end
+        end
+        return shop,town
     end
 
     function Runtime.calendarDayRect(year, month, day)
@@ -73,11 +87,13 @@ function Component.install(Runtime)
         end
     end
 
-    function Runtime.clampCalendarScroll(state)
-        local events = Runtime.calendarMonthEvents(state, Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth)
-        local maximum = math.max(0, #events - Runtime.CAL_EVENT_LIST.visibleRows)
-        Runtime.ComputerScreen.calendarScroll = math.min(maximum, math.max(0, Runtime.ComputerScreen.calendarScroll or 0))
-        return events, maximum
+    function Runtime.clampCalendarDayScroll(state)
+        local screen=Runtime.ComputerScreen
+        local shop,town=Runtime.calendarDayEvents(state,screen.calendarYear,screen.calendarMonth,
+            screen.calendarSelectedDay)
+        local maximum=math.max(0,math.max(#shop,#town)-Runtime.CAL_DAY_LIST.visibleRows)
+        screen.calendarDayScroll=math.min(maximum,math.max(0,screen.calendarDayScroll or 0))
+        return shop,town,maximum
     end
 end
 

@@ -2,29 +2,44 @@ local Codec = require("src.net.codec")
 local Config = require("src.config")
 local Intent = {}
 local fields = {
-    estimate = { id = "token", amount = "amount" }, decline = { id = "token" },
+    estimate = { id = "token", amount = "amount", deliveryAmount = "optional_amount",
+        includeDeliveryQuote = "optional_boolean" }, decline = { id = "token" },
     promotion = { id = "token", text = "text" }, archive = { id = "token" },
     archive_service = { id = "token" }, delete_email = { id = "token" },
     mark_email_read = { id = "token" }, sell = { id = "token" },
+    quality_inspect = { jobId = "token" }, quality_rework = { jobId = "token" },
+    customer_case = { jobId = "token", response = "case_response" },
     pay_bills = {}, checkout = { items = "cart" },
+    home_pay_rent = { expectedRevision="home_revision" },
+    home_set_pay = { expectedRevision="home_revision",percent="home_percent" },
+    home_set_reserve = { expectedRevision="home_revision",reserveCents="home_reserve" },
+    home_order_food = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
+    home_order_furniture = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
+    home_set_food_limit = {expectedRevision="home_revision",limitCents="home_food_limit"},
+    player_wage_propose = {residentId="resident_id",expectedRevision="home_revision",wageCents="player_wage"},
+    player_wage_accept = {residentId="resident_id",expectedRevision="home_revision"},
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
+    buy_garage_door = { bayId = "bay", requestId = "token" },
     buy_breakroom_fixture = { bayId = "bay", fixtureId = "breakroom_fixture", requestId = "token" },
-    staging_area_add = {},
+    staging_area_add = { sceneId = "staging_scene" },
     staging_area_remove = { areaId = "token" },
     staging_area_change = { areaId = "token", change = "staging_change", x = "staging_x", y = "staging_y" },
     recruit_workers = { enabled = "boolean" }, request_resume = { applicationId = "token" },
     decline_application = { applicationId = "token" },
     offer_employee = { applicationId = "token", expectedRevision = "revision", wageCents = "wage",
-        days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
+        role = "employee_role", days = "days", startHour = "hour", endHour = "hour", payWeeks = "pay_cycle" },
     hire_employee = { applicationId = "token", expectedRevision = "revision" },
+    change_employee_hours = { employeeId = "token", expectedRevision = "revision",
+        days = "days", startHour = "hour", endHour = "hour" },
     assign_employee = { employeeId = "token", jobId = "token", palletId = "token", machineId = "token" },
     unassign_employee = { employeeId = "token" }, dismiss_employee = { employeeId = "token" },
     send_employee_home = { employeeId = "token" }, pay_wages = {},
     train_employee = { employeeId="token",skill="employee_skill" },
     cancel_employee_training = { employeeId="token" },
+    set_delivery_driver = { employeeId="driver_assignment" },
     queue_employee_job = { employeeId="token",jobId="token",machineId="token" },
     set_employee_schedule = { employeeId="token",enabled="boolean" },
     queue_team_job = { jobId="token",machineId="token" },
@@ -45,6 +60,20 @@ function Intent.normalize(value)
         local item = value[key]
         if rule == "boolean" then
             if type(item) ~= "boolean" then return nil,"Choose whether recruitment is open." end
+        elseif rule == "home_revision" then
+            if not integer(item,0,1000000000000) then return nil,"Review the latest home details." end
+        elseif rule == "home_percent" then
+            if not integer(item,0,100) then return nil,"Personal pay must be 0 to 100 percent." end
+        elseif rule == "home_reserve" then
+            if not integer(item,0,100000000) then return nil,"Choose a cash reserve from $0 to $1,000,000." end
+        elseif rule == "home_product" then
+            if type(item)~="string" or not require("src.home_shop_catalog").PRODUCTS[item] then return nil,"Choose a listed household product." end
+        elseif rule == "home_quantity" then
+            if not integer(item,1,10) then return nil,"Choose a quantity from 1 to 10." end
+        elseif rule == "home_food_limit" then
+            if not integer(item,0,1000000) then return nil,"Choose a valid shared guest food budget." end
+        elseif rule == "resident_id" then
+            if not require('src.home_residents').validId(item) then return nil,'Choose a saved guest resident.' end
         elseif rule == "revision" then
             if not integer(item,1,1000000000) then return nil,"Review the latest record revision." end
         elseif rule == "queue_direction" then
@@ -62,12 +91,29 @@ function Intent.normalize(value)
             if item ~= nil and not integer(item, 0, Config.baseHeight) then
                 return nil, "Choose a valid staging area position."
             end
+        elseif rule == "staging_scene" then
+            if item==nil then item="warehouse" end
+            if item~="warehouse" and item~="front_left" and item~="front_right" then
+                return nil,"Choose a room for pallet staging."
+            end
         elseif rule == "employee_skill" then
             if item~="cutter" and item~="press" and item~="wrapping" then
                 return nil,"Choose paper-cutter, printing-press, or pallet-wrapping training."
             end
+        elseif rule == "case_response" then
+            if item ~= "credit" and item ~= "apology" and item ~= "decline" then
+                return nil, "Choose a customer credit, apology, or decline response."
+            end
         elseif rule == "wage" then
             if not integer(item,1000,10000) then return nil,"Choose $10-$100 per hour." end
+        elseif rule == "employee_role" then
+            if item==nil then item="cutter" end
+            if item~="cutter" and item~="driver" then return nil,"Choose production cutter or delivery driver." end
+        elseif rule == "driver_assignment" then
+            if type(item)~="string" or #item<1 or #item>64
+                or not item:match("^[%w_.%-]+$") then return nil,"Choose an employee or automatic driver selection." end
+        elseif rule == "player_wage" then
+            if not integer(item,100,10000) then return nil,"Choose $1-$100 per hour." end
         elseif rule == "days" then
             if not integer(item,1,127) then return nil,"Choose at least one working day." end
         elseif rule == "pay_cycle" then
@@ -82,18 +128,24 @@ function Intent.normalize(value)
         elseif rule == "breakroom_fixture" then
             if not require("src.breakroom_games").IDS[item] then return nil, "Choose a break room game." end
         elseif rule == "optional_boolean" then
-            if item ~= nil and type(item) ~= "boolean" then return nil, "Invalid shelf warning confirmation." end
+            if item ~= nil and type(item) ~= "boolean" then return nil, "Invalid option." end
         elseif rule == "token" then
             if type(item) ~= "string" or #item < 1 or #item > 64 or not item:match("^[%w_.%-]+$") then return nil, "Invalid record ID." end
         elseif rule == "amount" then
             if not integer(item, 1, 10000000) then return nil, "Invalid estimate amount." end
+        elseif rule == "optional_amount" then
+            if item ~= nil and not integer(item, 1, 10000000) then
+                return nil, "Invalid delivery estimate amount."
+            end
         elseif rule == "machine_offer" then
             if not integer(item, 1, 16) then return nil, "Choose a listed machine." end
         elseif rule == "machine_channel" then
             if item == nil then item = "online" end
             if item ~= "online" and item ~= "dealer" then return nil, "Choose a listed machine channel." end
         elseif rule == "text" then
-            if type(item) ~= "string" or #item > 600 or item:find("[%z\1-\8\11\12\14-\31]") then return nil, "Invalid message." end
+            if type(item) ~= "string" or #item > 600 or item:find("[%z\1-\8\11\12\14-\31\127]") then
+                return nil, "Invalid message."
+            end
         elseif rule == "cart" then
             if type(item) ~= "table" or #item < 1 or #item > 6 then return nil, "Use a cart of 1–6 different products." end
             local rows, count = {}, 0

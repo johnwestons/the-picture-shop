@@ -1,0 +1,31 @@
+{
+  "mode": "built-in image_gen",
+  "goal": "Add slope-driven rock and seasonal woodland ground litter without adding per-patch sprites",
+  "materials": [
+    {
+      "kind": "rock-outcrop",
+      "file": "rock-outcrop-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for the existing top-down 2.5D Piedmont woodland survival game. Create one square, edge-to-edge material swatch of exposed weathered Piedmont bedrock on a steep ridge: broad irregular plates of gray-brown gneiss and weathered metamorphic stone, subtle fine mineral banding, small embedded pale quartz flecks, sparse dark soil in hairline cracks, very little vegetation. Keep stone shapes dense and medium-small so the repeated texture reads naturally at game scale. Palette muted cool slate-gray, warm taupe, subdued charcoal; restrained contrast matching the existing dirt and gravel materials. Soft naturalistic painted game-art detail, orthographic straight overhead, flat even diffuse lighting. The opposing edges must tile seamlessly. Entire square filled uniformly. No perspective, cast shadows, vignette, borders, large isolated boulders, plants, leaves, wood, water, text, labels, watermark or transparency. This is a reusable texture swatch, not a landscape. Square 1024 by 1024 composition."
+    },
+    {
+      "kind": "shale-scree",
+      "file": "shale-scree-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for the existing top-down 2.5D Piedmont woodland survival game. Make a square edge-to-edge patch of angular weathered scree on a steep ridge: dense small-to-medium broken gneiss and quartzite chips, irregular sharp plate-like fragments embedded in dusty dark gray-brown soil, sparse fine grit filling gaps. Keep it more fractured and granular than a bedrock slab, with no dominant stone. Muted slate, warm gray, charcoal and subdued taupe, restrained contrast matching the project's existing gravel and soil materials. Orthographic straight overhead, flat even diffuse lighting. Opposing edges tile seamlessly, uniform scale and density. No perspective, cast shadows, vignette, border, grass, plants, leaves, wood, isolated boulders, water, text, labels, watermark or transparency. Reusable texture swatch, not a landscape. Square 1024 by 1024."
+    },
+    {
+      "kind": "twig-litter",
+      "file": "twig-litter-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for the existing top-down 2.5D Piedmont woodland survival game. Create an oak woodland floor texture with many thin naturally scattered twigs, fine branch tips, tiny broken sticks and a few leaf fragments lying on dark earthy leaf mulch. Twigs are slender, irregular and low profile, distributed evenly with no single focal branch or large log. Muted umber, gray-brown and tan, restrained contrast matching the project's existing oak leaves, pine needles and soil. Orthographic straight overhead, flat even diffuse lighting; texture detail only, no baked directional shadows. Opposing edges tile seamlessly, uniform density and scale. No perspective, vignette, border, plants, flowers, rocks, large roots, full logs, mushrooms, water, text, labels, watermark or transparency. Reusable material swatch, not a landscape. Square 1024 by 1024."
+    },
+    {
+      "kind": "bark-fragments",
+      "file": "bark-fragments-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for the existing top-down 2.5D Piedmont woodland survival game. Show a forest-floor ground cover of small broken bark flakes, curled strips of weathered tree bark and tiny wood chips scattered over dark brown soil, with a few subtle moss flecks. Fragment sizes stay small and evenly distributed; no single big piece and no intact log. Bark has subdued ridged grain but low relief and no cast shadows. Muted chestnut, umber, gray-brown and earth tones, restrained contrast matching the project's existing litter and soil textures. Orthographic straight overhead, flat even diffuse lighting. Opposing edges tile seamlessly, uniform material scale. No perspective, vignette, border, trees, grass, flowers, leaves as the main subject, stones, large branches, water, text, labels, watermark or transparency. Reusable material swatch, not a landscape. Square 1024 by 1024."
+    },
+    {
+      "kind": "autumn-leaves",
+      "file": "autumn-leaves-v1.png",
+      "prompt": "Use case: stylized-concept. Asset type: seamless tileable ground albedo texture for the existing top-down 2.5D Piedmont woodland survival game. Create a woodland floor densely covered with small naturally overlapping fallen oak and maple leaves in late autumn, mixed with a few fine twigs and dark soil glimpses. Leaves are dry, curled and varied but small enough to read as ground texture, not separate collectible objects. Muted ochre, russet, copper-brown, faded amber and dark umber; keep reds and oranges restrained and avoid neon saturation, matching the project's existing leaf-litter material. Orthographic straight overhead, flat even diffuse lighting; texture detail only, no baked cast shadows. Opposing edges tile seamlessly, uniform scale and density. No perspective, vignette, border, living plants, flowers, trees, large branches, full logs, rocks, water, text, labels, watermark or transparency. Reusable material swatch, not a landscape. Square 1024 by 1024."
+    }
+  ]
+}

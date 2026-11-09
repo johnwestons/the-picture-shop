@@ -102,6 +102,8 @@ function Logistics.unload(state, jobId, palletId, spawnPoints, origin)
                 job.delivery.status = "received"
                 job.delivery.receivedAt = os.time()
                 job.delivery.receivedAtHours = BusinessCalendar.absoluteHours(state)
+                require("src.job_feedback").record(job, "materials_ready",
+                    job.delivery.receivedAtHours, "Every skid has been unloaded into the shop")
             else
                 job.delivery = job.delivery or {}
                 job.delivery.status = "unloading"
@@ -157,29 +159,49 @@ function Logistics.physicalPallets(state)
     return result
 end
 
-function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sceneId)
-    local result = {}
-    for _, item in ipairs(Logistics.physicalPallets(state)) do
-        local world=item.pallet.world
-        if item.pallet.id ~= excludedPalletId and world
-            and (world.sceneId or "warehouse")== (sceneId or "warehouse") then
+function Logistics.obstacles(state, halfWidth, halfHeight, excludedPalletId, sceneId, result)
+    result = result or {}
+    local targetScene=sceneId or "warehouse"
+    local collisionHalfWidth,collisionHalfHeight=halfWidth or 33,halfHeight or 11
+    local function append(pallet,x,y)
+        local world=pallet.world
+        if pallet.id ~= excludedPalletId and world
+            and (world.sceneId or "warehouse")==targetScene then
             result[#result + 1] = {
-                x = item.x,
-                y = item.y - 8,
-                halfWidth = halfWidth or 33,
-                halfHeight = halfHeight or 11,
+                x = x,
+                y = y - 8,
+                halfWidth = collisionHalfWidth,
+                halfHeight = collisionHalfHeight,
                 shape = "diamond",
                 palletSceneId=world.sceneId or "warehouse",
             }
         end
     end
+    for _,job in ipairs(state and state.jobs and state.jobs.active or {}) do
+        for _,pallet in ipairs(job.pallets or {}) do
+            local world=pallet.world
+            if world and (pallet.location=="warehouse" or pallet.location=="cutter_output"
+                or pallet.location=="press_output") then
+                local progress=world.spawnProgress or 1
+                if progress==1 then
+                    append(pallet,world.x,world.y)
+                else
+                    local fromX,fromY=world.fromX or world.x,world.fromY or world.y
+                    append(pallet,fromX+(world.x-fromX)*progress,fromY+(world.y-fromY)*progress)
+                end
+            end
+        end
+    end
+    for _,item in ipairs(Procurement.physicalPallets(state)) do
+        append(item.pallet,item.x,item.y)
+    end
     return result
 end
 
-function Logistics.hovered(state, mouseX, mouseY, sceneId)
+function Logistics.hovered(state, mouseX, mouseY, sceneId, physicalItems)
     if type(mouseX) ~= "number" or type(mouseY) ~= "number" then return nil end
     local best
-    for _, item in ipairs(Logistics.physicalPallets(state)) do
+    for _, item in ipairs(physicalItems or Logistics.physicalPallets(state)) do
         local world=item.pallet.world
         local inside = mouseX >= item.x - 54 and mouseX <= item.x + 54
             and mouseY >= item.y - 82 and mouseY <= item.y + 10

@@ -82,6 +82,12 @@ function Controller:gamepadpressed(joystick, button)
     if button == "b" or button == "back" then
         return self:_pressMappedKey(button, "escape")
     end
+    if screen=="home_furnish" then
+        if button=="a" then return self:_pressMappedKey(button,"return")
+        elseif button=="y" or button=="rightshoulder" then return self:_pressMappedKey(button,"q")
+        elseif button=="leftshoulder" then return self:_pressMappedKey(button,"tab")
+        elseif button=="x" then return self:_pressMappedKey(button,"p") end
+    end
     if screen == "machine" and machineType == "cutter" then
         if button == "leftshoulder" then return self:_pressMappedKey(button, "j")
         elseif button == "rightshoulder" then return self:_pressMappedKey(button, "k")

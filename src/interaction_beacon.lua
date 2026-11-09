@@ -106,13 +106,14 @@ local function activationAmount(target, reducedMotion)
     return clamp(1 - (now() - activationTime) / 0.18, 0, 1)
 end
 
-local function drawGem(x, y, width, height, color, palette, alpha, highContrast, flash)
+local function drawGem(x, y, width, height, color, palette, alpha, highContrast, flash,tail)
+    tail=tail or height
     local pad = highContrast and 1.8 or 0.7
     local centerY = y - height * 0.04
-    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], highContrast and 0.92 or 0.22)
+    love.graphics.setColor(palette.outline[1], palette.outline[2], palette.outline[3], alpha*(highContrast and 0.92 or 0.22))
     love.graphics.polygon("fill",
         x + 0.7, y - height - pad + 1, x + width + pad + 0.7, y + 1,
-        x + 0.7, y + height + pad + 1, x - width - pad + 0.7, y + 1)
+        x + 0.7, y + tail + pad + 1, x - width - pad + 0.7, y + 1)
 
     love.graphics.setColor(
         color[1] + (palette.highlight[1] - color[1]) * 0.58,
@@ -127,13 +128,22 @@ local function drawGem(x, y, width, height, color, palette, alpha, highContrast,
         alpha)
     love.graphics.polygon("fill", x, y - height, x + width, y, x, centerY)
     love.graphics.setColor(color[1] * 0.56, color[2] * 0.56, color[3] * 0.56, alpha)
-    love.graphics.polygon("fill", x, centerY, x + width, y, x, y + height)
+    love.graphics.polygon("fill", x, centerY, x + width, y, x, y + tail)
     love.graphics.setColor(color[1] * 0.78, color[2] * 0.78, color[3] * 0.78, alpha)
-    love.graphics.polygon("fill", x, centerY, x, y + height, x - width, y)
+    love.graphics.polygon("fill", x, centerY, x, y + tail, x - width, y)
 
-    love.graphics.setColor(palette.highlight[1], palette.highlight[2], palette.highlight[3], 0.45 + flash * 0.35)
+    love.graphics.setColor(palette.highlight[1], palette.highlight[2], palette.highlight[3], alpha*(0.45 + flash * 0.35))
     love.graphics.setLineWidth(1)
     love.graphics.line(x, y - height + 1, x - width + 1, y)
+end
+
+function InteractionBeacon.drawDirectionGem(x,y,angle)
+    local g=love.graphics
+    g.push('all')
+    g.translate(x,y)
+    g.rotate(angle+math.pi/2)
+    drawGem(0,0,4.5,8,DEFAULT_PALETTE.base,DEFAULT_PALETTE,.53,false,0,4)
+    g.pop()
 end
 
 function InteractionBeacon.drawUnderlay(selected, clock, options)

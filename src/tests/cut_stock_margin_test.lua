@@ -22,6 +22,16 @@ local function hasTrim(job)
     return true
 end
 
+local function rotateToCurrentCut(paper)
+    local cut = PaperWork.currentCut(paper)
+    if not cut then return false end
+    for _ = 1, 4 do
+        if paper.orientation == cut.orientation then return true end
+        if not PaperWork.rotate(paper) then return false end
+    end
+    return paper.orientation == cut.orientation
+end
+
 local function validation(check)
     for index, size in ipairs({ { 24, 25 }, { 25, 24 }, { 24.99, 25 }, { 25, 24.99 },
         { 24.01, 24.01 }, { 26, 25 }, { 25, 26 }, { 0 / 0, 25 }, { 25, math.huge } }) do
@@ -38,7 +48,7 @@ local function validation(check)
             for number = 1, 4 do
                 local cut = PaperWork.currentCut(paper)
                 local width, height = paper.currentSize.width, paper.currentSize.height
-                PaperWork.rotate(paper)
+                rotateToCurrentCut(paper)
                 local ok, result = PaperWork.applyCut(paper, cut.gauge, number)
                 trimmed = trimmed and ok and not result.offSpec
                     and (paper.currentSize.width < width or paper.currentSize.height < height)
@@ -95,10 +105,18 @@ local function renderedMargins(check)
     local paper = offer.pallets[1].paper
     local canvas = love.graphics.newCanvas(960, 680)
     -- Inspect the real stock/artwork draw calls, including every cut and rotation.
-    -- The first fills are shadow, stock, then artwork; later fills are decoration.
     local rectangle, fills = love.graphics.rectangle, {}
+    local artR, artG, artB = runtime.artworkColor(paper.artworkId, 1)
     love.graphics.rectangle = function(mode, x, y, width, height, ...)
-        if mode == "fill" then fills[#fills + 1] = { x = x, y = y, w = width, h = height } end
+        local r,g,b = love.graphics.getColor()
+        local function matches(a,b) return math.abs(a-b)<0.005 end
+        local kind = matches(r,0.98) and matches(g,0.97) and matches(b,0.90) and "stock"
+            or matches(r,artR) and matches(g,artG) and matches(b,artB) and "artwork"
+        if mode == "fill" and kind then
+            local x1,y1 = love.graphics.transformPoint(x,y)
+            local x2,y2 = love.graphics.transformPoint(x+width,y+height)
+            fills[kind] = {x=math.min(x1,x2),y=math.min(y1,y2),w=math.abs(x2-x1),h=math.abs(y2-y1)}
+        end
         return rectangle(mode, x, y, width, height, ...)
     end
     love.graphics.push("all")
@@ -109,7 +127,7 @@ local function renderedMargins(check)
                 paper.orientation, fills = turns * 90, {}
                 love.graphics.clear(0, 0, 0, 1)
                 runtime.drawPaper(nil, { loaded = true, step = "loaded", paper = paper, programIndex = completed + 1 })
-                local stock, artwork = fills[2], fills[3]
+                local stock, artwork = fills.stock, fills.artwork
                 local borders = { artwork.y - stock.y, stock.x + stock.w - artwork.x - artwork.w,
                     stock.y + stock.h - artwork.y - artwork.h, artwork.x - stock.x }
                 local visible, flush = true, true
@@ -126,7 +144,7 @@ local function renderedMargins(check)
                 check("cut_stock_rendered_cut_edges_are_flush_" .. completed .. "_" .. turns, flush)
             end
             if completed < 4 then
-                PaperWork.rotate(paper)
+                assert(rotateToCurrentCut(paper))
                 assert(PaperWork.applyCut(paper, PaperWork.currentCut(paper).gauge, completed + 1))
             end
         end

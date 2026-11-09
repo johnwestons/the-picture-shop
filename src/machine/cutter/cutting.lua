@@ -6,8 +6,11 @@ function Component.run(Context)
     function Context.finishCut(state)
         local cutter = Context.MachineFleet.installed(state, "polar_115", Context.machineId)
         local sharpness = cutter and cutter.variables.bladeSharpness or 100
+        local bladeGrade = cutter and cutter.maintenance.cutter.bladeGrade or "standard"
+        local operatorSkill = Context.Machine.operatorSkill
+        Context.Machine.operatorSkill = nil
         local succeeded, result = Context.PaperWork.applyCut(Context.Machine.paper,
-            Context.Machine.gauge, Context.Machine.programIndex, sharpness)
+            Context.Machine.gauge, Context.Machine.programIndex, sharpness, operatorSkill, bladeGrade)
         if not succeeded then Context.enterBlocked(state, result, "loaded"); return false end
         Context.MachineFleet.recordUse(state, "polar_115", 1)
         if state and state.shopProgress then
@@ -23,7 +26,10 @@ function Component.run(Context)
         else
             Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
             Context.syncProgram()
-            Context.message(state, "Cut complete. Rotate 90 degrees, set the next gauge, and reposition.")
+            local direction = Context.PaperWork.rotationDirection(Context.Machine.paper) > 0
+                and "clockwise" or "counterclockwise"
+            Context.message(state, "Cut complete. Set the next gauge, rotate " .. direction
+                .. " 90 degrees, and reposition.")
         end
         return true
     end
@@ -42,7 +48,8 @@ function Component.run(Context)
         if Context.Machine.clampProgress < target then Context.Machine.clampProgress = math.min(target, Context.Machine.clampProgress + speed)
         elseif Context.Machine.clampProgress > target then Context.Machine.clampProgress = math.max(target, Context.Machine.clampProgress - speed) end
 
-        if Context.Machine.step == "loading" or Context.Machine.step == "positioning" or Context.Machine.step == "unloading"
+        if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
+            or Context.Machine.step == "retracting" or Context.Machine.step == "unloading"
             or Context.Machine.step == "lift_returning"
         then
             Context.Machine.progress = Context.Machine.progress + dt
@@ -53,7 +60,10 @@ function Component.run(Context)
                     Context.message(state, "Paper is on the bed. Program the first backgauge position.")
                 elseif Context.Machine.step == "positioning" then
                     Context.Machine.step, Context.Machine.paperTravel = "positioned", 1
-                    Context.message(state, "Paper is against the backgauge. Engage the clamp.")
+                    Context.message(state, "Paper is set with the yellow cut guide visible. Engage the clamp or pull it back to adjust.")
+                elseif Context.Machine.step == "retracting" then
+                    Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
+                    Context.message(state, "Paper pulled forward. Rotate it or adjust the gauge, then push it back when ready.")
                 elseif Context.Machine.step == "lift_returning" then
                     if Context.Machine.pallet then Context.Machine.pallet.awaitingPalletReturn = false end
                     Context.Machine.loaded, Context.Machine.step, Context.Machine.paperTravel = false, "repeat_ready", 0
@@ -138,6 +148,7 @@ function Component.run(Context)
             end
         elseif Context.Machine.step == "resetting" then
             Context.Machine.progress = Context.Machine.progress + dt
+            Context.Machine.bladeProgress = math.max(0,Context.Machine.bladeProgress-dt/.25)
             if Context.Machine.progress >= 0.35 then
                 local resume = Context.Machine._resetResume
                 if resume == nil or resume == "idle" then
@@ -167,6 +178,7 @@ function Component.run(Context)
     function Context.phasePermille()
         local duration = 1
         if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
+            or Context.Machine.step == "retracting"
             or Context.Machine.step == "unloading" or Context.Machine.step == "lift_returning"
         then
             duration = Context.Machine.transferTime

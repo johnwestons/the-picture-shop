@@ -2,6 +2,14 @@
 local Bootstrap = {}
 
 function Bootstrap.install()
+    local defaultThreadError=love.threaderror
+    function love.threaderror(thread,reason)
+        -- These workers report failures through their result queues/pollers.
+        if require("src.save").ownsWorker(thread)
+            or require("src.image_loader").ownsWorker(thread) then return end
+        if defaultThreadError then return defaultThreadError(thread,reason) end
+        error(reason)
+    end
     -- Hidden smoke runs need a failing exit instead of an invisible error dialog.
     if os.getenv("PICTURE_SHOP_SMOKE") == "1" or os.getenv("CRITTER_PREVIEW_REVIEW") then
         function love.errorhandler(message)
@@ -11,7 +19,29 @@ function Bootstrap.install()
         end
     end
 
-    if os.getenv("PICTURE_SHOP_CRISIS_PREVIEW") == "1" then
+    if os.getenv("PICTURE_SHOP_PRIVATE_SERVER") == "1" then
+        -- Keep failures visible in the console on the windowless server target.
+        function love.errorhandler(message)
+            io.stderr:write(tostring(message) .. "\n" .. debug.traceback() .. "\n")
+            io.stderr:flush()
+            return function() return 1 end
+        end
+        local server = require("src.dedicated_server")
+        function love.load() server.load() end
+        function love.update(dt) server.update(dt) end
+        function love.quit() return server.quit() end
+        return
+    end
+
+    if os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
+        require("tools.commute_lab.reset_saves")
+    elseif os.getenv("PICTURE_SHOP_COMMUTE_PERFORMANCE_PROBE") == "1" then
+        require("tools.performance_probe.commute").install()
+    elseif os.getenv("PICTURE_SHOP_COMMUTE_LAB") == "1" then
+        love.filesystem.setIdentity(os.getenv("PICTURE_SHOP_RIDE_PREVIEW")=="1"
+            and "the-picture-shop-motorcycle-preview" or "the-picture-shop-commute-lab")
+        require("tools.commute_lab.main")
+    elseif os.getenv("PICTURE_SHOP_CRISIS_PREVIEW") == "1" then
         love.filesystem.setIdentity("the-picture-shop-crisis-preview")
         require("tools.critter_crisis_preview.main")
     elseif os.getenv("PICTURE_SHOP_PERFORMANCE_PROBE") == "1" then
@@ -23,6 +53,8 @@ function Bootstrap.install()
         require("tools.employee_bubble_review.main")
     elseif os.getenv("PICTURE_SHOP_EMPLOYEE_PREVIEW") == "1" then
         require("tools.employee_preview.main")
+    elseif os.getenv("PICTURE_SHOP_ANIMATION_REVIEW") == "1" then
+        require("tools.animation_review.main")
     elseif os.getenv("PICTURE_SHOP_VISITOR_PREVIEW") == "1" then
         require("tools.visitor_motion_preview.main")
     elseif os.getenv("PICTURE_SHOP_WAREHOUSE_ART_REVIEW") == "1" then

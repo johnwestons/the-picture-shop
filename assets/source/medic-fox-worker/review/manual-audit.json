@@ -1,0 +1,1898 @@
+{
+  "character": "medic-fox-worker",
+  "animationCount": 29,
+  "directionCount": 8,
+  "errors": [],
+  "warnings": [],
+  "animations": [
+    {
+      "name": "walk_north",
+      "path": "assets/generated/characters/medic-fox-worker/walk_north.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14862,
+          "bounds": [
+            64,
+            38,
+            190,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14679,
+          "bounds": [
+            66,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14079,
+          "bounds": [
+            70,
+            38,
+            184,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14870,
+          "bounds": [
+            64,
+            38,
+            191,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15537,
+          "bounds": [
+            65,
+            38,
+            190,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14648,
+          "bounds": [
+            67,
+            38,
+            187,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15056,
+          "bounds": [
+            66,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14618,
+          "bounds": [
+            67,
+            38,
+            187,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_north",
+      "path": "assets/generated/characters/medic-fox-worker/idle_north.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14707,
+          "bounds": [
+            67,
+            38,
+            187,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14865,
+          "bounds": [
+            67,
+            38,
+            188,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_northeast",
+      "path": "assets/generated/characters/medic-fox-worker/walk_northeast.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14702,
+          "bounds": [
+            54,
+            38,
+            201,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14677,
+          "bounds": [
+            55,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14775,
+          "bounds": [
+            52,
+            38,
+            202,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14306,
+          "bounds": [
+            53,
+            38,
+            201,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15526,
+          "bounds": [
+            53,
+            38,
+            201,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14543,
+          "bounds": [
+            52,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14443,
+          "bounds": [
+            57,
+            38,
+            198,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14937,
+          "bounds": [
+            53,
+            38,
+            202,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_northeast",
+      "path": "assets/generated/characters/medic-fox-worker/idle_northeast.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14147,
+          "bounds": [
+            64,
+            38,
+            190,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14093,
+          "bounds": [
+            64,
+            38,
+            190,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_east",
+      "path": "assets/generated/characters/medic-fox-worker/walk.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14427,
+          "bounds": [
+            51,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14418,
+          "bounds": [
+            54,
+            38,
+            201,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14418,
+          "bounds": [
+            48,
+            38,
+            206,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14507,
+          "bounds": [
+            46,
+            38,
+            208,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14477,
+          "bounds": [
+            51,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14478,
+          "bounds": [
+            47,
+            38,
+            207,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14335,
+          "bounds": [
+            51,
+            38,
+            204,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14300,
+          "bounds": [
+            48,
+            38,
+            207,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_east",
+      "path": "assets/generated/characters/medic-fox-worker/idle.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13671,
+          "bounds": [
+            62,
+            38,
+            193,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13829,
+          "bounds": [
+            61,
+            38,
+            193,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_southeast",
+      "path": "assets/generated/characters/medic-fox-worker/walk_southeast.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14361,
+          "bounds": [
+            56,
+            38,
+            198,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14414,
+          "bounds": [
+            56,
+            38,
+            198,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14191,
+          "bounds": [
+            55,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13802,
+          "bounds": [
+            56,
+            38,
+            199,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14330,
+          "bounds": [
+            57,
+            38,
+            198,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14342,
+          "bounds": [
+            55,
+            38,
+            199,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14236,
+          "bounds": [
+            55,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13963,
+          "bounds": [
+            56,
+            38,
+            199,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_southeast",
+      "path": "assets/generated/characters/medic-fox-worker/idle_southeast.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13112,
+          "bounds": [
+            66,
+            38,
+            188,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13077,
+          "bounds": [
+            67,
+            38,
+            188,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_south",
+      "path": "assets/generated/characters/medic-fox-worker/walk_south.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 15048,
+          "bounds": [
+            66,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15206,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15178,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15181,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15107,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15093,
+          "bounds": [
+            65,
+            38,
+            190,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15074,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15139,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_south",
+      "path": "assets/generated/characters/medic-fox-worker/idle_south.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14649,
+          "bounds": [
+            63,
+            38,
+            191,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14813,
+          "bounds": [
+            63,
+            38,
+            192,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_southwest",
+      "path": "assets/generated/characters/medic-fox-worker/walk_southwest.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 15045,
+          "bounds": [
+            54,
+            38,
+            201,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15579,
+          "bounds": [
+            52,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15990,
+          "bounds": [
+            52,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15597,
+          "bounds": [
+            51,
+            38,
+            204,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14789,
+          "bounds": [
+            54,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15762,
+          "bounds": [
+            52,
+            38,
+            202,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15291,
+          "bounds": [
+            53,
+            38,
+            202,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15657,
+          "bounds": [
+            53,
+            38,
+            202,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_southwest",
+      "path": "assets/generated/characters/medic-fox-worker/idle_southwest.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14572,
+          "bounds": [
+            61,
+            38,
+            193,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14618,
+          "bounds": [
+            61,
+            38,
+            193,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_west",
+      "path": "assets/generated/characters/medic-fox-worker/walk_west.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14204,
+          "bounds": [
+            57,
+            38,
+            197,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14252,
+          "bounds": [
+            57,
+            38,
+            198,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14738,
+          "bounds": [
+            51,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13876,
+          "bounds": [
+            54,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14709,
+          "bounds": [
+            51,
+            38,
+            204,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14322,
+          "bounds": [
+            57,
+            38,
+            197,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14545,
+          "bounds": [
+            52,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14134,
+          "bounds": [
+            54,
+            38,
+            200,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_west",
+      "path": "assets/generated/characters/medic-fox-worker/idle_west.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13832,
+          "bounds": [
+            64,
+            38,
+            190,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14035,
+          "bounds": [
+            64,
+            38,
+            191,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walk_northwest",
+      "path": "assets/generated/characters/medic-fox-worker/walk_northwest.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 12604,
+          "bounds": [
+            72,
+            38,
+            183,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12498,
+          "bounds": [
+            70,
+            38,
+            184,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12626,
+          "bounds": [
+            67,
+            38,
+            188,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12782,
+          "bounds": [
+            65,
+            38,
+            189,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13085,
+          "bounds": [
+            68,
+            38,
+            186,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12351,
+          "bounds": [
+            68,
+            38,
+            187,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12708,
+          "bounds": [
+            69,
+            38,
+            185,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12783,
+          "bounds": [
+            66,
+            38,
+            188,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "idle_northwest",
+      "path": "assets/generated/characters/medic-fox-worker/idle_northwest.png",
+      "actual": [
+        512,
+        256
+      ],
+      "expected": [
+        512,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 14775,
+          "bounds": [
+            59,
+            38,
+            195,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14851,
+          "bounds": [
+            59,
+            38,
+            195,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "work_cutter",
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_cutter.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13928,
+          "bounds": [
+            62,
+            38,
+            193,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14822,
+          "bounds": [
+            50,
+            38,
+            205,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15622,
+          "bounds": [
+            45,
+            38,
+            210,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15769,
+          "bounds": [
+            36,
+            38,
+            219,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15698,
+          "bounds": [
+            44,
+            38,
+            211,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15416,
+          "bounds": [
+            48,
+            38,
+            206,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14481,
+          "bounds": [
+            51,
+            38,
+            203,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14001,
+          "bounds": [
+            61,
+            38,
+            193,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "work_press",
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_press.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13828,
+          "bounds": [
+            62,
+            38,
+            193,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 17304,
+          "bounds": [
+            37,
+            38,
+            218,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15182,
+          "bounds": [
+            44,
+            38,
+            211,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16848,
+          "bounds": [
+            30,
+            38,
+            225,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 17167,
+          "bounds": [
+            31,
+            38,
+            224,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15179,
+          "bounds": [
+            46,
+            38,
+            208,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14393,
+          "bounds": [
+            51,
+            38,
+            204,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13948,
+          "bounds": [
+            61,
+            38,
+            193,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "work_wrapping",
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_wrapping.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13039,
+          "bounds": [
+            64,
+            38,
+            191,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14696,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13637,
+          "bounds": [
+            54,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13901,
+          "bounds": [
+            46,
+            38,
+            208,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13522,
+          "bounds": [
+            44,
+            38,
+            210,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16967,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14962,
+          "bounds": [
+            54,
+            38,
+            200,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13057,
+          "bounds": [
+            64,
+            38,
+            190,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "push",
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13867,
+          "bounds": [
+            41,
+            38,
+            214,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13788,
+          "bounds": [
+            40,
+            38,
+            214,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13928,
+          "bounds": [
+            41,
+            38,
+            214,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13541,
+          "bounds": [
+            41,
+            38,
+            214,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13834,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13533,
+          "bounds": [
+            43,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13386,
+          "bounds": [
+            42,
+            38,
+            213,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13178,
+          "bounds": [
+            43,
+            38,
+            211,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "push_northeast",
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_northeast.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13967,
+          "bounds": [
+            44,
+            38,
+            211,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13522,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13708,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13137,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13821,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13592,
+          "bounds": [
+            46,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13754,
+          "bounds": [
+            46,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13075,
+          "bounds": [
+            46,
+            38,
+            209,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "push_north",
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_north.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 12281,
+          "bounds": [
+            73,
+            38,
+            181,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12252,
+          "bounds": [
+            74,
+            38,
+            180,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11992,
+          "bounds": [
+            75,
+            38,
+            180,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11184,
+          "bounds": [
+            77,
+            38,
+            178,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12109,
+          "bounds": [
+            75,
+            38,
+            180,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12414,
+          "bounds": [
+            74,
+            38,
+            180,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11823,
+          "bounds": [
+            77,
+            38,
+            178,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11562,
+          "bounds": [
+            76,
+            38,
+            179,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "push_southeast",
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_southeast.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13623,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14008,
+          "bounds": [
+            44,
+            38,
+            210,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 14066,
+          "bounds": [
+            44,
+            38,
+            211,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13508,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13646,
+          "bounds": [
+            45,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13987,
+          "bounds": [
+            44,
+            38,
+            210,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13226,
+          "bounds": [
+            46,
+            38,
+            209,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13642,
+          "bounds": [
+            45,
+            38,
+            210,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "push_south",
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_south.png",
+      "actual": [
+        2048,
+        256
+      ],
+      "expected": [
+        2048,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 12137,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12087,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12010,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11969,
+          "bounds": [
+            78,
+            38,
+            177,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11973,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 12141,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11995,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 11800,
+          "bounds": [
+            78,
+            38,
+            176,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "break_eat",
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_eat.png",
+      "actual": [
+        1024,
+        256
+      ],
+      "expected": [
+        1024,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 16318,
+          "bounds": [
+            42,
+            38,
+            213,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16475,
+          "bounds": [
+            42,
+            38,
+            213,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16209,
+          "bounds": [
+            42,
+            38,
+            213,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 15991,
+          "bounds": [
+            42,
+            38,
+            213,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "break_drink",
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "actual": [
+        1024,
+        256
+      ],
+      "expected": [
+        1024,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 16009,
+          "bounds": [
+            43,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16413,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 17151,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16081,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "break_idle",
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_idle.png",
+      "actual": [
+        1024,
+        256
+      ],
+      "expected": [
+        1024,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 13426,
+          "bounds": [
+            57,
+            38,
+            197,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13062,
+          "bounds": [
+            59,
+            38,
+            196,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13441,
+          "bounds": [
+            57,
+            38,
+            197,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 13376,
+          "bounds": [
+            57,
+            38,
+            197,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "break_water",
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "actual": [
+        1024,
+        256
+      ],
+      "expected": [
+        1024,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 16009,
+          "bounds": [
+            43,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16413,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 17151,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16081,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        }
+      ]
+    },
+    {
+      "name": "break_coffee",
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "actual": [
+        1024,
+        256
+      ],
+      "expected": [
+        1024,
+        256
+      ],
+      "frames": [
+        {
+          "alphaPixels": 16009,
+          "bounds": [
+            43,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16413,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 17151,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        },
+        {
+          "alphaPixels": 16081,
+          "bounds": [
+            42,
+            38,
+            212,
+            229
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "errors": 0,
+    "animations": 29,
+    "frames": 164,
+    "directions": 8,
+    "walkFrameHeights": "192..192"
+  }
+}

@@ -1,0 +1,1684 @@
+{
+  "status": "staged_unapproved",
+  "runtimeIntegrated": false,
+  "sourceRoot": "assets/source/commute-rider-v2",
+  "stageRoot": "assets/staging/commute-rider-v2",
+  "frameSize": [
+    256,
+    256
+  ],
+  "targetVisibleHeight": 214,
+  "anchor": [
+    128,
+    238
+  ],
+  "missingWalkDirections": [],
+  "directionsStaged": [
+    "north",
+    "northeast",
+    "east",
+    "southeast",
+    "south"
+  ],
+  "idleContact": "output/commute-rider-v2-review/idle-contact.png",
+  "walkContact": "output/commute-rider-v2-review/walk-contact.png",
+  "idle": {
+    "north": {
+      "path": "assets/staging/commute-rider-v2/idle_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "idle",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.560209,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/directional-idle-v1.png",
+      "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+      "sha256": "2b397e2f6a45e4ec537b4bf4b9d3e15369be6f2623111f9e9fc07ab4f2468160",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            397,
+            396
+          ],
+          "sourceBounds": [
+            105,
+            7,
+            342,
+            393
+          ],
+          "visibleSourceHeight": 386,
+          "helmetCenterX": 220.5,
+          "sourceGroundY": 392,
+          "sourceSoleBandCenterX": 221.75,
+          "stageBounds": [
+            63,
+            22,
+            195,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "neutral"
+        },
+        {
+          "sourceRect": [
+            0,
+            396,
+            397,
+            793
+          ],
+          "sourceBounds": [
+            104,
+            7,
+            343,
+            385
+          ],
+          "visibleSourceHeight": 378,
+          "helmetCenterX": 219.5,
+          "sourceGroundY": 384,
+          "sourceSoleBandCenterX": 219.25,
+          "stageBounds": [
+            63,
+            27,
+            197,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "settle"
+        }
+      ]
+    },
+    "northeast": {
+      "path": "assets/staging/commute-rider-v2/idle_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "idle",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.56168,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/directional-idle-v1.png",
+      "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+      "sha256": "6f095d8c709d63c3595ef84d33bd3c97f8d1bb7c77e35cf971c31a448fc7cacb",
+      "frames": [
+        {
+          "sourceRect": [
+            397,
+            0,
+            793,
+            396
+          ],
+          "sourceBounds": [
+            116,
+            8,
+            335,
+            393
+          ],
+          "visibleSourceHeight": 385,
+          "helmetCenterX": 219.5,
+          "sourceGroundY": 392,
+          "sourceSoleBandCenterX": 235.75,
+          "stageBounds": [
+            70,
+            22,
+            193,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "neutral"
+        },
+        {
+          "sourceRect": [
+            397,
+            396,
+            793,
+            793
+          ],
+          "sourceBounds": [
+            111,
+            8,
+            336,
+            385
+          ],
+          "visibleSourceHeight": 377,
+          "helmetCenterX": 217.0,
+          "sourceGroundY": 384,
+          "sourceSoleBandCenterX": 236.5,
+          "stageBounds": [
+            68,
+            26,
+            194,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "settle"
+        }
+      ]
+    },
+    "east": {
+      "path": "assets/staging/commute-rider-v2/idle_east.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "idle",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.560209,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/directional-idle-v1.png",
+      "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+      "sha256": "fefd251fd1b77b7d06cbc307ba2cd41e3d94b710cb3c8f66932e2e71fbb3209a",
+      "frames": [
+        {
+          "sourceRect": [
+            793,
+            0,
+            1190,
+            396
+          ],
+          "sourceBounds": [
+            124,
+            8,
+            266,
+            394
+          ],
+          "visibleSourceHeight": 386,
+          "helmetCenterX": 196.5,
+          "sourceGroundY": 393,
+          "sourceSoleBandCenterX": 186.0,
+          "stageBounds": [
+            87,
+            22,
+            167,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "neutral"
+        },
+        {
+          "sourceRect": [
+            793,
+            396,
+            1190,
+            793
+          ],
+          "sourceBounds": [
+            124,
+            8,
+            265,
+            386
+          ],
+          "visibleSourceHeight": 378,
+          "helmetCenterX": 195.5,
+          "sourceGroundY": 385,
+          "sourceSoleBandCenterX": 192.75,
+          "stageBounds": [
+            87,
+            26,
+            166,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "settle"
+        }
+      ]
+    },
+    "southeast": {
+      "path": "assets/staging/commute-rider-v2/idle_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "idle",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.558747,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/directional-idle-v1.png",
+      "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+      "sha256": "d0b33f368a02895070c0568b594362c3b61fe4dc52b8bd16fe16d3c1a47d72c9",
+      "frames": [
+        {
+          "sourceRect": [
+            1190,
+            0,
+            1586,
+            396
+          ],
+          "sourceBounds": [
+            58,
+            7,
+            291,
+            395
+          ],
+          "visibleSourceHeight": 388,
+          "helmetCenterX": 168.0,
+          "sourceGroundY": 394,
+          "sourceSoleBandCenterX": 173.0,
+          "stageBounds": [
+            66,
+            22,
+            197,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "neutral"
+        },
+        {
+          "sourceRect": [
+            1190,
+            396,
+            1586,
+            793
+          ],
+          "sourceBounds": [
+            60,
+            8,
+            292,
+            386
+          ],
+          "visibleSourceHeight": 378,
+          "helmetCenterX": 169.5,
+          "sourceGroundY": 385,
+          "sourceSoleBandCenterX": 140.75,
+          "stageBounds": [
+            67,
+            27,
+            196,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "settle"
+        }
+      ]
+    },
+    "south": {
+      "path": "assets/staging/commute-rider-v2/idle_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 2,
+      "loop": true,
+      "role": "idle",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.559477,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/directional-idle-v1.png",
+      "sourceSha256": "26400bf63291a27718e664f6886bcb808063c0b33c139d611caaffc0445c1de9",
+      "sha256": "434470f821f7132a7d8baca83d6fcee2c279d6c960299925ecc122c627bae719",
+      "frames": [
+        {
+          "sourceRect": [
+            1586,
+            0,
+            1983,
+            396
+          ],
+          "sourceBounds": [
+            40,
+            7,
+            289,
+            394
+          ],
+          "visibleSourceHeight": 387,
+          "helmetCenterX": 164.5,
+          "sourceGroundY": 393,
+          "sourceSoleBandCenterX": 162.5,
+          "stageBounds": [
+            58,
+            22,
+            198,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "neutral"
+        },
+        {
+          "sourceRect": [
+            1586,
+            396,
+            1983,
+            793
+          ],
+          "sourceBounds": [
+            47,
+            8,
+            296,
+            386
+          ],
+          "visibleSourceHeight": 378,
+          "helmetCenterX": 171.0,
+          "sourceGroundY": 385,
+          "sourceSoleBandCenterX": 164.5,
+          "stageBounds": [
+            58,
+            27,
+            198,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "settle"
+        }
+      ]
+    }
+  },
+  "walk": {
+    "north": {
+      "path": "assets/staging/commute-rider-v2/walk_north.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.452431,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/walk-north-v1.png",
+      "sourceSha256": "8aecf99a265eed0fc1cfbfb454bf99bff3173cd472f345685553af38d9846002",
+      "sha256": "415d22dfd012280bed1dc7fd04bd6bcc55834901bdc538f8a92ea62c025c9bcd",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "sourceBounds": [
+            90,
+            25,
+            375,
+            493
+          ],
+          "visibleSourceHeight": 468,
+          "helmetCenterX": 235.5,
+          "sourceGroundY": 492,
+          "sourceSoleBandCenterX": 279.0,
+          "stageBounds": [
+            61,
+            26,
+            191,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            512
+          ],
+          "sourceBounds": [
+            61,
+            27,
+            338,
+            489
+          ],
+          "visibleSourceHeight": 462,
+          "helmetCenterX": 205.0,
+          "sourceGroundY": 488,
+          "sourceSoleBandCenterX": 175.5,
+          "stageBounds": [
+            63,
+            29,
+            188,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            512
+          ],
+          "sourceBounds": [
+            37,
+            26,
+            301,
+            493
+          ],
+          "visibleSourceHeight": 467,
+          "helmetCenterX": 169.5,
+          "sourceGroundY": 492,
+          "sourceSoleBandCenterX": 212.0,
+          "stageBounds": [
+            68,
+            27,
+            187,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            512
+          ],
+          "sourceBounds": [
+            3,
+            19,
+            279,
+            489
+          ],
+          "visibleSourceHeight": 470,
+          "helmetCenterX": 140.0,
+          "sourceGroundY": 488,
+          "sourceSoleBandCenterX": 111.25,
+          "stageBounds": [
+            66,
+            26,
+            192,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_up"
+        },
+        {
+          "sourceRect": [
+            0,
+            512,
+            384,
+            1024
+          ],
+          "sourceBounds": [
+            98,
+            6,
+            375,
+            484
+          ],
+          "visibleSourceHeight": 478,
+          "helmetCenterX": 241.5,
+          "sourceGroundY": 483,
+          "sourceSoleBandCenterX": 285.5,
+          "stageBounds": [
+            63,
+            21,
+            189,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "sourceBounds": [
+            70,
+            6,
+            349,
+            482
+          ],
+          "visibleSourceHeight": 476,
+          "helmetCenterX": 208.0,
+          "sourceGroundY": 481,
+          "sourceSoleBandCenterX": 239.5,
+          "stageBounds": [
+            65,
+            22,
+            192,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            512,
+            1152,
+            1024
+          ],
+          "sourceBounds": [
+            40,
+            4,
+            316,
+            480
+          ],
+          "visibleSourceHeight": 476,
+          "helmetCenterX": 175.0,
+          "sourceGroundY": 479,
+          "sourceSoleBandCenterX": 134.75,
+          "stageBounds": [
+            67,
+            23,
+            192,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            512,
+            1536,
+            1024
+          ],
+          "sourceBounds": [
+            4,
+            2,
+            285,
+            485
+          ],
+          "visibleSourceHeight": 483,
+          "helmetCenterX": 144.5,
+          "sourceGroundY": 484,
+          "sourceSoleBandCenterX": 173.5,
+          "stageBounds": [
+            65,
+            20,
+            192,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_up"
+        }
+      ]
+    },
+    "northeast": {
+      "path": "assets/staging/commute-rider-v2/walk_northeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.441237,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/walk-northeast-v1.png",
+      "sourceSha256": "e38f473cfca3b0eaee7f96b7206c62fbfab82a19af654edfb64c2fdb871e7574",
+      "sha256": "6ddb26de4aa7c5b97e90549242d62d2c39cd0e703150d1ba21cc94ac2edb4ac8",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "sourceBounds": [
+            63,
+            12,
+            372,
+            496
+          ],
+          "visibleSourceHeight": 484,
+          "helmetCenterX": 216.0,
+          "sourceGroundY": 495,
+          "sourceSoleBandCenterX": 186.5,
+          "stageBounds": [
+            60,
+            25,
+            197,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            512
+          ],
+          "sourceBounds": [
+            59,
+            12,
+            365,
+            491
+          ],
+          "visibleSourceHeight": 479,
+          "helmetCenterX": 209.0,
+          "sourceGroundY": 490,
+          "sourceSoleBandCenterX": 188.0,
+          "stageBounds": [
+            62,
+            27,
+            197,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            512
+          ],
+          "sourceBounds": [
+            63,
+            11,
+            342,
+            495
+          ],
+          "visibleSourceHeight": 484,
+          "helmetCenterX": 199.5,
+          "sourceGroundY": 494,
+          "sourceSoleBandCenterX": 205.0,
+          "stageBounds": [
+            68,
+            25,
+            191,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            512
+          ],
+          "sourceBounds": [
+            46,
+            11,
+            349,
+            492
+          ],
+          "visibleSourceHeight": 481,
+          "helmetCenterX": 194.0,
+          "sourceGroundY": 491,
+          "sourceSoleBandCenterX": 179.25,
+          "stageBounds": [
+            62,
+            26,
+            196,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_up"
+        },
+        {
+          "sourceRect": [
+            0,
+            512,
+            384,
+            1024
+          ],
+          "sourceBounds": [
+            60,
+            1,
+            377,
+            487
+          ],
+          "visibleSourceHeight": 486,
+          "helmetCenterX": 215.0,
+          "sourceGroundY": 486,
+          "sourceSoleBandCenterX": 181.5,
+          "stageBounds": [
+            59,
+            24,
+            199,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "sourceBounds": [
+            63,
+            1,
+            355,
+            489
+          ],
+          "visibleSourceHeight": 488,
+          "helmetCenterX": 210.0,
+          "sourceGroundY": 488,
+          "sourceSoleBandCenterX": 222.25,
+          "stageBounds": [
+            63,
+            23,
+            192,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            512,
+            1152,
+            1024
+          ],
+          "sourceBounds": [
+            58,
+            1,
+            348,
+            490
+          ],
+          "visibleSourceHeight": 489,
+          "helmetCenterX": 195.5,
+          "sourceGroundY": 489,
+          "sourceSoleBandCenterX": 197.25,
+          "stageBounds": [
+            67,
+            22,
+            195,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            512,
+            1536,
+            1024
+          ],
+          "sourceBounds": [
+            50,
+            0,
+            346,
+            488
+          ],
+          "visibleSourceHeight": 488,
+          "helmetCenterX": 196.5,
+          "sourceGroundY": 487,
+          "sourceSoleBandCenterX": 179.75,
+          "stageBounds": [
+            63,
+            23,
+            194,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_up"
+        }
+      ]
+    },
+    "east": {
+      "path": "assets/staging/commute-rider-v2/walk_east.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.495944,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/walk-east-v1.png",
+      "sourceSha256": "0103095d16b1610682a2c32e610522a18a67addf268120e96cf7e5af083696d8",
+      "sha256": "bafdf5ad229a04b7a3ddc32f044d07800d02b65805aed3c60c603a9ccaa592ed",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            444,
+            444
+          ],
+          "sourceBounds": [
+            99,
+            11,
+            428,
+            436
+          ],
+          "visibleSourceHeight": 425,
+          "helmetCenterX": 244.0,
+          "sourceGroundY": 435,
+          "sourceSoleBandCenterX": 251.75,
+          "stageBounds": [
+            56,
+            27,
+            219,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_contact"
+        },
+        {
+          "sourceRect": [
+            444,
+            0,
+            887,
+            444
+          ],
+          "sourceBounds": [
+            98,
+            6,
+            365,
+            436
+          ],
+          "visibleSourceHeight": 430,
+          "helmetCenterX": 222.0,
+          "sourceGroundY": 435,
+          "sourceSoleBandCenterX": 213.25,
+          "stageBounds": [
+            67,
+            25,
+            199,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_down"
+        },
+        {
+          "sourceRect": [
+            887,
+            0,
+            1330,
+            444
+          ],
+          "sourceBounds": [
+            146,
+            8,
+            296,
+            436
+          ],
+          "visibleSourceHeight": 428,
+          "helmetCenterX": 226.0,
+          "sourceGroundY": 435,
+          "sourceSoleBandCenterX": 208.75,
+          "stageBounds": [
+            88,
+            26,
+            163,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_passing"
+        },
+        {
+          "sourceRect": [
+            1330,
+            0,
+            1774,
+            444
+          ],
+          "sourceBounds": [
+            129,
+            4,
+            382,
+            436
+          ],
+          "visibleSourceHeight": 432,
+          "helmetCenterX": 234.5,
+          "sourceGroundY": 435,
+          "sourceSoleBandCenterX": 208.75,
+          "stageBounds": [
+            76,
+            24,
+            202,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_up"
+        },
+        {
+          "sourceRect": [
+            0,
+            444,
+            444,
+            887
+          ],
+          "sourceBounds": [
+            94,
+            3,
+            439,
+            435
+          ],
+          "visibleSourceHeight": 432,
+          "helmetCenterX": 251.0,
+          "sourceGroundY": 434,
+          "sourceSoleBandCenterX": 242.5,
+          "stageBounds": [
+            50,
+            25,
+            221,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_contact"
+        },
+        {
+          "sourceRect": [
+            444,
+            444,
+            887,
+            887
+          ],
+          "sourceBounds": [
+            136,
+            1,
+            386,
+            434
+          ],
+          "visibleSourceHeight": 433,
+          "helmetCenterX": 248.0,
+          "sourceGroundY": 433,
+          "sourceSoleBandCenterX": 203.5,
+          "stageBounds": [
+            72,
+            23,
+            197,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_down"
+        },
+        {
+          "sourceRect": [
+            887,
+            444,
+            1330,
+            887
+          ],
+          "sourceBounds": [
+            155,
+            3,
+            318,
+            434
+          ],
+          "visibleSourceHeight": 431,
+          "helmetCenterX": 245.0,
+          "sourceGroundY": 433,
+          "sourceSoleBandCenterX": 228.0,
+          "stageBounds": [
+            83,
+            24,
+            164,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_passing"
+        },
+        {
+          "sourceRect": [
+            1330,
+            444,
+            1774,
+            887
+          ],
+          "sourceBounds": [
+            115,
+            1,
+            396,
+            433
+          ],
+          "visibleSourceHeight": 432,
+          "helmetCenterX": 237.0,
+          "sourceGroundY": 432,
+          "sourceSoleBandCenterX": 204.5,
+          "stageBounds": [
+            67,
+            24,
+            207,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_up"
+        }
+      ]
+    },
+    "southeast": {
+      "path": "assets/staging/commute-rider-v2/walk_southeast.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.451477,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/walk-southeast-v2.png",
+      "sourceSha256": "507254665c7292a688a18ebce1fca5e07b97ea9574ac42f08a180d608dbe89bb",
+      "sha256": "d20b7dd3908799823f6e58f33f4197b0f0ec453da759f2cadf1037d42467a5fe",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "sourceBounds": [
+            48,
+            18,
+            365,
+            494
+          ],
+          "visibleSourceHeight": 476,
+          "helmetCenterX": 205.0,
+          "sourceGroundY": 493,
+          "sourceSoleBandCenterX": 236.5,
+          "stageBounds": [
+            57,
+            23,
+            200,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            512
+          ],
+          "sourceBounds": [
+            75,
+            21,
+            342,
+            494
+          ],
+          "visibleSourceHeight": 473,
+          "helmetCenterX": 198.0,
+          "sourceGroundY": 493,
+          "sourceSoleBandCenterX": 227.25,
+          "stageBounds": [
+            72,
+            24,
+            193,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            512
+          ],
+          "sourceBounds": [
+            46,
+            20,
+            331,
+            491
+          ],
+          "visibleSourceHeight": 471,
+          "helmetCenterX": 182.5,
+          "sourceGroundY": 490,
+          "sourceSoleBandCenterX": 193.5,
+          "stageBounds": [
+            66,
+            26,
+            195,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            512
+          ],
+          "sourceBounds": [
+            32,
+            13,
+            339,
+            493
+          ],
+          "visibleSourceHeight": 480,
+          "helmetCenterX": 181.0,
+          "sourceGroundY": 492,
+          "sourceSoleBandCenterX": 185.0,
+          "stageBounds": [
+            60,
+            21,
+            199,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_up"
+        },
+        {
+          "sourceRect": [
+            0,
+            512,
+            384,
+            1024
+          ],
+          "sourceBounds": [
+            54,
+            9,
+            362,
+            485
+          ],
+          "visibleSourceHeight": 476,
+          "helmetCenterX": 212.5,
+          "sourceGroundY": 484,
+          "sourceSoleBandCenterX": 251.5,
+          "stageBounds": [
+            56,
+            23,
+            195,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "sourceBounds": [
+            54,
+            12,
+            348,
+            483
+          ],
+          "visibleSourceHeight": 471,
+          "helmetCenterX": 197.5,
+          "sourceGroundY": 482,
+          "sourceSoleBandCenterX": 239.75,
+          "stageBounds": [
+            63,
+            25,
+            196,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            512,
+            1152,
+            1024
+          ],
+          "sourceBounds": [
+            42,
+            15,
+            337,
+            484
+          ],
+          "visibleSourceHeight": 469,
+          "helmetCenterX": 192.0,
+          "sourceGroundY": 483,
+          "sourceSoleBandCenterX": 224.0,
+          "stageBounds": [
+            60,
+            26,
+            193,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            512,
+            1536,
+            1024
+          ],
+          "sourceBounds": [
+            34,
+            10,
+            331,
+            485
+          ],
+          "visibleSourceHeight": 475,
+          "helmetCenterX": 180.5,
+          "sourceGroundY": 484,
+          "sourceSoleBandCenterX": 188.0,
+          "stageBounds": [
+            62,
+            23,
+            196,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_up"
+        }
+      ]
+    },
+    "south": {
+      "path": "assets/staging/commute-rider-v2/walk_south.png",
+      "frame_width": 256,
+      "frame_height": 256,
+      "frame_count": 8,
+      "loop": true,
+      "role": "gait",
+      "normalizationHeight": 214,
+      "uniformSourceScale": 0.441237,
+      "anchor": [
+        128,
+        238
+      ],
+      "anchorMethod": "helmet-center x + lowest visible shoe-row y",
+      "source": "assets/source/commute-rider-v2/walk-south-v1.png",
+      "sourceSha256": "9de92e12b4cde8ea82d91a1e0ecb9ab5827b53c06dc42d3f17a674f1dae387dc",
+      "sha256": "a055e5d5b9d1d71ecf136297bbfd776eaec25c9d1cc26c6e9081580ec2e436cc",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "sourceBounds": [
+            52,
+            12,
+            374,
+            493
+          ],
+          "visibleSourceHeight": 481,
+          "helmetCenterX": 207.0,
+          "sourceGroundY": 492,
+          "sourceSoleBandCenterX": 252.25,
+          "stageBounds": [
+            60,
+            26,
+            202,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            512
+          ],
+          "sourceBounds": [
+            38,
+            12,
+            342,
+            492
+          ],
+          "visibleSourceHeight": 480,
+          "helmetCenterX": 181.5,
+          "sourceGroundY": 491,
+          "sourceSoleBandCenterX": 235.75,
+          "stageBounds": [
+            64,
+            26,
+            199,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            512
+          ],
+          "sourceBounds": [
+            27,
+            10,
+            327,
+            492
+          ],
+          "visibleSourceHeight": 482,
+          "helmetCenterX": 180.0,
+          "sourceGroundY": 491,
+          "sourceSoleBandCenterX": 139.5,
+          "stageBounds": [
+            61,
+            25,
+            193,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            512
+          ],
+          "sourceBounds": [
+            43,
+            8,
+            344,
+            492
+          ],
+          "visibleSourceHeight": 484,
+          "helmetCenterX": 189.0,
+          "sourceGroundY": 491,
+          "sourceSoleBandCenterX": 153.0,
+          "stageBounds": [
+            64,
+            24,
+            197,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_up"
+        },
+        {
+          "sourceRect": [
+            0,
+            512,
+            384,
+            1024
+          ],
+          "sourceBounds": [
+            46,
+            3,
+            360,
+            492
+          ],
+          "visibleSourceHeight": 489,
+          "helmetCenterX": 209.0,
+          "sourceGroundY": 491,
+          "sourceSoleBandCenterX": 160.5,
+          "stageBounds": [
+            56,
+            22,
+            195,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_contact"
+        },
+        {
+          "sourceRect": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "sourceBounds": [
+            45,
+            3,
+            349,
+            489
+          ],
+          "visibleSourceHeight": 486,
+          "helmetCenterX": 192.0,
+          "sourceGroundY": 488,
+          "sourceSoleBandCenterX": 241.0,
+          "stageBounds": [
+            63,
+            24,
+            197,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "right_down"
+        },
+        {
+          "sourceRect": [
+            768,
+            512,
+            1152,
+            1024
+          ],
+          "sourceBounds": [
+            32,
+            1,
+            342,
+            490
+          ],
+          "visibleSourceHeight": 489,
+          "helmetCenterX": 188.5,
+          "sourceGroundY": 489,
+          "sourceSoleBandCenterX": 138.75,
+          "stageBounds": [
+            59,
+            22,
+            196,
+            238
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_passing"
+        },
+        {
+          "sourceRect": [
+            1152,
+            512,
+            1536,
+            1024
+          ],
+          "sourceBounds": [
+            52,
+            1,
+            350,
+            487
+          ],
+          "visibleSourceHeight": 486,
+          "helmetCenterX": 196.5,
+          "sourceGroundY": 486,
+          "sourceSoleBandCenterX": 232.5,
+          "stageBounds": [
+            64,
+            24,
+            195,
+            239
+          ],
+          "stageAnchor": [
+            128,
+            238
+          ],
+          "phase": "left_up"
+        }
+      ]
+    }
+  },
+  "pending": [
+    "Manual phase/arm/leg review for every direction",
+    "Native L\u00d6VE contact and looping review at runtime scale",
+    "Motion audit and final all-direction review before any runtime integration"
+  ]
+}

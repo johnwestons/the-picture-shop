@@ -6,6 +6,12 @@ function Component.install(Runtime)
     Runtime.NETWORK_INTERACTION_KINDS = {
         loadingBayDoor = true,
         truckCargoDoor = true,
+        deliverySignature = true,
+        homeTravel = true,
+        commute = true,
+        homeActivity = true,
+        homeDelivery = true,
+        homeFurniture = true,
         shopRoom = true, roomStock = true, roomRest = true, roomGame = true,
     }
 
@@ -37,6 +43,16 @@ function Component.install(Runtime)
             payload.targetKind, "interaction_request.targetKind")
         if not targetKind then return nil, fieldError end
         local roomCommand = targetKind=="shopRoom" and require("src.shop_rooms").IDS[payload.desiredState]
+            or targetKind=='commute' and require('src.commute.runtime').decode(payload.desiredState)~=nil
+            or targetKind=="homeActivity" and require("src.home_residents").validCommand(payload.desiredState)
+            or targetKind=="homeDelivery" and payload.desiredState=="collect"
+            or targetKind=="homeFurniture" and require("src.home_furniture").decode(payload.desiredState)~=nil
+            or targetKind=="homeTravel" and type(payload.desiredState)=="string" and (
+                #payload.desiredState<=24 and (payload.desiredState=="request" or payload.desiredState=="cancel"
+                    or payload.desiredState=='explore' or payload.desiredState=='outing' or payload.desiredState=='shutdown'
+                    or payload.desiredState:match("^ready:%d+$") or payload.desiredState:match("^depart:%d+$")
+                    or payload.desiredState:match("^force:%d+$"))
+                or #payload.desiredState<=900 and payload.desiredState:match("^delivery:[%w_%-]+[,%w_%-]*$"))
             or targetKind=="roomRest" and (payload.desiredState=="rest" or payload.desiredState=="stand")
             or targetKind=="roomStock" and type(payload.desiredState)=="string" and #payload.desiredState<=150
                 and (payload.desiredState:match("^store:[%w_.%-]+$") or payload.desiredState:match("^retrieve:[%w_.%-]+$"))
@@ -68,6 +84,7 @@ function Component.install(Runtime)
         if type(payload.desiredState) ~= "string"
             or not roomCommand and not ((targetKind=="loadingBayDoor" or targetKind=="truckCargoDoor")
                 and Runtime.INTERACTION_DOOR_STATES[payload.desiredState])
+                and not (targetKind=="deliverySignature" and payload.desiredState=="sign")
         then
             return nil, "interaction_request.desiredState is invalid"
         end

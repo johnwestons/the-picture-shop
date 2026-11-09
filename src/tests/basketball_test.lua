@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Ball=require("src.basketball")
 local Games=require("src.breakroom_games")
 local Path=require("src.basketball_trajectory")
@@ -279,7 +280,7 @@ local function sessionChecks(context,check)
 end
 local function drawAvatar(state,player,fur,overalls)
     player.furColorway,player.overallsColorway=fur,overalls
-    local canvas=love.graphics.newCanvas(128,128)
+    local canvas=PixelCanvas(128,128)
     love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(0,0,0,0)
     love.graphics.translate(64-player.x,108-player.y)
     assert(Renderer.draw(player,state));love.graphics.pop()
@@ -311,7 +312,7 @@ local function renderChecks(context,check)
     local function capture(name)
         for k in pairs(world.player)do world.player[k]=nil end
         for k,v in pairs(player)do world.player[k]=v end
-        local canvas=love.graphics.newCanvas(960,678)
+        local canvas=PixelCanvas(960,678)
         love.graphics.push("all");love.graphics.setCanvas({canvas,stencil=true});love.graphics.clear(0,0,0,1)
         world.draw(context.assets,context.characterAssets,state,nil,nil,{})
         love.graphics.pop()

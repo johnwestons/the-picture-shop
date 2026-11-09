@@ -28,6 +28,7 @@ function Component.install(Runtime)
             operatorEmployeeId = snapshot.operatorEmployeeId,
             carriedPalletId = snapshot.carriedPalletId,
             candidatePalletId = candidatePalletId,
+            motion = Runtime.PalletJack.presentationSnapshot(state,Runtime.Config.palletJack),
         }
     end
 
@@ -35,7 +36,8 @@ function Component.install(Runtime)
         return Runtime.MachinePose.snapshot(state)
     end
 
-    function Runtime.World.applyNetworkPalletJackSnapshot(state, snapshot, machinePoses)
+    function Runtime.World.applyNetworkPalletJackSnapshot(state, snapshot, machinePoses,jackId)
+        if jackId and (not state.palletJack or state.palletJack.id~=jackId) then return false,"awaiting_durable" end
         local normalizedMachinePoses, machinePoseError = Runtime.MachinePose.normalize(
             machinePoses, snapshot, 100000, "network machine poses")
         if not normalizedMachinePoses then return false, machinePoseError end
@@ -68,12 +70,12 @@ function Component.install(Runtime)
             require("src.shop_rooms").scene(Runtime.World.player))
     end
 
-    function Runtime.World.palletTooltipAt(state, x, y)
+    function Runtime.World.palletTooltipAt(state, x, y, physicalItems, pickupView)
         if type(x) ~= "number" or type(y) ~= "number" then return nil end
-        local pickup = Runtime.World.palletPickupSnapshot(state, x, y)
+        local pickup = pickupView or Runtime.World.palletPickupSnapshot(state, x, y)
         local sceneId=require("src.shop_rooms").scene(Runtime.World.player)
         local hovered = pickup.hovered and pickup.selected
-            or Runtime.PalletLogistics.hovered(state, x, y,sceneId)
+            or Runtime.PalletLogistics.hovered(state, x, y,sceneId,physicalItems)
         if not hovered then
             local carried = Runtime.PalletJack.carriedItem(state, Runtime.Config.palletJack)
             if Runtime.PalletJack.ensure(state,Runtime.Config.palletJack).sceneId==sceneId
@@ -107,11 +109,18 @@ function Component.install(Runtime)
         local truck = Runtime.World.truck:snapshot()
         return {
             bayDoor = { state = door.state, progress = door.progress },
+            roomDoors = {
+                front_left={state=Runtime.World.roomDoors.front_left.state,progress=Runtime.World.roomDoors.front_left.progress},
+                front_right={state=Runtime.World.roomDoors.front_right.state,progress=Runtime.World.roomDoors.front_right.progress},
+            },
             employees = Runtime.World._state and require("src.employee_pose").capture(Runtime.Employees.actors(Runtime.World._state)),
+            technician = require("src.technician_pose").capture(Runtime.World._state and Runtime.Technician.ensure(Runtime.World._state)),
+            deliveryDriver = require("src.warehouse_delivery_driver").pose(Runtime.World._state),
             truck = {
                 state = truck.state,
                 jobId = truck.jobId,
                 mode = truck.mode,
+                sceneId = truck.sceneId,
                 backingProgress = truck.backingProgress,
                 cargoProgress = truck.cargoProgress,
             },
@@ -125,18 +134,35 @@ function Component.install(Runtime)
         state._employeePoses=poses
         return true
     end
-    function Runtime.World.applyEnvironmentSnapshot(bayDoor, truck, employees, state)
+    function Runtime.World.applyEnvironmentSnapshot(bayDoor, truck, employees, state, technician,roomDoors,deliveryDriver)
         if type(bayDoor) ~= "table" or type(truck) ~= "table" then return false end
         local poses
         if employees~=nil then
             poses=require("src.employee_pose").actors(employees)
             if not poses then return false end
         end
+        local technicianActor
+        if technician~=nil then
+            technicianActor=require("src.technician_pose").actor(technician)
+            if technicianActor==nil then return false end
+        end
         local previousDoor = Runtime.World.environmentSnapshot().bayDoor
+        if roomDoors~=nil then
+            if type(roomDoors)~="table" then return false end
+            for id in pairs(roomDoors) do if not Runtime.World.roomDoors[id] then return false end end
+            for _,id in ipairs({"front_left","front_right"}) do
+                local d=roomDoors[id]
+                local test=Runtime.BayDoor.new(Runtime.Config.loadingBay)
+                if not d or not test:applySnapshot(d) then return false end
+            end
+        end
         if not Runtime.World.bayDoor:applySnapshot(bayDoor) then return false end
         if Runtime.World.truck:applySnapshot(truck) then
+            for id,d in pairs(roomDoors or {}) do Runtime.World.roomDoors[id]:applySnapshot(d) end
             state=state or Runtime.World._state
             if poses and state then state._employeePoses=poses end
+            if technician~=nil and state then require("src.technician_replica").accept(state,technicianActor) end
+            if state then require("src.warehouse_delivery_driver").applyPose(state,deliveryDriver) end
             return true
         end
         Runtime.World.bayDoor:applySnapshot(previousDoor)
@@ -148,6 +174,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.snapshot()
+        if Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery' then
+            return {x=Runtime.World.player.x,y=Runtime.World.player.y,sceneId=Runtime.World.player.sceneId,character=Runtime.World.player.character}
+        end
+        if require("src.shop_rooms").scene(Runtime.World.player)=="home" then
+            return {x=Runtime.World.player.x,y=Runtime.World.player.y,sceneId="home",character=Runtime.World.player.character}
+        end
         if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
             return {x=Runtime.Config.player.spawnX,y=Runtime.Config.player.spawnY,character=Runtime.World.player.character}
         end

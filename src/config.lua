@@ -7,7 +7,7 @@ local Config = {
     businessCalendar = {
         secondsPerDay = 1200,
         -- A 3,000 sq ft light-industrial shop at roughly $14/sq ft/year.
-        monthlyExpenses = { rent = 3500, power = 240, water = 85, internet = 125 },
+        monthlyExpenses = { rent = 3500, power = 240, water = 85, internet = 125, truckInsurance = 185 },
     },
     outdoorWeather = {
         rainChance = 0.28,
@@ -31,7 +31,9 @@ local Config = {
         deceleration = 1350,
         maxFrameTime = 0.10,
         maxStepDistance = 5,
-        walkPixelsPerFrame = 20,
+        -- Shared on-foot cadence across warehouse, commute, and interior scenes.
+        -- A longer stride interval slows the animation without changing movement speed.
+        walkPixelsPerFrame = 28,
         -- One value per gait pose: contact, weight-down, passing, knee-up,
         -- then the mirrored four-pose step. Both curves average to 1.0 so
         -- gait weight transfer does not change the player's overall pace.
@@ -139,7 +141,12 @@ local Config = {
     },
     technician = {
         speed = 78,
+        acceleration = 420,
+        walkPixelsPerFrame = 13,
+        gaitSpeedMultipliers = { .96, .94, 1.04, 1.06, .96, .94, 1.04, 1.06 },
+        gaitAccelerationMultipliers = { .92, .90, 1.08, 1.10, .92, .90, 1.08, 1.10 },
         drawScale = 0.15,
+        worldHeight = 64,
         serviceDuration = 4,
         walkAnimationRate = 9,
         serviceAnimationRate = 5,
@@ -216,9 +223,11 @@ local Config = {
         collisionHalfHeight = 19,
         operatorDistanceX = 82,
         operatorDistanceY = 48,
-        drawScale = 0.272,
-        frameSize = 512,
-        frameCount = 8,
+        drawScale = 0.4466666667,
+        frameSize = 384,
+        frameCount = 64,
+        frameColumns = 8,
+        rotationKind = "cutter",
     },
     wrapperPlacement = {
         -- Factory-floor spawn, clear of the reception wall and lobby furniture.
@@ -233,11 +242,15 @@ local Config = {
         collisionOffsetY = -6,
         operatorDistanceX = 54,
         operatorDistanceY = 34,
-        palletRadius = 108,
-        palletReach = 64,
-        drawScale = 0.22,
-        frameSize = 512,
-        frameCount = 4,
+        palletRadius = 120,
+        -- Accept and stage skids around the whole turntable; the reach is
+        -- measured between pallet and machine floor footprints, on every side.
+        palletReach = 120,
+        drawScale = 0.44,
+        frameSize = 256,
+        frameCount = 64,
+        frameColumns = 8,
+        rotationKind = "wrapper",
     },
     windmillPlacement = {
         spawnX = 855,
@@ -251,14 +264,18 @@ local Config = {
         operatorDistanceY = 32,
         palletRadius = 120,
         palletReach = 72,
-        drawScale = 0.196,
-        frameWidth = 768,
-        frameHeight = 512,
-        frameCount = 4,
+        drawScale = 0.605,
+        frameSize = 256,
+        frameCount = 64,
+        frameColumns = 8,
+        rotationKind = "windmill",
     },
     regalFolderPlacement = { spawnX = 350, spawnY = 475, interactionRadius = 88,
         collisionHalfWidth = 48, collisionHalfHeight = 17, drawScale = 0.29,
         operatorDistanceX = 65, operatorDistanceY = 35 },
+    chandlerPricePlacement = { spawnX = 540, spawnY = 540, interactionRadius = 72,
+        collisionHalfWidth = 25, collisionHalfHeight = 14, drawScale = 0.095,
+        operatorDistanceX = 40, operatorDistanceY = 29 },
     machineReceiving = {
         polar_115 = { x = 385, y = 350, direction = "northwest" },
         skid_wrapper = { x = 326, y = 338, direction = "northwest" },
@@ -287,7 +304,7 @@ local Config = {
     cutterStaging = {
         x = 392, y = 566, width = 176, height = 80,
         columns = 2, rows = 3, firstX = 430, firstY = 588,
-        columnSpacing = 100, rowSpacing = 24,
+        columnSpacing = 100, rowSpacing = 28,
         direction = "northwest",
     },
     warehouse = { enabled = true, provisionalArt = true, firstStorageOnly = false },
@@ -373,7 +390,7 @@ local Config = {
         warehouseArchitecture = "assets/source/warehouse-expansion-v1/warehouse-base-v3-top-remake.png",
         walkmask = "assets/generated/warehouse-layout-final-walkmask.png",
         polar = "assets/generated/polar-115-sprite-sheet-clear-table-transparent.png",
-        polarDirections = "assets/generated/polar-cutter-directions-strip.png",
+        polarDirections = "assets/generated/polar-cutter-64-v2.png",
         emptyPallet = "assets/generated/empty-pallet.png",
         paperStack = "assets/generated/paper-stack.png",
         toolboxSmall = "assets/generated/toolbox-small.png",
@@ -407,10 +424,14 @@ local Config = {
         titleMetalFont = "assets/fonts/BarlowCondensed-SemiBold.ttf",
         cutterClamp = "assets/generated/cutter-clamp-strip.png",
         cutterBlade = "assets/generated/cutter-blade-strip.png",
+        cutterClampDetail = "assets/generated/cutter-clamp-detail-v1.png",
+        cutterBladeDetail = "assets/generated/cutter-blade-detail-v1.png",
         cutterMaintenanceOil = "assets/generated/cutter-maintenance-oil-atlas.png",
         cutterMaintenanceTools = "assets/generated/cutter-maintenance-tools-atlas.png",
         cutterMaintenanceScenes = "assets/generated/cutter-maintenance-scenes-atlas.png",
+        cutterBladeRemoval = "assets/generated/cutter-blade-removal-atlas-v1.png",
         skidWrapperDirections = "assets/generated/skid-wrapper-directions-strip.png",
+        skidWrapper64Directions = "assets/generated/skid-wrapper-64-v1.png",
         wrapperMaintenanceAtlas = "assets/generated/skid-wrapper-maintenance-atlas.png",
         wrappedPalletStages = "assets/generated/wrapped-pallet-stages-strip.png",
         loadedPaperPallet = "assets/generated/loaded-paper-pallet.png",
@@ -424,12 +445,14 @@ local Config = {
         vendorProductPallets = "assets/generated/vendor-product-pallets-atlas.png",
         boxedPaperPalletStages = "assets/generated/boxed-paper-pallet-stages-atlas.png",
         polarBackButton = "assets/generated/polar-back-button-states-strip.png",
-        windmillDirections = "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
+        windmillDirections = "assets/generated/heidelberg-windmill-64-v1.png",
         regalFolderDirections = "assets/generated/regal-moll-folder-v2/regal-moll-eight-angles.png",
+        chandlerPriceFrontLeft = "assets/generated/chandler-price-angles-v1/01-front-left.png",
         pressProcessStages = "assets/generated/press-process-stages-atlas-v3.png",
         pressOperatorHandbook = "assets/generated/heidelberg-operator-handbook-atlas-v2.png",
         pressSetupInteractions = "assets/generated/heidelberg-setup-interactions-atlas-v2.png",
         technicianNpcs = "assets/generated/technician-npcs-atlas-v1.png",
+        woodenBladeSleeve = "assets/workshop/wooden-blade-sleeve-v1.png",
         palletWorkOrderPaper = "assets/generated/pallet-work-order-paper-v1.png",
         critterNetMenu = "assets/generated/critter-net-90s-menu-bg-v1.png",
         critterNetSprites = "assets/generated/critter-net-animated-icons-atlas-v1.png",
@@ -495,7 +518,7 @@ local Config = {
             walk_northeast = "assets/generated/characters/rabbit-worker/walk_northeast.png",
             walk_southeast = "assets/generated/characters/rabbit-worker/walk_southeast.png",
             walk_south = "assets/generated/characters/rabbit-worker/walk_south.png",
-            high_five = "assets/generated/characters/rabbit-worker/high-five-v4.png",
+            high_five = require("src.high_five_art").path,
             sit = "assets/generated/characters/rabbit-worker/sit-room-v1.png",
         },
         ["tan-cat"] = { idle = "assets/generated/characters/tan-cat/idle.png", walk = "assets/generated/characters/tan-cat/walk.png", sit = "assets/generated/characters/tan-cat/sit.png" },
@@ -573,7 +596,7 @@ for _,view in ipairs({"east","west"}) do
     Config.characters["cat-worker"]["rest_"..view]="assets/generated/characters/cat-worker/rest_"..view..".png"
 end
 Config.workerFrameSizes={["cat-worker"]=256,["tinker-fox-worker"]=256,["ferret-engineer-worker"]=256}
-Config.workerActionFrameSizes={["rabbit-worker"]={high_five=724}}
+Config.workerActionFrameSizes={["rabbit-worker"]={high_five=require("src.high_five_art").frameSize}}
 local playerWorkViews = { "northeast", "north", "southeast", "south" }
 for _, action in ipairs({ "work_cutter", "work_press", "work_wrapping", "work_task" }) do
     Config.characters["rabbit-worker"][action] = "assets/generated/characters/rabbit-worker/work_east.png"
@@ -678,5 +701,34 @@ for _, character in ipairs(Config.customer.characterPool) do
     Config.characters[character].sit = "assets/generated/client-seating-v1/" .. character .. "/sit.png"
     Config.characterActionFrameSizes[character] = Config.characterActionFrameSizes[character] or {}
     Config.characterActionFrameSizes[character].sit = 256
+end
+local technicianArt=require("src.technician_art")
+Config.technician.characters=technicianArt.characters
+for character,actions in pairs(technicianArt.paths) do
+    Config.characters[character]=actions
+    Config.characterActionFrameSizes[character]={}
+    for action in pairs(actions) do Config.characterActionFrameSizes[character][action]=technicianArt.frameSize end
+end
+for character,actions in pairs(require("src.worker_work_art").paths) do
+    for action,path in pairs(actions) do
+        Config.characters[character][action]=path
+        Config.workerActionFrameSizes[character][action]=256
+    end
+end
+Config.characters["rabbit-worker"].walk_north=require("src.player_walk_art").paths["rabbit-worker"].walk_north
+Config.characterActionFrameLayouts = Config.characterActionFrameLayouts or {}
+for character,actions in pairs(require("src.worker_walk_art").paths) do
+    for action,path in pairs(actions) do Config.characters[character][action]=path end
+end
+local commuteWalkerArt=require("src.commute.walker_art")
+Config.characters["suited-rider"]=commuteWalkerArt.paths["suited-rider"]
+Config.workerFrameSizes["suited-rider"]=256
+local medicFoxArt=require("src.medic_fox_worker_art")
+local medicFox="medic-fox-worker"
+Config.characters[medicFox]=medicFoxArt.paths[medicFox]
+Config.workerFrameSizes[medicFox]=medicFoxArt.frameSize
+Config.workerActionFrameSizes[medicFox]={}
+for action in pairs(Config.characters[medicFox]) do
+    Config.workerActionFrameSizes[medicFox][action]=medicFoxArt.frameSize
 end
 return Config

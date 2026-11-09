@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "batch": "luna-player-south-canonical-audit-v1",
+  "source_strip": {
+    "path": "assets/generated/characters/rabbit-worker/walk_south.png",
+    "sha256": "751b00128d2103969948c05410d4486aa7d78b2b903bfa311f675ff6297174e8",
+    "dimensions_px": [
+      4096,
+      512
+    ],
+    "frame_dimensions_px": [
+      512,
+      512
+    ]
+  },
+  "phase_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "contact_sheet": {
+    "path": "output/animation-overhaul/luna-player/pose-corrections-v1/south-canonical-8phase-audit-v1.png",
+    "sha256": "c5bff82efb462efbde5dc843c06b0115c7b3752e752f41ef7963261a93bd175c"
+  },
+  "cells": [
+    {
+      "phase": "01 left_contact",
+      "alpha_bbox_xyxy": [
+        164,
+        56,
+        349,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 109,
+        "head_bbox_xyxy": [
+          200,
+          59,
+          309,
+          228
+        ],
+        "torso_width_px": 76,
+        "torso_bbox_xyxy": [
+          216,
+          210,
+          292,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "a13cbb72b34515bea8c3178df521890cb9e43915385a2f75ce549333722d980c"
+    },
+    {
+      "phase": "02 left_weight_down",
+      "alpha_bbox_xyxy": [
+        166,
+        56,
+        345,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 111,
+        "head_bbox_xyxy": [
+          203,
+          58,
+          314,
+          228
+        ],
+        "torso_width_px": 77,
+        "torso_bbox_xyxy": [
+          220,
+          214,
+          297,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "463febcec619d10dbb609825017a050d46b5eab018873e0782c2026c7ee7ad8a"
+    },
+    {
+      "phase": "03 right_passing",
+      "alpha_bbox_xyxy": [
+        170,
+        56,
+        342,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 107,
+        "head_bbox_xyxy": [
+          208,
+          59,
+          315,
+          228
+        ],
+        "torso_width_px": 77,
+        "torso_bbox_xyxy": [
+          219,
+          215,
+          296,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "76ad8f7b7fd20166684706333ec95712ff99b682712eca800561ceaa63bb2fed"
+    },
+    {
+      "phase": "04 right_knee_up",
+      "alpha_bbox_xyxy": [
+        171,
+        56,
+        341,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 105,
+        "head_bbox_xyxy": [
+          201,
+          58,
+          306,
+          228
+        ],
+        "torso_width_px": 74,
+        "torso_bbox_xyxy": [
+          217,
+          211,
+          291,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "e379f94be27c370d171c522b20b916e7532ee6d7cac614925691dc414143504f"
+    },
+    {
+      "phase": "05 right_contact",
+      "alpha_bbox_xyxy": [
+        166,
+        56,
+        345,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 106,
+        "head_bbox_xyxy": [
+          204,
+          58,
+          310,
+          228
+        ],
+        "torso_width_px": 74,
+        "torso_bbox_xyxy": [
+          220,
+          208,
+          294,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "b02ef5aafd5154671f6117a26544f4a8e87b9748b9220650e8d0d15f08da3e20"
+    },
+    {
+      "phase": "06 right_weight_down",
+      "alpha_bbox_xyxy": [
+        172,
+        56,
+        339,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 107,
+        "head_bbox_xyxy": [
+          196,
+          58,
+          303,
+          228
+        ],
+        "torso_width_px": 71,
+        "torso_bbox_xyxy": [
+          216,
+          214,
+          287,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "7bf0b5e65da5b602ddc1698397fc51fa67e0fc02ee16b133cbdd75e74c9916c8"
+    },
+    {
+      "phase": "07 left_passing",
+      "alpha_bbox_xyxy": [
+        175,
+        56,
+        337,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 104,
+        "head_bbox_xyxy": [
+          201,
+          59,
+          305,
+          228
+        ],
+        "torso_width_px": 70,
+        "torso_bbox_xyxy": [
+          219,
+          213,
+          289,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "f5d692e0aff7b415796485bbce7559aa1a0983f14207faf2a6cee55c98e3e540"
+    },
+    {
+      "phase": "08 left_knee_up",
+      "alpha_bbox_xyxy": [
+        172,
+        56,
+        339,
+        466
+      ],
+      "visible_height_px": 410,
+      "landmarks": {
+        "head_width_px": 106,
+        "head_bbox_xyxy": [
+          204,
+          58,
+          310,
+          228
+        ],
+        "torso_width_px": 77,
+        "torso_bbox_xyxy": [
+          219,
+          210,
+          296,
+          269
+        ]
+      },
+      "cell_rgba_sha256": "3170b29c4f0f76d4f1dad98ed456cd809a39343ebded0b0028748bb1ad1203a3"
+    }
+  ],
+  "audit_status": "visual inspection pending"
+}

@@ -1,158 +1,228 @@
--- Calendar presentation.
--- Runtime is private to this screen instance; shared state remains live across components.
-local Component = {}
-local CustomerDemand = require("src.customer_demand")
+-- Monthly overview and click-to-open daily agenda.
+local Component={}
+local CustomerDemand=require('src.customer_demand')
+local BusinessHours=require('src.business_hours')
 
-function Component.install(Runtime)
-    function Runtime.drawCalendar(state, pointerX, pointerY, twelveHourTime)
-        local year = Runtime.ComputerScreen.calendarYear or state.calendar.year
-        local month = Runtime.ComputerScreen.calendarMonth or state.calendar.month
-        Runtime.panel({ x = 82, y = 190, width = 516, height = 408 },
-            { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
-        Runtime.panel({ x = 612, y = 190, width = 240, height = 408 },
-            { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
-        local function navButton(rect, label)
-            local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
-            Runtime.drawComputerButton(rect, label, hovered and "hover" or "secondary")
-        end
-        navButton(Runtime.CAL_PREVIOUS, "<")
-        navButton(Runtime.CAL_NEXT, ">")
-        love.graphics.setColor(0.96, 0.84, 0.30)
-        love.graphics.printf(string.upper(Runtime.BusinessCalendar.monthName(month)) .. " " .. year,
-            146, 210, 388, "center")
-        local season = CustomerDemand.seasonForMonth(month)
-        love.graphics.setColor(0.60, 0.77, 0.75)
-        love.graphics.printf(string.format("%s  •  Seasonal demand %d%%",
-            season.name, math.floor(season.demand * 100 + 0.5)), 102, 233, 476, "center")
-        local weekdayLabels = { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" }
-        local gridX, gridY, cellW, cellH = Runtime.CAL_GRID.x, Runtime.CAL_GRID.y - 24,
-            Runtime.CAL_GRID.cellWidth, Runtime.CAL_GRID.cellHeight
-        for index, label in ipairs(weekdayLabels) do
-            love.graphics.setColor(index > 5 and 0.66 or 0.76, 0.78, 0.79)
-            love.graphics.printf(label, gridX + (index - 1) * cellW, gridY, cellW, "center")
-        end
-        local firstTotal = Runtime.BusinessCalendar.totalDayForDate(year, month, 1)
-        local firstDate = Runtime.BusinessCalendar.dateFromTotalDay(firstTotal or 0)
-        local firstColumn = firstDate.weekday
-        local events = Runtime.calendarMonthEvents(state, year, month, twelveHourTime)
-        local eventsByDay = {}
-        for _, event in ipairs(events) do
-            eventsByDay[event.day] = eventsByDay[event.day] or {}
-            eventsByDay[event.day][#eventsByDay[event.day] + 1] = event
-        end
-        for day = 1, Runtime.BusinessCalendar.daysInMonth(year, month) do
-            local cellIndex = firstColumn - 1 + day - 1
-            local column, row = cellIndex % 7, math.floor(cellIndex / 7)
-            local x, y = gridX + column * cellW, Runtime.CAL_GRID.y + row * cellH
-            local today = year == state.calendar.year and month == state.calendar.month and day == state.calendar.day
-            local selected = day == Runtime.ComputerScreen.calendarSelectedDay
-            local hovered = pointerX and Runtime.contains(Runtime.calendarDayRect(year, month, day), pointerX, pointerY)
-            local dayRect = { x = x + 2, y = y + 2, width = cellW - 4, height = cellH - 4 }
-            local dayFill = selected and { 0.09, 0.31, 0.32, 1 }
-                or today and { 0.08, 0.22, 0.23, 1 }
-                or hovered and { 0.075, 0.15, 0.18, 1 }
-                or { 0.055, 0.085, 0.11, 1 }
-            local dayBorder = selected and { 0.96, 0.72, 0.27, 1 }
-                or today and { 0.28, 0.60, 0.48, 1 }
-                or hovered and { 0.24, 0.49, 0.54, 1 }
-                or { 0.15, 0.27, 0.33, 1 }
-            Runtime.panel(dayRect, dayFill, dayBorder, 2, selected and 2 or 1)
-            love.graphics.setColor((selected or today) and 0.98 or 0.84,
-                (selected or today) and 0.84 or 0.88,
-                (selected or today) and 0.35 or 0.90)
-            love.graphics.print(tostring(day), x + 7, y + 6)
-            local dayEvents = eventsByDay[day] or {}
-            for marker = 1, math.min(4, #dayEvents) do
-                local event = dayEvents[marker]
-                if event.kind == "bill" then love.graphics.setColor(0.93, 0.34, 0.25)
-                elseif event.kind == "machine" then love.graphics.setColor(0.76, 0.55, 0.94)
-                elseif event.kind == "credit" then love.graphics.setColor(0.34, 0.79, 0.75)
-                elseif event.kind == "email" then love.graphics.setColor(0.32, 0.72, 0.92)
-                else love.graphics.setColor(0.30, 0.78, 0.48) end
-                love.graphics.circle("fill", x + 10 + (marker - 1) * 12, y + 39, 4)
-            end
-        end
-        love.graphics.setColor(0.96, 0.84, 0.30)
-        love.graphics.print("MONTH EVENTS", 628, 210)
-        local _, maximumScroll = Runtime.clampCalendarScroll(state)
-        local visibleCount = 0
-        for row = 1, Runtime.CAL_EVENT_LIST.visibleRows do
-            local event = events[Runtime.ComputerScreen.calendarScroll + row]
-            if event then
-                visibleCount = visibleCount + 1
-                local y = Runtime.CAL_EVENT_LIST.y + (row - 1) * Runtime.CAL_EVENT_LIST.rowHeight
-                local selected = event.day == Runtime.ComputerScreen.calendarSelectedDay
-                love.graphics.setColor(0.10, 0.14, 0.16, 1)
-                if selected then love.graphics.setColor(0.12, 0.29, 0.30, 1) end
-                love.graphics.rectangle("fill", Runtime.CAL_EVENT_LIST.x, y, Runtime.CAL_EVENT_LIST.width, 31, 2, 2)
-                love.graphics.setColor(0.95, 0.84, 0.30)
-                love.graphics.print(tostring(event.day), 632, y + 8)
-                love.graphics.setColor(0.80, 0.86, 0.85)
-                love.graphics.printf(event.title, 656, y + 5, 176, "left")
-            end
-        end
-        if visibleCount == 0 then
-            love.graphics.setColor(0.56, 0.64, 0.65)
-            love.graphics.printf("No scheduled events this month.", 628, 340, 208, "center")
-        end
-        local function scrollButton(rect, label, enabled)
-            local hovered = enabled and pointerX and Runtime.contains(rect, pointerX, pointerY)
-            Runtime.drawComputerButton(rect, label,
-                not enabled and "disabled" or hovered and "hover" or "secondary")
-        end
-        scrollButton(Runtime.CAL_SCROLL_UP, "UP", Runtime.ComputerScreen.calendarScroll > 0)
-        scrollButton(Runtime.CAL_SCROLL_DOWN, "DOWN", Runtime.ComputerScreen.calendarScroll < maximumScroll)
+local COLORS={
+    shop={.35,.78,.57,1},
+    town={.36,.70,.91,1},
+    bill={.94,.47,.34,1},
+    machine={.76,.59,.94,1},
+    shift={.40,.82,.68,1},
+    shipment={.96,.72,.32,1},
+    credit={.55,.72,.96,1},
+    email={.49,.72,.93,1},
+}
 
-        local hoverDay = pointerX and Runtime.calendarDayAt(year, month, pointerX, pointerY)
-        if hoverDay then
-            local dayEvents = eventsByDay[hoverDay] or {}
-            local shown = math.min(6, #dayEvents)
-            local tooltipWidth = 440
-            local font, contentWidth = love.graphics.getFont(), 406
-            local rows, rowsHeight = {}, 0
-            for index = 1, shown do
-                local event = dayEvents[index]
-                local _, titleLines = font:getWrap("• " .. tostring(event.title), contentWidth)
-                local detailLines = {}
-                if event.detail and event.detail ~= "" then
-                    _, detailLines = font:getWrap(tostring(event.detail), contentWidth - 12)
-                end
-                local height = math.max(22, #titleLines * font:getHeight()
-                    + #detailLines * font:getHeight() + 7)
-                rows[index] = { event = event, height = height }
-                rowsHeight = rowsHeight + height
-            end
-            local tooltipHeight = 48 + math.max(30, rowsHeight) + (#dayEvents > shown and 22 or 0)
-            local tx = math.min(Runtime.Config.baseWidth - tooltipWidth - 12, pointerX + 16)
-            local ty = math.min(Runtime.Config.baseHeight - tooltipHeight - 12, pointerY + 18)
-            Runtime.panel({ x = tx, y = ty, width = tooltipWidth, height = tooltipHeight },
-                { 0.025, 0.04, 0.05, 0.98 }, { 0.42, 0.70, 0.72, 1 })
-            love.graphics.setColor(0.96, 0.84, 0.30)
-            love.graphics.print(string.format("%s %d, %d", Runtime.BusinessCalendar.monthName(month), hoverDay, year), tx + 12, ty + 11)
-            if #dayEvents == 0 then
-                love.graphics.setColor(0.65, 0.72, 0.73)
-                love.graphics.print("No scheduled events", tx + 12, ty + 46)
-            else
-                local rowY = ty + 40
-                for index = 1, shown do
-                    local row, event = rows[index], rows[index].event
-                    love.graphics.setColor(0.84, 0.90, 0.88)
-                    love.graphics.printf("• " .. event.title, tx + 12, rowY, contentWidth, "left")
-                    if event.detail and event.detail ~= "" then
-                        local _, titleLines = font:getWrap("• " .. tostring(event.title), contentWidth)
-                        love.graphics.setColor(0.56, 0.66, 0.67)
-                        love.graphics.printf(tostring(event.detail), tx + 24,
-                            rowY + #titleLines * font:getHeight(), contentWidth - 12, "left")
-                    end
-                    rowY = rowY + row.height
-                end
-                if #dayEvents > shown then
-                    love.graphics.setColor(0.65, 0.72, 0.73)
-                    love.graphics.print("+" .. (#dayEvents - shown) .. " more", tx + 12, ty + tooltipHeight - 21)
-                end
-            end
+local function eventColor(event)
+    return COLORS[event.kind] or COLORS.shop
+end
+
+local function drawFit(text,x,y,width,centered)
+    text=tostring(text or '')
+    local font=love.graphics.getFont()
+    local measured=font:getWidth(text)
+    local scale=measured>width and width/math.max(1,measured) or 1
+    local drawX=centered and x+(width-measured*scale)*.5 or x
+    love.graphics.print(text,drawX,y,0,scale,scale)
+end
+
+local function dayCounts(events)
+    local shop,town=0,0
+    for _,event in ipairs(events or {}) do
+        if event.kind=='town' then town=town+1 else shop=shop+1 end
+    end
+    return shop,town
+end
+
+local function hourLabel(hours,twelveHourTime)
+    if hours==24 then return '12:00 AM' end
+    return require('src.business_calendar').formatTime(hours,0,twelveHourTime)
+end
+
+local function shopHoursLabel(totalDay,twelveHourTime)
+    local opens,closes=BusinessHours.window(totalDay)
+    if opens==closes then return 'CLOSED' end
+    if opens==0 and closes==24 then return 'OPEN ALL DAY' end
+    return 'OPEN '..hourLabel(opens,twelveHourTime)..' – '..hourLabel(closes,twelveHourTime)
+end
+
+local function eventTime(event,twelveHourTime)
+    if event.hour==nil then return 'ALL DAY' end
+    return require('src.business_calendar').formatTime(event.hour,event.minute or 0,twelveHourTime)
+end
+
+local function drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage)
+    local g=love.graphics
+    local list=Runtime.CAL_DAY_LIST
+    local startY=rect.y+51
+    local rowHeight=list.rowHeight
+    local visible=list.visibleRows
+    if #events==0 then
+        g.setColor(.58,.66,.67,1)
+        g.printf(emptyMessage,rect.x+14,startY+10,rect.width-28,'center')
+        return
+    end
+    for row=1,visible do
+        local event=events[scroll+row]
+        if not event then break end
+        local x,y=rect.x+8,startY+(row-1)*rowHeight
+        local width=rect.width-16
+        local color=eventColor(event)
+        Runtime.panel({x=x,y=y,width=width,height=rowHeight-4},
+            { .055,.085,.10,1 },{ .16,.25,.28,1 },2,1)
+        g.setColor(color);g.rectangle('fill',x,y,3,rowHeight-4)
+        g.setColor(.70,.78,.78,1)
+        drawFit(eventTime(event,twelveHourTime),x+9,y+5,68,false)
+        g.setColor(.91,.94,.89,1)
+        drawFit(event.title,x+82,y+4,width-91,false)
+        if event.detail and event.detail~='' then
+            g.setColor(.58,.68,.69,1)
+            drawFit(event.detail,x+82,y+22,width-91,false)
         end
     end
+end
+
+local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,twelveHourTime)
+    local g=love.graphics
+    local dialog=Runtime.CAL_DAY_DIALOG
+    local date=Runtime.BusinessCalendar.dateFromTotalDay(
+        Runtime.BusinessCalendar.totalDayForDate(year,month,day))
+    local shopRect,townRect=Runtime.CAL_DAY_LIST.shop,Runtime.CAL_DAY_LIST.town
+    local scroll=Runtime.ComputerScreen.calendarDayScroll or 0
+    local current=year==state.calendar.year and month==state.calendar.month and day==state.calendar.day
+    local totalDay=Runtime.BusinessCalendar.totalDayForDate(year,month,day)
+    local shopHours=shopHoursLabel(totalDay,twelveHourTime)
+
+    g.setColor(.005,.012,.018,.70)
+    g.rectangle('fill',Runtime.CAL_PANEL.x,Runtime.CAL_PANEL.y,
+        Runtime.CAL_PANEL.width,Runtime.CAL_PANEL.height)
+    Runtime.panel(dialog,{.035,.052,.063,.99},{.40,.67,.65,1},5,2)
+    g.setColor(.96,.84,.30,1)
+    drawFit(string.upper(Runtime.BusinessCalendar.weekdayName(date.weekday)..' · '
+        ..Runtime.BusinessCalendar.monthName(month)..' '..day..', '..year),
+        dialog.x+18,dialog.y+14,dialog.width-82,false)
+    local closeHovered=Runtime.buttonDrawPointerX
+        and Runtime.contains(Runtime.CAL_DAY_CLOSE,Runtime.buttonDrawPointerX,Runtime.buttonDrawPointerY)
+    Runtime.drawComputerButton(Runtime.CAL_DAY_CLOSE,'X',
+        closeHovered and 'hover' or 'secondary')
+    g.setColor(current and .38 or .63,current and .86 or .72,current and .55 or .73,1)
+    g.printf((current and 'TODAY' or 'DAY PLAN')..'   •   SHOP '..shopHours
+        ..'   •   '..(#shopEvents..' shop item(s) / '..#townEvents..' town event(s)'),
+        dialog.x+18,dialog.y+44,dialog.width-36,'left')
+
+    local function section(rect,title,accent,events,emptyMessage)
+        Runtime.panel({x=rect.x,y=dialog.y+76,width=rect.width,height=292},
+            {.045,.065,.075,1},{.18,.30,.32,1},3,1)
+        g.setColor(accent)
+        g.rectangle('fill',rect.x,dialog.y+76,rect.width,2)
+        g.setColor(.91,.90,.78,1)
+        g.print(title,rect.x+12,dialog.y+86)
+        g.setColor(.58,.70,.70,1)
+        g.print(string.format('%d scheduled',#events),rect.x+12,dialog.y+105)
+        drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage)
+    end
+    section(shopRect,'SHOP SCHEDULE',COLORS.shop,shopEvents,'No shop items are scheduled for this day.')
+    section(townRect,'TOWN EVENTS & GATHERINGS',COLORS.town,townEvents,
+        'No town events or gatherings are scheduled for this day.')
+
+    local _,_,maximum=Runtime.clampCalendarDayScroll(state)
+    if maximum>0 then
+        g.setColor(.62,.72,.71,1)
+        g.printf(string.format('Showing %d–%d of %d in each list  •  scroll or use arrows',
+            scroll+1,math.min(scroll+Runtime.CAL_DAY_LIST.visibleRows,
+                math.max(#shopEvents,#townEvents)),math.max(#shopEvents,#townEvents)),
+            dialog.x+16,dialog.y+386,dialog.width-180,'left')
+        Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_UP,'UP',
+            scroll>0 and 'secondary' or 'disabled')
+        Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_DOWN,'DOWN',
+            scroll<maximum and 'secondary' or 'disabled')
+    else
+        g.setColor(.55,.65,.66,1)
+        g.print('Click another date to see its plan.',dialog.x+18,dialog.y+390)
+    end
+end
+
+function Component.install(Runtime)
+    function Runtime.drawCalendar(state,pointerX,pointerY,twelveHourTime)
+        local screen=Runtime.ComputerScreen
+        local year=screen.calendarYear or state.calendar.year
+        local month=screen.calendarMonth or state.calendar.month
+        Runtime.panel(Runtime.CAL_PANEL,{.055,.07,.09,1},{.23,.35,.38,1})
+        local function navButton(rect,label)
+            local hovered=pointerX and Runtime.contains(rect,pointerX,pointerY)
+            Runtime.drawComputerButton(rect,label,hovered and 'hover' or 'secondary')
+        end
+        navButton(Runtime.CAL_PREVIOUS,'<')
+        navButton(Runtime.CAL_NEXT,'>')
+        love.graphics.setColor(.96,.84,.30,1)
+        love.graphics.printf(string.upper(Runtime.BusinessCalendar.monthName(month))..' '..year,
+            146,207,650,'center')
+        local season=CustomerDemand.seasonForMonth(month)
+        love.graphics.setColor(.63,.75,.75,1)
+        love.graphics.printf(string.format('%s  •  Seasonal demand %d%%  •  Click a date for its day plan',
+            season.name,math.floor(season.demand*100+.5)),112,235,732,'center')
+
+        local weekdayLabels={'MON','TUE','WED','THU','FRI','SAT','SUN'}
+        local grid=Runtime.CAL_GRID
+        local gridX,gridY,cellW,cellH=grid.x,grid.y,grid.cellWidth,grid.cellHeight
+        for index,label in ipairs(weekdayLabels) do
+            love.graphics.setColor(index>5 and .65 or .78,.78,.79,1)
+            love.graphics.printf(label,gridX+(index-1)*cellW,gridY-19,cellW,'center')
+        end
+
+        local events=Runtime.calendarMonthEvents(state,year,month,twelveHourTime)
+        local eventsByDay={}
+        for _,event in ipairs(events) do
+            eventsByDay[event.day]=eventsByDay[event.day] or {}
+            eventsByDay[event.day][#eventsByDay[event.day]+1]=event
+        end
+        local firstTotal=Runtime.BusinessCalendar.totalDayForDate(year,month,1)
+        local firstColumn=Runtime.BusinessCalendar.dateFromTotalDay(firstTotal or 0).weekday
+        for day=1,Runtime.BusinessCalendar.daysInMonth(year,month) do
+            local cellIndex=firstColumn-1+day-1
+            local column,row=cellIndex%7,math.floor(cellIndex/7)
+            local x,y=gridX+column*cellW,gridY+row*cellH
+            local today=year==state.calendar.year and month==state.calendar.month and day==state.calendar.day
+            local selected=day==screen.calendarSelectedDay
+            local hovered=pointerX and Runtime.contains(Runtime.calendarDayRect(year,month,day),pointerX,pointerY)
+            local rect={x=x+2,y=y+1,width=cellW-4,height=cellH-3}
+            local fill=selected and {.09,.30,.31,1} or today and {.08,.20,.22,1}
+                or hovered and {.08,.15,.18,1} or {.045,.075,.095,1}
+            local border=selected and {.96,.72,.27,1} or today and {.30,.62,.49,1}
+                or hovered and {.24,.49,.54,1} or {.15,.27,.33,1}
+            Runtime.panel(rect,fill,border,2,selected and 2 or 1)
+            love.graphics.setColor(selected and .98 or .87,selected and .84 or .90,
+                selected and .36 or .91,1)
+            love.graphics.print(tostring(day),x+9,y+4)
+            local shopCount,townCount=dayCounts(eventsByDay[day])
+            if shopCount>0 then
+                love.graphics.setColor(COLORS.shop)
+                love.graphics.circle('fill',x+13,y+35,3)
+                love.graphics.setColor(.72,.83,.77,1)
+                love.graphics.printf(shopCount..' SHOP',x+20,y+29,42,'left')
+            end
+            if townCount>0 then
+                love.graphics.setColor(COLORS.town)
+                love.graphics.circle('fill',x+67,y+35,3)
+                love.graphics.setColor(.72,.80,.86,1)
+                love.graphics.printf(townCount..' TOWN',x+74,y+29,31,'left')
+            end
+            if shopCount==0 and townCount==0 then
+                love.graphics.setColor(.43,.52,.55,1)
+                love.graphics.print('—',x+9,y+30)
+            end
+        end
+
+        if screen.calendarDayOpen and screen.calendarSelectedDay then
+            local shopEvents,townEvents=Runtime.calendarDayEvents(state,year,month,
+                screen.calendarSelectedDay,twelveHourTime)
+            Runtime.drawCalendarDayDialog(Runtime,state,year,month,screen.calendarSelectedDay,
+                shopEvents,townEvents,twelveHourTime)
+        end
+    end
+
+    Runtime.drawCalendarDayDialog=drawDayDialog
 end
 
 return Component

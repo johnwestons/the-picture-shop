@@ -22,7 +22,9 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.owned(state)
         local result = {}
-        for _, item in ipairs(Runtime.Fleet.current(state).items) do result[#result + 1] = item end
+        for _, item in ipairs(Runtime.Fleet.current(state).items) do
+            if Runtime.Fleet.isGameplayEnabled(item.modelId) then result[#result + 1] = item end
+        end
         return result
     end
 
@@ -64,7 +66,8 @@ function Component.install(Runtime)
         if (stock.maintenance_kit or 0) < 1 then return false, "A machine maintenance kit is required." end
         result = type(result) == "table" and result or {}
         local score = Runtime.clamp(tonumber(result.score) or 0, 0, 1)
-        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1, {allowAbstract=true})
+        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1,
+            { allowAbstract = true, autoShelf = true })
         if not consumed then return false, consumptionError end
         stock.maintenance_kit = stock.maintenance_kit - 1
         -- Hydraulic oil is deliberately excluded: it remains technician-only work.

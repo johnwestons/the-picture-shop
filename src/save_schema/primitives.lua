@@ -19,7 +19,8 @@ function Component.install(Runtime)
     Runtime.Employees = require("src.employees")
     Runtime.Labor = require("src.employee_labor")
 
-    Runtime.Schema = { VERSION = 23, SLOT_COUNT = 3 }
+    Runtime.Home = require("src.home")
+    Runtime.Schema = { VERSION = 41, SLOT_COUNT = 3 }
     Runtime.directions = {
         northwest = true, north = true, northeast = true, east = true,
         southeast = true, south = true, southwest = true, west = true,
@@ -69,6 +70,9 @@ function Component.install(Runtime)
     -- shared vehicle operator before snapshot normalization removes active flags.
     function Runtime.Schema.validPhysicalSource(value)
         if type(value) ~= "table" then return false end
+        if value.extraPalletJacks~=nil and not Runtime.array(value.extraPalletJacks,function(jack)
+            return type(jack)=="table" and Runtime.palletJack(jack)
+        end) then return false end
         for _, field in ipairs({"jobs", "procurement", "palletJack", "forklift", "constructionWorker"}) do
             if value[field] ~= nil and type(value[field]) ~= "table" then return false end
         end
@@ -85,7 +89,7 @@ function Component.install(Runtime)
         local jack, lift = value.palletJack, value.forklift
         if jack and lift and jack.operating == true and lift.operating == true
             and jack.operatorPlayerId ~= nil and jack.operatorPlayerId == lift.operatorPlayerId then return false end
-        return true
+        return require("src.pallet_jack_fleet").validate(value)
     end
 end
 

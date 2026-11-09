@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local GroceryInventory = require("src.commute.grocery_inventory")
 
 local Calendar = {}
 local WEEKDAYS = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }
@@ -127,6 +128,7 @@ function Calendar.monthlyCharges()
         { id = "power", label = "Power", amount = tonumber(configured.power) or 240 },
         { id = "water", label = "Water", amount = tonumber(configured.water) or 85 },
         { id = "internet", label = "Internet", amount = tonumber(configured.internet) or 125 },
+        { id = "truckInsurance", label = "Delivery truck insurance", amount = tonumber(configured.truckInsurance) or 185 },
     }
     local total = 0
     for _, charge in ipairs(charges) do total = total + charge.amount end
@@ -165,11 +167,13 @@ local function advanceDay(state)
         invoice = createInvoice(state)
     end
     require("src.credit").onDay(state)
+    GroceryInventory.arriveFromOutsideConnection(state)
     return invoice
 end
 
 function Calendar.update(state, dt)
     local date = Calendar.ensure(state)
+    require("src.household_finances").ensure(state)
     local secondsPerDay = Calendar.secondsPerDay(state)
     date.elapsed = date.elapsed + math.max(0, tonumber(dt) or 0)
     local daysAdvanced, newestInvoice = 0, nil
@@ -178,15 +182,24 @@ function Calendar.update(state, dt)
         newestInvoice = advanceDay(state) or newestInvoice
         daysAdvanced = daysAdvanced + 1
     end
+    require("src.household_finances").accrue(state)
+    local homeRentPosted=require("src.home").advance(state)
+    local homeDeliveryPosted=require("src.home_shopping").advance(state)
     if newestInvoice then
         state.message = string.format("Monthly bills posted: $%d due. Pay them on the office computer.", state.bills.balance)
+    elseif homeRentPosted then
+        state.message="Apartment rent is due. Check My Home on CritterNet."
+    elseif homeDeliveryPosted then
+        state.message="A home delivery is waiting at your apartment entrance."
     end
-    return daysAdvanced > 0, newestInvoice
+    return daysAdvanced > 0 or homeRentPosted or homeDeliveryPosted, newestInvoice
 end
 
 function Calendar.amountDue(state)
     local _,bills=Calendar.ensure(state)
-    local wages=state.employment and require("src.payroll").total(state,Calendar.absoluteHours(state),false)/100 or 0
+    local wages=(state.employment and require("src.payroll").total(state,Calendar.absoluteHours(state),false) or 0)
+        +require('src.guest_payroll').totalOwed(state)
+    wages=wages/100
     return bills.balance+wages,bills.balance,wages
 end
 
@@ -207,28 +220,50 @@ function Calendar.pay(state)
     end
     if operating>0 then require("src.credit").recordBillsPaid(state, bills.ledger) end
     if state.employment then require("src.payroll").pay(state,Calendar.absoluteHours(state),false) end
+    require('src.guest_payroll').advance(state,nil,0,0)
     return true, amount
 end
 
-function Calendar.addCharge(state, label, amount, reference)
+function Calendar.addCharge(state, label, amount, reference, kind)
     local date, bills = Calendar.ensure(state)
     amount = math.max(1, math.floor(tonumber(amount) or 1))
     local invoice = {
         id = string.format("CLAIM-%04d", bills.nextInvoiceId),
         year = date.year,
         month = date.month,
-        charges = { { id = "customer_stock", label = tostring(label or "Customer stock replacement"), amount = amount } },
+        charges = { { id = (kind == "customer_refund" or kind == "shop_rework") and kind or "customer_stock",
+            label = tostring(label or "Customer stock replacement"), amount = amount } },
         total = amount,
         status = "unpaid",
         issuedOnDay = date.totalDays,
         dueOnDay = date.totalDays,
         reference = reference,
-        kind = "spoil_claim",
+        kind = (kind == "customer_refund" or kind == "shop_rework") and kind or "spoil_claim",
     }
     bills.nextInvoiceId = bills.nextInvoiceId + 1
     bills.balance = bills.balance + amount
     bills.ledger[#bills.ledger + 1] = invoice
+    require("src.household_finances").record(state,"refunds",amount*100)
     return invoice
+end
+
+-- Record a company purchase that has already been paid at the point of sale.
+-- It remains in the bills ledger for accounting without increasing the unpaid
+-- monthly balance or being charged a second time by Calendar.pay.
+function Calendar.recordPaidExpenseCents(state,label,amountCents,reference)
+    local date,bills=Calendar.ensure(state)
+    amountCents=math.max(0,math.floor(tonumber(amountCents) or 0))
+    local available=math.max(0,math.floor((state.money or 0)*100+.000001))
+    if amountCents<=0 or amountCents>available then return false end
+    local amount=amountCents/100
+    state.money=math.max(0,(state.money or 0)-amount)
+    local id=string.format("EXP-%04d",bills.nextInvoiceId)
+    bills.nextInvoiceId=bills.nextInvoiceId+1
+    bills.ledger[#bills.ledger+1]={id=id,year=date.year,month=date.month,
+        charges={{id=reference or "operating_expense",label=tostring(label or "Company expense"),amount=amount}},
+        total=amount,status="paid",kind="operating_expense",reference=reference,
+        issuedOnDay=date.totalDays,paidOnDay=date.totalDays}
+    return true,id
 end
 
 function Calendar.dateText(state)
@@ -312,10 +347,17 @@ function Calendar.shiftMonth(year, month, amount)
     return math.floor(absolute / 12), absolute % 12 + 1
 end
 
-function Calendar.events(state,twelveHour)
+function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
     Calendar.ensure(state)
+    local scheduleStartDay,scheduleEndDay=(state.calendar.totalDays or 0)-1,(state.calendar.totalDays or 0)+7
+    if type(requestedYear)=="number" and requestedYear==math.floor(requestedYear)
+        and requestedYear>=2026 and type(requestedMonth)=="number"
+        and requestedMonth==math.floor(requestedMonth) and requestedMonth>=1 and requestedMonth<=12 then
+        scheduleStartDay=totalDayForDate(requestedYear,requestedMonth,1)
+        scheduleEndDay=scheduleStartDay+daysInMonth(requestedYear,requestedMonth)-1
+    end
     local result, seen = {}, {}
-    local function add(totalDay, title, kind, detail, id)
+    local function add(totalDay, title, kind, detail, id, atHours)
         totalDay = tonumber(totalDay)
         if not totalDay then return end
         totalDay = math.max(0, math.floor(totalDay))
@@ -325,11 +367,13 @@ function Calendar.events(state,twelveHour)
         local date = dateFromTotalDay(totalDay)
         result[#result + 1] = {
             id = key, totalDay = totalDay, year = date.year, month = date.month, day = date.day,
-            title = title, kind = kind or "general", detail = detail,
+            title = title, kind = kind or "general", detail = detail, atHours=atHours,
+            hour=atHours and math.floor(atHours)%24 or nil,
+            minute=atHours and math.floor((atHours%1)*60+.5)%60 or nil,
         }
     end
     local function addHours(hours, title, kind, detail, id)
-        if type(hours) == "number" then add(math.floor(hours / 24), title, kind, detail, id) end
+        if type(hours) == "number" then add(math.floor(hours / 24), title, kind, detail, id, hours) end
     end
 
     for _, job in ipairs((state.jobs and state.jobs.active) or {}) do
@@ -389,34 +433,92 @@ function Calendar.events(state,twelveHour)
     -- discover estimate details, reminders, and decisions only after they
     -- actually arrive, not by reading their hidden delivery time here.
     for _, email in ipairs(emails.inbox or {}) do
-        addHours(email.receivedAtHours, "Email received: " .. email.sender, "email", email.subject,
-            email.id .. ":received")
+        if email.noticeKind ~= "shift_report" then
+            addHours(email.receivedAtHours, "Email received: " .. email.sender, "email", email.subject,
+                email.id .. ":received")
+        end
     end
     for _, email in ipairs(emails.archive or {}) do
-        addHours(email.respondedAtHours, "Email answered: " .. email.sender, "email",
-            email.subject, email.id .. ":answered")
+        if email.noticeKind ~= "shift_report" then
+            addHours(email.respondedAtHours, "Email answered: " .. email.sender, "email",
+                email.subject, email.id .. ":answered")
+        end
     end
     for _, promotion in ipairs(emails.sentPromotions or {}) do
         addHours(promotion.sentAtHours, "10% offer sent: " .. promotion.recipient, "email",
             promotion.customMessage, promotion.id .. ":sent")
     end
+    -- Town systems can publish date-based activities through this shared list.
+    -- Entries accept totalDay or startHours plus title, detail, location and id.
+    local townEvents=type(state.townCalendarEvents)=="table" and state.townCalendarEvents or nil
+    if not townEvents and type(state.town)=="table"
+        and type(state.town.calendarEvents)=="table" then townEvents=state.town.calendarEvents end
+    if not townEvents and type(state.home)=="table" and type(state.home.town)=="table"
+        and type(state.home.town.calendarEvents)=="table" then townEvents=state.home.town.calendarEvents end
+    townEvents=townEvents or {}
+    for index,event in ipairs(townEvents) do
+        if type(event)=="table" and type(event.title)=="string" and event.title~="" then
+            local id=event.id or ("town:"..index..":"..event.title)
+            local detail=event.detail or event.location
+            local startHours=tonumber(event.startHours or event.atHours)
+            if startHours then
+                addHours(startHours,event.title,"town",detail,id)
+            else
+                local totalDay=tonumber(event.totalDay)
+                if not totalDay and type(event.year)=="number" and event.year==math.floor(event.year)
+                    and type(event.month)=="number" and event.month==math.floor(event.month)
+                    and type(event.day)=="number" and event.day==math.floor(event.day)
+                    and event.month>=1 and event.month<=12
+                    and event.day>=1 and event.day<=daysInMonth(event.year,event.month) then
+                    totalDay=totalDayForDate(event.year,event.month,event.day)
+                end
+                if totalDay then add(totalDay,event.title,"town",detail,id) end
+            end
+        end
+    end
     for _, invoice in ipairs((state.bills and state.bills.ledger) or {}) do
         add(invoice.dueOnDay or invoice.issuedOnDay,
-            invoice.kind == "spoil_claim" and "Customer stock claim due" or "Rent and bills due", "bill",
+            invoice.kind == "spoil_claim" and "Customer stock claim due"
+                or invoice.kind == "customer_refund" and "Customer account credit due"
+                or invoice.kind == "shop_rework" and "Shop rework cost due"
+                or "Rent and bills due", "bill",
             string.format("%s • $%d • %s", invoice.id, invoice.total, invoice.status), invoice.id)
     end
     local Contracts=require("src.employment_contracts")
     local Payroll=require("src.payroll")
     local now=Calendar.absoluteHours(state)
     for _,worker in ipairs(state.employment and state.employment.staff or {}) do
-        local payday=Payroll.nextPayday(worker,now)
-        if worker.status=="employed" or Payroll.balance(worker,now,true)>0 then
+        local eligible=worker.status=="employed" or Payroll.balance(worker,now,true)>0
+        if eligible and requestedYear and requestedMonth then
+            local contract=worker.contract
+            local anchor=contract.startDay-(Contracts.weekday(contract.startDay)-1)
+            local cycle=7*contract.payWeeks
+            local dueDay=anchor+cycle
+            while dueDay<scheduleStartDay do dueDay=dueDay+cycle end
+            while dueDay<=scheduleEndDay do
+                local dueHours=dueDay*24+9
+                if dueHours>=now then
+                    addHours(dueHours,"Wages due: "..worker.name,"payroll",
+                        string.format("Every %d week(s), Monday %s",contract.payWeeks,
+                            Calendar.formatTime(9,0,twelveHour)),worker.id..":pay:"..dueHours)
+                end
+                dueDay=dueDay+cycle
+            end
+            local unpaidPayday=Payroll.nextPayday(worker,now)
+            if Payroll.balance(worker,now,true)>0 and math.floor(unpaidPayday/24)<scheduleStartDay then
+                addHours(unpaidPayday,"Overdue wages: "..worker.name,"payroll",
+                    string.format("Earned unpaid $%.2f",Payroll.balance(worker,now,true)/100),
+                    worker.id..":overdue-pay:"..unpaidPayday)
+            end
+        elseif eligible then
+            local payday=Payroll.nextPayday(worker,now)
             addHours(payday,"Wages due: "..worker.name,"payroll",
-                string.format("Every %d week(s), 09:00 | Earned unpaid $%.2f",worker.contract.payWeeks,
+                string.format("Every %d week(s), %s | Earned unpaid $%.2f",worker.contract.payWeeks,
+                    Calendar.formatTime(9,0,twelveHour),
                     Payroll.balance(worker,now,true)/100),worker.id..":pay:"..payday)
         end
         if worker.status=="employed" and not worker.terminationRequested then
-            for day=math.max(worker.contract.startDay,state.calendar.totalDays-1),state.calendar.totalDays+7 do
+            for day=math.max(worker.contract.startDay,scheduleStartDay),scheduleEndDay do
                 if Contracts.hasDay(worker.contract.days,Contracts.weekday(day)) then
                     local start=day*24+worker.contract.startHour
                     addHours(start,"Shift starts: "..worker.name,"shift",
@@ -443,12 +545,26 @@ function Calendar.events(state,twelveHour)
                 loan.id .. ":payment")
         end
     end
+    if state.home and state.home.lease then
+        local lease=state.home.lease
+        add(lease.nextDueDay,"Apartment rent due","home_rent",
+            string.format("$%.2f from household funds",lease.monthlyCents/100),"home:rent")
+        if lease.chargedCents>lease.paidCents then
+            add(state.calendar.totalDays,"Apartment rent unpaid","home_rent",
+                string.format("$%.2f due; pay in My Home",(lease.chargedCents-lease.paidCents)/100),"home:arrears")
+        end
+    end
     local nextYear, nextMonth = Calendar.shiftMonth(state.calendar.year, state.calendar.month, 1)
     add(totalDayForDate(nextYear, nextMonth, 1), "Rent and bills due", "bill",
         "Warehouse rent and monthly utilities", string.format("projected:%04d-%02d", nextYear, nextMonth))
 
     table.sort(result, function(a, b)
-        if a.totalDay == b.totalDay then return a.title < b.title end
+        if a.totalDay == b.totalDay then
+            local aTime=a.atHours or a.totalDay*24
+            local bTime=b.atHours or b.totalDay*24
+            if aTime==bTime then return a.title < b.title end
+            return aTime<bTime
+        end
         return a.totalDay < b.totalDay
     end)
     return result

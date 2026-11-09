@@ -1,0 +1,493 @@
+{
+  "character": "medic-fox-worker",
+  "displayName": "Medic Fox",
+  "reference": {
+    "project": "Mouse Frontier 8.10",
+    "character": "medic-fox",
+    "copiedOriginals": "source/"
+  },
+  "outfit": "Rust-orange utility vest with tool pockets, dark navy overalls, cream gloves, brown work boots.",
+  "pipeline": {
+    "originalGeneratedSheets": "generated-originals/",
+    "stagedNormalizedSource": "staged/",
+    "runtimeSprites": "assets/generated/"
+  },
+  "animationOutputs": [
+    "walk",
+    "walk_northeast",
+    "walk_north",
+    "walk_northwest",
+    "walk_west",
+    "walk_southwest",
+    "walk_south",
+    "walk_southeast",
+    "idle_north",
+    "idle_northeast",
+    "idle",
+    "idle_southeast",
+    "idle_south",
+    "idle_southwest",
+    "idle_west",
+    "idle_northwest",
+    "work_cutter",
+    "work_press",
+    "work_wrapping",
+    "push",
+    "push_northeast",
+    "push_north",
+    "push_southeast",
+    "push_south",
+    "break_eat",
+    "break_drink",
+    "break_idle",
+    "break_water",
+    "break_coffee"
+  ],
+  "backgroundCleanup": "The image generator embedded a neutral checkerboard matte in 20 source sheets. Exact original outputs are archived at assets/source/medic-fox-worker/generated-originals; staged copies normalize near-neutral checker squares (RGB minimum >=220 and channel spread <=28) to white, then the runtime packer removes the connected background. Speck components below 12 source pixels were removed from staged copies only.",
+  "sha256": [
+    {
+      "path": "assets/source/medic-fox-worker/source/carry.png",
+      "sha256": "47934062cab26866f500f9f0f83c69ffb1f7ea9661c319bad0e59ba2466e847c"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle.png",
+      "sha256": "9479e9f009d778e1937a60a8d2c7e5f9ee6cd4f534d13c922ede9b716074c486"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_north.png",
+      "sha256": "224c1487c9c78b4ab986215f4c47222ac50f11010f5bf9399736b8ab2b0853a6"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_northeast.png",
+      "sha256": "e7bc8dbac7c495ad98e5f0500d5c9894da8b71809cc2df85c722054805286118"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_northwest.png",
+      "sha256": "294fcb9fbeff43f9e8dfc94d3569f03d67a83dcb15ed0d9a054a90b5de675419"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_south.png",
+      "sha256": "86cfcf63abb53845c8baf2209f662f37bea8de1157b36d667aa86dbd2b52b1a6"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_southeast.png",
+      "sha256": "846f2c477993094dbe41d2b3d304d440ee1fdd0b8291dcc50c4d79df3eee43b3"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_southwest.png",
+      "sha256": "86ea121beb9eec259695dd99492878a65bdd7142b11d89998b6f9d497a0b0eb4"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/idle_west.png",
+      "sha256": "1964a8ecd1593aeb62c98216a92b10857054923f2044de4cb696e0a2c273ed51"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/sit.png",
+      "sha256": "4502514b253a400ae4120b7bf3ca4d256fc590ce6ff85a8785cd8e86c3d79ec1"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/sweep.png",
+      "sha256": "6666d60e2ad896d214bcc2e27c4fe46c0773c3bd7a4279e87de8e6439838883d"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/tend.png",
+      "sha256": "619de8b6c623eb252c7a3519b9f4ad4ae164d676fb75592ffd27a100ccb6c2de"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/use.png",
+      "sha256": "1dc5272df4a03cfe71f5de171d6514ac53b210ff737ae417ebff0d9c1e076165"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk.png",
+      "sha256": "d2269df716bd0c4a142158859fc2f8bb9e38593ff212e3b848751fbbbf4dcfe3"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_north.png",
+      "sha256": "ba95fe2c8ad138b289ec3c827af9f9f2949778107ba4fd64647c5d0f261d9b08"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_northeast.png",
+      "sha256": "3c09bba79f5b10a41e02b862e85e62bac36337f0f3e65ac79c96c6a2411072e0"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_northwest.png",
+      "sha256": "e1f42b524be48ef6488835ab2c282243aebbde214f03353349f32717535e8d80"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_south.png",
+      "sha256": "047ca879a18965781e642d2df28d35042f48a017176ef0f67d6566ac7ab09e7f"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_southeast.png",
+      "sha256": "35b037c0cf9896988a4bdaae2867955f09d030a7e42575d6c109a090bf83098e"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_southwest.png",
+      "sha256": "c7e7a8b90d4569d155402f99f4c9fd3f02995325ca5229eb0159ff7e73bca1e6"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/source/walk_west.png",
+      "sha256": "100d5dc23a9dec9f143d848683203dc2141f9afd575974a12320893ab7b19c03"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/break_drink.png",
+      "sha256": "f91fd74d5ef2b7489cb84aad695c78abaa0600c6da59be45a83fea3913d4d0f2"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/break_eat.png",
+      "sha256": "91539d35c987bb35c9229508ab86c41e11ed10c79d414b4fc54f5ac4c4c69c1b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/break_idle.png",
+      "sha256": "9c47574355094363fcc6939cf1779fc1da155399196618c38b6853bbcfd9e0c4"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/idle_atlas.png",
+      "sha256": "fd4bcde42121273b52dac413fe3add94b4e61f89459f96e189e6357bd0b13426"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/push_east.png",
+      "sha256": "31e3a3f86236b091b21b954ba9fba7495f493786cf55967032d114b5f269d9e1"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/push_north.png",
+      "sha256": "81a41e1538ba2a615edf3b16e36097c04e0735d241fb694238a5e7b874d45638"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/push_northeast.png",
+      "sha256": "2cd1ca3cb6bb568ce555dcda996b103b879c776eb590d9b5dcd6d3ee5d5ce744"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/push_south.png",
+      "sha256": "19910af38756b6909953b372de11440c0359d2d7e61f24d1b4e431c51b5ecec7"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/push_southeast.png",
+      "sha256": "b5a80d5fccc65980fc6f57413c4b2395abdcf303acfd419bfe22a4d69fb8e7ce"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_east.png",
+      "sha256": "9e923e165b9ee5523f208bdb7227caaac47293321c4e771894900a7ceac655ee"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_north.png",
+      "sha256": "a44269d588e74c10d36f615824bd9dcdd9c5c5495fd43dbfba8d81f2d3273da8"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_northeast.png",
+      "sha256": "5cbebb3622241aa1f97dd0b4c6a1f938d34145a1e146fb99ce7b67e56fb593c6"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_northwest.png",
+      "sha256": "3a167dd7d21f2995007ebc5b633c483835dac3e0fedb053f5d11ad955bece47b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_south.png",
+      "sha256": "6d10c12faa364a72ca57a1a534e3b1f8a196a866a8d7d3f80e23b104d650ea2d"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_southeast.png",
+      "sha256": "906ed211127fd010190343d808832b5c1b0b66b31abec2438a9d0eb16f31eda5"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_southwest.png",
+      "sha256": "70255e8da0dcf7b6684dd454a4ba9bbb1c399091087a280f34869cd6f8695868"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/walk_west.png",
+      "sha256": "63a2f3c0a44a5d5005c00a1e6d78294a27298a79f98c8d982add57c3ad90ad5b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/work_cutter.png",
+      "sha256": "6980f8b3b40b2c30e13d37f10135be991269a0ecf0c7dbaf1c1a5ab52cc45a13"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/work_press.png",
+      "sha256": "d08bd4a471fe09735ed5201b3ffb86658d97fb6953d5ff7eeb576ec5644d360c"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated/work_wrapping.png",
+      "sha256": "d747b18fedbe2f92d51200b549528abba4c17cc5244f06067c7c3e9daa483d7f"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/break_drink.png",
+      "sha256": "f91fd74d5ef2b7489cb84aad695c78abaa0600c6da59be45a83fea3913d4d0f2"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/break_eat.png",
+      "sha256": "91539d35c987bb35c9229508ab86c41e11ed10c79d414b4fc54f5ac4c4c69c1b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/break_idle.png",
+      "sha256": "9c47574355094363fcc6939cf1779fc1da155399196618c38b6853bbcfd9e0c4"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/idle_atlas.png",
+      "sha256": "fd4bcde42121273b52dac413fe3add94b4e61f89459f96e189e6357bd0b13426"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/push_east.png",
+      "sha256": "31e3a3f86236b091b21b954ba9fba7495f493786cf55967032d114b5f269d9e1"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/push_north.png",
+      "sha256": "81a41e1538ba2a615edf3b16e36097c04e0735d241fb694238a5e7b874d45638"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/push_northeast.png",
+      "sha256": "2cd1ca3cb6bb568ce555dcda996b103b879c776eb590d9b5dcd6d3ee5d5ce744"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/push_south.png",
+      "sha256": "19910af38756b6909953b372de11440c0359d2d7e61f24d1b4e431c51b5ecec7"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/push_southeast.png",
+      "sha256": "b5a80d5fccc65980fc6f57413c4b2395abdcf303acfd419bfe22a4d69fb8e7ce"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_east.png",
+      "sha256": "9e923e165b9ee5523f208bdb7227caaac47293321c4e771894900a7ceac655ee"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_north.png",
+      "sha256": "a44269d588e74c10d36f615824bd9dcdd9c5c5495fd43dbfba8d81f2d3273da8"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_northeast.png",
+      "sha256": "5cbebb3622241aa1f97dd0b4c6a1f938d34145a1e146fb99ce7b67e56fb593c6"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_northwest.png",
+      "sha256": "3a167dd7d21f2995007ebc5b633c483835dac3e0fedb053f5d11ad955bece47b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_south.png",
+      "sha256": "6d10c12faa364a72ca57a1a534e3b1f8a196a866a8d7d3f80e23b104d650ea2d"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_southeast.png",
+      "sha256": "906ed211127fd010190343d808832b5c1b0b66b31abec2438a9d0eb16f31eda5"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_southwest.png",
+      "sha256": "70255e8da0dcf7b6684dd454a4ba9bbb1c399091087a280f34869cd6f8695868"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/walk_west.png",
+      "sha256": "63a2f3c0a44a5d5005c00a1e6d78294a27298a79f98c8d982add57c3ad90ad5b"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/work_cutter.png",
+      "sha256": "6980f8b3b40b2c30e13d37f10135be991269a0ecf0c7dbaf1c1a5ab52cc45a13"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/work_press.png",
+      "sha256": "d08bd4a471fe09735ed5201b3ffb86658d97fb6953d5ff7eeb576ec5644d360c"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/generated-originals/work_wrapping.png",
+      "sha256": "d747b18fedbe2f92d51200b549528abba4c17cc5244f06067c7c3e9daa483d7f"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/break_drink.png",
+      "sha256": "09e488f66a3678e3a8f97dd80b5699d27f268daf3f6b3a3e5f3b3f272e30ebbd"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/break_eat.png",
+      "sha256": "191bfdb3fba24d3699c31e6fcf8bc51c316325225be07d3e0a3b81cdd597dd96"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/break_idle.png",
+      "sha256": "76fbe22fe3bb024c42bcd30d0fb73503bcacc7c7c2854b594129d34210875217"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/idle_atlas.png",
+      "sha256": "3a1b67529f33f99afc660d68c73ed9ba20d4c4c1146c730e8a7bac6bf989aba2"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/push_east.png",
+      "sha256": "6662423063f1dd41897180652c47180731137d6dc76f2422b82f93a43cafe632"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/push_north.png",
+      "sha256": "788bea4b2a01cb39690d1cf25c2b3ea81daf6be1fe989cf443a75076e634f06d"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/push_northeast.png",
+      "sha256": "dabb1caf5dd5d2524ac5081f34a1ebd60c72178656419e21e0bd7d114643554d"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/push_south.png",
+      "sha256": "d12345babb5df6e1dc32595858ad68194f4b59742d4616302a75d80627abce80"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/push_southeast.png",
+      "sha256": "1eae8233adec5fb38bc6cfd7a49e362e2c144f76597827d6f3c3f4387a8b27aa"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_east.png",
+      "sha256": "eeba2639c01d9b9c5447cd4f5b3ab7d84c3dd8fe9fd765473d6ae46127386166"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_north.png",
+      "sha256": "e193efc98e227725cf0e1a2824b1f70c8f3187c241536c81d49c549c9e4b0275"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_northeast.png",
+      "sha256": "5016ac0104430df07923775fe18975bd363ce2d3df3dedc301ca4f47a3119d71"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_northwest.png",
+      "sha256": "76ba04dc638903c6dadef035a84834568afbc9c1660dde616b15c41546a0a46c"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_south.png",
+      "sha256": "257a1e627de7c7394b94aecd63f1bc3d738716062d4aff7814c374b706833bbf"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_southeast.png",
+      "sha256": "4c82c49a5bc855a52ce2fabf1bdc6e9a06dfa0ae3a632002e5f8966b83b1edc7"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_southwest.png",
+      "sha256": "fbf1671e1ba7b7aa77f3c9339c958926923eba434a3d0c2f8c4f86d9d4efb9a8"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/walk_west.png",
+      "sha256": "0ac75b6aef55e18ad9a637aed806b61af58adec0a9a35614d02dad140587120a"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/work_cutter.png",
+      "sha256": "410d771017f65885ab0691f8bec71f95d584979245e13ab4cdf413b878d0db09"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/work_press.png",
+      "sha256": "425646d4cf4347139368f2d1f47d0295b32b15e148fe043bcae74ff6b9e8229c"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/staged/work_wrapping.png",
+      "sha256": "c0f8c476971f7025a2567d36aa3e3c6b18af2f1bf1b75490ccad72706f0b9c94"
+    },
+    {
+      "path": "assets/source/medic-fox-worker/approved/walk_east.png",
+      "sha256": "c23c136142c4da53040aa008b6021914b2abc75f40abfdb3b2e490cdbb3db452"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk.png",
+      "sha256": "a2616cda485ae3173ad635e95480b93db9928397454d679bfc2ed1dd859d9647"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_northeast.png",
+      "sha256": "1498dad6e014358a23d68091be18bb8ac454d065d92d730ec93559c4f685cae4"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_north.png",
+      "sha256": "5ea170502f7d50aebcd7c4bee4b9dea52cf9c8ad921e9df1b1b3920d56b3a735"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_northwest.png",
+      "sha256": "a1ba2f10ae83ec3a7ff917a10329b76e4bd2bd50d19447bd8522b65c213c1627"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_west.png",
+      "sha256": "dbb58a7b31b7d67207342d8bea38be0212a98de117c198a8e51dcc21ba7526df"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_southwest.png",
+      "sha256": "804a4d4543a10b408983a2023e4cc3c3ad82c92f0e86277dac2ceebea487fbe3"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_south.png",
+      "sha256": "a91ab7f9d832aff5ce6de3453e82426522f4d4c38439560efad3a7ff73fdba48"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/walk_southeast.png",
+      "sha256": "8d8cc10ce4945be767c8115d7ed0c9606fc96b8fa163f5107fa2507568d28f7d"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_north.png",
+      "sha256": "a0f77b52c27fc69c6db5126ec92ae000064cd161102d1029858629f6e75695ab"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_northeast.png",
+      "sha256": "4b0d09f4766a280134cbd69cf0b95c6ab4e9d3119f75f3e8ee58f3534f7796e4"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle.png",
+      "sha256": "2a943dcf9dc036435c44d8e01f5317335978d5a3523f49dbad82f04523bf4e2c"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_southeast.png",
+      "sha256": "70cfa1ae829424af54151827be62c4323c8a4ef403e3c019cd48093f2ca60860"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_south.png",
+      "sha256": "6ce2a27fd4c647741d76758788b1a65a6cba5774df399c571346e824b54687da"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_southwest.png",
+      "sha256": "36d534e7cf10127f0e8697d9bd5ca5fe30bdc04293e78b2f82a570b44297ec04"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_west.png",
+      "sha256": "f3e6fee1f1a15d5205200c87ee291c3ec49daeae962e4488fe4c3bb2e9da3a58"
+    },
+    {
+      "path": "assets/generated/characters/medic-fox-worker/idle_northwest.png",
+      "sha256": "9f69d5d29c8e35a3e0296e13b801895a2b1260ea046773fc8e70b9f9c5c94507"
+    },
+    {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_cutter.png",
+      "sha256": "cdde5c499029e497fda63f23f4963f6ab3ea01b4ed1499d309e566145b360575"
+    },
+    {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_press.png",
+      "sha256": "62dcb20b7939ce10b8ec347dcf3d05ea0068724b82f1a509fd05d563dc0f63ae"
+    },
+    {
+      "path": "assets/generated/worker-actions-v2/medic-fox-worker/work_wrapping.png",
+      "sha256": "e5b2842cf6df0e64477a63e93ac044cb848b9548a81aad718fb299686d63d0f2"
+    },
+    {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push.png",
+      "sha256": "6654c8aeb7c1ef832cf165b9cf64bc6baab53491cb800ee9a3b3e07f0c0c8c98"
+    },
+    {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_northeast.png",
+      "sha256": "34d8889cbeabd48defa69493e3a598436fd37f07d5743940f164226140a251c1"
+    },
+    {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_north.png",
+      "sha256": "b376ac17c55f51e7f2dcd28c7061067b3cedef6beefdc6edfe1ccb046926fba4"
+    },
+    {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_southeast.png",
+      "sha256": "238f40fe630723decf2a679d0654c109173b823dbdb6102ec4ffca72e2b77126"
+    },
+    {
+      "path": "assets/generated/employee-motion-v2/medic-fox-worker/push_south.png",
+      "sha256": "1061d35144ed954cba3295852687a6a214b7a3106baba9e2ab01d30db889b80b"
+    },
+    {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_eat.png",
+      "sha256": "66fb4a4090b085f83fafe63b5d4a0130238b6423178268ec86c6e9c890f1ee60"
+    },
+    {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_drink.png",
+      "sha256": "df08b790278d8aa241f9566f43c14f860bc23df8ddf00845fc5685b07e9cb775"
+    },
+    {
+      "path": "assets/generated/employee-break-v1/medic-fox-worker/break_idle.png",
+      "sha256": "543788678c1ccff06063a6ed81ac70ef6053befb9c593f912478a9d8b2dcdb0e"
+    },
+    {
+      "path": "character-motion/medic-fox-worker.json",
+      "sha256": "c721a48b29d7905501c89c9ff447b08a9b7e9182cecb270971b5d7122f9c5aca"
+    },
+    {
+      "path": "src/medic_fox_worker_art.lua",
+      "sha256": "e5b3218c23b01c923a2e7a1059e02f7205b5b0e8cd71e4c29527393b554b4056"
+    }
+  ]
+}

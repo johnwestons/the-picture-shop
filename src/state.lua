@@ -21,14 +21,17 @@ local WarehouseConstruction = require("src.warehouse_construction")
 local StagingAreas = require("src.staging_areas")
 local Credit = require("src.credit")
 local Employees = require("src.employees")
+local GroceryInventory = require("src.commute.grocery_inventory")
 
 local SHARED_FIELDS = {
     "money",
+    "home",
     "inventory",
     "shopProgress",
     "cutterMemory",
     "jobs",
     "palletJack",
+    "extraPalletJacks",
     "warehouse",
     "stagingAreas",
     "breakroomGames",
@@ -42,7 +45,9 @@ local SHARED_FIELDS = {
     "nextJobId",
     "accountsReceivable",
     "reputation",
+    "deliveryDriver",
     "procurement",
+    "groceryStore",
     "vendorCategory",
     "calendar",
     "bills",
@@ -66,6 +71,10 @@ end
 function State.applySave(state, payload)
     local saved = type(payload) == "table" and payload.state
     if type(state) ~= "table" or not SaveSchema.validPhysicalSource(saved) then return false end
+    local home=require("src.home").normalize(saved.home,
+        type(saved.calendar)=="table" and saved.calendar.totalDays or 0,
+        BusinessCalendar.absoluteHours(saved))
+    if not home then return false end
     local employment=Employees.normalize(saved.employment,BusinessCalendar.absoluteHours(saved))
     if not employment then return false end
     local warehouse = WarehouseUpgrades.normalize(saved.warehouse)
@@ -86,12 +95,14 @@ function State.applySave(state, payload)
     end
     if strictStorage then
         local ownership = { jobs = saved.jobs, procurement = saved.procurement,
-            palletJack = saved.palletJack, forklift = forklift, warehouse = warehouse, storage = storage }
+            palletJack = saved.palletJack, extraPalletJacks=saved.extraPalletJacks,
+            forklift = forklift, warehouse = warehouse, storage = storage }
         if not PalletStorage.validate(ownership) then return false end
     end
     saved = SaveSchema.copy(saved)
 
     state.activeSlot = payload.slot
+    state.home = home
     state.money = type(saved.money) == "number" and saved.money or 0
     state.inventory = type(saved.inventory) == "table" and saved.inventory or {}
     state.inventory.paper = type(state.inventory.paper) == "number" and state.inventory.paper or 0
@@ -126,6 +137,11 @@ function State.applySave(state, payload)
     state.palletJack.operating, state.palletJack.moving = false, false
     state.palletJack.operatorPlayerId = nil
     state.palletJack.operatorEmployeeId = nil
+    state.extraPalletJacks=saved.extraPalletJacks or {}
+    for _,jack in ipairs(state.extraPalletJacks) do
+        jack.operating,jack.moving=false,false
+        jack.operatorPlayerId,jack.operatorEmployeeId=nil,nil
+    end
     state.warehouse, state.stagingAreas, state.storage, state.forklift = warehouse, stagingAreas, storage, forklift
     state.breakroomGames = breakroomGames
     state.constructionWorker = constructionWorker
@@ -158,14 +174,19 @@ function State.applySave(state, payload)
     state.reputation = type(saved.reputation) == "table" and saved.reputation
         or require("src.reputation").defaultState()
     require("src.reputation").ensure(state)
+    state.deliveryDriver=type(saved.deliveryDriver)=="table" and saved.deliveryDriver
+        or {version=1,status="idle",waitSeconds=0,driverReturned=false,penaltyApplied=false}
     state.procurement = type(saved.procurement) == "table" and saved.procurement
         or { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 }
+    state.groceryStore = GroceryInventory.normalize(saved.groceryStore)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
     state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
     state.credit = Credit.normalize(saved.credit) or Credit.defaultState()
     state.employment = employment
     state._employeePoses = nil
+    state._technicianPose = nil
+    require("src.warehouse_delivery_driver").reset(state)
     state.clientEmails = type(saved.clientEmails) == "table" and saved.clientEmails
         or { nextEmailId = 1, nextPromotionId = 1,
             pending = {}, inbox = {}, archive = {}, sentPromotions = {} }
@@ -175,6 +196,9 @@ function State.applySave(state, payload)
     state.machines = type(saved.machines) == "table" and saved.machines or MachineFleet.defaultState()
     MachineFleet.ensure(state)
     BusinessCalendar.ensure(state)
+    local nowHours=BusinessCalendar.absoluteHours(state)
+    require("src.commute.town_characters").advance(state,nowHours)
+    require("src.commute.employee_commute").advance(state,nowHours)
     Procurement.ensure(state)
     PalletState.reconcile(state)
     SaveSchema.reconcile(state)
@@ -197,6 +221,7 @@ function State.applyLocalSave(state, payload)
     local stoppedLift = type(sourceLift) == "table"
         and (sourceLift.operating or sourceLift.moving or sourceLift.lifting) or false
     if not State.applySave(state, payload) then return false, false end
+    require("src.reputation").backfillCompleted(state)
     state.employment.lastAtHours=BusinessCalendar.absoluteHours(state)
     for _,worker in ipairs(state.employment.staff) do
         worker.visible,worker.clockedIn,worker.reserved=false,false,false
@@ -218,6 +243,8 @@ function State.applySharedSnapshot(state, snapshot)
     state._networkMachinePoses = nil
     state._machinePoseUnits = nil
     state._employeePoses = nil
+    state._technicianPose = nil
+    require("src.warehouse_delivery_driver").reset(state)
     state.screen = "world"
     state.message = "Shop opened."
     return true
@@ -228,6 +255,10 @@ end
 function State.applySharedUpdate(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
     local previousJack = state.palletJack
+    local JackFleet=require("src.pallet_jack_fleet")
+    local previousExtras=JackFleet.snapshots(state)
+    local previousExtraRecords={}
+    for _,jack in ipairs(state.extraPalletJacks or {}) do previousExtraRecords[jack.id]=jack end
     local livePalletJack = state.palletJack and state.palletJack.operating
         and PalletJack.snapshot(state, Config.palletJack) or nil
     local liveForklift = state.forklift and state.forklift.operating
@@ -238,6 +269,18 @@ function State.applySharedUpdate(state, snapshot)
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
     state._networkMachinePoses = nil
+    -- Stable vehicle IDs keep a primary-slot switch from applying an old pose
+    -- or operator to a different physical jack.
+    if previousJack and previousJack.id~=state.palletJack.id then livePalletJack=nil end
+    for _,unit in ipairs(previousExtras) do
+        local jack=JackFleet.byId(state,unit.id)
+        if jack and jack~=state.palletJack and jack.carriedPalletId==unit.jack.carriedPalletId then
+            if JackFleet.applySnapshot(state,unit.id,unit.jack) then
+                local old=previousExtraRecords[unit.id]
+                if old then PalletJack.continueMotion(JackFleet.view(state,jack),old,Config.palletJack) end
+            end
+        end
+    end
     -- Durable saves intentionally strip active-operation flags. Reapply the
     -- newer realtime view so a reliable shop update cannot visually park a
     -- jack that a LAN worker is still driving.

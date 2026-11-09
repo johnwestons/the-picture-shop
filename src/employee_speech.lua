@@ -1,5 +1,5 @@
 -- Short host-owned captions. Realtime poses carry one code, never long text.
-local Speech={MAX_CODE=31,GREETING_SECONDS=4}
+local Speech={MAX_CODE=31,GREETING_SECONDS=4,HIGH_FIVE_SECONDS=15}
 local messages={
     "Hello!","Hello!","Goodbye!","Cutting","Wrapping","Printing",
     "On break","Lunch break","To breakroom","To the cutter","To the wrapper",
@@ -7,17 +7,64 @@ local messages={
     "Path blocked","Finishing up","Starting shift","Heading home",
     "Waiting for pay","Work paused","Ready to work","Preparing plate",
     "Cleaning press","Preparing wrap",
-    "May I use the jack?","To the pallet jack",
+    "Waiting for a free pallet jack","To the pallet jack",
     "Playing air hockey","Playing basketball","Playing Critter Kombat",
 }
+local reasons=require("src.employee_speech_reasons")
+Speech.REASONS={}
+for index,reason in ipairs(reasons) do
+    local code=31+index
+    Speech.REASONS[reason[1]]=code
+    messages[code]=reason[2]
+end
+Speech.MAX_CODE=31+#reasons
+local customCode=Speech.MAX_CODE
+local function addMessage(name,message)
+    customCode=customCode+1
+    Speech[name]=customCode
+    messages[customCode]=message
+end
+addMessage("APPLICANT_ASK", "Hey, I'm looking for a job. Are you hiring?")
+addMessage("APPLICANT_RESUME_REPLY", "Sure! I'll email you my resume.")
+addMessage("APPLICANT_DECLINE_REPLY", "No worries. Thanks anyway!")
+addMessage("EMPLOYEE_HIGH_FIVE_REQUEST", "Hey, boss! Can I get a high five?")
+addMessage("EMPLOYEE_HIGH_FIVE_THANKS", "Thanks for the high five!")
+addMessage("EMPLOYEE_LATE_OPENING", "You're late! We've been waiting to open.")
+addMessage("EMPLOYEE_BLADE_DULL", "The paper cutter blade is getting dull.")
+addMessage("EMPLOYEE_GOING_ON_DELIVERY", "Going on a delivery.")
+Speech.MAX_CODE=customCode
+function Speech.reason(activity)
+    local value=string.lower(tostring(activity or ""))
+    for index,reason in ipairs(reasons) do
+        for _,pattern in ipairs(reason[3]) do
+            if value:find(pattern,1,true) then return 31+index end
+        end
+    end
+end
 function Speech.code(entry)
-    if not entry or not entry.worker or not entry.actor or entry.actor.visible==false then return 0 end
-    local a,w=entry.actor,entry.worker
+    if not entry or not entry.actor or entry.actor.visible==false then return 0 end
+    local a=entry.actor
+    if entry.application then
+        if type(a.speechCode)=="number" and a.speechCode%1==0
+            and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
+        if entry.application.status=="visiting" and a.phase=="waiting" then return Speech.APPLICANT_ASK end
+        if entry.application.status=="resume_requested" and a.phase=="leaving" then return Speech.APPLICANT_RESUME_REPLY end
+        if entry.application.status=="declined" and a.phase=="leaving" then return Speech.APPLICANT_DECLINE_REPLY end
+        return 0
+    end
+    if not entry.worker then return 0 end
+    local w=entry.worker
     -- A guest uses the current host pose, including its caption, rather than
     -- an older assignment/activity from the reliable shop snapshot.
     if type(a.speechCode)=="number" and a.speechCode%1==0
         and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
-    if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=3 then return a.greetingKind end
+    if a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_REQUEST
+        or a.greetingKind==Speech.EMPLOYEE_HIGH_FIVE_THANKS
+        or a.greetingKind==Speech.EMPLOYEE_LATE_OPENING
+        or a.greetingKind==Speech.EMPLOYEE_BLADE_DULL then return a.greetingKind end
+    local reason=Speech.reason(w.activity)
+    if reason then return reason end
+    if a.greetingKind and a.greetingKind>=1 and a.greetingKind<=Speech.MAX_CODE then return a.greetingKind end
     if a.phase=="leaving" then
         if (w.activity or ""):find("Exit path blocked",1,true) then return 17 end
         return 20
@@ -31,7 +78,8 @@ function Speech.code(entry)
     end
     if a.phase=="break_walk" then return 9 end
     local activity=(w.activity or ""):lower()
-    if activity:find("waiting for the pallet jack",1,true) then return 27 end
+    if activity:find("waiting for the pallet jack",1,true)
+        or activity:find("waiting for an available pallet jack",1,true) then return 27 end
     if activity:find("overdue wages",1,true) then return 21 end
     if activity:find("paused",1,true) then return 22 end
     if activity:find("blocked",1,true) or activity:find("another way",1,true) then return 17 end

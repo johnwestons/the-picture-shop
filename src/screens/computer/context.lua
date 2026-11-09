@@ -14,6 +14,7 @@ function Component.install(Runtime)
     Runtime.Ui = require("src.screens.ui")
     Runtime.utf8 = require("utf8")
     Runtime.Reputation = require("src.reputation")
+    Runtime.JobFeedback = require("src.job_feedback")
     Runtime.Upgrades = require("src.warehouse_upgrades")
     Runtime.BreakroomGames = require("src.breakroom_games")
     Runtime.Credit = require("src.credit")
@@ -41,13 +42,18 @@ function Component.install(Runtime)
         quoteText = "",
         quoteFocused = false,
         quoteReplaceOnType = true,
+        deliveryQuoteText = "",
+        deliveryQuoteFocused = false,
+        deliveryQuoteReplaceOnType = true,
+        includeDeliveryQuote = false,
         promoJobId = nil,
         promoText = "",
         promoFocused = false,
         calendarYear = nil,
         calendarMonth = nil,
         calendarSelectedDay = nil,
-        calendarScroll = 0,
+        calendarDayOpen = false,
+        calendarDayScroll = 0,
         retailPage = 1,
         wwwSite = 1,
         cart = {},
@@ -63,14 +69,25 @@ function Component.install(Runtime)
         warehouseGamesPage = false,
         warehouseStagingPage = false,
         warehouseSelectedStagingAreaId = "cutter-output",
+        warehouseSelectedStagingRoomId = "warehouse",
         creditConfirmation = nil,
         creditRequestNumber = 0,
         creditChannel = "online",
         hiring = Runtime.Hiring.new(),
+        financialSection = "overview",
+        financialHiring = Runtime.Hiring.new(),
         schedule = Runtime.ScheduleScreen.new(),
     }
     function Runtime.ComputerScreen.configureRadio(options)
         Runtime.dependencies.isNetworkClient=options and options.isNetworkClient
+    end
+    function Runtime.ComputerScreen.configureTimeFormat(provider)
+        Runtime.dependencies.twelveHourTime=provider
+    end
+    function Runtime.twelveHourTime()
+        local setting=Runtime.dependencies.twelveHourTime
+        if type(setting)=='function' then setting=setting() end
+        return setting~=false
     end
     function Runtime.ComputerScreen.radioReadOnly()
         if Runtime.dependencies.isNetworkClient then
@@ -89,6 +106,7 @@ function Component.install(Runtime)
         { id = "email", label = "EMAIL", group = "customers", url = "www.thecritternet.com/job-desk/email" },
         { id = "reviews", label = "REVIEWS", group = "customers", url = "www.thecritternet.com/job-desk/reviews" },
         { id = "clock", label = "SHOP CLOCK", group = "shop", url = "www.thecritternet.com/shop/clock" },
+        { id = "financials", label = "FINANCIALS", group = "shop", url = "www.thecritternet.com/shop/financials" },
         { id = "inventory", label = "INVENTORY", group = "shop", url = "www.thecritternet.com/job-desk/inventory" },
         { id = "hiring", label = "HIRING", group = "shop", url = "www.thecritternet.com/shop/hiring" },
         { id = "schedule", label = "SCHEDULE", group = "shop", url = "www.thecritternet.com/shop/schedule" },
@@ -96,8 +114,12 @@ function Component.install(Runtime)
         { id = "radio", label = "RADIO", group = "shop", url = "www.thecritternet.com/shop/radio" },
         { id = "calendar", label = "CALENDAR", group = "office", url = "www.thecritternet.com/job-desk/calendar" },
         { id = "www", label = "CRITTERNET WWW", group = "office", url = "www.thecritternet.com" },
-        { id = "bills", label = "BILLS", group = "office", url = "www.thecritternet.com/job-desk/bills" },
         { id = "credit", label = "CREDIT", group = "office", url = "www.thecritternet.com/job-desk/credit" },
+        { id = "home", label = "MY HOME", group = "office", url = "www.thecritternet.com/my-home" },
+        { id = "groceries", label = "GROCERIES", group = "office", url = "www.thecritternet.com/groceries" },
+        { id = "takeout", label = "TAKEOUT", group = "office", url = "www.thecritternet.com/takeout" },
+        { id = "home_orders", label = "HOME DELIVERIES", group = "office", url = "www.thecritternet.com/home-deliveries" },
+        { id = "furniture", label = "HOME & LIVING", group = "office", url = "www.thecritternet.com/home-and-living" },
     }
     Runtime.TAB_GROUPS = {
         { id = "customers", label = "CUSTOMERS" },
@@ -112,6 +134,8 @@ function Component.install(Runtime)
     Runtime.PREVIOUS = { x = 82, y = 570, width = 86, height = 30 }
     Runtime.NEXT = { x = 306, y = 570, width = 86, height = 30 }
     Runtime.COMPLETE = { x = 598, y = 598, width = 228, height = 36 }
+    Runtime.PICKUP_EMPLOYEE = { x = 632, y = 598, width = 104, height = 36 }
+    Runtime.PICKUP_PLAYER = { x = 742, y = 598, width = 108, height = 36 }
     Runtime.MONITOR = { x = 16, y = 8, width = 928, height = 660 }
     Runtime.WWW_SITE = { x = 92, y = 238, width = 140, height = 42, gap = 8 }
     Runtime.WWW_PRODUCT = { x = 92, y = 296, width = 748, rowHeight = 52, gap = 6 }
@@ -130,7 +154,11 @@ function Component.install(Runtime)
     Runtime.CART_NEXT = { x = 514, y = 552, width = 42, height = 32 }
     Runtime.CART_PAGE_SIZE = 7
     Runtime.PAY_BILLS = { x = 612, y = 522, width = 196, height = 46 }
-    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 470, width = 190, height = 40 }
+    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 444, width = 392, height = 20 }
+    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 540, width = 186, height = 44 }
+    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 540, width = 186, height = 44 }
     Runtime.EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
     Runtime.EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
     Runtime.EMAIL_DELETE = { x = 640, y = 526, width = 186, height = 44 }
@@ -142,13 +170,18 @@ function Component.install(Runtime)
     Runtime.PROMO = { x = 640, y = 526, width = 186, height = 44 }
     Runtime.JOB_PROMO = { x = 640, y = 590, width = 186, height = 44 }
     Runtime.PROMO_INPUT = { x = 434, y = 338, width = 392, height = 122 }
+    Runtime.CAL_PANEL = { x = 82, y = 190, width = 792, height = 408 }
     Runtime.CAL_PREVIOUS = { x = 96, y = 202, width = 42, height = 30 }
-    Runtime.CAL_NEXT = { x = 542, y = 202, width = 42, height = 30 }
-    Runtime.CAL_GRID = { x = 94, y = 272, cellWidth = 70, cellHeight = 54 }
-    Runtime.CAL_EVENT_LIST = { x = 624, y = 240, width = 216, rowHeight = 34, visibleRows = 9 }
-    Runtime.CAL_SCROLL_UP = { x = 624, y = 558, width = 102, height = 28 }
-    Runtime.CAL_SCROLL_DOWN = { x = 738, y = 558, width = 102, height = 28 }
-    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 62, gap = 6 }
+    Runtime.CAL_NEXT = { x = 818, y = 202, width = 42, height = 30 }
+    Runtime.CAL_GRID = { x = 94, y = 272, cellWidth = 108, cellHeight = 52 }
+    Runtime.CAL_DAY_DIALOG = { x = 112, y = 190, width = 736, height = 412 }
+    Runtime.CAL_DAY_CLOSE = { x = 794, y = 199, width = 38, height = 30 }
+    Runtime.CAL_DAY_LIST = { visibleRows = 5, rowHeight = 45,
+        shop = { x = 128, y = 266, width = 430, height = 264 },
+        town = { x = 572, y = 266, width = 260, height = 264 } }
+    Runtime.CAL_DAY_SCROLL_UP = { x = 460, y = 541, width = 44, height = 24 }
+    Runtime.CAL_DAY_SCROLL_DOWN = { x = 510, y = 541, width = 48, height = 24 }
+    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 50, gap = 5 }
     Runtime.OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
     Runtime.ComputerScreen.machinePageSize = 4
     Runtime.ComputerScreen.machinePreviousRect = { x = 490, y = 588, width = 78, height = 28 }

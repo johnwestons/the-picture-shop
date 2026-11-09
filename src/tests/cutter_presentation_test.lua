@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Machine = require("src.machine")
 local MachineScreen = require("src.screens.machine_screen")
 local PaperWork = require("src.paper_work")
@@ -36,7 +37,7 @@ function Test.run(context, check)
     presentation:accept(current)
     local model = presentation:model(state, current)
     check("cutter_presentation_uses_host_ticket_without_mutating_it",
-        model.paper.orientation == 90 and source.orientation == 0
+        model.paper.orientation == 90 and source.orientation == 90
         and model.paper.currentSize.width == 13 and model.paper.artworkKey == source.artworkKey
         and model.paper ~= source and model.paper.currentSize ~= source.currentSize)
     current.paper.activeCut = 3
@@ -65,7 +66,8 @@ function Test.run(context, check)
     presentation:accept(current)
     presentation:update(0.05)
     local middle = presentation.phase
-    presentation:update(10)
+    presentation:accept(current)
+    presentation:update(0.05)
     local finalPhase = presentation.phase
     presentation:update(10)
     check("cutter_presentation_interpolates_only_confirmed_motion_and_freezes_on_loss",
@@ -73,10 +75,31 @@ function Test.run(context, check)
         and presentation.phase == finalPhase and current.phasePermille == 600)
     current.runtimeRevision, current.step, current.emergencyStopped = 3, "blocked", true
     current.phasePermille = 0
+    current.bladePermille=600
     presentation:accept(current)
     check("cutter_presentation_safety_transition_cancels_blade_animation",
         presentation.phase == 0 and presentation:model(state, current).step == "blocked"
         and not presentation:accept(view()) and presentation.revision == 3)
+    check("cutter_presentation_safety_keeps_authoritative_stopped_blade_depth",
+        presentation:model(state,current).bladeProgress==.6)
+    current.runtimeRevision,current.step,current.phasePermille=4,"resetting",0
+    presentation:accept(current)
+    current.runtimeRevision,current.phasePermille,current.bladePermille=5,300,300
+    presentation:accept(current);presentation:update(.05)
+    check("cutter_presentation_reset_interpolates_confirmed_blade_return",
+        math.abs(presentation:model(state,current).bladeProgress-.45)<.001)
+    presentation:update(2)
+    check("cutter_presentation_packet_gap_does_not_invent_a_completed_return",
+        presentation:model(state,current).bladeProgress==.3)
+
+    local nextLift = view({ runtimeRevision=6 })
+    presentation:accept(nextLift)
+    nextLift.paper.activeLift, nextLift.paper.orientation = 2, 0
+    nextLift.runtimeRevision = 7
+    presentation:accept(nextLift)
+    local replacement = presentation:model(state,nextLift)
+    check("guest_first_frame_of_new_lift_uses_its_confirmed_orientation",
+        replacement.paperVisualOrientation==0 and replacement.paperTurnProgress==1)
 
     local sent = {}
     local function send(action, args)
@@ -93,9 +116,15 @@ function Test.run(context, check)
         shortcutsOk = shortcutsOk and sent[#sent].action == action
     end
     enter(state, view({ step = "positioned" }))
+    local beforePullback = #sent
+    Remote.keypressed("p", state, send)
+    local pullbackAccepted = #sent == beforePullback + 1
+        and sent[#sent].action == "position_paper"
+    enter(state, view({ step = "positioned" }))
     Remote.keypressed("space", state, send)
     check("remote_cutter_keyboard_controls_match_host_bindings",
-        shortcutsOk and sent[#sent].action == "set_clamp" and sent[#sent].args.clamp == true)
+        shortcutsOk and pullbackAccepted
+        and sent[#sent].action == "set_clamp" and sent[#sent].args.clamp == true)
     enter(state, view())
     Remote.keypressed("p", state, send)
     local count = #sent
@@ -136,7 +165,7 @@ function Test.run(context, check)
     check("remote_cutter_loads_the_same_animation_pack_as_host",
         Remote.requiredAssetPack() == "cutter" and assets.activatePack(Remote.requiredAssetPack())
         and assets.get("cutterClamp") ~= nil and assets.getQuad("cutterBlade5") ~= nil)
-    local canvas = love.graphics.newCanvas(960, 680)
+    local canvas = PixelCanvas(960, 680)
     local function pixels(draw)
         love.graphics.push("all")
         love.graphics.setCanvas(canvas)
@@ -154,14 +183,15 @@ function Test.run(context, check)
     local firstFrame, lastFrame, framesMatch = nil, nil, true
     for _, phase in ipairs({ 0, 250, 500, 750, 1000 }) do
         local frameView = view({ step = "cutting", phasePermille = phase,
-            clamp = true, clampPermille = 1000 })
+            clamp = true, clampPermille = 1000, bladePermille = 2 * math.min(phase, 1000-phase) })
         local framePresentation = Presentation.new()
         framePresentation:accept(frameView)
         local guest = framePresentation:model(state, frameView)
         local hostPaper = PaperWork.createStockPaper()
         hostPaper.orientation = 90
         local host = { step = "cutting", loaded = true, paper = hostPaper,
-            progress = phase / 1000 * Machine.cycleTime,
+            progress = phase / 1000 * Machine.cycleTime, gauge = 12.5,
+            bladeProgress = frameView.bladePermille / 1000,
             cycleTime = Machine.cycleTime, transferTime = Machine.transferTime, clampProgress = 1 }
         local rect = { x = 400, y = 78, width = 520, height = 347 }
         local guestHash = digest(pixels(function() MachineScreen.drawCutterScene(assets, guest, rect) end))
@@ -172,7 +202,7 @@ function Test.run(context, check)
     check("remote_cutter_all_blade_frames_pixel_match_host_and_animate",
         framesMatch and firstFrame ~= lastFrame)
     local transferMatch, transferMoves = true, true
-    for _, step in ipairs({ "loading", "positioning", "unloading", "lift_returning" }) do
+    for _, step in ipairs({ "loading", "positioning", "retracting", "unloading", "lift_returning" }) do
         local hashes = {}
         for _, phase in ipairs({ 0, 500, 1000 }) do
             local frameView = view({ step = step, phasePermille = phase })
@@ -181,7 +211,7 @@ function Test.run(context, check)
             local guest = framePresentation:model(state, frameView)
             local hostPaper = PaperWork.createStockPaper()
             hostPaper.orientation = 90
-            local host = { step = step, loaded = true, paper = hostPaper,
+            local host = { step = step, loaded = true, paper = hostPaper, gauge = 12.5,
                 progress = phase / 1000 * Machine.transferTime,
                 cycleTime = Machine.cycleTime, transferTime = Machine.transferTime, clampProgress = 0 }
             local rect = { x = 400, y = 78, width = 520, height = 347 }
@@ -192,8 +222,33 @@ function Test.run(context, check)
         end
         transferMoves = transferMoves and hashes[1] ~= hashes[3]
     end
-    check("remote_cutter_load_position_unload_and_lift_return_pixel_match_host",
+    check("remote_cutter_load_position_retract_unload_and_lift_return_pixel_match_host",
         transferMatch and transferMoves)
+    -- Compare against the empty table itself, so both renderers sharing the
+    -- same incorrect feed offset or housing mask cannot silently pass parity.
+    local stock = PaperWork.createStockPaper()
+    stock.activeCut = 2
+    stock.orientation = stock.cuts[2].orientation
+    local sceneRect = {x=400,y=78,width=520,height=347}
+    local function seated(gauge, loaded)
+        return pixels(function()
+            MachineScreen.drawCutterScene(assets, {step="positioned", loaded=loaded,
+                paper=loaded and stock or nil, gauge=gauge, programIndex=2, clampProgress=0}, sceneRect)
+        end)
+    end
+    local empty, trim, short, over = seated(9.5,false), seated(9.5,true), seated(7,true), seated(12.5,true)
+    local function matches(a,b,x,y)
+        local ar,ag,ab=a:getPixel(x,y)
+        local br,bg,bb=b:getPixel(x,y)
+        return ar==br and ag==bg and ab==bb
+    end
+    check("cutter_half_inch_trim_protrudes_just_past_stick",
+        not matches(trim,empty,660,234) and matches(trim,empty,660,244))
+    check("cutter_actual_gauge_moves_stock_relative_to_fixed_stick",
+        not matches(short,empty,660,244) and matches(over,empty,660,234))
+    check("cutter_rear_stock_hidden_behind_registered_machine_head",matches(trim,empty,660,195))
+    trim:encode("png","cutter-seated-trim.png")
+    for _, data in ipairs({empty,trim,short,over}) do data:release() end
     enter(state, view({ step = "cutting", phasePermille = 500, clamp = true, clampPermille = 1000 }))
     local preview = pixels(function() Remote.draw(state, -1, -1, assets) end)
     preview:encode("png", "cutter-guest-preview.png")
@@ -205,7 +260,7 @@ function Test.run(context, check)
     preview:release()
     check("remote_cutter_rendering_never_advances_local_machine_or_paper",
         Machine.step == machineStep and Machine.progress == machineProgress
-        and Machine.paper == machinePaper and source.orientation == 0 and #source.history == 0)
+        and Machine.paper == machinePaper and source.orientation == 90 and #source.history == 0)
     canvas:release()
     Remote.clear()
     assets.activatePack(previousPack)

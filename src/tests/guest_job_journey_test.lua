@@ -259,7 +259,14 @@ local function runJourney(context, check, printing)
             load(replacement,"load_replacement_stock")
         end
         for cut=1,4 do
-            confirmed("rotate_replacement_"..cut,function() key("q") end)
+            local targetOrientation=replacement.paper.cuts[cut].orientation
+            local rotations=0
+            while Remote.view.paper and Remote.view.paper.orientation~=targetOrientation and rotations<4 do
+                rotations=rotations+1
+                confirmed("rotate_replacement_"..cut.."_turn_"..rotations,function() key("q") end)
+            end
+            check("guest_journey_replacement_rotation_matches_cut_"..cut,
+                Remote.view.paper and Remote.view.paper.orientation==targetOrientation)
             local gauge=replacement.paper.cuts[cut].gauge
             click(Remote.sharedMachine.screen.gaugeInputCenter()); Remote.textinput(tostring(gauge))
             confirmed("gauge_replacement_"..cut,function() key("return") end)
@@ -322,9 +329,18 @@ local function runJourney(context, check, printing)
             end,true)
         end
         tab("active"); click(Remote.sharedComputer.rowCenter(1))
+        confirmed("inspection_completed_before_pickup",function()
+            local x,y=Remote.sharedComputer.completeCenter(); click(x,y)
+        end)
+        assert(state.jobs.active[1].inspection and state.jobs.active[1].inspection.status=="passed")
         confirmed("pickup_requested_once",function()
             local x,y=Remote.sharedComputer.completeCenter(); click(x,y); click(x,y)
         end,true)
+        check("guest_journey_unquoted_delivery_uses_customer_transport",
+            state.jobs.active[1].pickup.driverMode==nil
+            and state.jobs.active[1].outboundDelivery.transport=="customer")
+        -- This estimate did not offer delivery; the customer's carrier collects
+        -- the finished job through the real dock pickup flow.
         release(); context.world.load()
         context.world.update(context.config.truck.scheduleDelay+0.1,0,0,assets,state)
         context.world.update(context.config.loadingBay.duration+0.1,0,0,assets,state)

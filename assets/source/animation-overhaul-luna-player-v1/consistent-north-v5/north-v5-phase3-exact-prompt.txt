@@ -1,0 +1,6 @@
+Use case: precise-object-edit
+Asset type: one transparent 512×512 frame for the existing rear-view rabbit-worker walk cycle.
+Input image: Image 1 is the exact phase-3 frame to edit and the sole identity/style reference.
+Primary request: Correct only the two legs and boots into a true compact right-passing pose. Keep all pixels above the hips unchanged: same rabbit, exactly two ears, same head size, body proportions, outline thickness, clothing, arm positions, round tail, pouch, and exactly one red and one yellow tool.
+Phase: Phase 3, right leg passing. The viewer-left leg is the planted support and its boot stays flat at the ground line. The anatomical-right/viewer-right ankle passes directly under the pelvis; its knee stays low and the boot is only slightly above ground. Aim the boot along the floor so the sole faces down and is hidden; show only a narrow rear/side edge. This is the low pass between the weight-down and knee-up phases, not a lifted-knee pose.
+Constraints: Keep the same 512×512 canvas, camera, scale, and ground baseline. Preserve clean true alpha outside the dark outline. No red/blue fringe, glow, matte, stray pixels, cast shadow, text, border, extra ears, extra limbs, duplicate boots, or changes to the upper body.

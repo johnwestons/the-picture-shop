@@ -1,0 +1,5 @@
+Refine phase 6 of the North walk. Reference 1 is the exact V7 identity and proportion target; reference 2 is the correct phase-6 pose. Keep the screen-right boot planted as the support foot and keep the screen-left foot lightly lifted. Preserve the same head, body width, torso, arms, pouch, tail, palette, black outline and boot width.
+
+Move only the bottom of the screen-right planted sole 22 V7-source pixels farther down relative to reference 2 after matching head width, by naturally extending that shin. Do not shift the whole character and do not enlarge the boot. This brings the screen-right support sole to the 82px target relative to the phase-5 sole in reference 1. Preserve the other leg and upper body exactly.
+
+One complete back-facing rabbit worker on true transparent RGBA. Clean black edges, no colored fringe, checkerboard, glow, shadow, labels, scenery or extra parts.

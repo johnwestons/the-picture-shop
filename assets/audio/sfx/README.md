@@ -10,7 +10,7 @@ All files are mono, 44.1 kHz, 16-bit PCM WAV and can be loaded directly by LÖVE
 | File | Intended event |
 | --- | --- |
 | `ui_click.wav` | Ordinary button or menu selection |
-| `ui_confirm.wav` | Accepted action or successful order |
+| `ui_confirm.wav` | Accepted action or successful order; single-play incoming-phone cue |
 | `ui_error.wav` | Blocked or invalid action |
 | `cash_sale.wav` | Payment or machine sale |
 | `job_complete.wav` | Entire customer job completed |

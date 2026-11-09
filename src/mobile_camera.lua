@@ -65,8 +65,8 @@ end
 
 function MobileCamera:_clampCenter()
     -- Following ignores floor bounds so it can keep its target in view even
-    -- at the warehouse edge. The center itself moves in update(), not here.
-    if self.followTarget then
+    -- at the warehouse edge. Wide phone views stay within the artwork instead.
+    if self.followTarget and not self.keepWorldFilled then
         return
     end
     local visibleWidth = self.viewWidth / self.zoom
@@ -118,6 +118,7 @@ function MobileCamera:update(dt)
     if distance < 0.02 and speed < self.followAcceleration * elapsed then
         self.centerX, self.centerY = targetX, targetY
         self.followVelocityX, self.followVelocityY = 0, 0
+        self:_clampCenter()
         return
     end
 
@@ -139,6 +140,7 @@ function MobileCamera:update(dt)
         self.centerX, self.centerY = targetX, targetY
         self.followVelocityX, self.followVelocityY = 0, 0
     end
+    self:_clampCenter()
 end
 
 function MobileCamera:zoomBy(factor)
@@ -149,17 +151,15 @@ function MobileCamera:zoomBy(factor)
     return true
 end
 
-function MobileCamera:setViewport(viewWidth, viewHeight)
+function MobileCamera:setViewport(viewWidth, viewHeight, fillWidth)
     self.viewWidth = math.max(1, viewWidth or self.baseWidth)
     self.viewHeight = math.max(1, viewHeight or self.baseHeight)
-    self.minimumZoom = math.min(1, math.max(
-        self.viewWidth / self.baseWidth,
-        self.viewHeight / self.baseHeight
-    ))
     local fillZoom = math.max(
         self.viewWidth / self.baseWidth,
         self.viewHeight / self.baseHeight
     )
+    self.keepWorldFilled = fillWidth == true
+    self.minimumZoom = math.min(1, fillZoom)
     if not self.initialized then
         self.zoom = clamp(fillZoom, self.minimumZoom, self.maximumZoom)
         self.initialized = true

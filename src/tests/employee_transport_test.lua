@@ -2,6 +2,7 @@ local State=require("src.state")
 local Employees=require("src.employees")
 local Jobs=require("src.jobs")
 local Fleet=require("src.machine_fleet")
+local JackFleet=require("src.pallet_jack_fleet")
 local Jack=require("src.pallet_jack")
 local Transport=require("src.employee_pallet_jack")
 local Schedule=require("src.employee_schedule")
@@ -11,6 +12,7 @@ local Catalog=require("src.worker_catalog")
 local Renderer=require("src.employee_renderer")
 local Customer=require("src.customer")
 local Config=require("src.config")
+local Wrapper=require("src.wrapper")
 local AI=require("src.employee_ai")
 local Schema=require("src.save_schema")
 local Navigation=require("src.navigation")
@@ -76,8 +78,12 @@ function Test.run(context,check)
         local _,stopped=Renderer.pose(entry,context.characterAssets)
         check("employee_stopped_push_plants_feet_"..profile.character,stopped==2)
         worker.phase="working";worker.training={skill="press"};worker.idleClock=.75
+        local presentation=require("src.employee_work_presentation")
+        presentation.reset(worker)
+        presentation.update(state,worker,.36)
         local operating,workFrame=Renderer.pose(entry,context.characterAssets)
-        check("employee_training_uses_machine_animation_"..profile.character,operating=="work_press" and workFrame==4)
+        check("employee_training_uses_machine_animation_"..profile.character,operating=="work_press" and workFrame==(profile.character=="cat-worker" and 3 or 4))
+        presentation.reset(worker)
         worker.training=nil
     end
     worker.character="cat-worker";worker.phase="idle"
@@ -165,6 +171,7 @@ function Test.run(context,check)
         worker.character=profile.character
         capture(context,state,profile.character.."-working-in-game")
     end
+    worker.character="cat-worker"
     context.world.player.x,context.world.player.y=oldX,oldY
     -- The jack has parked away from the cutter; position it at this skid for
     -- the independent loaded-jack network snapshot fixture below.
@@ -182,7 +189,7 @@ function Test.run(context,check)
     local rows=Pose.capture({entry});local actors=Pose.actors(rows)
     check("employee_push_gait_survives_guest_pose",actors and actors[worker.id].phase=="pushing" and actors[worker.id].jackDistance==125)
     local maximum=require("src.net.codec").array()
-    for i=1,11 do maximum[i]=require("src.net.codec").array({"EMP-9999"..string.format("%02d",i),96000,67800,8,15999,12999,1,10,4,2,1000,28}) end
+    for i=1,11 do maximum[i]=require("src.net.codec").array({"EMP-9999"..string.format("%02d",i),96000,67800,8,15999,12999,1,10,124,2,1000,28}) end
     local rosterPacket,rosterError=Protocol.encode("employee_snapshot",{sessionId=string.rep("s",64),serverTick=4294967295,employees=maximum})
     check("full_employee_roster_and_push_poses_fit_network_packet",rosterPacket and #rosterPacket<=Protocol.MAX_PACKET_BYTES,rosterError)
     local Session=require("src.net.session")
@@ -205,9 +212,10 @@ function Test.run(context,check)
         truck={state="absent",backingProgress=0,cargoProgress=0},employees=maximum} end})
     check("host_sends_large_staff_roster_separately_from_truck_and_door",packets.employee_snapshot
         and #packets.employee_snapshot.employees==11 and packets.environment_snapshot and not packets.environment_snapshot.employees)
-    local saved=Schema.snapshot(state)
+    local saved,saveReason=Schema.snapshot(state)
     check("save_parks_employee_jack_without_losing_pallet",saved and saved.palletJack.carriedPalletId==pallet.id
-        and not saved.palletJack.operating and not saved.palletJack.operatorEmployeeId and not saved.palletJack.operatorPlayerId)
+        and not saved.palletJack.operating and not saved.palletJack.operatorEmployeeId and not saved.palletJack.operatorPlayerId,
+        saveReason)
     local previousScene=context.world.player.sceneId
     state.screen="world"
     for _,profile in ipairs(Catalog.profiles) do
@@ -267,6 +275,77 @@ function Test.run(context,check)
             wrapperDropDetail or blockedTransportDetail or worker.activity)
         context.world.player.x,context.world.player.y=oldPX,oldPY
     end
+    -- Cover the complete in-game wrapper handoff, including schedule-stage
+    -- resolution, pallet-jack pickup/drop, jack parking, operator access, and
+    -- the actual wrapper cycle. The lower-level transport check above only
+    -- verifies that the jack can deliver a skid.
+    do
+        local wrapState=State.new()
+        local wrapWorker=hire(wrapState)
+        wrapWorker.wrappingSkill=0
+        local wrapCutter=Fleet.installedUnits(wrapState,"polar_115")[1]
+        local wrapMachine=Fleet.installedUnits(wrapState,"skid_wrapper")[1]
+        local wrapJob,wrapPallet=job(wrapState,"JOB-EMPLOYEE-WRAPS-START-TO-FINISH",500,520)
+        wrapPallet.location,wrapPallet.status="cutter_output","finished"
+        wrapPallet.finishedSheets,wrapPallet.remainingSheets=500,0
+        wrapPallet.cutterMachineId=wrapCutter.id
+        wrapPallet.world={x=500,y=520,fromX=500,fromY=520,spawnProgress=1,direction="northwest"}
+        wrapState.inventory.plasticWrapUses,wrapState.inventory.plasticWrapRolls=11,1
+        local added,queueReason=Employees.command(wrapState,{kind="queue_employee_job",
+            employeeId=wrapWorker.id,jobId=wrapJob.id,machineId="auto"},9)
+        assert(added,queueReason)
+        local oldPlayerX,oldPlayerY=context.world.player.x,context.world.player.y
+        local oldEmployeeOptions=context.world._employeeOptions
+        context.world.player.x,context.world.player.y=930,640
+        context.world.configureEmployees({players=function() return {} end})
+        local wrapContext=context.world.employeeContext(wrapState,context.assets)
+        wrapContext.canClaim=function() return true end
+        wrapContext.move=function(actor,goal,dt) return AI.move(actor,goal,dt,wrapContext) end
+        Schedule.advance(wrapState,wrapWorker,9.1,wrapContext.canClaim)
+        local wrapped=false
+        local lastActivity,lastStage
+        for _=1,9000 do
+            Work.update(wrapState,wrapWorker,.1,wrapContext)
+            Wrapper.updateAll(.1,wrapState)
+            lastActivity=wrapWorker.activity
+            lastStage=wrapWorker.assignment and wrapWorker.assignment.machineModel
+            if wrapPallet.status=="wrapped" then wrapped=true;break end
+        end
+        if wrapped then
+            Work.update(wrapState,wrapWorker,.1,wrapContext)
+            Schedule.advance(wrapState,wrapWorker,9.2,wrapContext.canClaim)
+        end
+        context.world.player.x,context.world.player.y=oldPlayerX,oldPlayerY
+        context.world.configureEmployees(oldEmployeeOptions)
+        check("employee_runs_finished_skid_through_real_wrapper_cycle",wrapped
+            and wrapPallet.location=="warehouse" and not wrapState.palletJack.carriedPalletId
+            and not wrapState.palletJack.operating and wrapMachine~=nil
+            and wrapWorker.schedule.history[1] and wrapWorker.schedule.history[1].result=="complete",
+            "status="..tostring(wrapPallet.status).." location="..tostring(wrapPallet.location)
+                .." activity="..tostring(lastActivity).." machine="..tostring(lastStage)
+                .." pallet="..tostring(wrapPallet.world and string.format("%.1f,%.1f",wrapPallet.world.x,wrapPallet.world.y)))
+    end
+    local takeoverState=State.new()
+    local takeoverWorker=hire(takeoverState)
+    local takeoverJob,takeoverPallet=job(takeoverState,"JOB-JACK-TAKEOVER",560,520)
+    local takeoverJack=takeoverState.palletJack
+    takeoverJack.x,takeoverJack.y=takeoverPallet.world.x,takeoverPallet.world.y
+    assert(Jack.mountEmployee(takeoverState,Config.palletJack,takeoverWorker.id))
+    assert(Jack.lift(takeoverState,Config.palletJack,takeoverPallet.id))
+    takeoverWorker.assignment={jobId=takeoverJob.id,machineId=machine.id,machineModel="polar_115"}
+    takeoverWorker.phase,takeoverWorker.moving="pushing",true
+    takeoverWorker._jackTarget={key="stale",goal={x=1,y=1}}
+    takeoverWorker._shippingPalletId=takeoverPallet.id
+    local tookJack,transferredJack=Transport.takeFromEmployee(takeoverState,takeoverWorker.id,1)
+    check("player_takes_employee_pallet_jack_without_losing_its_load",tookJack
+        and transferredJack==takeoverState.palletJack and takeoverJack.operating
+        and takeoverJack.operatorPlayerId==1 and takeoverJack.operatorEmployeeId==nil
+        and takeoverJack.carriedPalletId==takeoverPallet.id
+        and takeoverPallet.location=="on_pallet_jack")
+    check("employee_resumes_with_assignment_after_jack_takeover",takeoverWorker.assignment.jobId==takeoverJob.id
+        and takeoverWorker.phase=="idle" and not takeoverWorker.moving
+        and takeoverWorker._jackTarget==nil and takeoverWorker._shippingPalletId==nil
+        and takeoverWorker._waitingForJack==nil and JackFleet.validate(takeoverState))
     state.palletJack.x,state.palletJack.y=pallet.world.x,pallet.world.y
     assert(Jack.mountEmployee(state,Config.palletJack,worker.id))
     assert(Jack.lift(state,Config.palletJack,pallet.id))

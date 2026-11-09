@@ -1,0 +1,3510 @@
+{
+  "status": "bounded QA only; frozen V4 source and registered strips unchanged; no runtime promotion",
+  "inputs": {
+    "raw_master": {
+      "path": "assets\\source\\animation-overhaul-luna-worker-actions-v1\\mouse-west\\canonical-8phase-v4-empty-gap-registration\\field-mouse-technician-west-canonical-8phase-v3-master-raw.png",
+      "sha256": "5465fe188fea59a8d9484f27b738a9078dcb77eb0b0724b96ce53a41dbce5ef5"
+    },
+    "selection": {
+      "path": "assets\\source\\animation-overhaul-luna-worker-actions-v1\\mouse-west\\canonical-8phase-v4-empty-gap-registration\\selection.json",
+      "sha256": "4e442b12baedaef0289c06d62b37b8b986ea7debdaff61e942707bca37f8fedb"
+    },
+    "registered_runtime_strip": {
+      "path": "assets\\source\\animation-overhaul-luna-worker-actions-v1\\mouse-west\\canonical-8phase-v4-empty-gap-registration\\field-mouse-technician-west-canonical-8phase-v4-gap-registered-8x1.png",
+      "sha256": "55cb2cd186b169dc9ae5acc6814b40a3ca6ad6a7207c8456b9a1e7244b21992c"
+    },
+    "approved_idle_west": {
+      "path": "assets\\generated\\technician-motion-v2\\field-mouse-technician\\idle_west.png",
+      "sha256": "886efc1ad1bf57bedb3a1b98927b82135281b9d53599f080b592e37a979a0f66"
+    },
+    "landmark_method_reference": {
+      "path": "output\\animation-overhaul\\luna-worker-actions\\mouse-west\\identity-continuity\\build_identity_continuity.py",
+      "sha256": "fa65ea2c77d208b479ff9cfaf16af289d4367b3da0d6419b49045c5b7af216fa",
+      "note": "The audit duplicates the same landmark equations so it remains self-contained; protocol source recorded here for comparison."
+    }
+  },
+  "scale": {
+    "global_master_scale": "27/56",
+    "fixed_world_display_scale": "64/192 = 1/3",
+    "no_resizing_per_phase": true
+  },
+  "weak_alpha": {
+    "threshold": "source alpha 1..15",
+    "outside_final_registered_render_bounds_count": 398,
+    "source_alpha_histogram": {
+      "1..1": 398
+    },
+    "component_location_summary": "Components are source-local coordinate boxes with distance to nearest alpha>=16 pixel in each frame. Every omitted pixel is alpha 1, never attached to the alpha>=16 silhouette; K5/K7 have some tail-side/margin-adjacent flecks, but their alpha=1 is 1/255 opacity and their nearest alpha>=16 gaps are 32.8px (K5) and 9.0px (K7) in raw source units. No clipped paw/body/ear was found in this class.",
+    "visual_impact_at_fixed_64_world_scale": "At 27/56 source-to-cell scale followed by 64/256 display scale, each source pixel covers about 0.12 output pixels. Alpha 1/255 marks cannot add a readable limb, ear, or tail contour. They appear only as sparse magenta audit pixels when deliberately recolored; original low-opacity pixels are effectively imperceptible.",
+    "frames": [
+      {
+        "phase": 1,
+        "role": "K1 near/pocketed lead contact; far/plain leg trails",
+        "omitted_weak_alpha_pixels": 60,
+        "omitted_weak_alpha_component_count": 5,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 56,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              7,
+              421,
+              16
+            ],
+            "bbox_global_xyxy_exclusive": [
+              410,
+              7,
+              421,
+              16
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 164.57521077003062
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              422,
+              13,
+              423,
+              14
+            ],
+            "bbox_global_xyxy_exclusive": [
+              422,
+              13,
+              423,
+              14
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 174.42763542512407
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              430,
+              19,
+              431,
+              20
+            ],
+            "bbox_global_xyxy_exclusive": [
+              430,
+              19,
+              431,
+              20
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 179.2344832893492
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              428,
+              21,
+              429,
+              22
+            ],
+            "bbox_global_xyxy_exclusive": [
+              428,
+              21,
+              429,
+              22
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 176.61540136692497
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              428,
+              23,
+              429,
+              24
+            ],
+            "bbox_global_xyxy_exclusive": [
+              428,
+              23,
+              429,
+              24
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 175.85505395068975
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            64,
+            53,
+            242,
+            230
+          ],
+          "body_height_px": 177,
+          "head_bbox_proxy_xyxy": [
+            64,
+            53,
+            158,
+            129
+          ],
+          "head_width_px": 94,
+          "torso_axis_x_px": 128.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            117,
+            159
+          ],
+          "central_vest_orange_height_px": 43,
+          "central_navy_trouser_onset_y_px_proxy": 164,
+          "trouser_onset_to_ground_px_proxy": 65
+        }
+      },
+      {
+        "phase": 2,
+        "role": "K2 near/pocketed weight-down; far/plain heel releases",
+        "omitted_weak_alpha_pixels": 14,
+        "omitted_weak_alpha_component_count": 13,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              433,
+              214,
+              434,
+              215
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              214,
+              913,
+              215
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 89.94442728707543
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              435,
+              215,
+              436,
+              216
+            ],
+            "bbox_global_xyxy_exclusive": [
+              914,
+              215,
+              915,
+              216
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 90.0499861188218
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              433,
+              216,
+              434,
+              218
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              216,
+              913,
+              218
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 87.32124598286491
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              431,
+              225,
+              432,
+              226
+            ],
+            "bbox_global_xyxy_exclusive": [
+              910,
+              225,
+              911,
+              226
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 79.40403012442127
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              427,
+              254,
+              428,
+              255
+            ],
+            "bbox_global_xyxy_exclusive": [
+              906,
+              254,
+              907,
+              255
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 53.41348144429457
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              155,
+              455,
+              156,
+              456
+            ],
+            "bbox_global_xyxy_exclusive": [
+              634,
+              455,
+              635,
+              456
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 36.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              163,
+              455,
+              164,
+              456
+            ],
+            "bbox_global_xyxy_exclusive": [
+              642,
+              455,
+              643,
+              456
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 36.05551275463989
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              159,
+              457,
+              160,
+              458
+            ],
+            "bbox_global_xyxy_exclusive": [
+              638,
+              457,
+              639,
+              458
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 38.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              161,
+              457,
+              162,
+              458
+            ],
+            "bbox_global_xyxy_exclusive": [
+              640,
+              457,
+              641,
+              458
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 38.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              312,
+              457,
+              313,
+              458
+            ],
+            "bbox_global_xyxy_exclusive": [
+              791,
+              457,
+              792,
+              458
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 86.31338250816034
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              242,
+              459,
+              243,
+              460
+            ],
+            "bbox_global_xyxy_exclusive": [
+              721,
+              459,
+              722,
+              460
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 50.59644256269407
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              304,
+              459,
+              305,
+              460
+            ],
+            "bbox_global_xyxy_exclusive": [
+              783,
+              459,
+              784,
+              460
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 82.07313811473277
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              310,
+              459,
+              311,
+              460
+            ],
+            "bbox_global_xyxy_exclusive": [
+              789,
+              459,
+              790,
+              460
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 86.2670273047588
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            63,
+            51,
+            241,
+            229
+          ],
+          "body_height_px": 178,
+          "head_bbox_proxy_xyxy": [
+            63,
+            51,
+            158,
+            128
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 128.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            115,
+            159
+          ],
+          "central_vest_orange_height_px": 45,
+          "central_navy_trouser_onset_y_px_proxy": 161,
+          "trouser_onset_to_ground_px_proxy": 67
+        }
+      },
+      {
+        "phase": 3,
+        "role": "K3 far/plain compact pass; near/pocketed supports",
+        "omitted_weak_alpha_pixels": 61,
+        "omitted_weak_alpha_component_count": 17,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              416,
+              168,
+              417,
+              169
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1348,
+              168,
+              1349,
+              169
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 129.65338406690356
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              416,
+              170,
+              417,
+              171
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1348,
+              170,
+              1349,
+              171
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 127.75758294520134
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              16,
+              245,
+              18,
+              246
+            ],
+            "bbox_global_xyxy_exclusive": [
+              948,
+              245,
+              950,
+              246
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 43.266615305567875
+          },
+          {
+            "count": 3,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              430,
+              307,
+              431,
+              310
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1362,
+              307,
+              1363,
+              310
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 35.05709628591621
+          },
+          {
+            "count": 33,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              431,
+              307,
+              439,
+              315
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1363,
+              307,
+              1371,
+              315
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 36.0
+          },
+          {
+            "count": 3,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              438,
+              311,
+              439,
+              314
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1370,
+              311,
+              1371,
+              314
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 43.0
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              434,
+              313,
+              435,
+              315
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1366,
+              313,
+              1367,
+              315
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 39.0
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              450,
+              317,
+              451,
+              319
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1382,
+              317,
+              1383,
+              319
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 55.14526271584895
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              440,
+              319,
+              441,
+              321
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1372,
+              319,
+              1373,
+              321
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 45.39823785126467
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              448,
+              393,
+              449,
+              395
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1380,
+              393,
+              1381,
+              395
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 94.62557793746889
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              450,
+              394,
+              451,
+              395
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1382,
+              394,
+              1383,
+              395
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 96.60745312862771
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              444,
+              396,
+              445,
+              397
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1376,
+              396,
+              1377,
+              397
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 94.87360012142472
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              218,
+              452,
+              219,
+              454
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1150,
+              452,
+              1151,
+              454
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 43.01162633521314
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              220,
+              452,
+              221,
+              454
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1152,
+              452,
+              1153,
+              454
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 44.204072210600685
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              222,
+              457,
+              223,
+              459
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1154,
+              457,
+              1155,
+              459
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 49.4064773081425
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              224,
+              457,
+              225,
+              458
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1156,
+              457,
+              1157,
+              458
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 50.60632371551998
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              224,
+              459,
+              225,
+              460
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1156,
+              459,
+              1157,
+              460
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 52.20153254455275
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            62,
+            50,
+            240,
+            230
+          ],
+          "body_height_px": 180,
+          "head_bbox_proxy_xyxy": [
+            62,
+            50,
+            157,
+            127
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 127.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            114,
+            156
+          ],
+          "central_vest_orange_height_px": 43,
+          "central_navy_trouser_onset_y_px_proxy": 161,
+          "trouser_onset_to_ground_px_proxy": 68
+        }
+      },
+      {
+        "phase": 4,
+        "role": "K4 far/plain knee-up; near/pocketed supports",
+        "omitted_weak_alpha_pixels": 3,
+        "omitted_weak_alpha_component_count": 2,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              7,
+              404,
+              8,
+              405
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1392,
+              404,
+              1393,
+              405
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 78.56844150166147
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              3,
+              408,
+              4,
+              410
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1388,
+              408,
+              1389,
+              410
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 84.21995013059554
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            62,
+            50,
+            237,
+            230
+          ],
+          "body_height_px": 180,
+          "head_bbox_proxy_xyxy": [
+            62,
+            50,
+            157,
+            127
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 127.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            114,
+            158
+          ],
+          "central_vest_orange_height_px": 45,
+          "central_navy_trouser_onset_y_px_proxy": 161,
+          "trouser_onset_to_ground_px_proxy": 68
+        }
+      },
+      {
+        "phase": 5,
+        "role": "K5 far/plain lead contact; near/pocketed leg trails",
+        "omitted_weak_alpha_pixels": 125,
+        "omitted_weak_alpha_component_count": 22,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              233,
+              1,
+              234,
+              2
+            ],
+            "bbox_global_xyxy_exclusive": [
+              233,
+              461,
+              234,
+              462
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 37.12142238654117
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              364,
+              5,
+              365,
+              6
+            ],
+            "bbox_global_xyxy_exclusive": [
+              364,
+              465,
+              365,
+              466
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 118.20744477400736
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              136,
+              17,
+              137,
+              18
+            ],
+            "bbox_global_xyxy_exclusive": [
+              136,
+              477,
+              137,
+              478
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 47.634021455258214
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              263,
+              17,
+              264,
+              18
+            ],
+            "bbox_global_xyxy_exclusive": [
+              263,
+              477,
+              264,
+              478
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 35.77708763999664
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              139,
+              19,
+              140,
+              20
+            ],
+            "bbox_global_xyxy_exclusive": [
+              139,
+              479,
+              140,
+              480
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 44.04543109109048
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              138,
+              21,
+              139,
+              22
+            ],
+            "bbox_global_xyxy_exclusive": [
+              138,
+              481,
+              139,
+              482
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 43.60045871318328
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              468,
+              192,
+              469,
+              193
+            ],
+            "bbox_global_xyxy_exclusive": [
+              468,
+              652,
+              469,
+              653
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 92.13034245024816
+          },
+          {
+            "count": 4,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              475,
+              192,
+              476,
+              196
+            ],
+            "bbox_global_xyxy_exclusive": [
+              475,
+              652,
+              476,
+              656
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 92.78469701410896
+          },
+          {
+            "count": 11,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              479,
+              192,
+              482,
+              199
+            ],
+            "bbox_global_xyxy_exclusive": [
+              479,
+              652,
+              482,
+              659
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 92.35799911215054
+          },
+          {
+            "count": 5,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              477,
+              194,
+              478,
+              199
+            ],
+            "bbox_global_xyxy_exclusive": [
+              477,
+              654,
+              478,
+              659
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 91.26883367283708
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              483,
+              194,
+              484,
+              195
+            ],
+            "bbox_global_xyxy_exclusive": [
+              483,
+              654,
+              484,
+              655
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 97.9081201943945
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              485,
+              194,
+              486,
+              195
+            ],
+            "bbox_global_xyxy_exclusive": [
+              485,
+              654,
+              486,
+              655
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 99.02019995940222
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              493,
+              210,
+              494,
+              212
+            ],
+            "bbox_global_xyxy_exclusive": [
+              493,
+              670,
+              494,
+              672
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 90.55385138137417
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              495,
+              212,
+              496,
+              213
+            ],
+            "bbox_global_xyxy_exclusive": [
+              495,
+              672,
+              496,
+              673
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 91.21951545584969
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              493,
+              213,
+              494,
+              215
+            ],
+            "bbox_global_xyxy_exclusive": [
+              493,
+              673,
+              494,
+              675
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 88.3911760301898
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              475,
+              314,
+              476,
+              315
+            ],
+            "bbox_global_xyxy_exclusive": [
+              475,
+              774,
+              476,
+              775
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 36.235341863986875
+          },
+          {
+            "count": 85,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              467,
+              315,
+              482,
+              328
+            ],
+            "bbox_global_xyxy_exclusive": [
+              467,
+              775,
+              482,
+              788
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 32.802438933713454
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              481,
+              317,
+              482,
+              318
+            ],
+            "bbox_global_xyxy_exclusive": [
+              481,
+              777,
+              482,
+              778
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 42.941821107167776
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              479,
+              321,
+              480,
+              322
+            ],
+            "bbox_global_xyxy_exclusive": [
+              479,
+              781,
+              480,
+              782
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 43.266615305567875
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              483,
+              323,
+              484,
+              324
+            ],
+            "bbox_global_xyxy_exclusive": [
+              483,
+              783,
+              484,
+              784
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 47.70744176750625
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              469,
+              329,
+              470,
+              330
+            ],
+            "bbox_global_xyxy_exclusive": [
+              469,
+              789,
+              470,
+              790
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 41.036569057366385
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              475,
+              329,
+              476,
+              330
+            ],
+            "bbox_global_xyxy_exclusive": [
+              475,
+              789,
+              476,
+              790
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 45.254833995939045
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            63,
+            54,
+            243,
+            230
+          ],
+          "body_height_px": 176,
+          "head_bbox_proxy_xyxy": [
+            63,
+            54,
+            158,
+            130
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 128.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            118,
+            159
+          ],
+          "central_vest_orange_height_px": 42,
+          "central_navy_trouser_onset_y_px_proxy": 164,
+          "trouser_onset_to_ground_px_proxy": 65
+        }
+      },
+      {
+        "phase": 6,
+        "role": "K6 far/plain weight-down; near/pocketed heel releases",
+        "omitted_weak_alpha_pixels": 92,
+        "omitted_weak_alpha_component_count": 47,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              136,
+              1,
+              137,
+              2
+            ],
+            "bbox_global_xyxy_exclusive": [
+              638,
+              461,
+              639,
+              462
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 30.066592756745816
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              259,
+              3,
+              260,
+              4
+            ],
+            "bbox_global_xyxy_exclusive": [
+              761,
+              463,
+              762,
+              464
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 81.32035415564789
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              283,
+              3,
+              284,
+              4
+            ],
+            "bbox_global_xyxy_exclusive": [
+              785,
+              463,
+              786,
+              464
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 99.86490875177326
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              291,
+              3,
+              292,
+              4
+            ],
+            "bbox_global_xyxy_exclusive": [
+              793,
+              463,
+              794,
+              464
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 106.53168542738823
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              289,
+              5,
+              290,
+              6
+            ],
+            "bbox_global_xyxy_exclusive": [
+              791,
+              465,
+              792,
+              466
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 103.77379245262264
+          },
+          {
+            "count": 27,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              96,
+              13,
+              105,
+              22
+            ],
+            "bbox_global_xyxy_exclusive": [
+              598,
+              473,
+              607,
+              482
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 25.45584412271571
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              94,
+              15,
+              95,
+              16
+            ],
+            "bbox_global_xyxy_exclusive": [
+              596,
+              475,
+              597,
+              476
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 36.76955262170047
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              94,
+              17,
+              95,
+              18
+            ],
+            "bbox_global_xyxy_exclusive": [
+              596,
+              477,
+              597,
+              478
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 35.35533905932738
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              106,
+              19,
+              107,
+              21
+            ],
+            "bbox_global_xyxy_exclusive": [
+              608,
+              479,
+              609,
+              481
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 24.839484696748443
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              96,
+              20,
+              97,
+              22
+            ],
+            "bbox_global_xyxy_exclusive": [
+              598,
+              480,
+              599,
+              482
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 31.11269837220809
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              98,
+              21,
+              99,
+              22
+            ],
+            "bbox_global_xyxy_exclusive": [
+              600,
+              481,
+              601,
+              482
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 29.698484809834994
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              400,
+              168,
+              401,
+              169
+            ],
+            "bbox_global_xyxy_exclusive": [
+              902,
+              628,
+              903,
+              629
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 110.13627921806692
+          },
+          {
+            "count": 4,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              396,
+              170,
+              399,
+              173
+            ],
+            "bbox_global_xyxy_exclusive": [
+              898,
+              630,
+              901,
+              633
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 105.00476179678711
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              414,
+              170,
+              415,
+              171
+            ],
+            "bbox_global_xyxy_exclusive": [
+              916,
+              630,
+              917,
+              631
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 114.03946685248927
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              416,
+              170,
+              417,
+              171
+            ],
+            "bbox_global_xyxy_exclusive": [
+              918,
+              630,
+              919,
+              631
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 114.93476410555685
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              394,
+              171,
+              395,
+              172
+            ],
+            "bbox_global_xyxy_exclusive": [
+              896,
+              631,
+              897,
+              632
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 105.30432089900205
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              414,
+              172,
+              415,
+              173
+            ],
+            "bbox_global_xyxy_exclusive": [
+              916,
+              632,
+              917,
+              633
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 112.25417586887359
+          },
+          {
+            "count": 5,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              393,
+              173,
+              395,
+              177
+            ],
+            "bbox_global_xyxy_exclusive": [
+              895,
+              633,
+              897,
+              637
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 100.24470060806208
+          },
+          {
+            "count": 4,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              396,
+              174,
+              399,
+              177
+            ],
+            "bbox_global_xyxy_exclusive": [
+              898,
+              634,
+              901,
+              637
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 101.95096860746347
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              402,
+              174,
+              403,
+              175
+            ],
+            "bbox_global_xyxy_exclusive": [
+              904,
+              634,
+              905,
+              635
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 105.30906893520614
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              404,
+              174,
+              405,
+              176
+            ],
+            "bbox_global_xyxy_exclusive": [
+              906,
+              634,
+              907,
+              636
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 105.19030373565806
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              396,
+              176,
+              397,
+              177
+            ],
+            "bbox_global_xyxy_exclusive": [
+              898,
+              636,
+              899,
+              637
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 101.24228365658294
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              400,
+              176,
+              401,
+              178
+            ],
+            "bbox_global_xyxy_exclusive": [
+              902,
+              636,
+              903,
+              638
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 101.76934705499491
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              176,
+              411,
+              177
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              636,
+              913,
+              637
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 106.88779163215975
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              394,
+              178,
+              395,
+              179
+            ],
+            "bbox_global_xyxy_exclusive": [
+              896,
+              638,
+              897,
+              639
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 98.68130522039117
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              402,
+              178,
+              403,
+              179
+            ],
+            "bbox_global_xyxy_exclusive": [
+              904,
+              638,
+              905,
+              639
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 101.6366075781753
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              404,
+              178,
+              405,
+              179
+            ],
+            "bbox_global_xyxy_exclusive": [
+              906,
+              638,
+              907,
+              639
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 102.45974819410792
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              414,
+              180,
+              415,
+              181
+            ],
+            "bbox_global_xyxy_exclusive": [
+              916,
+              640,
+              917,
+              641
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 105.09519494249011
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              397,
+              184,
+              398,
+              185
+            ],
+            "bbox_global_xyxy_exclusive": [
+              899,
+              644,
+              900,
+              645
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 94.15412895885129
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              400,
+              184,
+              401,
+              185
+            ],
+            "bbox_global_xyxy_exclusive": [
+              902,
+              644,
+              903,
+              645
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 95.34149149242423
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              184,
+              411,
+              185
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              644,
+              913,
+              645
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 99.72963451251589
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              412,
+              302,
+              413,
+              304
+            ],
+            "bbox_global_xyxy_exclusive": [
+              914,
+              762,
+              915,
+              764
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 28.442925306655784
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              305,
+              411,
+              306
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              765,
+              913,
+              766
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 27.202941017470888
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              412,
+              305,
+              413,
+              306
+            ],
+            "bbox_global_xyxy_exclusive": [
+              914,
+              765,
+              915,
+              766
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 29.120439557122072
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              402,
+              319,
+              403,
+              320
+            ],
+            "bbox_global_xyxy_exclusive": [
+              904,
+              779,
+              905,
+              780
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 28.319604517012593
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              404,
+              319,
+              405,
+              320
+            ],
+            "bbox_global_xyxy_exclusive": [
+              906,
+              779,
+              907,
+              780
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 29.698484809834994
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              400,
+              321,
+              401,
+              322
+            ],
+            "bbox_global_xyxy_exclusive": [
+              902,
+              781,
+              903,
+              782
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 28.600699292150182
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              402,
+              321,
+              403,
+              322
+            ],
+            "bbox_global_xyxy_exclusive": [
+              904,
+              781,
+              905,
+              782
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 29.832867780352597
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              408,
+              321,
+              409,
+              322
+            ],
+            "bbox_global_xyxy_exclusive": [
+              910,
+              781,
+              911,
+              782
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 33.94112549695428
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              406,
+              333,
+              407,
+              334
+            ],
+            "bbox_global_xyxy_exclusive": [
+              908,
+              793,
+              909,
+              794
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 41.88078318274385
+          },
+          {
+            "count": 3,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              408,
+              337,
+              409,
+              340
+            ],
+            "bbox_global_xyxy_exclusive": [
+              910,
+              797,
+              911,
+              800
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 46.32493928760188
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              339,
+              411,
+              341
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              799,
+              913,
+              801
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 49.09175083453431
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              406,
+              341,
+              407,
+              342
+            ],
+            "bbox_global_xyxy_exclusive": [
+              908,
+              801,
+              909,
+              802
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 48.76474136094644
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              412,
+              341,
+              413,
+              342
+            ],
+            "bbox_global_xyxy_exclusive": [
+              914,
+              801,
+              915,
+              802
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 51.86520991955976
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              342,
+              411,
+              344
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              802,
+              913,
+              804
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 51.62363799656123
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              412,
+              343,
+              413,
+              344
+            ],
+            "bbox_global_xyxy_exclusive": [
+              914,
+              803,
+              915,
+              804
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 53.53503525729669
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              410,
+              345,
+              411,
+              346
+            ],
+            "bbox_global_xyxy_exclusive": [
+              912,
+              805,
+              913,
+              806
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 54.20332093147061
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            62,
+            53,
+            242,
+            229
+          ],
+          "body_height_px": 176,
+          "head_bbox_proxy_xyxy": [
+            62,
+            53,
+            157,
+            129
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 127.5,
+          "central_vest_orange_y_span_inclusive_px": [
+            117,
+            159
+          ],
+          "central_vest_orange_height_px": 43,
+          "central_navy_trouser_onset_y_px_proxy": 163,
+          "trouser_onset_to_ground_px_proxy": 65
+        }
+      },
+      {
+        "phase": 7,
+        "role": "K7 near/pocketed compact pass; far/plain supports",
+        "omitted_weak_alpha_pixels": 41,
+        "omitted_weak_alpha_component_count": 18,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              45,
+              13,
+              46,
+              15
+            ],
+            "bbox_global_xyxy_exclusive": [
+              977,
+              473,
+              978,
+              475
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 81.40024569987489
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              79,
+              15,
+              80,
+              16
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1011,
+              475,
+              1012,
+              476
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 58.249463516842795
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              99,
+              15,
+              100,
+              16
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1031,
+              475,
+              1032,
+              476
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 42.5205832509386
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              101,
+              15,
+              102,
+              16
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1033,
+              475,
+              1034,
+              476
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 41.036569057366385
+          },
+          {
+            "count": 4,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              45,
+              17,
+              46,
+              21
+            ],
+            "bbox_global_xyxy_exclusive": [
+              977,
+              477,
+              978,
+              481
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 76.60939890117922
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              51,
+              17,
+              52,
+              18
+            ],
+            "bbox_global_xyxy_exclusive": [
+              983,
+              477,
+              984,
+              478
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 75.45197147855052
+          },
+          {
+            "count": 5,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              47,
+              18,
+              48,
+              23
+            ],
+            "bbox_global_xyxy_exclusive": [
+              979,
+              478,
+              980,
+              483
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 73.81734213584231
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              49,
+              19,
+              50,
+              20
+            ],
+            "bbox_global_xyxy_exclusive": [
+              981,
+              479,
+              982,
+              480
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 75.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              45,
+              22,
+              46,
+              23
+            ],
+            "bbox_global_xyxy_exclusive": [
+              977,
+              482,
+              978,
+              483
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 75.0
+          },
+          {
+            "count": 4,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              12,
+              77,
+              16,
+              79
+            ],
+            "bbox_global_xyxy_exclusive": [
+              944,
+              537,
+              948,
+              539
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 61.84658438426491
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              14,
+              212,
+              16,
+              213
+            ],
+            "bbox_global_xyxy_exclusive": [
+              946,
+              672,
+              948,
+              673
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 46.69047011971501
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              14,
+              214,
+              16,
+              215
+            ],
+            "bbox_global_xyxy_exclusive": [
+              946,
+              674,
+              948,
+              675
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 45.34313619501854
+          },
+          {
+            "count": 10,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              406,
+              286,
+              407,
+              296
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1338,
+              746,
+              1339,
+              756
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 9.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              406,
+              297,
+              407,
+              298
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1338,
+              757,
+              1339,
+              758
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 9.0
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              422,
+              321,
+              423,
+              322
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1354,
+              781,
+              1355,
+              782
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 33.301651610693426
+          },
+          {
+            "count": 2,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              448,
+              341,
+              449,
+              343
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1380,
+              801,
+              1381,
+              803
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 66.06814663663572
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              450,
+              341,
+              451,
+              342
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1382,
+              801,
+              1383,
+              802
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 67.62396025078685
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              452,
+              341,
+              453,
+              342
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1384,
+              801,
+              1385,
+              802
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 69.20260110718382
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            63,
+            53,
+            243,
+            229
+          ],
+          "body_height_px": 176,
+          "head_bbox_proxy_xyxy": [
+            63,
+            53,
+            158,
+            129
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 128.0,
+          "central_vest_orange_y_span_inclusive_px": [
+            117,
+            158
+          ],
+          "central_vest_orange_height_px": 42,
+          "central_navy_trouser_onset_y_px_proxy": 163,
+          "trouser_onset_to_ground_px_proxy": 65
+        }
+      },
+      {
+        "phase": 8,
+        "role": "K8 near/pocketed knee-up; far/plain supports",
+        "omitted_weak_alpha_pixels": 2,
+        "omitted_weak_alpha_component_count": 2,
+        "omitted_weak_alpha_components": [
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              362,
+              1,
+              363,
+              2
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1747,
+              461,
+              1748,
+              462
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 166.5172663719892
+          },
+          {
+            "count": 1,
+            "alpha_min_max": [
+              1,
+              1
+            ],
+            "bbox_crop_xyxy_exclusive": [
+              1,
+              339,
+              2,
+              340
+            ],
+            "bbox_global_xyxy_exclusive": [
+              1386,
+              799,
+              1387,
+              800
+            ],
+            "nearest_alpha_ge16_pixel_distance_px": 62.433965115151864
+          }
+        ],
+        "fixed_27_over_56_scale_landmarks": {
+          "body_alpha_ge16_bbox_xyxy": [
+            63,
+            52,
+            240,
+            229
+          ],
+          "body_height_px": 177,
+          "head_bbox_proxy_xyxy": [
+            63,
+            52,
+            158,
+            128
+          ],
+          "head_width_px": 95,
+          "torso_axis_x_px": 128.0,
+          "central_vest_orange_y_span_inclusive_px": [
+            116,
+            159
+          ],
+          "central_vest_orange_height_px": 44,
+          "central_navy_trouser_onset_y_px_proxy": 162,
+          "trouser_onset_to_ground_px_proxy": 66
+        }
+      }
+    ]
+  },
+  "fixed_scale_geometry": {
+    "walk_frames": [
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          64,
+          53,
+          242,
+          230
+        ],
+        "body_height_px": 177,
+        "head_bbox_proxy_xyxy": [
+          64,
+          53,
+          158,
+          129
+        ],
+        "head_width_px": 94,
+        "torso_axis_x_px": 128.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          117,
+          159
+        ],
+        "central_vest_orange_height_px": 43,
+        "central_navy_trouser_onset_y_px_proxy": 164,
+        "trouser_onset_to_ground_px_proxy": 65
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          51,
+          241,
+          229
+        ],
+        "body_height_px": 178,
+        "head_bbox_proxy_xyxy": [
+          63,
+          51,
+          158,
+          128
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 128.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          115,
+          159
+        ],
+        "central_vest_orange_height_px": 45,
+        "central_navy_trouser_onset_y_px_proxy": 161,
+        "trouser_onset_to_ground_px_proxy": 67
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          62,
+          50,
+          240,
+          230
+        ],
+        "body_height_px": 180,
+        "head_bbox_proxy_xyxy": [
+          62,
+          50,
+          157,
+          127
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 127.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          114,
+          156
+        ],
+        "central_vest_orange_height_px": 43,
+        "central_navy_trouser_onset_y_px_proxy": 161,
+        "trouser_onset_to_ground_px_proxy": 68
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          62,
+          50,
+          237,
+          230
+        ],
+        "body_height_px": 180,
+        "head_bbox_proxy_xyxy": [
+          62,
+          50,
+          157,
+          127
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 127.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          114,
+          158
+        ],
+        "central_vest_orange_height_px": 45,
+        "central_navy_trouser_onset_y_px_proxy": 161,
+        "trouser_onset_to_ground_px_proxy": 68
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          54,
+          243,
+          230
+        ],
+        "body_height_px": 176,
+        "head_bbox_proxy_xyxy": [
+          63,
+          54,
+          158,
+          130
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 128.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          118,
+          159
+        ],
+        "central_vest_orange_height_px": 42,
+        "central_navy_trouser_onset_y_px_proxy": 164,
+        "trouser_onset_to_ground_px_proxy": 65
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          62,
+          53,
+          242,
+          229
+        ],
+        "body_height_px": 176,
+        "head_bbox_proxy_xyxy": [
+          62,
+          53,
+          157,
+          129
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 127.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          117,
+          159
+        ],
+        "central_vest_orange_height_px": 43,
+        "central_navy_trouser_onset_y_px_proxy": 163,
+        "trouser_onset_to_ground_px_proxy": 65
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          53,
+          243,
+          229
+        ],
+        "body_height_px": 176,
+        "head_bbox_proxy_xyxy": [
+          63,
+          53,
+          158,
+          129
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 128.0,
+        "central_vest_orange_y_span_inclusive_px": [
+          117,
+          158
+        ],
+        "central_vest_orange_height_px": 42,
+        "central_navy_trouser_onset_y_px_proxy": 163,
+        "trouser_onset_to_ground_px_proxy": 65
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          52,
+          240,
+          229
+        ],
+        "body_height_px": 177,
+        "head_bbox_proxy_xyxy": [
+          63,
+          52,
+          158,
+          128
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 128.0,
+        "central_vest_orange_y_span_inclusive_px": [
+          116,
+          159
+        ],
+        "central_vest_orange_height_px": 44,
+        "central_navy_trouser_onset_y_px_proxy": 162,
+        "trouser_onset_to_ground_px_proxy": 66
+      }
+    ],
+    "idle_west_frames": [
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          38,
+          225,
+          229
+        ],
+        "body_height_px": 191,
+        "head_bbox_proxy_xyxy": [
+          63,
+          38,
+          157,
+          120
+        ],
+        "head_width_px": 94,
+        "torso_axis_x_px": 127.5,
+        "central_vest_orange_y_span_inclusive_px": [
+          105,
+          152
+        ],
+        "central_vest_orange_height_px": 48,
+        "central_navy_trouser_onset_y_px_proxy": 152,
+        "trouser_onset_to_ground_px_proxy": 76
+      },
+      {
+        "body_alpha_ge16_bbox_xyxy": [
+          63,
+          37,
+          226,
+          229
+        ],
+        "body_height_px": 192,
+        "head_bbox_proxy_xyxy": [
+          63,
+          37,
+          158,
+          120
+        ],
+        "head_width_px": 95,
+        "torso_axis_x_px": 128.0,
+        "central_vest_orange_y_span_inclusive_px": [
+          103,
+          150
+        ],
+        "central_vest_orange_height_px": 48,
+        "central_navy_trouser_onset_y_px_proxy": 150,
+        "trouser_onset_to_ground_px_proxy": 78
+      }
+    ],
+    "fixed_world_display_scale": "64/192 = 1/3 source cell px to world px",
+    "walk_body_height_world_units": [
+      59.0,
+      59.333333333333336,
+      60.0,
+      60.0,
+      58.666666666666664,
+      58.666666666666664,
+      58.666666666666664,
+      59.0
+    ],
+    "idle_body_height_world_units": [
+      63.666666666666664,
+      64.0
+    ],
+    "walk_vest_height_px": [
+      43,
+      45,
+      43,
+      45,
+      42,
+      43,
+      42,
+      44
+    ],
+    "idle_vest_height_px": [
+      48,
+      48
+    ],
+    "comparison": "Matched broad heads remain 94-95px. Walk body alpha height is about 176-180px (58.7-60.0wu) versus idle 191-192px (63.7-64.0wu); the torso orange-vest proxy is 42-45px versus idle 49px. This is a real body/vest source-proportion gap under the shared scale; some extra height difference is natural gait crouch, but vest shortening is not explained by the lower legs alone and remains open."
+  },
+  "support_foot_anchors": [
+    {
+      "phase": 1,
+      "support_leg": "near/pocketed",
+      "contact_x_px": 103.5,
+      "contact_y_px": 229,
+      "lowest_alpha_ge16_row": 229,
+      "sole_run_x_half_open": [
+        98,
+        109
+      ],
+      "roi_xyxy": [
+        90,
+        226,
+        112,
+        230
+      ],
+      "confidence": "medium; near lead outsole clear, trailing far shoe also touches ground",
+      "registered_roi_alpha_ge16_count": 66,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        126,
+        409,
+        172,
+        418
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        126,
+        409,
+        172,
+        418
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        126,
+        409,
+        168,
+        417
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        126,
+        409,
+        168,
+        417
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 2,
+      "support_leg": "near/pocketed",
+      "contact_x_px": 112.5,
+      "contact_y_px": 228,
+      "lowest_alpha_ge16_row": 228,
+      "sole_run_x_half_open": [
+        98,
+        127
+      ],
+      "roi_xyxy": [
+        96,
+        225,
+        130,
+        229
+      ],
+      "confidence": "high; near planted sole clear, far heel is raised",
+      "registered_roi_alpha_ge16_count": 125,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        104,
+        411,
+        176,
+        420
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        583,
+        411,
+        655,
+        420
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        104,
+        411,
+        176,
+        420
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        583,
+        411,
+        655,
+        420
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 3,
+      "support_leg": "near/pocketed",
+      "contact_x_px": 121.5,
+      "contact_y_px": 229,
+      "lowest_alpha_ge16_row": 229,
+      "sole_run_x_half_open": [
+        108,
+        135
+      ],
+      "roi_xyxy": [
+        104,
+        226,
+        137,
+        230
+      ],
+      "confidence": "medium; sole is partially overdrawn/segmented by alpha gaps",
+      "registered_roi_alpha_ge16_count": 121,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        113,
+        415,
+        182,
+        424
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        1045,
+        415,
+        1114,
+        424
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        113,
+        415,
+        182,
+        423
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        1045,
+        415,
+        1114,
+        423
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 4,
+      "support_leg": "near/pocketed",
+      "contact_x_px": 130.5,
+      "contact_y_px": 229,
+      "lowest_alpha_ge16_row": 229,
+      "sole_run_x_half_open": [
+        118,
+        143
+      ],
+      "roi_xyxy": [
+        112,
+        226,
+        145,
+        230
+      ],
+      "confidence": "high; near boot planted, lifted far boot is separate to screen-left",
+      "registered_roi_alpha_ge16_count": 116,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        121,
+        415,
+        190,
+        424
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        1506,
+        415,
+        1575,
+        424
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        121,
+        415,
+        190,
+        423
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        1506,
+        415,
+        1575,
+        423
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 5,
+      "support_leg": "far/plain",
+      "contact_x_px": 105.5,
+      "contact_y_px": 229,
+      "lowest_alpha_ge16_row": 229,
+      "sole_run_x_half_open": [
+        103,
+        108
+      ],
+      "roi_xyxy": [
+        95,
+        226,
+        114,
+        230
+      ],
+      "confidence": "low; contact row is only six alpha>=16 pixels and has low outsole extent",
+      "registered_roi_alpha_ge16_count": 53,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        137,
+        388,
+        178,
+        397
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        137,
+        848,
+        178,
+        857
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        137,
+        388,
+        172,
+        395
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        137,
+        848,
+        172,
+        855
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 6,
+      "support_leg": "far/plain",
+      "contact_x_px": 118.5,
+      "contact_y_px": 228,
+      "lowest_alpha_ge16_row": 228,
+      "sole_run_x_half_open": [
+        110,
+        127
+      ],
+      "roi_xyxy": [
+        108,
+        225,
+        131,
+        229
+      ],
+      "confidence": "medium; far planted boot visible, near heel raised",
+      "registered_roi_alpha_ge16_count": 83,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        107,
+        388,
+        156,
+        397
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        609,
+        848,
+        658,
+        857
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        107,
+        388,
+        155,
+        397
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        609,
+        848,
+        657,
+        857
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 7,
+      "support_leg": "far/plain",
+      "contact_x_px": 141.5,
+      "contact_y_px": 228,
+      "lowest_alpha_ge16_row": 228,
+      "sole_run_x_half_open": [
+        134,
+        149
+      ],
+      "roi_xyxy": [
+        132,
+        225,
+        153,
+        229
+      ],
+      "confidence": "low; crossing near boot overlaps the near-sole row; selected right horizontal outsole as far support",
+      "registered_roi_alpha_ge16_count": 76,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        169,
+        388,
+        213,
+        397
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        1101,
+        848,
+        1145,
+        857
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        169,
+        388,
+        213,
+        397
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        1101,
+        848,
+        1145,
+        857
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    },
+    {
+      "phase": 8,
+      "support_leg": "far/plain",
+      "contact_x_px": 132.5,
+      "contact_y_px": 228,
+      "lowest_alpha_ge16_row": 228,
+      "sole_run_x_half_open": [
+        117,
+        148
+      ],
+      "roi_xyxy": [
+        115,
+        225,
+        150,
+        229
+      ],
+      "confidence": "medium; far horizontal support sole is clear, lifted near boot separate to screen-left",
+      "registered_roi_alpha_ge16_count": 133,
+      "source_crop_bounds_xyxy_floor_ceil": [
+        125,
+        389,
+        198,
+        398
+      ],
+      "source_global_bounds_xyxy_floor_ceil": [
+        1510,
+        849,
+        1583,
+        858
+      ],
+      "raw_source_alpha_ge16_bbox_in_roi_xyxy": [
+        125,
+        389,
+        198,
+        398
+      ],
+      "raw_source_alpha_ge16_bbox_global_xyxy": [
+        1510,
+        849,
+        1583,
+        858
+      ],
+      "source_to_registered_contact_formula": "cell px = round(paste offset + (raw crop px - render-content crop origin) * 27/56)"
+    }
+  ],
+  "anchor_method": "Manual sole-contact x is the horizontal midpoint of the alpha>=16 outsole run on the lowest visible row in the support-boot ROI; row may be y228 where antialias/rounding leaves one transparent row above registered y229 baseline. Coordinates are cell pixel centers; world x = pixel x/3 at fixed 64/192 scale. Raw source bounds are inverse-mapped from the registered ROI using the frozen 27/56 scale and per-frame rigid paste offset.",
+  "anchor_travel_analysis": {
+    "near_support_K1_to_K4_cell_px": [
+      103.5,
+      112.5,
+      121.5,
+      130.5
+    ],
+    "near_support_K1_to_K4_world_px": [
+      34.5,
+      37.5,
+      40.5,
+      43.5
+    ],
+    "near_support_contact_delta_world_px_per_pose": [
+      3.0,
+      3.0,
+      3.0
+    ],
+    "far_support_K5_to_K8_cell_px": [
+      105.5,
+      118.5,
+      141.5,
+      132.5
+    ],
+    "far_support_K5_to_K8_world_px": [
+      35.166666666666664,
+      39.5,
+      47.166666666666664,
+      44.166666666666664
+    ],
+    "far_support_contact_delta_world_px_per_pose": [
+      4.33,
+      7.67,
+      -3.0
+    ],
+    "current_game_translation_reference_world_px_per_pose": 13,
+    "interpretation": "Near support advances right about 3.0 world px per pose across K1-K4, short of +13 needed to hold a world-space foot point while the character moves west 13px/pose; expected residual slide is roughly 10px/pose. Far support x marks are less regular and include a low-confidence K5/K7 segment, so no clean cycle-wide estimate is claimed. This is an art-side contact diagnostic, not a stride/timing change."
+  },
+  "review_artifacts": {
+    "support_foot_roi_sheet": {
+      "path": "output\\animation-overhaul\\luna-worker-actions\\mouse-west\\v4-foot-contact-audit\\field-mouse-west-v4-support-foot-ROIs.png",
+      "sha256": "297530237ff571ff77f7c957e057966489fc5ac7b4dc834ceb15fb74a4e6a98f",
+      "description": "Whole 256px cells with 16px grid and enlarged support-foot ROIs for manual contact marking; labels specify planned support leg and ROI."
+    },
+    "support_sole_coordinate_detail": {
+      "path": "output\\animation-overhaul\\luna-worker-actions\\mouse-west\\v4-foot-contact-audit\\field-mouse-west-v4-support-sole-coordinate-detail.png",
+      "sha256": "2cb9ed49d1faf0aed0bff9f401c6a4e4544764178fbd02a8d391a3c567124402",
+      "description": "Support-leg sole crop at 4x nearest-neighbor with x labels every 8 cell pixels and red y=229 ground line; used to record manual x centers."
+    },
+    "weak_alpha_source_trace": {
+      "path": "output\\animation-overhaul\\luna-worker-actions\\mouse-west\\v4-foot-contact-audit\\field-mouse-west-v4-weak-alpha-source-trace.png",
+      "sha256": "f3a6517b7180d6eb166c0cdfb6d5674ad68957e1937b628c05699eef73200abf",
+      "description": "Raw atlas crops with the 398 alpha 1..15 pixels outside render crops recolored magenta for source-context tracing."
+    }
+  },
+  "open_findings": [
+    "V4 is still a proposal; root acceptance/integration required.",
+    "Vest/body proportions remain shorter than approved idle at the shared head scale.",
+    "K5 support contact is low confidence and K7 has leg overlap; far-foot cycle anchor is therefore provisional.",
+    "The art-side support contacts move too little to cancel the current 13-world-px-per-pose westward translation; runtime stride remains root-owned."
+  ]
+}

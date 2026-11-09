@@ -102,7 +102,8 @@ function Component.run(Context)
     Context.oversizedShopPacket = Context.Protocol.encode("shop_snapshot", {
         sessionId = "session-001",
         revision = 0,
-        state = { chunks = Context.Codec.array({ Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk }) },
+        state = { chunks = Context.Codec.array({ Context.chunk, Context.chunk, Context.chunk, Context.chunk,
+            Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk }) },
         player = { x = 1, y = 2 },
     })
     Context.unrevisionedShopPacket = Context.Protocol.encode("shop_snapshot", {
@@ -138,7 +139,8 @@ function Component.run(Context)
     })
     Context.oversizedStatePacket = Context.Protocol.encode("shop_state", {
         sessionId = "session-001", revision = 8,
-        state = { chunks = Context.Codec.array({ Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk }) },
+        state = { chunks = Context.Codec.array({ Context.chunk, Context.chunk, Context.chunk, Context.chunk,
+            Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk, Context.chunk }) },
     })
     Context.check("network_protocol_shop_state_is_revisioned_safe_and_snapshot_bounded",
         Context.safeState and Context.safeState.payload.revision == 8
@@ -170,7 +172,7 @@ function Component.run(Context)
         type(Context.spawnX) == "number" and type(Context.spawnY) == "number"
         and Context.context.Navigation.isWalkable(Context.context.assets, Context.spawnX, Context.spawnY, {}))
 
-    Context.routesCorrect = Context.Protocol.VERSION == 41 and Context.Protocol.CHANNEL_COUNT == 3
+    Context.routesCorrect = Context.Protocol.VERSION == 71 and Context.Protocol.CHANNEL_COUNT == 3
         and Context.Protocol.CHANNEL_CONTROL == 0 and Context.Protocol.CHANNEL_STATE == 1
         and Context.Protocol.CHANNEL_DURABLE == 2 and Context.Protocol.MAX_PLAYERS == 4
     Context.routeSummary = {}
@@ -186,7 +188,7 @@ function Component.run(Context)
     end
     for _, kind in ipairs({
         "input", "snapshot", "fight_snapshot", "crisis_snapshot", "crisis_frame", "visitor_snapshot", "environment_snapshot", "workshop_snapshot",
-        "pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
+        "pallet_jack_snapshot", "extra_pallet_jack_snapshot", "cutter_snapshot", "wrapper_snapshot", "windmill_snapshot", "ping", "pong",
     }) do
         local channel, delivery = Context.Protocol.route(kind)
         Context.routeSummary[#Context.routeSummary + 1] = kind .. "=" .. tostring(channel) .. "/" .. tostring(delivery)

@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "status": "staged_eight_key_proposal_for_root_review_only",
+  "character": "cat-worker south-facing walk",
+  "proposal": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-proposal-key07v1.png",
+  "proposal_sha256": "d5b032c7f1968017c647e5d7c3511d2da099e815bbecd1040df4826b05adce7a",
+  "frame_size_px": [
+    512,
+    512
+  ],
+  "frame_count": 8,
+  "contains_transitions": false,
+  "runtime_registered": false,
+  "pose_order": [
+    "left_contact",
+    "left_weight_down",
+    "right_passing",
+    "right_knee_up",
+    "right_contact",
+    "right_weight_down",
+    "left_passing",
+    "left_knee_up"
+  ],
+  "pinned_inputs": {
+    "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+    "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-canonical-key07-correction-candidate-v1.png": "996caae74ee2902bdf5574a9b5f3eeb4ed986ef7fe181e7fd7b6c00521bc161e",
+    "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-canonical-key07-correction-candidate-v1.json": "61a572c44add6348cd5a8c73193ae2c8426ee15025789860ceb58e9e9b174bf8",
+    "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/walk_south-canonical-key07-passing-correction-v1.txt": "6358f538aab9b345209fccb30026cb88a6788b2a1ca0ee7091d57a6ae195a9e8",
+    "assets/source/animation-overhaul-luna-v1/cat-worker/references/cat-worker-motion-generation-v1.json": "e6d5cb1ee5f1dba40d0023574086b3e0915a4593b34228d433414a74f434fb2c"
+  },
+  "generator": {
+    "script_path": "tools/build_luna_cat_south_8phase_proposal_v1.py",
+    "script_sha256": "2fb1a0a5372edf99f1ccfe14e39c7e1bcc4a81351bbe17d46c1684cba6d41dce",
+    "pillow_version": "12.3.0",
+    "deterministic_behavior": "fixed pinned input hashes, fixed frame order, lossless cell copies, fixed checker/palette settings, no timestamps or random values"
+  },
+  "cell_sources": [
+    {
+      "key_index_1based": 1,
+      "phase": "left_contact",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "08e9932b19fbabbee55a3e8073674631aa18bb4057a2097f5e3d982ddb8259a0",
+      "proposal_cell_rgba_sha256": "08e9932b19fbabbee55a3e8073674631aa18bb4057a2097f5e3d982ddb8259a0",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        123,
+        73,
+        392,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 181,
+        "x_max_px": 234,
+        "x_mid_px": 207.5
+      }
+    },
+    {
+      "key_index_1based": 2,
+      "phase": "left_weight_down",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "8c5722da47bf4f4c959a49eb83fc63a9a9887839fafe5d053e4e56e44a5f43e8",
+      "proposal_cell_rgba_sha256": "8c5722da47bf4f4c959a49eb83fc63a9a9887839fafe5d053e4e56e44a5f43e8",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        123,
+        78,
+        391,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 184,
+        "x_max_px": 236,
+        "x_mid_px": 210.0
+      }
+    },
+    {
+      "key_index_1based": 3,
+      "phase": "right_passing",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "83955964d24af7f7bfd13189e515bd8d02d5d6fa30ddfedebd57305344caea57",
+      "proposal_cell_rgba_sha256": "83955964d24af7f7bfd13189e515bd8d02d5d6fa30ddfedebd57305344caea57",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        118,
+        75,
+        392,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 175,
+        "x_max_px": 229,
+        "x_mid_px": 202.0
+      }
+    },
+    {
+      "key_index_1based": 4,
+      "phase": "right_knee_up",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "f822197172349e9f431b145405706e3f48787660764b87ea3cc8aefa8a7c9441",
+      "proposal_cell_rgba_sha256": "f822197172349e9f431b145405706e3f48787660764b87ea3cc8aefa8a7c9441",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        119,
+        72,
+        391,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 185,
+        "x_max_px": 237,
+        "x_mid_px": 211.0
+      }
+    },
+    {
+      "key_index_1based": 5,
+      "phase": "right_contact",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "e0a06c7484960b7c5d3dc1249ecb3ec06ecbd922aae97350765e21aa6fbeff88",
+      "proposal_cell_rgba_sha256": "e0a06c7484960b7c5d3dc1249ecb3ec06ecbd922aae97350765e21aa6fbeff88",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        115,
+        73,
+        394,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 228,
+        "x_max_px": 281,
+        "x_mid_px": 254.5
+      }
+    },
+    {
+      "key_index_1based": 6,
+      "phase": "right_weight_down",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "aeae82e6415b49817d56599fed42b6d8362abd51148779ceb53534b6fb7cbb93",
+      "proposal_cell_rgba_sha256": "aeae82e6415b49817d56599fed42b6d8362abd51148779ceb53534b6fb7cbb93",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        119,
+        77,
+        393,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 229,
+        "x_max_px": 282,
+        "x_mid_px": 255.5
+      }
+    },
+    {
+      "key_index_1based": 7,
+      "phase": "left_passing",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-canonical-key07-correction-candidate-v1.png",
+      "source_file_sha256": "996caae74ee2902bdf5574a9b5f3eeb4ed986ef7fe181e7fd7b6c00521bc161e",
+      "source_cell_rgba_sha256": "b9c65517bae4916a77ae13e7875016e24d31b2a3c72521325b0f61487561be71",
+      "proposal_cell_rgba_sha256": "b9c65517bae4916a77ae13e7875016e24d31b2a3c72521325b0f61487561be71",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": false,
+      "alpha_bbox_threshold_16": [
+        121,
+        73,
+        397,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 234,
+        "x_max_px": 286,
+        "x_mid_px": 260.0
+      }
+    },
+    {
+      "key_index_1based": 8,
+      "phase": "left_knee_up",
+      "source_path": "assets/source/animation-overhaul-luna-v1/cat-worker/canonical-replacements/walk_south-corrected-canonical-8phase-v2.png",
+      "source_file_sha256": "03de4d1b38ef9506959e7d8ab49967c0454fe413a27812f7190b0563848ee2b8",
+      "source_cell_rgba_sha256": "73f5646e42f725c95e98faacdd6c7dbf51fd512b55be25d20f63610b21f8c829",
+      "proposal_cell_rgba_sha256": "73f5646e42f725c95e98faacdd6c7dbf51fd512b55be25d20f63610b21f8c829",
+      "pixel_identical_to_source_cell": true,
+      "retained_v2_key_without_change": true,
+      "alpha_bbox_threshold_16": [
+        122,
+        69,
+        398,
+        458
+      ],
+      "lowest_sole_candidate": {
+        "ground_y_px": 457,
+        "x_min_px": 233,
+        "x_max_px": 286,
+        "x_mid_px": 259.5
+      }
+    }
+  ],
+  "integrity_checks": {
+    "seven_nonreplacement_keys_pixel_identical_to_v2": true,
+    "k7_differs_from_v2_source_key": true,
+    "saved_strip_roundtrip_pixel_identical": true
+  },
+  "previews": {
+    "contact_sheet": {
+      "path": "output/animation-overhaul/luna-cat/canonical-correction-candidate/walk_south-corrected-canonical-8phase-proposal-key07v1-contact.png",
+      "sha256": "42e40aa8372a1ed9a105a8f07ecab6f104d8fba98d28fefa125afb9b1491973c"
+    },
+    "nominal": {
+      "path": "output/animation-overhaul/luna-cat/canonical-correction-candidate/walk_south-corrected-canonical-8phase-proposal-key07v1-nominal.gif",
+      "sha256": "0c272d68f33035eee1840656ce7de09367dcba7d771ed2f07440dd93bf3403db",
+      "source_fps": 5.538461538461538,
+      "frame_duration_ms": 180
+    },
+    "half_speed": {
+      "path": "output/animation-overhaul/luna-cat/canonical-correction-candidate/walk_south-corrected-canonical-8phase-proposal-key07v1-half-speed.gif",
+      "sha256": "c089b19752e82862c826a46a101844de6e757743760748d1f597ab30e4d17553",
+      "source_fps": 5.538461538461538,
+      "frame_duration_ms": 360
+    }
+  },
+  "review_findings": {
+    "k7": "visual generation shows exactly two ears, two arms/hands, two legs/boots, one screen-right tail; screen-right boot appears grounded, screen-left free boot compact and tucked under pelvis with toe down; screen-right paw remains on strap/bag side; screen-left arm remains free.",
+    "k3_right_passing": "Screen-right free-leg ownership is correct: the ankle/boot tucks under the pelvis with screen-left support planted, and it progresses to K4 knee-up. However, a 2x same-scale K2/K3/K4 review shows K3 is only weakly distinct from K2 weight-down because the free boot is partly occluded by the satchel/body. Treat the phase separation as borderline for root review, not a confirmed defect.",
+    "root_review_required": "Review the entire 8-key sequence and loop seam. This staged proposal is not runtime art and has not passed the animation auditor or in-engine review."
+  },
+  "k7_generation_provenance": {
+    "raw_imagegen_id": "exec-64a7fdbb-d380-4784-9a7f-8627bc33a263.png",
+    "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/prompts/walk_south-canonical-key07-passing-correction-v1.txt",
+    "prompt_sha256": "6358f538aab9b345209fccb30026cb88a6788b2a1ca0ee7091d57a6ae195a9e8",
+    "reference_roles": {
+      "previous_key6": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key06-transition12-endpoint.png",
+      "next_key8": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-v2-key08-left-kneeup-endpoint.png",
+      "identity_style": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-phase1-style-reference.png",
+      "leg_role_guide": "assets/source/animation-overhaul-luna-v1/cat-worker/generated/references/south-leg-role-diagram-v1.png"
+    }
+  }
+}

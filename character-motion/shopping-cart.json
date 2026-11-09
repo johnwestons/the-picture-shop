@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "character": "shopping-cart",
+  "animations": {
+    "roll_north": { "path": "assets/generated/grocery-cart-v1/roll_north.png", "frame_width": 128, "frame_height": 128, "frame_count": 4, "role": "prop_motion", "loop": true, "fps": 6 },
+    "idle_north": { "path": "assets/generated/grocery-cart-v1/idle_north.png", "frame_width": 128, "frame_height": 128, "frame_count": 1, "role": "prop_idle", "loop": true, "fps": 1 },
+    "roll_northeast": { "path": "assets/generated/grocery-cart-v1/roll_northeast.png", "frame_width": 128, "frame_height": 128, "frame_count": 4, "role": "prop_motion", "loop": true, "fps": 6 },
+    "idle_northeast": { "path": "assets/generated/grocery-cart-v1/idle_northeast.png", "frame_width": 128, "frame_height": 128, "frame_count": 1, "role": "prop_idle", "loop": true, "fps": 1 },
+    "roll_east": { "path": "assets/generated/grocery-cart-v1/roll_east.png", "frame_width": 128, "frame_height": 128, "frame_count": 4, "role": "prop_motion", "loop": true, "fps": 6 },
+    "idle_east": { "path": "assets/generated/grocery-cart-v1/idle_east.png", "frame_width": 128, "frame_height": 128, "frame_count": 1, "role": "prop_idle", "loop": true, "fps": 1 },
+    "roll_southeast": { "path": "assets/generated/grocery-cart-v1/roll_southeast.png", "frame_width": 128, "frame_height": 128, "frame_count": 4, "role": "prop_motion", "loop": true, "fps": 6 },
+    "idle_southeast": { "path": "assets/generated/grocery-cart-v1/idle_southeast.png", "frame_width": 128, "frame_height": 128, "frame_count": 1, "role": "prop_idle", "loop": true, "fps": 1 },
+    "roll_south": { "path": "assets/generated/grocery-cart-v1/roll_south.png", "frame_width": 128, "frame_height": 128, "frame_count": 4, "role": "prop_motion", "loop": true, "fps": 6 },
+    "idle_south": { "path": "assets/generated/grocery-cart-v1/idle_south.png", "frame_width": 128, "frame_height": 128, "frame_count": 1, "role": "prop_idle", "loop": true, "fps": 1 }
+  },
+  "directions": {
+    "north": { "walk_animation": "roll_north", "idle_animation": "idle_north", "mirror_x": false },
+    "northeast": { "walk_animation": "roll_northeast", "idle_animation": "idle_northeast", "mirror_x": false },
+    "east": { "walk_animation": "roll_east", "idle_animation": "idle_east", "mirror_x": false },
+    "southeast": { "walk_animation": "roll_southeast", "idle_animation": "idle_southeast", "mirror_x": false },
+    "south": { "walk_animation": "roll_south", "idle_animation": "idle_south", "mirror_x": false },
+    "southwest": { "walk_animation": "roll_southeast", "idle_animation": "idle_southeast", "mirror_x": true },
+    "west": { "walk_animation": "roll_east", "idle_animation": "idle_east", "mirror_x": true },
+    "northwest": { "walk_animation": "roll_northeast", "idle_animation": "idle_northeast", "mirror_x": true }
+  },
+  "prop_motion": {
+    "frame_advance": "collision_resolved_distance",
+    "pixels_per_frame": 5,
+    "wheel_pose_sequence": ["caster_a", "caster_b", "caster_c", "caster_d"],
+    "wheel_contact_anchor": { "x": 64, "y": 112 }
+  },
+  "audit": {
+    "alpha_threshold": 16,
+    "edge_margin": 1,
+    "detached_component_ratio": 0.08,
+    "baseline_tolerance": 3,
+    "center_tolerance": 12
+  }
+}

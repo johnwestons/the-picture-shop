@@ -97,7 +97,7 @@ function Component.install(Runtime)
         local valid, shapeError = Runtime.shape(value, label, Runtime.PLAYER_FIELDS,
             { "furColorway", "overallsColorway", "sceneId", "resting", "taskAction" })
         if not valid then return nil, shapeError end
-        if value.sceneId~=nil and not require("src.shop_rooms").IDS[value.sceneId] then
+        if value.sceneId~=nil and value.sceneId~='commute' and value.sceneId~='grocery' and not require("src.shop_rooms").IDS[value.sceneId] then
             return nil,label..".sceneId is invalid"
         end
         if value.resting~=nil and type(value.resting)~="boolean" then return nil,label..".resting is invalid" end
@@ -193,8 +193,11 @@ function Component.install(Runtime)
 
     function Runtime.normalizeHello(payload)
         local valid, shapeError = Runtime.shape(payload, "hello payload",
-            { "clientNonce", "name", "character" }, { "furColorway", "overallsColorway" })
+            { "clientNonce", "name", "character" }, { "furColorway", "overallsColorway", "residentToken" })
         if not valid then return nil, shapeError end
+        if payload.residentToken~=nil and not require("src.resident_credentials").valid(payload.residentToken) then
+            return nil,"Invalid resident identity."
+        end
         local clientNonce, fieldError = Runtime.token(payload.clientNonce, Runtime.MAX_TOKEN_BYTES, "hello.clientNonce")
         if not clientNonce then return nil, fieldError end
         local name
@@ -214,13 +217,14 @@ function Component.install(Runtime)
             "hello.overallsColorway")
         if not overallsColorway then return nil, fieldError end
         return { clientNonce = clientNonce, name = name, character = character,
-            furColorway = furColorway, overallsColorway = overallsColorway }
+            furColorway = furColorway, overallsColorway = overallsColorway,residentToken=payload.residentToken }
     end
 
     function Runtime.normalizeWelcome(payload)
         local valid, shapeError = Runtime.shape(payload, "welcome payload",
-            { "sessionId", "playerId", "serverTick", "players" })
+            { "sessionId", "playerId", "serverTick", "players" },{"residentId"})
         if not valid then return nil, shapeError end
+        if payload.residentId~=nil and not require("src.home_residents").validId(payload.residentId) then return nil,"Invalid assigned resident." end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "welcome.sessionId")
         if not sessionId then return nil, fieldError end
         local playerId
@@ -243,6 +247,7 @@ function Component.install(Runtime)
             playerId = playerId,
             serverTick = serverTick,
             players = players,
+            residentId = payload.residentId,
         }
     end
 

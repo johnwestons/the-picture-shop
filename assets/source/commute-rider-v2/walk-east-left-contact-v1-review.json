@@ -1,0 +1,36 @@
+{
+  "status": "pose_candidate_pending_sequence_review",
+  "runtimeIntegrated": false,
+  "completeCharacterSprite": true,
+  "source": "walk-east-left-contact-v1.png",
+  "prompt": "walk-east-left-contact-v1-prompt.txt",
+  "identityReference": "output/commute-rider-v2-review/idle-reference-east.png",
+  "singlePoseGuide": "output/commute-rider-pose-guide/east-left-contact-guide.png",
+  "sourceDimensionsPx": [
+    1230,
+    1278
+  ],
+  "alphaBoundsPx": [
+    17,
+    23,
+    1204,
+    1262
+  ],
+  "visibleHeightPx": 1239,
+  "visualFindings": [
+    "Complete full-body east-facing rider, with helmet, torso, both arms, both legs, and both boots in one painted sprite.",
+    "Visible near/right arm reaches forward toward screen-right; far/left hand trails backward toward screen-left and is partly hidden behind the torso.",
+    "Near/right leg trails backward toward screen-left with heel raised and toe lowered; far/left leg reaches forward toward screen-right, and its sole reads closest to ground contact.",
+    "Near/right thigh is visibly in front at the leg crossing; the forward far/left leg remains readable behind it.",
+    "Torso stays upright and the helmet, leather suit, and broad boots retain the long suit-up/v2 proportions and reference finish."
+  ],
+  "remaining": [
+    "Compare visible-height and ground registration with the right-contact-v3 candidate.",
+    "Review both contacts in the complete eight-phase animation and a native moving loop before accepting the walk."
+  ],
+  "pairComparison": "output/commute-rider-v2-review/east-contact-v1-v3-height-normalized.png",
+  "pairedCandidate": "assets/source/commute-rider-v2/walk-east-right-contact-v3.png",
+  "pairedCandidateVisibleHeightPx": 1247,
+  "comparisonVisibleHeightPx": 920,
+  "groundRegistrationNote": "Comparison crops align both full alpha bounds to one baseline. The source art has no ground line or shadow; apparent heel/toe contact is a static visual candidate, not verified planted-foot evidence."
+}

@@ -1,0 +1,13 @@
+Using the attached south-facing idle sprite solely as the cat's exact identity, outfit, pixel-art style and size reference, draw a transparent PNG sprite sheet of EXACTLY eight distinct full-body frames of that same cat walking straight toward the camera. Arrange four columns by two rows, equal cells, no dividers, labels, shadows, floor, border, or background. Preserve the small dark charcoal cat, identical two upright ears, golden eyes, olive scarf and knot on picture-right, brown work coat, diagonal strap, orange tool satchel on picture-right hip, belt, gloves, two dark boots and one tail curling on picture-left. Do not mirror the character; keep bag and tail on their original screen sides in every cell. Every frame must have exactly two ears, two arms, two legs, one tail. Keep leg connections anatomically clear. Camera is exactly frontal south, same scale, same outline, palette and pixel texture throughout.
+Read the following frame layouts literally from the VIEWER'S perspective (the cat is looking at us):
+TOP ROW LEFT TO RIGHT:
+1. CONTACT: picture-RIGHT boot is planted forward toward camera, picture-LEFT boot is behind the body. Picture-right knee/leg reaches forward and is clearly the forward leg.
+2. WEIGHT DOWN: picture-RIGHT boot stays planted near the ground; both knees bend and the torso sinks over that picture-right supporting leg.
+3. PASSING: picture-RIGHT boot remains the support on ground; picture-LEFT knee bends and its boot swings through under the body, visibly lifted.
+4. KNEE UP: picture-RIGHT boot remains the support on ground; picture-LEFT knee is high and picture-LEFT boot is clearly raised in front.
+BOTTOM ROW LEFT TO RIGHT:
+5. CONTACT: picture-LEFT boot is planted forward toward camera, picture-RIGHT boot is behind the body. This must visibly reverse which boot is forward compared with frame 1; picture-left sole and toe are forward, picture-right foot trails.
+6. WEIGHT DOWN: picture-LEFT boot stays planted near the ground; both knees bend and torso sinks over picture-left support.
+7. PASSING: picture-LEFT boot remains the support on ground; picture-RIGHT knee bends and its boot swings through under the body, visibly lifted.
+8. KNEE UP: picture-LEFT boot remains the support on ground; picture-RIGHT knee is high and picture-RIGHT boot is clearly raised in front.
+Keep each gait pose readable with distinctly changing leg and body motion; avoid still/duplicated poses. The contact boots in frames 1 and 5 MUST be on opposite picture sides, with opposite feet trailing. Preserve torso, head, shoulder, hand, strap, bag and tail identity; only natural walk joint motion and slight body bob change. No duplicated limbs, no extra ears, no extra tails, no missing limbs.

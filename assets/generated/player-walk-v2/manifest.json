@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "scope": "Only north canonical phase5; eight-frame cycle preserved; other seven cells exact.",
+  "source": "assets/source/animation-overhaul-luna-player-v1/pose-corrections-v1/north-canonical-05-trial-06-generated.png",
+  "source_sha256": "d8f4220f356bc5069ab10252b641d839f54e9023451dce2e487b03a89bc72c83",
+  "original_strip": "assets/generated/characters/rabbit-worker/walk_north.png",
+  "original_sha256": "feb7dedef4e77f5b1b28d5143d641b99d3a90500abaa5b9827989e96af76927b",
+  "runtime_path": "assets/generated/player-walk-v2/walk_north.png",
+  "runtime_sha256": "244171ab60f25e618891511062f94add0c8a83851b734b4593330a634c071f8c",
+  "review": "Root checked full contact cycle and game-scale comparison; pose5 now uses opposite sole and arm from pose1.",
+  "remaining": "Other canonical scale/residue concerns and all sixteen-frame transitions remain under review. This is not full gait acceptance."
+}

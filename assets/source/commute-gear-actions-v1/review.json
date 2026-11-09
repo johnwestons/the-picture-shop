@@ -1,0 +1,31 @@
+{
+  "status": "staged_unapproved",
+  "generator": "built-in imagegen",
+  "sources": {
+    "equip-suit-source-v1.png": "Initial eight-pose dressing and zipper sheet; preserved unchanged.",
+    "equip-suit-alpha-v2.png": "Selected dressing candidate. Composite over solid blue-gray confirms transparent empty space. Brown preview haze is RGB beneath alpha, not an opaque backdrop.",
+    "gloves-helmet-source-v1.png": "Selected glove and helmet candidate. Full-face helmet closes over ears; no fur remains in final equipped pose. Gloves sequence does not show boot fastening."
+  },
+  "packingReview": {
+    "compiler": "tools/commute_lab/compile_gear_actions.py",
+    "scope": "Four southeast strips, four frames each, review staging only; no runtime changes.",
+    "checks": "Source dimensions, transparent alpha, unclipped source boundaries, destination margins and provenance hashes pass for 16 frames.",
+    "cropCorrections": "Helmet sheet row boundary is y=495 to preserve lifted helmet. Lower first/second cells split at x=392 to retain held helmet with its owner and exclude a neighboring sliver.",
+    "scale": "One uniform 0.45 source scale. Contact baseline is independent of ear/helmet height; no per-frame silhouette stretching."
+  },
+  "visualFindings": [
+    "Suit-on progression reads as holding garment, stepping in, pulling trousers up, then pulling sleeves onto shoulders.",
+    "Zip-up progression visibly closes the front from waist to throat, with no exposed body.",
+    "Glove and helmet actions are distinct; final closed helmet and broad boots match the intended shared riding appearance.",
+    "Source figures shift horizontally between poses. Suit-on frames one and two use manually inspected planted-shoe centers because the held suit reaches lower than the rabbit's shoes; all other frames use the lowest 16-pixel alpha band. Each planted contact registers to (128, 238).",
+    "The native LÖVE review shows Ginger fur with Blue overalls and Silver fur with Gold overalls across all sixteen frames. Brown leather and the olive helmet stay unchanged; the final two helmet frames have no exposed-fur or overalls masks.",
+    "Action strips normalize to 214–219 visible source pixels for comparison with normal idle. The raw geared idle is 198 pixels, about 77% of the 256-pixel reference; shoulder, hip and boot fit is presented in the native review.",
+    "Native single-pose review: output/commute-gear-actions-review/native-review.png. Full native 16-frame colorway grid: output/commute-gear-actions-review/native-colorway-grid.png. Pixel checks: output/commute-gear-actions-review/native-colorway-grid-checks.txt."
+  ],
+  "remaining": [
+    "Other camera-relative facings or a deliberate turn-to-dress presentation",
+    "Explicit gear removal continuity including glove removal; reverse playback alone is not approved",
+    "Boot fastening, mount, ignition and dismount art",
+    "Runtime, save and multiplayer integration validation if this staged art is later integrated"
+  ]
+}

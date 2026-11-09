@@ -89,13 +89,14 @@ function Test.run(_, check)
         local stored = fresh()
         local kit = delivered(stored)
         shelf(stored,kit)
-        local original = Schema.copy(stored)
-        local okay, reason = finish(stored,kind)
-        check("storage_consumption_"..kind.."_rejects_rack_kit_without_service_or_stock_change",
-            not okay and type(reason)=="string" and reason:find("Retrieve",1,true)
-            and same(stored,original) and kit.remainingQuantity == nil and Storage.validate(stored))
-        check("storage_consumption_"..kind.."_repeated_denial_stays_atomic",
-            not finish(stored,kind) and same(stored,original))
+        local okay = finish(stored,kind)
+        local service=machine(stored,kind)
+        check("storage_consumption_"..kind.."_uses_accessible_rack_kit_once",
+            okay and service.maintenance.serviceCount==1 and kit.remainingQuantity==0
+            and kit.location=="none" and stored.inventory.stock.maintenance_kit==0 and Storage.validate(stored))
+        local after=Schema.copy(stored)
+        check("storage_consumption_"..kind.."_repeated_service_cannot_reuse_rack_kit",
+            not finish(stored,kind) and same(stored,after))
     end
 
     for _, location in ipairs({"stacked","on_forklift","on_pallet_jack"}) do
@@ -126,7 +127,9 @@ function Test.run(_, check)
 
     local mixed = fresh()
     local blocked, accessible = delivered(mixed), delivered(mixed)
-    shelf(mixed,blocked)
+    local support=delivered(mixed,3,1)
+    blocked.location,blocked.storage,blocked.world="stacked",{supportPalletId=support.id,level=2},Schema.copy(support.world)
+    assert(PalletState.validate(mixed))
     local mixedBefore = Schema.copy(mixed)
     check("storage_consumption_mixed_accessibility_cannot_bypass_physical_reservation",
         not Procurement.consumePhysicalProduct(mixed,"maintenance_kit",2,{allowAbstract=true})
@@ -134,9 +137,9 @@ function Test.run(_, check)
     check("storage_consumption_mixed_accessibility_uses_only_floor_allocation",
         finish(mixed) and mixed.inventory.stock.maintenance_kit == 1
         and accessible.location == "none" and accessible.remainingQuantity == 0
-        and blocked.location == "rack" and blocked.remainingQuantity == nil and PalletState.validate(mixed))
+        and blocked.location == "stacked" and blocked.remainingQuantity == nil and PalletState.validate(mixed))
     local mixedAfter = Schema.copy(mixed)
-    check("storage_consumption_duplicate_completion_cannot_consume_remaining_shelf_kit",
+    check("storage_consumption_duplicate_completion_cannot_consume_remaining_stacked_kit",
         not finish(mixed) and same(mixed,mixedAfter))
 
     for _, kind in ipairs({"skid_wrapper","polar_115"}) do
@@ -153,12 +156,17 @@ function Test.run(_, check)
     local stored = delivered(combined)
     shelf(combined,stored)
     combined.inventory.stock.maintenance_kit = 2
-    check("storage_consumption_real_abstract_remainder_does_not_touch_shelved_kit",
+    check("storage_consumption_maintenance_uses_shelf_kit_before_abstract_remainder",
         finish(combined) and combined.inventory.stock.maintenance_kit == 1
-        and stored.location == "rack" and stored.remainingQuantity == nil and PalletState.validate(combined))
+        and stored.location == "none" and stored.remainingQuantity == 0
+        and machine(combined).maintenance.serviceCount==1 and PalletState.validate(combined))
     local combinedAfter = Schema.copy(combined)
+    check("storage_consumption_real_abstract_remainder_is_usable_once",
+        finish(combined) and combined.inventory.stock.maintenance_kit==0
+        and machine(combined).maintenance.serviceCount==2 and PalletState.validate(combined))
+    local combinedEmpty = Schema.copy(combined)
     check("storage_consumption_abstract_remainder_is_not_invented_on_retry",
-        not finish(combined) and same(combined,combinedAfter))
+        not finish(combined) and same(combined,combinedEmpty) and not same(combined,combinedAfter))
     local inbound = fresh()
     inbound.inventory.stock.maintenance_kit = 1
     assert(Procurement.buy(inbound,4,1))
@@ -175,6 +183,7 @@ function Test.run(_, check)
 
     local inkState = fresh()
     local inkPallet = delivered(inkState,2,1)
+    shelf(inkState,inkPallet)
     local inkJob = { id="STOCK-INK-TEST", press={colors=1,colorSequence={"Black"}} }
     inkState.jobs.active = { inkJob }
     local inkProcess = Windmill.ensure(inkState)
@@ -186,9 +195,9 @@ function Test.run(_, check)
     inkUsed = inkCallOkay and inkUsed
     check("stock_consumption_windmill_ink_setup_decrements_its_physical_skid",
         inkUsed and inkState.inventory.stock.black_ink == 139
-        and inkPallet.remainingQuantity == 139 and inkPallet.location == "warehouse"
+        and inkPallet.remainingQuantity == 139 and inkPallet.location == "rack"
         and PalletState.validate(inkState))
-    local lastInkUsed = Procurement.consumeStockProduct(inkState,"black_ink",139)
+    local lastInkUsed = Procurement.consumeStockProduct(inkState,"black_ink",139,{autoShelf=true})
     check("stock_consumption_empty_ink_skid_despawns_after_final_unit",
         lastInkUsed and inkState.inventory.stock.black_ink == 0
         and inkPallet.remainingQuantity == 0 and inkPallet.location == "none"
@@ -242,6 +251,7 @@ function Test.run(_, check)
 
     local plateState = fresh()
     local plateKit = delivered(plateState,2,5)
+    shelf(plateState,plateKit)
     local allPlateKitsUsed, plateFailure = true, nil
     for index = 1,10 do
         local job = { id="STOCK-PLATE-"..index, press={colors=1,colorSequence={"Black"}} }

@@ -1,6 +1,8 @@
+#Requires -Version 7.0
 param(
     [Parameter(Mandatory=$true)][string]$PackagePath,
     [switch]$Install,
+    [switch]$ReuseVerifiedNativeCryptoArtifacts,
     [string]$DeviceSerial,
     [switch]$EngineeringNativeCryptoProbe,
     [switch]$EngineeringDirectTransportProbe,
@@ -315,13 +317,17 @@ if (@($requiredAndroidTools | Where-Object { -not (Test-Path -LiteralPath $_ -Pa
 }
 
 $nativeCryptoNdkPath = Join-Path $androidRoot 'ndk\25.2.9519653'
-$nativeCryptoBuildScript = Join-Path $PSScriptRoot 'build_native_crypto_android.ps1'
-if (-not (Test-Path -LiteralPath $nativeCryptoBuildScript -PathType Leaf)) {
-    throw "Android native crypto build script is missing: $nativeCryptoBuildScript"
+if (-not $ReuseVerifiedNativeCryptoArtifacts) {
+    $nativeCryptoBuildScript = Join-Path $PSScriptRoot 'build_native_crypto_android.ps1'
+    if (-not (Test-Path -LiteralPath $nativeCryptoBuildScript -PathType Leaf)) {
+        throw "Android native crypto build script is missing: $nativeCryptoBuildScript"
+    }
+    Write-Output 'Building the non-production Android native crypto candidate...'
+    & $nativeCryptoBuildScript -NdkPath $nativeCryptoNdkPath
+    if (-not $?) { throw 'Android native crypto candidate build failed.' }
+} else {
+    Write-Output 'Reusing previously built Android native crypto artifacts after report and hash verification...'
 }
-Write-Output 'Building the non-production Android native crypto candidate...'
-& $nativeCryptoBuildScript -NdkPath $nativeCryptoNdkPath
-if (-not $?) { throw 'Android native crypto candidate build failed.' }
 
 $nativeCryptoReportPath = Join-Path $projectRoot 'output\native-crypto\build\android\native_crypto_android_report.json'
 if (-not (Test-Path -LiteralPath $nativeCryptoReportPath -PathType Leaf)) {
@@ -337,6 +343,22 @@ if ($nativeCryptoReport.status -cne 'engineering-candidate-non-production' -or
         $nativeCryptoReport.productionReady -ne $false -or
         [int]$nativeCryptoReport.abiVersion -ne 3) {
     throw 'Android native crypto report must remain a non-production engineering candidate.'
+}
+$nativeCryptoInputs = [ordered]@{
+    providerSourceSha256 = (Join-Path $projectRoot 'native\crypto\src\tps_crypto.c')
+    dependencyManifestSha256 = (Join-Path $projectRoot 'native\crypto\dependencies.json')
+    noiseCPatchSha256 = (Join-Path $projectRoot 'native\crypto\patches\noise-c-rev32-tps.patch')
+    buildScriptSha256 = (Join-Path $PSScriptRoot 'build_native_crypto_android.ps1')
+}
+foreach ($inputName in $nativeCryptoInputs.Keys) {
+    $inputPath = [string]$nativeCryptoInputs[$inputName]
+    if (-not (Test-Path -LiteralPath $inputPath -PathType Leaf)) {
+        throw "Android native crypto input is missing: $inputPath"
+    }
+    $inputHash = Get-LowerSha256 -Path $inputPath
+    if ($inputHash -cne ([string]$nativeCryptoReport.inputs.$inputName).ToLowerInvariant()) {
+        throw "Android native crypto report is stale for input $inputName."
+    }
 }
 foreach ($checkName in @('cleanPinnedSourcePreparation','allRequiredAbisBuilt','elf16KiBLoadAlignment','hiddenDependencySymbols','exactAbiExportSurface','bindNow')) {
     if ($nativeCryptoReport.checks.$checkName -cne 'pass') {
@@ -655,6 +677,12 @@ if ($gameActivity -notmatch 'PICTURE_SHOP_GAME_CACHE') {
 '@
     $gameActivity = $gameActivity.Replace('    private void copyGameInsideArchive() {',$replacement.TrimEnd())
 }
+# First launch can be interrupted while the runtime extracts game.love.
+# Reuse only a complete copy of this build's embedded payload.
+$payloadBytes = (Get-Item -LiteralPath $resolvedPackage).Length
+$cacheLengthCheck = 'cachedGame\.length\(\) (?:> 0|== [0-9]+L)'
+if ($gameActivity -notmatch $cacheLengthCheck) { throw 'Android cache length guard was not found.' }
+$gameActivity = $gameActivity -replace $cacheLengthCheck,("cachedGame.length() == " + $payloadBytes + 'L')
 if ($gameActivity -notmatch 'PICTURE_SHOP_STATIC_LIBCPP') {
     $gameActivity = $gameActivity.Replace('            "c++_shared",',
         '            // PICTURE_SHOP_STATIC_LIBCPP: linked into each native library.')
@@ -1144,11 +1172,15 @@ foreach ($library in $arm64Libraries) {
 }
 
 $adb = Join-Path $androidRoot 'platform-tools\adb.exe'
-$devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
-$authorizedDeviceSerials = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
+# Preparing an APK must not start ADB or contact attached devices. Device
+# discovery belongs to the explicitly requested installation path only.
+$devices = @()
+$authorizedDeviceSerials = @()
 $deviceLaunchVerified = $false
 $installedDeviceSerial = $null
 if ($Install) {
+    $devices = @(& $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
+    $authorizedDeviceSerials = @($devices | ForEach-Object { ($_ -split '\s+')[0] })
     if ($DeviceSerial) {
         if ($authorizedDeviceSerials -notcontains $DeviceSerial) {
             throw "Requested Android device '$DeviceSerial' is not authorized or connected."
@@ -1243,7 +1275,8 @@ $report = [ordered]@{
         buildReportSha256 = Get-LowerSha256 -Path $androidGatewayReportPath
         packagedArtifacts = $packagedAndroidGateway
     }
-    connectedAndroidDevices = $devices.Count
+    deviceDiscoveryPerformed = [bool]$Install
+    connectedAndroidDevices = if ($Install) { $devices.Count } else { $null }
     installedDeviceSerial = $installedDeviceSerial
     deviceLaunchVerified = $deviceLaunchVerified
 }
@@ -1257,6 +1290,7 @@ Write-Output "NATIVE_CRYPTO_PRODUCTION_READY=$($nativeCryptoReport.productionRea
 Write-Output 'ANDROID_GATEWAY_BRIDGE_PACKAGED=True'
 Write-Output 'ANDROID_GATEWAY_NETWORK_TRAFFIC_SENT=False'
 Write-Output "ANDROID_GATEWAY_PRODUCTION_READY=$($androidGatewayReport.productionReady)"
-Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)"
+if ($Install) { Write-Output "CONNECTED_ANDROID_DEVICES=$($devices.Count)" }
+else { Write-Output 'CONNECTED_ANDROID_DEVICES=NotQueried' }
 if ($installedDeviceSerial) { Write-Output "INSTALLED_DEVICE_SERIAL=$installedDeviceSerial" }
 Write-Output "DEVICE_LAUNCH_VERIFIED=$deviceLaunchVerified"

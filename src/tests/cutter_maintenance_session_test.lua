@@ -99,6 +99,7 @@ function Test.run(context, check)
             local arguments = {}
             if payload.itemIndex ~= nil then arguments.itemIndex = payload.itemIndex end
             if payload.enabled ~= nil then arguments.enabled = payload.enabled end
+            if payload.bladeGrade ~= nil then arguments.bladeGrade = payload.bladeGrade end
             return authority:command(worker, {
                 requestId = payload.commandId, resourceId = payload.resourceId,
                 leaseId = payload.leaseId, action = payload.action,
@@ -178,6 +179,21 @@ function Test.run(context, check)
         and viewResult.view.serviceStep == "lubricate"
         and viewResult.view.serviceView == 2
         and viewPayload and viewPayload.itemIndex == 2 and viewPayload.enabled == nil)
+
+    client:requestWorkshopCommand("cancel_service", {})
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    client:drainEvents()
+    state.money = 1000
+    local before = saves
+    network:duplicateNext("client_to_host", 1, 1, true)
+    local ordered = client:requestWorkshopCommand("order_blade_upgrade", {bladeGrade="premium_hss"})
+    host:update(0, hostContext)
+    client:update(0, clientContext)
+    local receipt = eventNamed(client:drainEvents(), "workshop_result")
+    check("guest_specialty_blade_order_debits_once_and_echoes_pending_grade",
+        ordered and receipt and receipt.accepted and receipt.view.orderedBladeGrade=="premium_hss"
+        and receipt.view.moneyCents==20500 and state.money==205 and saves==before+1)
 
     client:stop("test_complete")
     host:update(0, hostContext)

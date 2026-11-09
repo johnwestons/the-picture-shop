@@ -1,0 +1,94 @@
+{
+  "version": 3,
+  "status": "high_resolution_64_angle_truck",
+  "completeSheet": {
+    "file": "assets/source/delivery-truck-64/truck-complete.png",
+    "order": "row-major",
+    "frameWidth": 640,
+    "frameCount": 128,
+    "rows": 16,
+    "isometricFirstFrame": 65,
+    "columns": 8,
+    "sha256": "084fcefcb34dfccdb9fca00b59a89e8ed9256cce355a27b7eaf4c9ceed956188",
+    "frameHeight": 448,
+    "anchor": [
+      320,
+      320
+    ],
+    "chaseFirstFrame": 1
+  },
+  "sourceAssets": [
+    {
+      "file": "assets/commute/truck/elevated-panels.png",
+      "sha256": "208b4f8d2157692e4667d70843d452aa03f361d3999395b371e90e9f2581cc41"
+    }
+  ],
+  "angles": {
+    "direction": "clockwise",
+    "frameOne": "rear",
+    "stepDegrees": 5.625,
+    "mirroredAtRuntime": false
+  },
+  "pitchesDegrees": {
+    "chase": 8,
+    "isometric": 32
+  },
+  "views": [
+    {
+      "frameHeight": 384,
+      "uniqueFrameHashes": 64,
+      "kind": "chase",
+      "frameCount": 64,
+      "frameWidth": 640,
+      "pages": [
+        {
+          "file": "chase-64-1.png",
+          "sha256": "523ce4a8b31206daa6b4cb78f05a60c78225a8b8fe1f3652574a0219a0c34c23"
+        },
+        {
+          "file": "chase-64-2.png",
+          "sha256": "b190439d5ee2650da8c603933a5dfedfb75dbefb795a9054a66116012ade5c8d"
+        },
+        {
+          "file": "chase-64-3.png",
+          "sha256": "01d48fcd054054fb6583b7d5476c51e4a8ac373079bba5beb1fa22c5537f9269"
+        },
+        {
+          "file": "chase-64-4.png",
+          "sha256": "8dc0125ee7cc308a3146210449a5cdfcd49458247f89ee6b9dc6c1d973723460"
+        }
+      ]
+    },
+    {
+      "frameHeight": 384,
+      "uniqueFrameHashes": 64,
+      "kind": "isometric",
+      "frameCount": 64,
+      "frameWidth": 384,
+      "pages": [
+        {
+          "file": "isometric-64-1.png",
+          "sha256": "f40e4703c9731bbf46ba98296137bc6c1c1fc6f535beee152bd7dacd2d8afda1"
+        },
+        {
+          "file": "isometric-64-2.png",
+          "sha256": "8f3062de2fa12c5b694babb9b41a0e6860320acbc1915eb6b4e9fcd4d70faea6"
+        },
+        {
+          "file": "isometric-64-3.png",
+          "sha256": "e400dc28fb39bef59f6ea0b292080f7e669c20a78f6c42914758fe570aefccf1"
+        },
+        {
+          "file": "isometric-64-4.png",
+          "sha256": "d297c3f1099d1112bb49c2d7ad67f42f6d01d4c5cb2cb50039ed31c8f498c472"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "unclipped": true,
+    "allFramesUnique": true,
+    "logoBakedIntoSprites": false,
+    "nonempty": true
+  }
+}

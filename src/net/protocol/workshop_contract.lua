@@ -36,6 +36,9 @@ function Component.install(Runtime)
         },
         office_computer = {
             request_pickup = "jobId",
+            request_player_delivery = "jobId",
+            set_employee_delivery = "jobId",
+            set_player_delivery = "jobId",
             office_action = "officeIntent",
         },
         work_phone = {
@@ -93,6 +96,8 @@ function Component.install(Runtime)
             lift_blade = false,
             sleeve_blade = false,
             book_blade_technician = false,
+            install_spare_blade = false,
+            order_blade_upgrade = "bladeGrade",
             set_weekly_technician = "enabled",
         },
         windmill = {
@@ -165,6 +170,7 @@ function Component.install(Runtime)
         loading = true,
         loaded = true,
         positioning = true,
+        retracting = true,
         positioned = true,
         clamped = true,
         armed = true,

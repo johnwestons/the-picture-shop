@@ -2,6 +2,10 @@ local Config = require("src.config")
 local ImageContract = require("src.image_contract")
 local imageCache = require("src.texture_cache").new(32 * 1024 * 1024, 20)
 local incomingTextures
+local ImageLoader=require("src.image_loader")
+local pendingPack,pendingTextures
+local apartmentImages,apartmentId,apartmentUsedAt={},nil,0
+local homeLaptop
 
 local Assets = {
     images = {},
@@ -9,6 +13,18 @@ local Assets = {
     quads = {},
     failures = {},
     activePack = nil,
+}
+
+-- Direction atlases are only needed when the matching machine is drawn. Check
+-- their file dimensions during startup, then upload the GPU texture on demand
+-- so the large 64-view sheets do not inflate the initial mobile texture set.
+local machineAtlases = {
+    polarDirections = {path=Config.paths.polarDirections, placement=Config.cutterPlacement,
+        quadPrefix="polarDirection", linear=true},
+    skidWrapper64Directions = {path=Config.paths.skidWrapper64Directions,
+        placement=Config.wrapperPlacement, quadPrefix="skidWrapper64Direction"},
+    windmillDirections = {path=Config.paths.windmillDirections,
+        placement=Config.windmillPlacement, quadPrefix="windmillDirection"},
 }
 
 local function recordFailure(path, reason)
@@ -125,9 +141,7 @@ function Assets.load()
         walkmask=require("src.shop_rooms").assets(Assets,"warehouse").getData("walkmask")
         Assets.data.walkmask=walkmask
     else walkmask=loadData("walkmask", Config.paths.walkmask) end
-    local polarDirections = loadImage("polarDirections", Config.paths.polarDirections, false)
     local skidWrapperDirections = loadImage("skidWrapperDirections", Config.paths.skidWrapperDirections, false)
-    local windmillDirections = loadImage("windmillDirections", Config.paths.windmillDirections, false)
     local regalFolderDirections = loadImage("regalFolderDirections", Config.paths.regalFolderDirections, false)
     if regalFolderDirections then
         local width, height = regalFolderDirections:getDimensions()
@@ -146,6 +160,8 @@ function Assets.load()
         end
     end
     local technicianNpcs = loadImage("technicianNpcs", Config.paths.technicianNpcs, false)
+    local woodenBladeSleeve = loadImage("woodenBladeSleeve", Config.paths.woodenBladeSleeve, false)
+    if woodenBladeSleeve then woodenBladeSleeve:setFilter("linear", "linear") end
     local loadingBayDoor = loadImage("loadingBayDoor", Config.paths.loadingBayDoor, false)
     local exterior = loadImage("loadingBayExterior", Config.paths.loadingBayExterior, false)
     if exterior and exterior:getWidth()>256 then
@@ -209,44 +225,26 @@ function Assets.load()
         end
     end
 
-    if polarDirections then
-        local size = Config.cutterPlacement.frameSize
-        local width, height = polarDirections:getDimensions()
-        local expectedWidth = size * Config.cutterPlacement.frameCount
-        if width ~= expectedWidth or height ~= size then
-            recordFailure(Config.paths.polarDirections, string.format(
-                "expected %dx%d cutter-direction strip, got %dx%d",
-                expectedWidth, size, width, height))
-        else
-            for frame = 1, Config.cutterPlacement.frameCount do
-                makeQuad("polarDirection" .. frame, polarDirections,
-                    (frame - 1) * size, 0, size, size)
-            end
-        end
+    for _, spec in pairs(machineAtlases) do
+        local placement=spec.placement
+        local columns=placement.frameColumns or placement.frameCount
+        local rows=math.ceil(placement.frameCount/columns)
+        validateExactPath(spec.path,columns*placement.frameSize,rows*placement.frameSize)
     end
     if skidWrapperDirections then
-        local size = Config.wrapperPlacement.frameSize
+        local size = 512
         local width, height = skidWrapperDirections:getDimensions()
-        if width ~= size * Config.wrapperPlacement.frameCount or height ~= size then
+        if width ~= size * 4 or height ~= size then
             recordFailure(Config.paths.skidWrapperDirections, "wrapper direction strip must be a 4x1 grid of 512px cells")
         else
-            for frame = 1, Config.wrapperPlacement.frameCount do
+            for frame = 1, 4 do
                 makeQuad("skidWrapperDirection" .. frame, skidWrapperDirections, (frame - 1) * size, 0, size, size)
             end
-        end
-    end
-    if windmillDirections then
-        local width, height = windmillDirections:getDimensions()
-        local cellWidth, cellHeight = Config.windmillPlacement.frameWidth,
-            Config.windmillPlacement.frameHeight
-        if width ~= cellWidth * 2 or height ~= cellHeight * 2 then
-            recordFailure(Config.paths.windmillDirections, "Windmill atlas must be a 2x2 grid of 768x512 cells")
-        else
-            for frame = 1, 4 do
-                local column, row = (frame - 1) % 2, math.floor((frame - 1) / 2)
-                makeQuad("windmillDirection" .. frame, windmillDirections,
-                    column * cellWidth, row * cellHeight, cellWidth, cellHeight)
-            end
+            makeQuad("wrapUpper", skidWrapperDirections,0,0,512,246)
+            makeQuad("wrapBase", skidWrapperDirections,0,337,512,175)
+            makeQuad("wrapMast", skidWrapperDirections,0,246,203,91)
+            makeQuad("wrapRoll", skidWrapperDirections,203,246,33,91)
+            makeQuad("wrapOuter", skidWrapperDirections,236,246,276,91)
         end
     end
     if technicianNpcs and hasExactDimensions(technicianNpcs, Config.paths.technicianNpcs, 2048, 1024) then
@@ -424,9 +422,12 @@ function Assets.load()
     validateExactPath(Config.paths.cutterBlade,
         Config.cutterGui.motionFrameWidth * Config.cutterGui.motionFrameCount,
         Config.cutterGui.motionFrameHeight)
+    validateExactPath(Config.paths.cutterClampDetail, 2172, 724)
+    validateExactPath(Config.paths.cutterBladeDetail, 2172, 724)
     validateExactPath(Config.paths.cutterMaintenanceOil, 512, 512)
     validateExactPath(Config.paths.cutterMaintenanceTools, 768, 512)
     validateExactPath(Config.paths.cutterMaintenanceScenes, 1024, 768)
+    validateExactPath(Config.paths.cutterBladeRemoval, 1536, 1024)
     validateExactPath(Config.paths.polarBackButton, 384, 128)
     validateExactPath(Config.paths.wrappedPalletStages, 1536, 512)
     validateExactPath(Config.paths.loadedPaperPallet, 256, 256)
@@ -446,8 +447,12 @@ local PACK_IMAGES = {
         "titleMenuInk", "titleMenuToolboxes", "titleMenuShelf", "titleMenuPalletAnimation",
         "titleMenuInkAnimation", "titleMenuToolboxAnimation", "titleMenuPalletFocus",
         "titleMenuInkFocus", "titleMenuToolboxFocus" },
-    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterClamp", "cutterBlade",
-        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes", "cutterGuiSteel" },
+    cutter = { "polarOperatorConsole", "cutterControlButtons", "cutterBlade",
+        "cutterClampDetail", "cutterBladeDetail",
+        "cutterMaintenanceOil", "cutterMaintenanceTools", "cutterMaintenanceScenes",
+        "cutterBladeRemoval", "cutterGuiSteel",
+        -- Keep the frequently reused motion strip newest in the bounded cache.
+        "cutterClamp" },
     wrapper = { "loadedPaperPallet", "wrapperMaintenanceAtlas" },
     press = { "pressProcessStages", "pressOperatorHandbook", "pressSetupInteractions" },
 }
@@ -462,6 +467,9 @@ end
 
 local function clearPackQuads(packName)
     if packName == "menu" or packName == "cutter" then
+        for _, name in ipairs({"cutterHead", "cutterFace", "cutterRearBed", "cutterLeftPost", "cutterRightPost"}) do
+            Assets.quads[name] = nil
+        end
         for frame = 1, Config.cutterGui.buttonFrameCount do
             Assets.quads["cutterControlButton" .. frame] = nil
         end
@@ -476,6 +484,7 @@ local function clearPackQuads(packName)
         end
         for frame = 1, 6 do Assets.quads["cutterMaintenanceTool" .. frame] = nil end
         for frame = 1, 4 do Assets.quads["cutterMaintenanceScene" .. frame] = nil end
+        for frame = 1, 6 do Assets.quads["cutterBladeRemoval" .. frame] = nil end
     end
     if packName == "wrapper" then
         for frame = 1, 4 do Assets.quads["wrapperMaintenance" .. frame] = nil end
@@ -496,6 +505,11 @@ local function loadCutterConsole()
     local console = loadImage("polarOperatorConsole", Config.paths.polarOperatorConsole, false)
     local buttons = loadImage("cutterControlButtons", Config.paths.cutterControlButtons, false)
     if not console or not buttons then return false end
+    makeQuad("cutterHead", console, 0, 0, 768, 188)
+    makeQuad("cutterFace", console, 212, 171, 344, 17)
+    makeQuad("cutterRearBed", console, 236, 241, 296, 24)
+    makeQuad("cutterLeftPost", console, 0, 188, 236, 48)
+    makeQuad("cutterRightPost", console, 532, 188, 236, 48)
     local buttonSize = Config.cutterGui.buttonFrameSize
     for frame = 1, Config.cutterGui.buttonFrameCount do
         makeQuad("cutterControlButton" .. frame, buttons, (frame - 1) * buttonSize, 0,
@@ -522,10 +536,26 @@ local function loadCutterPack()
     skin:setFilter("linear", "linear")
     local clamp = loadImage("cutterClamp", Config.paths.cutterClamp, false)
     local blade = loadImage("cutterBlade", Config.paths.cutterBlade, false)
+    local clampDetail = loadImage("cutterClampDetail", Config.paths.cutterClampDetail, false)
+    local bladeDetail = loadImage("cutterBladeDetail", Config.paths.cutterBladeDetail, false)
     local oil = loadImage("cutterMaintenanceOil", Config.paths.cutterMaintenanceOil, false)
     local tools = loadImage("cutterMaintenanceTools", Config.paths.cutterMaintenanceTools, false)
     local scenes = loadImage("cutterMaintenanceScenes", Config.paths.cutterMaintenanceScenes, false)
-    if not clamp or not blade or not oil or not tools or not scenes then return false end
+    local bladeRemoval = loadImage("cutterBladeRemoval", Config.paths.cutterBladeRemoval, false)
+    if not clamp or not blade or not clampDetail or not bladeDetail or not oil or not tools or not scenes
+        or not bladeRemoval
+    then
+        return false
+    end
+    if not hasExactDimensions(clampDetail, Config.paths.cutterClampDetail, 2172, 724)
+        or not hasExactDimensions(bladeDetail, Config.paths.cutterBladeDetail, 2172, 724)
+    then
+        return false
+    end
+    clampDetail:setFilter("linear", "linear")
+    bladeDetail:setFilter("linear", "linear")
+    if not hasExactDimensions(bladeRemoval, Config.paths.cutterBladeRemoval, 1536, 1024) then return false end
+    bladeRemoval:setFilter("linear", "linear")
     for frame = 1, Config.cutterGui.motionFrameCount do
         local x = (frame - 1) * Config.cutterGui.motionFrameWidth
         makeQuad("cutterClamp" .. frame, clamp, x, 0,
@@ -554,6 +584,13 @@ local function loadCutterPack()
             makeQuad("cutterMaintenanceScene" .. frame, scenes,
                 (column - 1) * sceneWidth, (row - 1) * sceneHeight,
                 sceneWidth, sceneHeight)
+        end
+    end
+    for row = 1, 2 do
+        for column = 1, 3 do
+            local frame = (row - 1) * 3 + column
+            makeQuad("cutterBladeRemoval" .. frame, bladeRemoval,
+                (column - 1) * 512, (row - 1) * 512, 512, 512)
         end
     end
     return true
@@ -632,15 +669,58 @@ local function loadPressPack()
 end
 
 function Assets.activatePack(packName)
+    if pendingPack~=packName and pendingTextures then
+        local wanted={}
+        for _,name in ipairs(PACK_IMAGES[packName] or {}) do wanted[Config.paths[name]]=true end
+        for _,name in ipairs(PACK_IMAGES[pendingPack] or {}) do
+            if not wanted[Config.paths[name]] then ImageLoader.cancel(Config.paths[name]) end
+        end
+        for path,image in pairs(pendingTextures) do
+            local active=false
+            for name,current in pairs(Assets.images) do
+                if Config.paths[name]==path and current==image then active=true;break end
+            end
+            if not active then imageCache:put(path,image) end
+        end
+        pendingPack,pendingTextures=nil,nil
+    end
     if packName == Assets.activePack then return true end
     if packName ~= nil and not PACK_IMAGES[packName] then return false end
+    if ImageLoader.enabled and packName then
+        pendingPack,pendingTextures=packName,pendingTextures or {}
+        if Assets.activePack then
+            -- The loading panel uses core scenery. Retire the outgoing screen
+            -- before uploading a second large pack, keeping mobile peak memory
+            -- bounded by the existing inactive cache rather than two screens.
+            for _,name in ipairs(PACK_IMAGES[packName]) do
+                local path=Config.paths[name]
+                pendingTextures[path]=pendingTextures[path] or Assets.images[name]
+            end
+            incomingTextures=pendingTextures
+            unloadPack(Assets.activePack)
+            Assets.activePack,incomingTextures=nil,nil
+        end
+        local loading=false
+        for _,name in ipairs(PACK_IMAGES[packName]) do
+            local path=Config.paths[name]
+            if not pendingTextures[path] then
+                local image,reason=Assets.images[name] or imageCache:take(path)
+                if not image then image,reason=ImageLoader.load(path) end
+                if image then pendingTextures[path]=image
+                elseif reason=="pending" then loading=true
+                else recordFailure(path,reason);return false end
+            end
+        end
+        if loading then return nil,"loading" end
+    end
     -- Claim the next screen's textures before parking the outgoing screen.
     -- Otherwise a large outgoing menu can evict precisely the cached machine
     -- art that the caller is about to reuse.
-    incomingTextures = {}
+    incomingTextures = pendingTextures or {}
+    pendingPack,pendingTextures=nil,nil
     for _, name in ipairs(PACK_IMAGES[packName] or {}) do
         local path = Config.paths[name]
-        incomingTextures[path] = Assets.images[name] or imageCache:take(path)
+        incomingTextures[path] = incomingTextures[path] or Assets.images[name] or imageCache:take(path)
     end
     if Assets.activePack then unloadPack(Assets.activePack) end
     Assets.activePack = nil
@@ -655,19 +735,34 @@ function Assets.activatePack(packName)
     else
         loaded = loadPressPack()
     end
-    for path, image in pairs(incomingTextures) do imageCache:put(path, image) end
-    incomingTextures = nil
     if not loaded then
+        -- Keep prefetched assets that were not consumed by a failed loader;
+        -- loaded assets are released by unloadPack below.
+        for path,image in pairs(incomingTextures) do
+            local active=false
+            for name,current in pairs(Assets.images) do
+                if Config.paths[name]==path and current==image then active=true;break end
+            end
+            if not active then imageCache:put(path,image) end
+        end
+        incomingTextures=nil
         unloadPack(packName)
         return false
     end
+    -- These references are now owned by the active pack; caching them as well
+    -- would let eviction release a texture that the screen is still drawing.
+    incomingTextures=nil
     Assets.activePack = packName
     return true
 end
 
 function Assets.activePackName() return Assets.activePack end
-function Assets.pruneCache() imageCache:prune() end
-function Assets.clearCache() imageCache:clear() end
+function Assets.isLoading() return pendingPack~=nil end
+function Assets.pruneCache()
+    imageCache:prune()
+    if apartmentId and love.timer.getTime()-apartmentUsedAt>20 then Assets.releaseApartment() end
+end
+function Assets.clearCache() imageCache:clear();Assets.releaseApartment() end
 function Assets.cachedTextureBytes() return imageCache.bytes end
 
 function Assets.textureBytes()
@@ -679,7 +774,50 @@ function Assets.textureBytes()
     return bytes
 end
 
+local function loadMachineAtlas(name)
+    local spec=machineAtlases[name]
+    if not spec then return nil end
+    local image=Assets.images[name]
+    if image then return image end
+    local placement=spec.placement
+    local size=placement.frameSize
+    local columns=placement.frameColumns or placement.frameCount
+    local rows=math.ceil(placement.frameCount/columns)
+    image=loadImage(name,spec.path,false)
+    if not image then return nil end
+    local width,height=image:getDimensions()
+    if width~=columns*size or height~=rows*size then
+        recordFailure(spec.path,string.format("expected %dx%d machine turntable, got %dx%d",
+            columns*size,rows*size,width,height))
+        image:release()
+        Assets.images[name]=nil
+        return nil
+    end
+    if spec.linear then image:setFilter("linear","linear") end
+    for frame=1,placement.frameCount do
+        local column,row=(frame-1)%columns,math.floor((frame-1)/columns)
+        makeQuad(spec.quadPrefix..frame,image,column*size,row*size,size,size)
+    end
+    return image
+end
+
+local function ensureMachineQuad(name)
+    if Assets.quads[name] then return end
+    for imageName,spec in pairs(machineAtlases) do
+        if name:sub(1,#spec.quadPrefix)==spec.quadPrefix then
+            loadMachineAtlas(imageName)
+            return
+        end
+    end
+end
+
 function Assets.get(name)
+    -- The platen is a purchased optional station. Load its large world image
+    -- only when that machine is visible, keeping starter-shop textures lean.
+    if name == "chandlerPriceFrontLeft" and not Assets.images[name] then
+        return loadImage(name, Config.paths.chandlerPriceFrontLeft, false)
+    end
+    if machineAtlases[name] and not Assets.images[name] then return loadMachineAtlas(name) end
     return Assets.images[name]
 end
 
@@ -688,12 +826,51 @@ function Assets.getData(name)
 end
 
 function Assets.getQuad(name)
+    ensureMachineQuad(name)
     return Assets.quads[name]
 end
 
 function Assets.getArtwork(key)
     return Assets.images["artwork:" .. tostring(key or "flower")]
         or Assets.images["artwork:flower"]
+end
+
+function Assets.releaseApartment()
+    require("src.home_renderer").clearCache()
+    ImageLoader.cancel("assets/generated/home-furniture-v1/laptop-eight-directions.png")
+    if homeLaptop then homeLaptop:release();homeLaptop=nil end
+    for _,image in pairs(apartmentImages) do image:release() end
+    local entry=apartmentId and require("src.home_catalog").APARTMENTS[apartmentId]
+    if entry then ImageLoader.cancel(entry.floorPath);ImageLoader.cancel(entry.wallPath) end
+    apartmentImages,apartmentId={},nil
+end
+
+function Assets.getHomeLaptop()
+    if homeLaptop then return homeLaptop end
+    local path="assets/generated/home-furniture-v1/laptop-eight-directions.png"
+    local image,reason=ImageLoader.load(path)
+    if not image then return nil,reason end
+    if not hasExactDimensions(image,path,1536,1024) then image:release();return nil end
+    image:setFilter("nearest","nearest");homeLaptop=image
+    return image
+end
+
+-- Only the selected apartment's pair stays resident, including in setup.
+function Assets.getApartment(id)
+    local entry=require("src.home_catalog").APARTMENTS[id]
+    if not entry then return nil end
+    if apartmentId~=id then Assets.releaseApartment();apartmentId=id end
+    apartmentUsedAt=love.timer.getTime()
+    for _,layer in ipairs({"floor","wall"}) do
+        if not apartmentImages[layer] then
+            local image,reason=ImageLoader.load(entry[layer.."Path"])
+            if image then
+                if not hasExactDimensions(image,entry[layer.."Path"],1536,1024) then image:release();return nil end
+                image:setFilter("nearest","nearest");apartmentImages[layer]=image
+            elseif reason~="pending" then return nil,reason end
+        end
+    end
+    return apartmentImages
 end
 
 function Assets.assertHealthy()

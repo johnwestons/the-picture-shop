@@ -1,0 +1,218 @@
+{
+  "version": 2,
+  "status": "source_only_review_with_rejected_candidate",
+  "prompt": {
+    "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/prompt-west-k05-correction.txt",
+    "sha256": "5a9b012ce0c04b57cdc6fb4d11f2af6305bdcb9772137df049c972b70653fb33"
+  },
+  "generation_metadata": {
+    "tool": "image_gen.imagegen",
+    "result_keys": [
+      "image_url",
+      "output_hint"
+    ],
+    "output_hint": "Generated images are saved to C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07 as C:\\Users\\johnw\\.codex\\generated_images\\01a17bf6-4592-76b2-9ffc-934be2409a07\\exec-4847afcf-e4a3-435f-84a6-a75828e6417f.png by default. If you need to use a generated image at another path, copy it and leave the original in place unless the user explicitly asks you to delete it. The image is already displayed to the user.",
+    "generated_file": "C:/Users/johnw/.codex/generated_images/01a17bf6-4592-76b2-9ffc-934be2409a07/exec-4847afcf-e4a3-435f-84a6-a75828e6417f.png",
+    "generated_file_timestamp_utc": "2026-10-28T01:02:41.001Z",
+    "staged_copy": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/candidate_raw.png",
+    "staged_copy_sha256": "6267a4e9a6a61edec5907c47e57162200de347a4960cccca45e9c3c4b435f1ee",
+    "referenced_image_roles": [
+      {
+        "path": "references/walk_west_k05_source.png",
+        "role": "edit target, original authored K5"
+      },
+      {
+        "path": "references/walk_west_k01_source.png",
+        "role": "opposite contact role and identity reference"
+      },
+      {
+        "path": "references/walk_west_k04_source.png",
+        "role": "preceding phase, K4"
+      },
+      {
+        "path": "references/walk_west_k06_source.png",
+        "role": "following phase, K6"
+      },
+      {
+        "path": "references/west_k05_explicit_owner_map.png",
+        "role": "viewer-left/right and near/far owner labels"
+      }
+    ],
+    "prompt_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/prompt-west-k05-correction.txt",
+    "prompt_sha256": "5a9b012ce0c04b57cdc6fb4d11f2af6305bdcb9772137df049c972b70653fb33"
+  },
+  "original_source": {
+    "path": "assets/source/cat-worker-v1/locomotion/walk_west.png",
+    "sha256": "1e710f8328a2f05a4fefb8184e1fe3c3813ae81f51ea9d548d2f888a5cc3e8ce",
+    "size": [
+      4096,
+      512
+    ]
+  },
+  "source_cells": [
+    {
+      "phase": 1,
+      "role": "L contact",
+      "sha256": "aaf6cc655cfcca26928f49ffb4eda05a602d9e9fcdab4ed644e603ab706f8fe0"
+    },
+    {
+      "phase": 2,
+      "role": "L down",
+      "sha256": "c7d8f41ef4021f77d01122eb32913d5bc9ae18c38cf2b7c11028d5b92e4c45f3"
+    },
+    {
+      "phase": 3,
+      "role": "R passing",
+      "sha256": "0cbe4c67a489b6aff3d447ec59ea3befd2e386f78fd8220ca4fd1fdb89eb3b8f"
+    },
+    {
+      "phase": 4,
+      "role": "R knee-up",
+      "sha256": "b425bbf08e329d8f3c861accea9a263d7719b94b983a95fd5d0169bdbcc21023"
+    },
+    {
+      "phase": 5,
+      "role": "R contact",
+      "sha256": "8645aff3b7275455021e7ddc5a9c14e88e0c1ebb5186e236ec4054900ea7693b"
+    },
+    {
+      "phase": 6,
+      "role": "R down",
+      "sha256": "03727ddbcb8af9acaf5f54539c568f5fb82afe643d3ca1890da4f89a2ea9bbc5"
+    },
+    {
+      "phase": 7,
+      "role": "L passing",
+      "sha256": "40d23564b03ce5cc7ba92de84afb1ed0cda7472aa8321753f56f9d5b56243107"
+    },
+    {
+      "phase": 8,
+      "role": "L knee-up",
+      "sha256": "2011739023f6dd8f91f12053b987aa5b1447a3e91dd8a5279557b87ce1f56b70"
+    }
+  ],
+  "identity_source": {
+    "path": "assets/source/cat-worker-v1/locomotion/idle_west.png",
+    "sha256": "6a4577345d17a0a5592f2633c08ce636e9233d0ecc67e5e92c3d51694c8bcbfc"
+  },
+  "role_map": {
+    "west_facing": "character faces viewer-left; viewer-left is forward, viewer-right is trailing",
+    "K1": "near/left (green) planted toward viewer-left; far/right (blue) trails viewer-right",
+    "K4": "far/right (blue) raises knee; near/left (green) supports",
+    "K5_target": "far/right (blue) plants toward viewer-left; near/left (green) trails viewer-right, toe lifted",
+    "K6": "far/right (blue) remains support"
+  },
+  "reference_images": [
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/references/walk_west_k01_source.png",
+      "role": "K1 near/left contact reference",
+      "sha256": "aaf6cc655cfcca26928f49ffb4eda05a602d9e9fcdab4ed644e603ab706f8fe0"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/references/walk_west_k04_source.png",
+      "role": "K4 far/right knee-up transition",
+      "sha256": "b425bbf08e329d8f3c861accea9a263d7719b94b983a95fd5d0169bdbcc21023"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/references/walk_west_k05_source.png",
+      "role": "Original K5 target to correct",
+      "sha256": "8645aff3b7275455021e7ddc5a9c14e88e0c1ebb5186e236ec4054900ea7693b"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/references/walk_west_k06_source.png",
+      "role": "K6 far/right weight-down continuation",
+      "sha256": "03727ddbcb8af9acaf5f54539c568f5fb82afe643d3ca1890da4f89a2ea9bbc5"
+    },
+    {
+      "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/references/west_k05_explicit_owner_map.png",
+      "role": "Labeled viewer-left/right and near/far owner map",
+      "sha256": "54fe70f35dcd102a2bafade49a9e423cbfdfff4cb836b551cdb502e083f475c4"
+    }
+  ],
+  "review_outputs": {
+    "source_contact_checker": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/west-source-owner-contact-checker.png",
+    "runtime_anchors_256": [
+      [
+        121.75,
+        229.0
+      ],
+      [
+        118.0,
+        229.0
+      ],
+      [
+        117.5,
+        229.0
+      ],
+      [
+        121.0,
+        229.0
+      ],
+      [
+        115.0,
+        229.0
+      ],
+      [
+        116.0,
+        229.0
+      ],
+      [
+        116.75,
+        229.0
+      ],
+      [
+        119.0,
+        229.0
+      ]
+    ],
+    "fixed_scale_source512_to_64px": 0.16494845360824742,
+    "key_duration_nominal_ms": 180,
+    "key_duration_half_speed_ms": 360,
+    "full_cycle_64px_checker": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/west-k05-full-cycle-64px-checker.png",
+    "labeled_owner_checker": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/west-k05-labeled-owner-checker-contact.png",
+    "candidate_64px_nominal_gif": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/west-k05-candidate-64px-nominal.gif",
+    "candidate_64px_half_speed_gif": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/west-k05-candidate-64px-half-speed.gif"
+  },
+  "candidate": {
+    "path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/candidate_raw.png",
+    "sha256": "6267a4e9a6a61edec5907c47e57162200de347a4960cccca45e9c3c4b435f1ee",
+    "alpha_edge_audit": {
+      "size": [
+        1254,
+        1254
+      ],
+      "mode": "RGBA",
+      "alpha_extrema": [
+        255,
+        255
+      ],
+      "alpha16_bbox": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "transparent_pixels": 0,
+      "partial_alpha_pixels": 0,
+      "visible_edge_pixels_alpha16": 5016,
+      "magenta_edge_pixels_alpha16": 0
+    },
+    "review_transform": {
+      "uniform_scale_to_512_canvas": 0.4082934609250399,
+      "translation_xy": [
+        0,
+        0
+      ],
+      "method": "whole-output-canvas visual review only; opaque background retained"
+    },
+    "review_method": "uniform whole-canvas resize for rejected visual comparison; opaque background retained",
+    "review_only_path": "assets/source/animation-overhaul-luna-v1/cat-worker/west-k05-review-v2/review/candidate_k05_uniform512_visual_only.png",
+    "review_only_sha256": "64dd3250bd96efd3413ddc685060a1e9d41906195121498f167f6e5929c3f6db",
+    "alpha_exterior_valid": false,
+    "status": "rejected: opaque exterior; no valid sprite alpha",
+    "rejection_reasons": [
+      "No transparent exterior pixels; the generated checkerboard is baked into all pixels.",
+      "At 64px game size the intended far/right support boot is still lifted while the near/left olive-trouser boot remains planted toward viewer-left."
+    ]
+  }
+}

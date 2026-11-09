@@ -1,0 +1,57 @@
+{
+  "version": 3,
+  "generator": "built-in imagegen",
+  "baseArtPromptLogs": [
+    "assets/source/commute-bridge-concrete-v1/imagegen-prompts.json",
+    "assets/source/commute-bridge-concrete-v2/imagegen-prompts.json"
+  ],
+  "generations": [
+    {
+      "id": "exec-261460d9-419f-46b8-8d21-8f35e41a16ef",
+      "asset": "parapet-cap-top-imagegen-source.png",
+      "transparentBackground": false,
+      "prompt": "Create a seamless top-down 2D painted texture tile for the top surface of a wide cast-in-place concrete bridge parapet cap. It is a narrow rectangular strip viewed exactly from overhead, no perspective, uniform lighting. Warm cool-gray weathered concrete with fine subtle aggregate, two softly beveled long edges shown as narrow lighter highlights and darker edge shadows, broad flat top in the center. The strip continues seamlessly at left and right; no transverse joints, no text, no labels, no background, no side elevation, no road surface, no metal, no timber. Restrained detail and medium-low contrast so it reads as thick solid concrete when mapped to a thin world-space strip in a stylized painterly driving game. Square opaque texture canvas, fill the frame edge to edge with the cap surface.",
+      "sourceSha256": "e5121eb8e744f4d00ac9e92d7a20c5881760f79a089a362d49c3059aeb7d2bbf",
+      "runtime": "assets/commute/bridge/concrete-parapet-cap.png",
+      "runtimeSha256": "e1c41dbba9101eae4f86b471854ee4c58dfe204680232298169961df4c454770",
+      "packing": {
+        "sourceSize": [
+          1254,
+          1254
+        ],
+        "runtimeSize": [
+          512,
+          128
+        ]
+      }
+    },
+    {
+      "id": "exec-7bab455c-b647-48dd-a67c-e1da5bfb3d91",
+      "asset": "parapet-end-block-imagegen-source.png",
+      "transparentBackground": true,
+      "prompt": "A single isolated 2D painted game sprite on a transparent background: one stout concrete parapet END BLOCK for a modern rural road bridge, seen straight-on from the direction of travel. Upright rectangular end face, about 0.5m wide and 1.5m high in implied proportions. Solid reinforced-concrete mass, broad beveled coping cap, subtle vertical formwork seams, fine aggregate, softly shaded side edge that suggests finite thickness, a flat lower end aligned to meet a paved bridge deck. Cool warm-gray concrete matching a weathered modern bridge, detailed but restrained stylized painterly game art. Centered, clean crisp silhouette, no road, no other parapet, no horizontal crossbar, no ground, no background, no text, no labels, no thin rail or timber. The sprite is only this one end block and must not stretch across the road.",
+      "sourceSha256": "4d1c496c9300b4226e8f0077676b7478d669d211878b8f8bd811b572cffb99fc",
+      "runtime": "assets/commute/bridge/concrete-parapet-end-block.png",
+      "runtimeSha256": "9b1d436aa6d958784991988b27559d12f658658a519f01e1f3c99e73cee9b248",
+      "packing": {
+        "sourceSize": [
+          1024,
+          1536
+        ],
+        "sourceCrop": [
+          231,
+          88,
+          797,
+          1450
+        ],
+        "topCropPx": 0,
+        "runtimeSize": [
+          426,
+          1024
+        ],
+        "alphaThreshold": 8
+      }
+    }
+  ],
+  "notes": "v3 adds authored overhead parapet-cap texture strips and discrete corner end-block sprites. Existing v1 side elevation and full support/pier sprite remain the source art; v2 asphalt remains the road surface texture. The v2 broad full-width end-frame was visually rejected during native end-on review and is not used at runtime."
+}

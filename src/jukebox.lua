@@ -246,6 +246,38 @@ function Jukebox.mousepressed(state, x, y, button, readOnly)
     return { action = "radio_control", control = control }
 end
 
+-- Shared semantic controls let the truck cab operate the same radio as the
+-- warehouse computer, including the existing host-authoritative sync path.
+function Jukebox.control(control)
+    if control == "previous" then
+        local position = trackPosition()
+        if Jukebox.source and position > 3 then
+            pcall(Jukebox.source.seek, Jukebox.source, 0)
+            Jukebox.radioDirty = true
+        else
+            Jukebox.trackIndex = (Jukebox.trackIndex - 2) % #TRACKS + 1
+            startCurrentTrack()
+        end
+    elseif control == "play" then
+        playPause()
+    elseif control == "next" then
+        Jukebox.trackIndex = Jukebox.trackIndex % #TRACKS + 1
+        startCurrentTrack()
+    elseif control == "mute" then
+        Jukebox.muted = not Jukebox.muted
+        setVolume()
+        Jukebox.radioDirty = true
+    else
+        return false
+    end
+    return true
+end
+
+function Jukebox.displayState()
+    return {title=currentTrack().title,trackIndex=Jukebox.trackIndex,trackCount=#TRACKS,
+        active=Jukebox.active==true,paused=Jukebox.paused==true,muted=Jukebox.muted==true}
+end
+
 function Jukebox.update(keepPlaying, readOnly)
     if not keepPlaying then
         local wasPlaying = Jukebox.active and not Jukebox.paused

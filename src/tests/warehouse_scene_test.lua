@@ -1,3 +1,4 @@
+local PixelCanvas=require('src.tests.support.pixel_canvas')
 local Scene=require("src.warehouse_scene")
 local Config=require("src.config")
 local WarehouseRenderer=require("src.warehouse_renderer")
@@ -44,7 +45,7 @@ function Test.run(context,check)
         test("original_registered_base_retained",base and base:getWidth()==1536 and base:getHeight()==1024)
         test("new_architecture_is_loaded",architecture and architecture:getWidth()==1672 and architecture:getHeight()==941)
         if base and architecture and love.graphics and love.graphics.newCanvas then
-            local canvas=love.graphics.newCanvas(Config.baseWidth,Config.baseHeight)
+            local canvas=PixelCanvas(Config.baseWidth,Config.baseHeight)
             local previousCanvas=love.graphics.getCanvas()
             love.graphics.push("all")
             local function sample(withArchitecture)

@@ -1,0 +1,445 @@
+{
+  "version": 1,
+  "status": "staged review assets only; not installed",
+  "generator": "OpenAI built-in ImageGen",
+  "output_contract": {
+    "source_atlas_columns": 4,
+    "source_atlas_rows": 2,
+    "source_cell_order": "row-major, left-to-right",
+    "selected_source_cells": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "normalized_frame_width": 256,
+    "normalized_frame_height": 256,
+    "normalized_frame_count": 8,
+    "nominal_preview_fps": 4,
+    "nominal_preview_frame_duration_ms": 250,
+    "normalized_ground_anchor_y": 229
+  },
+  "entries": [
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_press",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v3-generated.png",
+      "selected_atlas_sha256": "A470303E30F7FE88F86A4E5B50A20FF9473E2A4BA3263D97F8BEA7792942BD99",
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_orient_to_press",
+        "reach_toward_feeder",
+        "contact_outer_feed_surface",
+        "align_on_supported_outer_edge",
+        "withdraw_toward_external_controls",
+        "brief_safe_control_hold",
+        "release_and_retract",
+        "recover_to_ready"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v1-generated.png",
+          "sha256": "FE9811AF03DCA8FDB4D05EC9083719A65554AC2F87948C0110862D790D618E56",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_press-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v2-generated.png",
+          "sha256": "5E813AEF1DAFEBBF01AA6908C788FC5F81CF35D7C2811184ECDE96AB668C338B",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_press-cleanup"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_press-v3-generated.png",
+          "sha256": "A470303E30F7FE88F86A4E5B50A20FF9473E2A4BA3263D97F8BEA7792942BD99",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_press-refinement"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/tinker-fox-worker-actions-v1.png",
+          "sha256": "C92E4F9BC5E6CB1DB07E11B8E46EAA88A47F3A7D30FEB88EB013BB7E9F26CD9A",
+          "role": "identity, costume, painterly sprite style; existing work_press row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/tinker-fox-worker.png",
+          "sha256": "C94276BBB1EBC00B6BC27CE45AFF5D6769B1CE5994EF8A178E3E32C5B987CF13",
+          "role": "approved character identity, body scale, planted-foot baseline"
+        },
+        {
+          "path": "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
+          "sha256": "F2E95E604B07E80CFE7AA50F8AF8A528AAE49F9A207A6D1FBDF2E879DA30AA0E",
+          "role": "equipment layout only; exterior supported feeder and controls; not included in sprite"
+        }
+      ]
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_wrapping",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v11-margin-cleanup-generated.png",
+      "selected_atlas_sha256": "90FA6D6DD20E6E112C942E7F582C5D90E2DAB8724D3799F850CF5719E5D60964",
+      "review_notes": [
+        "Selected v11 after correcting v1 body clipping: no connected alpha (>16, 8-connected) touches a cell edge. Cells 2, 4 and 8 each retain one detached pixel away from the border; these are tiny export residues, not limbs or ears.",
+        "All eight body silhouettes remain distinct; several late arm silhouettes are subtle and need runtime-scale review. Anatomy: two ears total in the skull (near ear visible, far ear occluded), 2 arms, 2 legs, 1 striped tail.",
+        "Equipment-safe action: contact only the exterior wrapper panel; worker stays outside the turntable and film path."
+      ],
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_face_wrapper_panel",
+        "reach_toward_exterior_panel",
+        "contact_exterior_control",
+        "press_single_external_control",
+        "hold_contact_and_monitor_cycle",
+        "release_and_retract_hand",
+        "stand_clear_and_observe",
+        "ready_with_hand_at_belt"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v1-generated.png",
+          "sha256": "17C54943934F380F52DFB882ACA7DBF622AF6E0E663AB27C7B317F6A66FEB985",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v2-generated.png",
+          "sha256": "B11B3A25D5D2FC1F0D3042AA44CC236BA7AF04538BA7D19FFC22BF30ECF5EB68",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-refinement"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v3-generated.png",
+          "sha256": "86BD682A6CCD8317467D8CB4FD170A759116236EA3C7BA9D3A1735D8616AF01C",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-cleanup"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v4-generated.png",
+          "sha256": "F944D62CC3AA361545CDC88AB618A872A92379D92B9ECE73BE9EF5D05134DB20",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-pixel-cleanup"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v5-generated.png",
+          "sha256": "2CC19C88941992B5562A0EDD04F89A0E7304EDCCD4889E135DE5C5FC96A89F5C",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-profile-head-cleanup"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v6-generated.png",
+          "sha256": "1C15A5A19BF571238EE7754A18E8409C7BDAE997F3EA9E0AC02F0F331C57FB52",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-regeneration"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v7-generated.png",
+          "sha256": "46D6BF4F263E1A4E2DF4FCDA47B7E113FED9A46518BBF8E8BD73D91692096D5A",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-pose-edit"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v8-generated.png",
+          "sha256": "CF7B2AAFF7006A0DD5AF3CC6517936747EC99C3E62B9B24F0CF7A2CE388B1EE3",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-margin-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v9a-rejected-wrong-subject.png",
+          "sha256": "8324A41E7941B9EA65C81FA8FA2BB31A7E168B30D7B2D94D3BFBB6F71C1DB948",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-margin-edit-attempts"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v9b-rejected-opaque-checker.png",
+          "sha256": "E6C59A643582A228361388E0AF3383FB9E81FFE7DF845122CF50CBD0C9BDC612",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-margin-edit-attempts"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v10-margin-corrected-generated.png",
+          "sha256": "0B866802120645C3FD79ADFFC2087B5D4F1AA9C89850DB9C5A104346A0E2CFCA",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-edge-repair"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_wrapping-v11-margin-cleanup-generated.png",
+          "sha256": "90FA6D6DD20E6E112C942E7F582C5D90E2DAB8724D3799F850CF5719E5D60964",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_wrapping-frame6-margin-refine"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/ferret-engineer-worker-actions-v1.png",
+          "sha256": "9F49D6AD8826339D09B981E60A5D653709C90C4D0DD2BD5203514518C0175B96",
+          "role": "identity, costume, painterly sprite style; existing work_wrapping row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/ferret-engineer-worker.png",
+          "sha256": "2539F52F3AD5E57A485BF13771ECCB10D9E68254B88D46022F730D74A8ACE850",
+          "role": "approved character identity, body scale, planted-foot baseline"
+        },
+        {
+          "path": "assets/generated/skid-wrapper-iso-transparent.png",
+          "sha256": "57C24F737E5FE2CF0AB8C85331F37FC464A84379AA414F096DA1409275714206",
+          "role": "equipment layout only; exterior control post and turntable context; not included in sprite"
+        }
+      ]
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_cutter",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v3-generated.png",
+      "selected_atlas_sha256": "AE2583B8AB481B2CA3809144A91BC541B32DF7F4A4748F83EC93651B6B326681",
+      "review_notes": [
+        "Selected v3 after editing the two late control poses. In frames 5\u20136 both hands visibly connect to arms and land at the same low waist-height plane; frames 7\u20138 remain release and recovery.",
+        "Connected alpha (>16, 8-connected) reports no edge pixels in any cell and one foreground component per pose. Visual anatomy review: exactly 2 fox ears, 2 arms, 2 legs and 1 tail per cell."
+      ],
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_at_cutter",
+        "reach_safe_feed_edge",
+        "contact_outer_feed_edge",
+        "align_clear_of_blade",
+        "withdraw_to_safety_controls",
+        "press_both_external_controls",
+        "release_and_retract",
+        "recover_to_ready"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v1-generated.png",
+          "sha256": "D6D65275E9D10FC037F2922C70B6B27BF0BEB69B5CE19804B30E016E8F2BF96E",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_cutter-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v2-rejected-opaque-checker.png",
+          "sha256": "1FB353094C148B6B75EAC0A90FEB5D06CA68FBF409374D784689CFCFB2466385",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_cutter-control-edit"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_cutter-v3-generated.png",
+          "sha256": "AE2583B8AB481B2CA3809144A91BC541B32DF7F4A4748F83EC93651B6B326681",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_cutter-control-edit"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/tinker-fox-worker-actions-v1.png",
+          "sha256": "C92E4F9BC5E6CB1DB07E11B8E46EAA88A47F3A7D30FEB88EB013BB7E9F26CD9A",
+          "role": "identity, outfit and painterly style; existing work_cutter row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/tinker-fox-worker.png",
+          "sha256": "C94276BBB1EBC00B6BC27CE45AFF5D6769B1CE5994EF8A178E3E32C5B987CF13",
+          "role": "approved identity, scale and planted-foot reference"
+        },
+        {
+          "path": "assets/generated/polar-cutter-directions-strip.png",
+          "sha256": "6C0774D206F2A39DF3DE212C8DF4A3C0D3392D2D0325FD13F9FBB294261FDF3D",
+          "role": "equipment layout only; safe outer feed edge and separated controls; not in sprite"
+        }
+      ]
+    },
+    {
+      "character": "tinker-fox-worker",
+      "action": "work_wrapping",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_wrapping-v1-generated.png",
+      "selected_atlas_sha256": "34503E7C325DDD96ABBD335AD00E7AACE117AD229BA1BC46AA52B3991BE33495",
+      "review_notes": [
+        "No obvious clipping or detached marks in the contact sheet.",
+        "Frames 3\u20134 and the final recovery pair are similar; review whether the distinction reads at runtime speed."
+      ],
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_at_wrapper",
+        "reach_exterior_panel",
+        "contact_external_control",
+        "press_control",
+        "hold_and_monitor",
+        "release_and_retract",
+        "stand_clear_observe",
+        "recover_to_ready"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/tinker-fox-worker-work_wrapping-v1-generated.png",
+          "sha256": "34503E7C325DDD96ABBD335AD00E7AACE117AD229BA1BC46AA52B3991BE33495",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#tinker-fox-work_wrapping-generation"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/tinker-fox-worker-actions-v1.png",
+          "sha256": "C92E4F9BC5E6CB1DB07E11B8E46EAA88A47F3A7D30FEB88EB013BB7E9F26CD9A",
+          "role": "identity, outfit and painterly style; existing work_wrapping row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/tinker-fox-worker.png",
+          "sha256": "C94276BBB1EBC00B6BC27CE45AFF5D6769B1CE5994EF8A178E3E32C5B987CF13",
+          "role": "approved identity, scale and planted-foot reference"
+        },
+        {
+          "path": "assets/generated/skid-wrapper-iso-transparent.png",
+          "sha256": "57C24F737E5FE2CF0AB8C85331F37FC464A84379AA414F096DA1409275714206",
+          "role": "equipment layout only; exterior control post/turntable context; not in sprite"
+        }
+      ]
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_cutter",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v3-refined-generated.png",
+      "selected_atlas_sha256": "6637D26D1071D8BC8EC358B1EE59E284E9AF2A229D05BD9EC50FB547D3FB0D60",
+      "review_notes": [
+        "Selected v3 after targeted corrections to frames 5\u20137. Connected alpha (>16, 8-connected) shows no body edge contacts in any cell and no hand-size detached components; frame 4 retains one isolated pixel away from the border.",
+        "Frame 6 has two distinct attached hands aligned at the same low control plane; frame 7 retracts both hands. Anatomy: two ears total (near visible, far occluded), 2 arms, 2 legs, 1 striped tail. Owner should judge hand-contact clarity in the contact sheet."
+      ],
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_at_cutter",
+        "reach_safe_feed_edge",
+        "contact_outer_feed_edge",
+        "align_clear_of_blade",
+        "withdraw_to_safety_controls",
+        "press_both_external_controls",
+        "release_and_retract",
+        "recover_to_ready"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v1-generated.png",
+          "sha256": "CD791E9FA7D48DCA93AAEC9C846B1DA2A99B122327383C717CAD5F6F2B1C99A5",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_cutter-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v2-refined-generated.png",
+          "sha256": "D1B8ACBD3F688461B4E169C6CF49D34896876C20CE65550FEB48AA9A4B3670D1",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_cutter-hand-and-tail-edit"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_cutter-v3-refined-generated.png",
+          "sha256": "6637D26D1071D8BC8EC358B1EE59E284E9AF2A229D05BD9EC50FB547D3FB0D60",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_cutter-hand-and-tail-cleanup"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/ferret-engineer-worker-actions-v1.png",
+          "sha256": "9F49D6AD8826339D09B981E60A5D653709C90C4D0DD2BD5203514518C0175B96",
+          "role": "identity, outfit and painterly style; existing work_cutter row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/ferret-engineer-worker.png",
+          "sha256": "2539F52F3AD5E57A485BF13771ECCB10D9E68254B88D46022F730D74A8ACE850",
+          "role": "approved identity, scale and planted-foot reference"
+        },
+        {
+          "path": "assets/generated/polar-cutter-directions-strip.png",
+          "sha256": "6C0774D206F2A39DF3DE212C8DF4A3C0D3392D2D0325FD13F9FBB294261FDF3D",
+          "role": "equipment layout only; safe outer feed edge and separated controls; not in sprite"
+        }
+      ]
+    },
+    {
+      "character": "ferret-engineer-worker",
+      "action": "work_press",
+      "selected_atlas": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_press-v2-refined-generated.png",
+      "selected_atlas_sha256": "4F5EE52CB95D2B31229D7B6FF0F77E6B522786B26ECCB84F62B76614870C8CB6",
+      "review_notes": [
+        "Selected v2 after repairing frame 3 tail margin and reconnecting both contact hands in frame 4. Connected alpha (>16, 8-connected) shows no edge contacts in any cell; frame 7 has one detached pixel away from the border.",
+        "The ferret remains left-facing with the near ear visible and far ear naturally occluded; visually reviewed 2 arms, 2 legs and one striped tail. Contact is at the safe outer feeder surface, clear of rollers and platen."
+      ],
+      "anchor_x_fraction": 0.55,
+      "frame_semantics": [
+        "ready_at_press",
+        "reach_safe_feeder",
+        "contact_outer_feed_surface",
+        "align_on_supported_edge",
+        "withdraw_to_external_controls",
+        "hold_safe_control",
+        "release_and_retract",
+        "recover_to_ready"
+      ],
+      "selected_source_cells": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "generation_history": [
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_press-v1-generated.png",
+          "sha256": "3F3BCBE4E3F0532A875F3B6F245ADB65BAED425CE0AD449540A5DABE4120F239",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_press-generation"
+        },
+        {
+          "path": "assets/source/animation-overhaul-luna-worker-actions-v1/ferret-engineer-worker-work_press-v2-refined-generated.png",
+          "sha256": "4F5EE52CB95D2B31229D7B6FF0F77E6B522786B26ECCB84F62B76614870C8CB6",
+          "prompt_record": "output/animation-overhaul/luna-worker-actions/generation-prompts.md#ferret-work_press-tail-and-contact-repair"
+        }
+      ],
+      "reference_images": [
+        {
+          "path": "assets/source/worker-actions-v1/ferret-engineer-worker-actions-v1.png",
+          "sha256": "9F49D6AD8826339D09B981E60A5D653709C90C4D0DD2BD5203514518C0175B96",
+          "role": "identity, outfit and painterly style; existing work_press row"
+        },
+        {
+          "path": "assets/source/employee-motion-v2/ferret-engineer-worker.png",
+          "sha256": "2539F52F3AD5E57A485BF13771ECCB10D9E68254B88D46022F730D74A8ACE850",
+          "role": "approved identity, scale and planted-foot reference"
+        },
+        {
+          "path": "assets/generated/heidelberg-windmill-directions-atlas-v1.png",
+          "sha256": "F2E95E604B07E80CFE7AA50F8AF8A528AAE49F9A207A6D1FBDF2E879DA30AA0E",
+          "role": "equipment layout only; safe feeder and external controls; not in sprite"
+        }
+      ]
+    }
+  ]
+}

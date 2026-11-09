@@ -132,25 +132,32 @@ function Component.install(Runtime)
         elseif Runtime.Screen.maintenanceView == "blade" then
             if Runtime.inside(Runtime.maintenanceBack, x, y) then
                 Runtime.Screen.maintenanceView, Runtime.Screen.bladeStage, Runtime.Screen.bladeBolts = "hub", nil, nil
+                Runtime.Screen.bladeBoltAnimations = nil
                 return { action = "maintenance_cancel" }
             end
             if Runtime.Screen.bladeStage == "bolts" then
                 for index, pos in ipairs(Runtime.bladeBoltPositions()) do
                     if not Runtime.Screen.bladeBolts[index] and (x - pos[1]) ^ 2 + (y - pos[2]) ^ 2 <= 24 ^ 2 then
                         Runtime.Screen.bladeBolts[index] = true
+                        Runtime.Screen.bladeBoltAnimations = Runtime.Screen.bladeBoltAnimations or {}
+                        Runtime.Screen.bladeBoltAnimations[index] = love.timer.getTime()
                         local allRemoved = true
-                        for bolt = 1, 4 do allRemoved = allRemoved and Runtime.Screen.bladeBolts[bolt] end
+                        for bolt = 1, 5 do allRemoved = allRemoved and Runtime.Screen.bladeBolts[bolt] end
                         if allRemoved then Runtime.Screen.bladeStage = "blade" end
                         return true
                     end
                 end
-            elseif Runtime.Screen.bladeStage == "blade" and x >= 304 and x <= 656 and y >= 280 and y <= 342 then
-                Runtime.Screen.bladeStage = "sleeve"
+            elseif Runtime.Screen.bladeStage == "blade" and x >= 230 and x <= 730 and y >= 385 and y <= 505 then
+                Runtime.Screen.bladeStage = "lifting"
+                Runtime.Screen.bladeLiftStarted = love.timer.getTime()
                 return true
-            elseif Runtime.Screen.bladeStage == "sleeve" and x >= 330 and x <= 630 and y >= 445 and y <= 505 then
+            elseif (Runtime.Screen.bladeStage == "lifting" or Runtime.Screen.bladeStage == "sleeve")
+                and x >= 290 and x <= 670 and y >= 380 and y <= 520
+            then
                 local completed, result = Runtime.MachineMaintenance.prepareBladeForTechnician(state)
                 if completed then
                     Runtime.Screen.maintenanceView, Runtime.Screen.bladeStage, Runtime.Screen.bladeBolts = "hub", nil, nil
+                    Runtime.Screen.bladeBoltAnimations = nil
                     state.message = "Dull cutter blade sleeved. Book Mara Mouse to exchange it for a fresh blade."
                     return { action = "blade_sleeved" }
                 end
@@ -160,6 +167,10 @@ function Component.install(Runtime)
         elseif Runtime.Screen.maintenanceView == "hub" then
             local _, cutter = Runtime.MachineMaintenance.cutterStatus(state)
             local stock = state.inventory and state.inventory.stock or {}
+            local upgradeGrade
+            for grade, rect in pairs(Runtime.bladeUpgradeButtons or {}) do
+                if Runtime.inside(rect, x, y) then upgradeGrade = grade; break end
+            end
             if Runtime.inside(Runtime.maintenanceBack, x, y) then
                 Runtime.Screen.maintenanceView = nil
                 return { action = "maintenance_close" }
@@ -171,8 +182,22 @@ function Component.install(Runtime)
                 return { action = "maintenance_minigame", game = "cutter_lubrication" }
             elseif Runtime.inside(Runtime.bladeServiceButton, x, y) and not cutter.bladeInSleeve then
                 Runtime.Screen.maintenanceView, Runtime.Screen.bladeStage = "blade", "bolts"
-                Runtime.Screen.bladeBolts = { false, false, false, false }
+                Runtime.Screen.bladeBolts = { false, false, false, false, false }
+                Runtime.Screen.bladeBoltAnimations = {}
                 return { action = "maintenance_minigame", game = "blade_removal" }
+            elseif Runtime.inside(Runtime.spareBladeButton, x, y) then
+                local installed, result = Runtime.MachineMaintenance.installSpareBlade(state)
+                state.message = installed
+                    and "Sharp spare blade installed. The dull blade remains sleeved for the courier."
+                    or tostring(result)
+                return installed and { action = "spare_blade_installed" } or true
+            elseif upgradeGrade then
+                local purchased, result = Runtime.MachineMaintenance.buyBladeUpgrade(state, upgradeGrade)
+                local profile = require("src.machine.cutter.blade_profiles").get(upgradeGrade)
+                state.message = purchased
+                    and (profile.name .. " ordered. Sleeve the current blade and book Mara; she will fit it at the exchange.")
+                    or tostring(result)
+                return purchased and { action = "blade_upgrade_ordered" } or true
             elseif Runtime.inside(Runtime.technicianButton, x, y) and cutter.bladeInSleeve and not cutter.nextTechnicianDay then
                 local booked, day = Runtime.MachineMaintenance.requestTechnician(state)
                 if booked then state.message = "Mara Mouse booked for a blade exchange on game day " .. tostring(day) .. "." end

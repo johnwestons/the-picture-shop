@@ -23,6 +23,7 @@ local function drawLabel(player)
 end
 
 local function drawPlayer(characterAssets,player,state)
+    if require('src.commute.presentation').indoor(player,state,characterAssets) then drawLabel(player);return end
     if require("src.basketball_renderer").draw(player,state) then
         drawLabel(player)
         return
@@ -43,8 +44,7 @@ local function drawPlayer(characterAssets,player,state)
     local directionScale = player.facing or 1
     local pushArtwork=false
     if player.moving and not resting then
-        local directionalAction,mirror=CharacterAnimation.directionalWalkAction(
-            player.velocityX or player.intentX,player.velocityY or player.intentY)
+        local directionalAction,mirror=CharacterAnimation.actorWalkAction(player)
         if characterAssets.hasAction(character, directionalAction) then action = directionalAction end
         directionScale = mirror
     end
@@ -90,6 +90,7 @@ local function drawPlayer(characterAssets,player,state)
             or (tonumber(highFive.partnerId) or 0) < (tonumber(player.id) or 0) and -1 or 1
     end
 
+    if characterAssets.resolveAction then action=characterAssets.resolveAction(character,action) end
     local image, _, frameCount = characterAssets.get(character, action, 1)
     frameCount = frameCount or 1
     local frame
@@ -98,7 +99,7 @@ local function drawPlayer(characterAssets,player,state)
             highFive.elapsed, highFive.duration)
     elseif pushingJack and pushArtwork then
         frame=CharacterAnimation.frameForPalletJackPush(frameCount,jack.moving,
-            player.animationDistance or 0,Config.player.walkPixelsPerFrame)
+            player.animationDistance or 0,Config.palletJack.gaitPixelsPerFrame or 20)
     elseif taskActionActive then
         frame = CharacterAnimation.frameForClock(frameCount, player.taskClock or 0, 4)
     else
@@ -127,6 +128,7 @@ local function drawPlayer(characterAssets,player,state)
     drawLabel(player)
 end
 
+Renderer.drawLabel=drawLabel
 function Renderer.draw(characterAssets,players,state)
     if type(players) ~= "table" then return end
     local ordered = {}

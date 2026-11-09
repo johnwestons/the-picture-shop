@@ -121,7 +121,7 @@ function Component.install(Runtime)
         return channelOrOptions or 0, reliable == true
     end
 
-    function Runtime.validateProvider(provider)
+    function Runtime.validateProvider(provider, allowEngineering)
         if type(provider) ~= "table" then
             return nil, "Direct Internet Play requires a cryptographic provider."
         end
@@ -133,7 +133,9 @@ function Component.install(Runtime)
         if type(provider.admissionToken) ~= "function" then
             return nil, "The cryptographic provider must implement admissionToken."
         end
-        if provider.productionReady ~= true then
+        local privateEngineeringProvider = allowEngineering == true
+            and provider.engineeringOnly == true and provider.candidateReady == true
+        if provider.productionReady ~= true and not privateEngineeringProvider then
             return nil, "Direct Internet Play requires a production cryptographic provider."
         end
         return provider

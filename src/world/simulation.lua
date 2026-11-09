@@ -2,9 +2,19 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local CustomerDemand = require("src.customer_demand")
+local JobFeedback = require("src.job_feedback")
+local Background = require("src.background_warehouse")
+local DeliveryDriver=require("src.warehouse_delivery_driver")
 
 function Component.install(Runtime)
+    local background=Background.new()
+    local frameMotionDt,frameWasClosed
+    function Runtime.World.doorForScene(scene)
+        if scene==nil or scene=="warehouse" then return Runtime.World.bayDoor end
+        return Runtime.World.roomDoors[scene]
+    end
     function Runtime.World.load(position)
+        background:reset();frameMotionDt,frameWasClosed=nil,nil
         local character = position and position.character or Runtime.Config.player.character
         local playerId = position and tonumber(position.id) or nil
         Runtime.World.player.id = playerId and playerId >= 1 and playerId <= 4
@@ -14,6 +24,7 @@ function Component.install(Runtime)
         Runtime.World.player.resting=false
         Runtime.World.player.sceneId=position and position.sceneId or "warehouse"
         Runtime.World.bayDoor:reset()
+        for _,door in pairs(Runtime.World.roomDoors) do door:reset() end
         Runtime.World.truck:reset()
         Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state))
         Runtime.World.vendor:reset(true)
@@ -30,10 +41,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.scheduleTruck(state)
+        if require("src.weekend_flow").shopClosed(state) then return false end
         if not state or Runtime.World.truck.state ~= "absent" then return false end
         local pickup = Runtime.JobService.nextPickup(state)
-        if pickup and Runtime.World.truck:schedule(pickup.id, "pickup") then
+        local pickupScene=pickup and require("src.room_loading_bays").pickupScene(state,pickup)
+        if pickup and Runtime.World.truck:schedule(pickup.id, "pickup", pickupScene) then
             Runtime.JobService.schedulePickup(pickup, os.time())
+            pickup.pickup.sceneId=pickupScene
             state.message = "Customer pickup scheduled for " .. pickup.id .. "."
             return true
         end
@@ -49,6 +63,7 @@ function Component.install(Runtime)
         end
         local purchase = Runtime.Procurement.nextInbound(state)
         if purchase then
+            if not require('src.commute.delivery_traffic').arrived(purchase) then return false end
             if Runtime.World.truck:schedule(purchase.id, "vendor_delivery") then
                 purchase.delivery.status = "scheduled"
                 state.message = "Vendor delivery scheduled for " .. purchase.id .. "."
@@ -63,6 +78,7 @@ function Component.install(Runtime)
             if (job.status == "awaiting_delivery" or job.status == "in_production")
                 and hasInboundPallets and deliveryStatus ~= "received"
                 and Runtime.JobService.deliveryReady(state, job)
+                and require('src.commute.delivery_traffic').arrived(job)
             then
                 if Runtime.World.truck:schedule(job.id, "delivery") then
                     job.delivery = job.delivery or {}
@@ -79,9 +95,16 @@ function Component.install(Runtime)
     end
 
     function Runtime.updateTruck(dt, motionDt, state)
-        local saveNeeded = Runtime.scheduleTruck(state)
+        local saveNeeded = require('src.player_delivery_loading').sync(state,Runtime.World.truck,Runtime.World.bayDoor)
+        saveNeeded = Runtime.scheduleTruck(state) or saveNeeded
         local truckJobId, truckMode = Runtime.World.truck.jobId, Runtime.World.truck.mode
-        local event = Runtime.World.truck:update(dt, Runtime.World.bayDoor.state, motionDt)
+        local door=Runtime.World.doorForScene(Runtime.World.truck.sceneId)
+        if not door then return saveNeeded end
+        local event = Runtime.World.truck:update(dt, door.state, motionDt)
+        if Runtime.World.truck.playerDelivery then
+            return require('src.player_delivery_loading').sync(state,Runtime.World.truck,door)
+                or event~=nil or saveNeeded
+        end
         if not event then return saveNeeded end
         local job = Runtime.activeJobById(state, truckJobId)
         local purchase = Runtime.Procurement.orderById(state, truckJobId)
@@ -90,7 +113,7 @@ function Component.install(Runtime)
         local replacementDelivery = job and job.delivery
             and job.delivery.kind == "replacement" and not pickup
         if event == "request_bay_open" then
-            if Runtime.World.bayDoor.state == "closed" then Runtime.World.bayDoor:open() end
+            if door.state == "closed" then door:open() end
             if state then
                 state.message = pickup and "Pickup truck arrived. Opening the loading bay..."
                     or (machineOrder and "Machine flatbed arrived. Opening the loading bay..."
@@ -119,14 +142,15 @@ function Component.install(Runtime)
                 machineOrder.delivery.status = "at_bay"
                 machineOrder.delivery.arrivedAt = os.time()
             end
+            if not pickup then DeliveryDriver.start(state,truckJobId,truckMode) end
             if state then
                 state.message = pickup
                     and "Pickup truck parked. Open its rear cargo door and load the wrapped pallets."
                     or (machineOrder
-                        and "Machine flatbed parked. Open its manifest and unload the machine."
+                        and "Machine flatbed parked. Its driver is coming inside for a delivery signature."
                         or (replacementDelivery
-                            and "Replacement skid parked at the bay. Open the truck and unload it."
-                            or "Truck parked. Open its rear cargo door to unload."))
+                            and "Replacement skid truck parked. The driver is coming inside for a signature; employees can unload while they wait."
+                            or "Delivery truck parked. The driver is coming inside for a signature; employees can unload while they wait."))
             end
             saveNeeded = true
         elseif event == "cargo_opened" then
@@ -139,17 +163,21 @@ function Component.install(Runtime)
             local received = (job and job.delivery and job.delivery.status == "received")
                 or (purchase and purchase.delivery and purchase.delivery.status == "received")
             local pickupLoaded = pickup and Runtime.JobService.remainingPickup(state, pickup.id) == 0
-            if (received or pickupLoaded) and Runtime.World.truck:depart() then
+            local visit=DeliveryDriver.matching(state,truckJobId)
+            local signedReady=not visit or visit.status=="signed" and visit.driverReturned
+            local unsignedReady=visit and visit.status=="missed" and visit.driverReturned
+            if ((received and signedReady) or pickupLoaded or unsignedReady) and Runtime.World.truck:depart() then
                 if pickup then Runtime.JobService.setPickupStatus(pickup, "departing") end
                 if state then state.message = pickup
                     and "Pickup cargo secured. The customer truck is departing."
-                    or "Cargo secured. The empty truck is departing." end
+                    or (unsignedReady and "The driver is leaving without the unsigned delivery."
+                        or "Cargo secured. The truck is departing." ) end
                 saveNeeded = pickup ~= nil or saveNeeded
             elseif state then
                 state.message = "Truck cargo door closed."
             end
         elseif event == "departed" then
-            if Runtime.World.bayDoor.state == "open" then Runtime.World.bayDoor:close() end
+            if door.state == "open" then door:close() end
             if pickup then
                 local completed, completedJob, payment = Runtime.JobService.completePickup(state, pickup.id, os.time())
                 if completed then
@@ -159,8 +187,19 @@ function Component.install(Runtime)
                 else
                     state.message = "Pickup truck left, but the job could not be archived."
                 end
-            elseif state then
-                state.message = "The truck left. Closing the loading bay door..."
+            else
+                local visit=DeliveryDriver.matching(state,truckJobId)
+                if visit and (visit.status=="signed" or visit.status=="missed") then
+                    local missed=visit.status=="missed"
+                    saveNeeded=DeliveryDriver.departed(state,truckJobId) or saveNeeded
+                    if missed and state then
+                        state.message="The unsigned delivery is being rescheduled. Shop reputation decreased by 2."
+                    elseif state then
+                        state.message="The signed delivery truck left. Closing the loading bay door..."
+                    end
+                elseif state then
+                    state.message = "The truck left. Closing the loading bay door..."
+                end
             end
         end
         return saveNeeded
@@ -174,22 +213,27 @@ function Component.install(Runtime)
 
     -- Host-owned events have their own clock so an open menu never freezes the
     -- loading bay, visitors, pallet unloading, or technician work for guests.
-    function Runtime.World.updateSimulation(dt, assets, state, motionDt)
+    local function simulate(dt, assets, state, motionDt)
+        if require("src.weekend_flow").shopClosed(state) then return false end
         motionDt = math.max(0, tonumber(motionDt) or dt)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
         local player = Runtime.World.player
+        for _,door in pairs(Runtime.World.roomDoors) do door:update(motionDt) end
         local doorEvent = Runtime.World.bayDoor:update(motionDt)
         if doorEvent == "opened" and state then
             state.message = "Loading bay door open. The parking lot is visible."
         elseif doorEvent == "closed" and state then
             state.message = "Loading bay door closed."
         end
-        local saveNeeded = Runtime.updateTruck(dt, motionDt, state)
+        local trafficChanged=require('src.commute.delivery_traffic').update(state,
+            state and state.home and state.home.town,Runtime.BusinessCalendar.absoluteHours(state),os.time())
+        local saveNeeded = Runtime.updateTruck(dt, motionDt, state) or trafficChanged
         Runtime.PalletLogistics.update(state, dt, Runtime.Config.palletLogistics.unloadDuration)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
-        local receptionClosed = Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
+        local receptionClosed = not require("src.weekend_flow").acceptsNewWork(state)
+            or Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
         local customerEvent = Runtime.World.customer:update(dt, player,
             receptionClosed or Runtime.World.vendor:isPresent(), motionDt, employeeContext)
@@ -229,9 +273,73 @@ function Component.install(Runtime)
             saveNeeded = true
         end
         employeeContext.motionScale = dt > 0 and motionDt / dt or 1
+        employeeContext.background = background.background
+        local driverChanged=DeliveryDriver.update(state,dt,employeeContext)
         local employeeChanged=Runtime.EmployeeAI.update(state,dt,employeeContext)
-        return saveNeeded or employeeChanged
+        local driverDeparted=DeliveryDriver.departIfReady(state,Runtime.World.truck)
+        local feedbackChanged=JobFeedback.sync(state)
+        local truck=Runtime.World.truck
+        if truck.mode=="pickup" and not truck.playerDelivery and Runtime.JobService.remainingPickup(state,truck.jobId)==0
+            and employeeContext.canLoadTruck() then
+            if truck.state=="cargo_open" then truck:toggleCargoDoor();saveNeeded=true
+            elseif truck.state=="parked_closed" and truck:depart() then
+                local job=Runtime.activeJobById(state,truck.jobId)
+                Runtime.JobService.setPickupStatus(job,"departing")
+                saveNeeded=true
+            end
+        end
+        local loadingChanged=require('src.player_delivery_loading').sync(state,truck,Runtime.World.bayDoor)
+        return saveNeeded or employeeChanged or feedbackChanged or driverChanged or driverDeparted or loadingChanged
     end
+
+    -- Called before advancing the authoritative calendar. Flush old-minute
+    -- logistics/payroll before a cutoff, and before a human observes the shop.
+    function Runtime.World.beginSimulationFrame(state,gameDt,motionDt,unattended,assets)
+        local Flow=require("src.weekend_flow")
+        local closed=Flow.shopClosed(state)
+        frameWasClosed=closed
+        local nextBackground=unattended and not closed and state.home.weekend.phase~="closing"
+        local gameLimit
+        if closed and Flow.isOuting(state) then
+            -- Reopen at the real boundary before spending any later clock
+            -- credit on an open shop; retain that credit for subsequent ticks.
+            gameLimit=math.max(0,Flow.returnAtHours(state.home.weekend)
+                -Runtime.BusinessCalendar.absoluteHours(state))*Runtime.BusinessCalendar.secondsPerDay(state)/24
+        end
+        gameDt,frameMotionDt=background:clock(state,gameDt,motionDt,nextBackground,gameLimit)
+        local changed=false
+        if closed then background.pendingGame,background.pendingMotion=0,0
+        elseif background.background and (not nextBackground or Background.crossesMinute(
+            Runtime.BusinessCalendar.absoluteHours(state),gameDt,Runtime.BusinessCalendar.secondsPerDay(state))) then
+            changed=background:flush(function(game,motion)return simulate(game,assets,state,motion) end)
+        end
+        if background.background~=nextBackground then
+            for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+                require("src.employee_work_presentation").reset(worker)
+            end
+        end
+        background.background=nextBackground
+        return gameDt,frameMotionDt,changed
+    end
+    function Runtime.World.updateSimulation(dt,assets,state,motionDt)
+        if background.state~=state then frameMotionDt,frameWasClosed=nil,nil end
+        background:ensure(state)
+        local acceptedMotion=frameMotionDt or motionDt or dt
+        local wasClosed=frameWasClosed
+        frameMotionDt,frameWasClosed=nil,nil
+        if wasClosed or require("src.weekend_flow").shopClosed(state) then
+            background.pendingGame,background.pendingMotion=0,0;return false
+        end
+        return background:advance(state,dt,acceptedMotion,function(game,motion)
+            return simulate(game,assets,state,motion)
+        end,state.home.weekend.phase=="closing")
+    end
+    function Runtime.World.updateClosedShopEmployees(state,firstAt,lastAt)
+        -- The application calls this only during host or solo simulation.
+        return Runtime.EmployeeAI.updateClosedShop(state,firstAt,lastAt)
+    end
+    function Runtime.World.hasBackgroundClockDebt() return background:hasDebt() end
+    function Runtime.World.backgroundSimulationStats() return background:stats() end
 end
 
 return Component

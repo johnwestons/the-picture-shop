@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.repairLegacyPhysicalOwnership(state)
+        if state.extraPalletJacks and #state.extraPalletJacks>0 then return end
         -- Legacy machine repair predates racks/stacks/forklifts. Never let it move
         -- newly-owned stock to a machine or floor based on a stale old claim.
         if state.forklift and state.forklift.carriedPalletId then return end
@@ -78,6 +79,9 @@ function Component.install(Runtime)
             return nil, "Invalid saved credit account."
         end
         local result = Runtime.Schema.defaultState()
+        result.home = Runtime.Home.normalize(source.home,
+            type(source.calendar)=="table" and source.calendar.totalDays or 0)
+        if not result.home then return nil,"Invalid household or apartment lease." end
         local warehouse, warehouseError = Runtime.WarehouseUpgrades.normalize(source.warehouse)
         if not warehouse then return nil, warehouseError end
         local stagingAreas, stagingError = Runtime.StagingAreas.normalize(source.stagingAreas)
@@ -127,6 +131,8 @@ function Component.install(Runtime)
             and source.accountsReceivable or result.accountsReceivable
         result.reputation = type(source.reputation) == "table"
             and Runtime.copy(source.reputation) or result.reputation
+        result.deliveryDriver = type(source.deliveryDriver)=="table"
+            and Runtime.copy(source.deliveryDriver) or result.deliveryDriver
         Runtime.Reputation.ensure(result)
         result.cutterMemory = type(source.cutterMemory) == "table"
             and Runtime.copy(source.cutterMemory) or result.cutterMemory
@@ -136,6 +142,7 @@ function Component.install(Runtime)
         result.procurement.nextOrderId = result.procurement.nextOrderId or 1
         result.procurement.shipments = type(result.procurement.shipments) == "table" and result.procurement.shipments or {}
         result.procurement.nextShipmentId = result.procurement.nextShipmentId or 1
+        result.groceryStore = require("src.commute.grocery_inventory").normalize(source.groceryStore)
         result.vendorCategory = source.vendorCategory ~= nil and source.vendorCategory or result.vendorCategory
         result.calendar = type(source.calendar) == "table" and Runtime.copy(source.calendar) or result.calendar
         result.bills = type(source.bills) == "table" and Runtime.copy(source.bills) or result.bills
@@ -172,15 +179,17 @@ function Component.install(Runtime)
             tonumber(result.workPhone.nextCallAtHours) or 6)
         result.workPhone.incoming = type(result.workPhone.incoming) == "table"
             and result.workPhone.incoming or nil
+        result.workPhone.deferredCalls = type(result.workPhone.deferredCalls) == "table"
+            and result.workPhone.deferredCalls or {}
         result.workPhone.history = type(result.workPhone.history) == "table"
             and result.workPhone.history or {}
         result.machines = type(source.machines) == "table"
             and Runtime.copy(source.machines) or result.machines
         Runtime.MachineFleet.ensure(result)
         Runtime.BusinessCalendar.ensure(result)
-        result.cutter = Runtime.mergePlacement(result.cutter, source.cutter)
-        result.wrapper = Runtime.mergePlacement(result.wrapper, source.wrapper)
-        result.windmill = Runtime.mergePlacement(result.windmill, source.windmill)
+        result.cutter = Runtime.mergePlacement(result.cutter, source.cutter, "cutter")
+        result.wrapper = Runtime.mergePlacement(result.wrapper, source.wrapper, "wrapper")
+        result.windmill = Runtime.mergePlacement(result.windmill, source.windmill, "windmill")
         if type(source.windmill) == "table" and source.windmill.tutorialComplete ~= nil then
             result.windmill.tutorialComplete = source.windmill.tutorialComplete == true
         end
@@ -190,13 +199,19 @@ function Component.install(Runtime)
         result.technicianVisit = type(source.technicianVisit) == "table"
             and Runtime.copy(source.technicianVisit) or nil
         result.palletJack = Runtime.mergePlacement(result.palletJack, source.palletJack)
+        result.extraPalletJacks=Runtime.copy(source.extraPalletJacks or {})
         if type(source.palletJack) == "table" then
+            result.palletJack.id=source.palletJack.id
             result.palletJack.operating = source.palletJack.operating == true
             result.palletJack.sceneId = source.palletJack.sceneId or "warehouse"
             result.palletJack.animationClock = source.palletJack.animationClock or 0
             result.palletJack.carriedPalletId = source.palletJack.carriedPalletId
         end
         if repairPhysical then Runtime.repairLegacyPhysicalOwnership(result) end
+        if not source.home or not source.home.finance then
+            result.home.finance=require("src.household_finances").new(require("src.business_calendar").absoluteHours(result))
+        end
+        require("src.home_shopping").ensure(result)
         return result
     end
 end

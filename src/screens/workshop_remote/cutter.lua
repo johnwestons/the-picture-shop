@@ -21,16 +21,43 @@ function Component.install(Runtime)
         local view = Runtime.Screen.view or {}
         local status = Runtime.cutterMaintenanceStatus(state)
         local step = tostring(view.serviceStep or "idle")
+        local BladeProfiles = require("src.machine.cutter.blade_profiles")
+        local installedGrade = BladeProfiles.get(status.bladeGrade) or BladeProfiles.get("standard")
+        local bladeState = status.bladeInSleeve and "SLEEVED"
+            or status.bladeRemoved and "REMOVED" or "INSTALLED"
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
-        love.graphics.printf(string.format("KITS %d  ·  BLADE %s  ·  COURIER %s",
+        love.graphics.printf(string.format("KITS %d  ·  SPARES %d%s  ·  %s %s  ·  COURIER %s",
             status.maintenanceKits,
-            status.bladeInSleeve and "SLEEVED" or status.bladeRemoved and "REMOVED" or "INSTALLED",
+            status.spareBlades,
+            status.spareBladeInstalled and " (INSTALLED)" or "",
+            installedGrade.shortName,
+            bladeState,
             status.technicianScheduled and "SCHEDULED" or "NOT SCHEDULED"),
             122, 156, 690, "left")
         Runtime.cutterBar(122, 180, 690, view.servicePermille, { 0.18, 0.58, 0.29 })
 
         if step == "idle" then
+            local pendingGrade = status.orderedBladeGrade ~= "none" and BladeProfiles.get(status.orderedBladeGrade)
+            love.graphics.setColor(0.32, 0.35, 0.36)
+            love.graphics.printf(pendingGrade
+                and ("SPECIALTY BLADE ORDERED: " .. pendingGrade.name .. " / SLEEVE + BOOK MARA")
+                or "SPECIALTY BLADES  ·  MARA FITS YOUR ORDER AT THE NEXT PREPARED BLADE EXCHANGE",
+                122, 438, 690, "center")
+            local function orderLabel(grade)
+                if pendingGrade then return "ORDERED: " .. pendingGrade.name end
+                local profile = BladeProfiles.get(grade)
+                local wearReduction = math.floor((1 - profile.wearMultiplier) * 100 + 0.5)
+                return string.format("%s  ·  $%d  ·  %d%% SLOWER WEAR  ·  %d%% EDGE QUALITY FLOOR",
+                    profile.shortName, profile.price, wearReduction,
+                    math.floor(profile.qualityFloor * 100 + 0.5))
+            end
+            local premiumLabel = orderLabel("premium_hss")
+            local carbideLabel = orderLabel("carbide_edge")
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.premiumBlade, premiumLabel, pointerX, pointerY,
+                not pendingGrade and Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "premium_hss"), false)
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.carbideBlade, carbideLabel, pointerX, pointerY,
+                not pendingGrade and Runtime.cutterServiceButtonEnabled("order_blade_upgrade", state, "carbide_edge"), false)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.lubrication, "LUBRICATION SERVICE", pointerX, pointerY,
                 Runtime.cutterServiceButtonEnabled("begin_lubrication", state), true)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.blade, "REMOVE + SLEEVE BLADE", pointerX, pointerY,
@@ -41,9 +68,9 @@ function Component.install(Runtime)
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.weekly,
                 status.weeklyTechnician and "CANCEL WEEKLY EXCHANGE" or "WEEKLY BLADE EXCHANGE",
                 pointerX, pointerY, Runtime.cutterServiceButtonEnabled("set_weekly_technician", state), true)
-            love.graphics.setColor(0.32, 0.35, 0.36)
-            love.graphics.printf("Lubrication consumes one delivered maintenance kit only after every point and the gearbox inspection pass. Blade removal becomes durable only when the blade reaches its wooden sleeve.",
-                142, 386, 650, "center")
+            Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.installSpare,
+                status.spareBladeInstalled and "SHARP SPARE INSTALLED" or "INSTALL PURCHASED SHARP SPARE",
+                pointerX, pointerY, Runtime.cutterServiceButtonEnabled("install_spare_blade", state), true)
         elseif step == "lockout_disconnect" or step == "lockout_key"
             or step == "lockout_tag" or step == "prep_cartridge" or step == "prep_prime"
         then
@@ -87,14 +114,13 @@ function Component.install(Runtime)
                 Runtime.cutterServiceButtonEnabled("finish_lubrication", state), true)
         elseif step == "blade_bolts" then
             love.graphics.setColor(0.24, 0.28, 0.29)
-            love.graphics.printf("Remove each blade bolt. The host tracks every distinct fastener.",
+            love.graphics.printf("Remove all five blade bolts. The host tracks every distinct fastener.",
                 122, 220, 690, "center")
-            local done = tonumber(view.bladeBoltsDone) or 0
-            for index = 1, 4 do
-                Runtime.button(Runtime.cutterBladeBoltRect(index), index <= done and "REMOVED" or ("BOLT " .. index),
-                    pointerX, pointerY, index == done + 1
-                        and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state),
-                    index <= done)
+            for index = 1, 5 do
+                local removed = Runtime.cutterBladeBoltRemoved(view, index)
+                Runtime.button(Runtime.cutterBladeBoltRect(index), removed and "REMOVED" or ("BOLT " .. index),
+                    pointerX, pointerY, not removed
+                        and Runtime.cutterServiceButtonEnabled("remove_blade_bolt", state), removed)
             end
         elseif step == "blade_lift" then
             Runtime.button(Runtime.CUTTER_SERVICE_CONTROLS.bladeAction, "LIFT RELEASED BLADE SAFELY",
@@ -221,9 +247,10 @@ function Component.install(Runtime)
         Runtime.button(Runtime.CUTTER_CONTROLS.recall_gauge, "RECALL [V]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("recall_gauge"), true)
 
-        Runtime.button(Runtime.CUTTER_CONTROLS.rotate_paper, "ROTATE PAPER [Q]", pointerX, pointerY,
+        Runtime.button(Runtime.CUTTER_CONTROLS.rotate_paper, "ROTATE CCW 90° [Q]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("rotate_paper"), true)
-        Runtime.button(Runtime.CUTTER_CONTROLS.position_paper, "POSITION PAPER [P]", pointerX, pointerY,
+        Runtime.button(Runtime.CUTTER_CONTROLS.position_paper,
+            view.step == "positioned" and "PULL PAPER BACK [P]" or "PUSH PAPER IN [P]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("position_paper"), true)
         Runtime.button(Runtime.CUTTER_CONTROLS.set_clamp, view.clamp == true and "RAISE CLAMP [SPACE]" or "LOWER CLAMP [SPACE]",
             pointerX, pointerY, Runtime.cutterButtonEnabled("set_clamp"), true)

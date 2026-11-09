@@ -91,7 +91,8 @@ function Component.install(Runtime)
         }, {
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent", "bladeGrade",
+            "source",
         })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
@@ -117,7 +118,8 @@ function Component.install(Runtime)
         for _, field in ipairs({
             "amount", "jobId", "palletId", "programIndex", "gaugeCentiInch", "clamp",
             "barrierClear", "plateId", "setupTask", "setupAction", "itemIndex", "enabled",
-            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent",
+            "machineIndex", "machineId", "placementCell", "callId", "contactId", "officeIntent", "warehouseIntent", "bladeGrade",
+            "source",
         }) do
             local dropCell = resourceId == "pallet_jack" and action == "lower_pallet" and field == "placementCell"
             local machineTarget = resourceId == "pallet_jack" and action == "move_machine" and field == "machineId"
@@ -147,6 +149,11 @@ function Component.install(Runtime)
             normalized.amount, fieldError = Runtime.integerInRange(
                 payload.amount, 1, Runtime.MAX_WORKSHOP_AMOUNT, "workshop_command.amount")
             if not normalized.amount then return nil, fieldError end
+        elseif argumentField == "source" then
+            if payload.source ~= "client" and payload.source ~= "house" then
+                return nil, "workshop_command.source must be client or house"
+            end
+            normalized.source = payload.source
         elseif argumentField == "programIndex" then
             normalized.programIndex, fieldError = Runtime.integerInRange(
                 payload.programIndex, 1, 4, "workshop_command.programIndex")
@@ -196,6 +203,11 @@ function Component.install(Runtime)
                 return nil, "workshop_command.setupAction is invalid"
             end
             normalized.setupAction = payload.setupAction
+        elseif argumentField == "bladeGrade" then
+            if payload.bladeGrade ~= "premium_hss" and payload.bladeGrade ~= "carbide_edge" then
+                return nil, "workshop_command.bladeGrade is invalid"
+            end
+            normalized.bladeGrade = payload.bladeGrade
         elseif argumentField then
             normalized[argumentField], fieldError = Runtime.token(
                 payload[argumentField], Runtime.MAX_TOKEN_BYTES, "workshop_command." .. argumentField)

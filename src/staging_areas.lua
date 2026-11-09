@@ -3,6 +3,7 @@ local PalletState = require("src.pallet_state")
 
 local StagingAreas = {
     MAX_AREAS = 6,
+    MAX_TOTAL_AREAS = 18,
     PURPOSES = {
         { id = "used", label = "USED PALLETS" },
         { id = "machine_output", label = "MACHINE OUTPUT" },
@@ -59,9 +60,10 @@ local function inboundSlots()
     return result
 end
 
-local function defaultArea(id, label, purpose, color, x, y, width, height, slots, machineId)
+local function defaultArea(id, label, purpose, color, x, y, width, height, slots, machineId, sceneId)
     return { id = id, label = label, purpose = purpose, color = color,
-        machineId = machineId, x = x, y = y, width = width, height = height, slots = slots }
+        machineId = machineId, sceneId=sceneId or "warehouse",
+        x = x, y = y, width = width, height = height, slots = slots }
 end
 
 function StagingAreas.defaultState()
@@ -102,9 +104,9 @@ end
 function StagingAreas.normalize(source)
     if source == nil then return StagingAreas.defaultState() end
     if type(source) ~= "table" or type(source.areas) ~= "table"
-        or #source.areas < 2 or #source.areas > StagingAreas.MAX_AREAS
+        or #source.areas < 2 or #source.areas > StagingAreas.MAX_TOTAL_AREAS
     then return nil, "Invalid staging area settings." end
-    local result, seen = { areas = {}, nextId = 3 }, {}
+    local result, seen, sceneCounts = { areas = {}, nextId = 3 }, {}, {}
     local areaCount = #source.areas
     for key in pairs(source.areas) do
         if type(key) ~= "number" or key ~= math.floor(key) or key < 1 or key > areaCount then
@@ -114,8 +116,20 @@ function StagingAreas.normalize(source)
     for index, zone in ipairs(source.areas) do
         if not validZone(zone) or seen[zone.id] then return nil, "Invalid staging area settings." end
         seen[zone.id] = true
+        local sceneId=zone.sceneId or "warehouse"
+        if sceneId~="warehouse" and sceneId~="front_left" and sceneId~="front_right" then
+            return nil,"Invalid staging area room."
+        end
+        sceneCounts[sceneId]=(sceneCounts[sceneId] or 0)+1
+        if sceneCounts[sceneId]>StagingAreas.MAX_AREAS then
+            return nil,"Each room can have up to six staging areas."
+        end
+        if (zone.id=="cutter-output" or zone.id=="inbound-shipping") and sceneId~="warehouse" then
+            return nil,"The cutter output and inbound shipping zones stay in the warehouse."
+        end
         local copy = { id = zone.id, label = type(zone.label) == "string" and zone.label:sub(1, 28) or "STAGING AREA",
             purpose = zone.purpose, color = zone.color, machineId = zone.machineId,
+            sceneId=sceneId,
             x = math.floor(zone.x + 0.5), y = math.floor(zone.y + 0.5),
             width = zone.width, height = zone.height, slots = {} }
         for _, point in ipairs(zone.slots) do
@@ -141,9 +155,28 @@ function StagingAreas.valid(source)
     return StagingAreas.normalize(source) ~= nil
 end
 
-function StagingAreas.areas(state)
+function StagingAreas.areas(state,sceneId)
     local settings = state and state.stagingAreas
-    return type(settings) == "table" and settings.areas or StagingAreas.defaultState().areas
+    local areas=type(settings) == "table" and settings.areas or StagingAreas.defaultState().areas
+    if sceneId==nil then return areas end
+    local result={}
+    for _,zone in ipairs(areas) do
+        if (zone.sceneId or "warehouse")==sceneId then result[#result+1]=zone end
+    end
+    return result
+end
+
+function StagingAreas.roomOptions(state)
+    local result={{id="warehouse",label="WAREHOUSE",enabled=true}}
+    local Rooms=require("src.shop_rooms")
+    for _,id in ipairs({"front_left","front_right"}) do
+        local kind=Rooms.definition(state,id)
+        if kind=="storage" or kind=="floor" then
+            local letter=id=="front_left" and "A" or "B"
+            result[#result+1]={id=id,label=(kind=="storage" and "STORAGE " or "UTILITY ")..letter,enabled=true}
+        end
+    end
+    return result
 end
 
 function StagingAreas.findById(state, id)
@@ -160,10 +193,11 @@ function StagingAreas.color(id)
     return colorById[id] or colorById.yellow
 end
 
-function StagingAreas.machineOptions(state)
+function StagingAreas.machineOptions(state,sceneId)
     local result = {}
     for _, machine in ipairs(state and state.machines and state.machines.items or {}) do
-        if machine.status == "installed" and machineName[machine.modelId] then
+        if machine.status == "installed" and machineName[machine.modelId]
+            and ((machine.world and machine.world.sceneId or "warehouse")== (sceneId or "warehouse")) then
             result[#result + 1] = { id = machine.id,
                 label = machineName[machine.modelId] .. " / " .. machine.id }
         end
@@ -183,11 +217,14 @@ function StagingAreas.label(state, zone)
     return StagingAreas.purposeName(zone and zone.purpose)
 end
 
-function StagingAreas.nextAreaId(settings)
+function StagingAreas.nextAreaId(settings,sceneId)
     local used = {}
-    for _, area in ipairs(settings and settings.areas or {}) do used[area.id] = true end
-    for index = 3, StagingAreas.MAX_AREAS do
-        local id = "staging-" .. index
+    for _, area in ipairs(settings and settings.areas or {}) do
+        if (area.sceneId or "warehouse")== (sceneId or "warehouse") then used[area.id] = true end
+    end
+    for index = 1, StagingAreas.MAX_AREAS do
+        local id=sceneId and sceneId~="warehouse" and (sceneId.."-staging-"..index)
+            or ("staging-"..(index+2))
         if not used[id] then return id, index end
     end
 end
@@ -204,28 +241,44 @@ end
 function StagingAreas.receivingPoints(state)
     local result = {}
     for _, zone in ipairs(StagingAreas.areas(state)) do
-        if zone.purpose == "inbound_shipping" then
+        if (zone.sceneId or "warehouse")=="warehouse" and zone.purpose == "inbound_shipping" then
             for _, point in ipairs(StagingAreas.positions(zone)) do result[#result + 1] = point end
         end
     end
     return #result > 0 and result or Config.palletLogistics.spawnPoints
 end
 
-function StagingAreas.hasMachineOutput(state, machineId)
+function StagingAreas.hasMachineOutput(state, machineId,sceneId)
+    if not sceneId then
+        local machine=require("src.machine_fleet").byId(state,machineId)
+        sceneId=machine and machine.world and machine.world.sceneId or "warehouse"
+    end
     for _, zone in ipairs(StagingAreas.areas(state)) do
-        if zone.purpose == "machine_output" and zone.machineId == machineId then return true end
+        if zone.purpose == "machine_output" and zone.machineId == machineId
+            and (zone.sceneId or "warehouse")==sceneId then return true end
     end
     return false
 end
 
-function StagingAreas.slotClear(state, x, y, excludedPalletId)
+function StagingAreas.slotClear(state, x, y, excludedPalletId,sceneId)
+    sceneId=sceneId or "warehouse"
     local halfWidth = Config.palletLogistics.collisionHalfWidth
     local halfHeight = Config.palletLogistics.collisionHalfHeight
+    if sceneId~="warehouse" then
+        local Rooms=require("src.shop_rooms")
+        for _,point in ipairs({
+            {x-halfWidth,y-halfHeight},{x+halfWidth,y-halfHeight},
+            {x-halfWidth,y+halfHeight},{x+halfWidth,y+halfHeight},
+        }) do
+            if not Rooms.walkable(point[1],point[2],sceneId) then return false end
+        end
+    end
     local floor = { warehouse = true, cutter_output = true, press_output = true }
     for _, item in ipairs(PalletState.items(state)) do
         local pallet, world = item.pallet, item.pallet and item.pallet.world
         if pallet and pallet.id ~= excludedPalletId and floor[pallet.location]
             and type(world) == "table"
+            and (world.sceneId or "warehouse")== (sceneId or "warehouse")
             and math.abs(x - world.x) < halfWidth * 2 + 4
             and math.abs(y - world.y) < halfHeight * 2 + 4
         then return false end
@@ -240,7 +293,8 @@ function StagingAreas.slotClear(state, x, y, excludedPalletId)
         if machine.status == "installed" and machinePlacement then
             local machineConfig = machinePlacement.config
             local world = machine.world or state[machinePlacement.field]
-            if world and math.abs(x - world.x) < halfWidth + (machineConfig.collisionHalfWidth or 52)
+            if world and (world.sceneId or "warehouse")== (sceneId or "warehouse")
+                and math.abs(x - world.x) < halfWidth + (machineConfig.collisionHalfWidth or 52)
                 and math.abs(y - world.y) < halfHeight + (machineConfig.collisionHalfHeight or 32)
             then return false end
         end
@@ -250,21 +304,23 @@ end
 
 function StagingAreas.findMachineOutput(state, machineId, isClear, allowFallback)
     machineId = machineId or "MCH-0001"
+    local machine=require("src.machine_fleet").byId(state,machineId)
+    local sceneId=machine and machine.world and machine.world.sceneId or "warehouse"
     local matching, fallback = false, nil
     for _, zone in ipairs(StagingAreas.areas(state)) do
-        if zone.purpose == "machine_output" then
+        if zone.purpose == "machine_output" and (zone.sceneId or "warehouse")==sceneId then
             fallback = fallback or zone
             if zone.machineId == machineId then
                 matching = true
                 for _, slot in ipairs(StagingAreas.positions(zone)) do
-                    if isClear(slot.x, slot.y) then return slot end
+                    if isClear(slot.x, slot.y,sceneId) then return slot end
                 end
             end
         end
     end
     if not matching and fallback and allowFallback ~= false then
         for _, slot in ipairs(StagingAreas.positions(fallback)) do
-            if isClear(slot.x, slot.y) then return slot end
+            if isClear(slot.x, slot.y,sceneId) then return slot end
         end
     end
     return nil, "The assigned machine output staging area is full or blocked. Move a pallet or reposition its zone."
@@ -279,15 +335,23 @@ local function overlaps(a, b)
         and a.y < b.y + b.height and b.y < a.y + a.height
 end
 
-local function nextAreaPosition(settings, width, height)
+local function nextAreaPosition(settings, width, height,sceneId)
     local columns = { 60, 250, 440, 630 }
-    local rows = { 100, 205, 460 }
+    local rows = { 100, 205, 330, 460 }
     for _, y in ipairs(rows) do
         for _, x in ipairs(columns) do
             local candidate = { x = x, y = y, width = width, height = height }
             local clear = true
             for _, existing in ipairs(settings.areas) do
-                if overlaps(candidate, existing) then clear = false; break end
+                if (existing.sceneId or "warehouse")==sceneId and overlaps(candidate, existing) then clear = false; break end
+            end
+            if clear and sceneId~="warehouse" then
+                local Rooms=require("src.shop_rooms")
+                for _,point in ipairs({
+                    {x,y},{x+width,y},{x,y+height},{x+width,y+height},
+                }) do
+                    if not Rooms.walkable(point[1],point[2],sceneId) then clear=false;break end
+                end
             end
             if clear and x <= Config.baseWidth - width - 60 and y <= Config.baseHeight - height - 30 then
                 return x, y
@@ -301,16 +365,21 @@ function StagingAreas.apply(state, intent)
     local settings = state.stagingAreas
     local zone = intent.areaId and StagingAreas.findById(state, intent.areaId)
     if intent.kind == "staging_area_add" then
-        if #settings.areas >= StagingAreas.MAX_AREAS then return false, "You can create up to six staging areas." end
-        local areaId, id = StagingAreas.nextAreaId(settings)
-        if not areaId then return false, "All six staging areas already exist." end
+        local sceneId=intent.sceneId or "warehouse"
+        local allowed=false
+        for _,option in ipairs(StagingAreas.roomOptions(state)) do if option.id==sceneId then allowed=true end end
+        if not allowed then return false,"That room is not available for pallet staging." end
+        local roomAreas=StagingAreas.areas(state,sceneId)
+        if #roomAreas >= StagingAreas.MAX_AREAS then return false, "You can create up to six staging areas in each room." end
+        local areaId, id = StagingAreas.nextAreaId(settings,sceneId)
+        if not areaId then return false, "All six staging areas already exist in this room." end
         local c = Config.cutterStaging
-        local x, y = nextAreaPosition(settings, c.width, c.height)
+        local x, y = nextAreaPosition(settings, c.width, c.height,sceneId)
         if not x then return false, "Move an existing staging area to make room for another." end
         settings.areas[#settings.areas + 1] = defaultArea(areaId, "STAGING AREA " .. id,
             "used", "blue", x, y,
-            c.width, c.height, standardSlots())
-        settings.nextId = id + 1
+            c.width, c.height, standardSlots(),nil,sceneId)
+        settings.nextId = math.max(tonumber(settings.nextId) or 3,id+1)
         return true, "Staging area added. Select its purpose, color, and position."
     end
     if not zone then return false, "That staging area no longer exists." end
@@ -341,7 +410,7 @@ function StagingAreas.apply(state, intent)
         local index = ((purposeIndex[zone.purpose] - 1 + direction) % #StagingAreas.PURPOSES) + 1
         zone.purpose = StagingAreas.PURPOSES[index].id
         if zone.purpose == "machine_output" and not zone.machineId then
-            local machines = StagingAreas.machineOptions(state)
+            local machines = StagingAreas.machineOptions(state,zone.sceneId)
             zone.machineId = machines[1] and machines[1].id or nil
         end
     elseif change == "color_next" or change == "color_previous" then
@@ -351,7 +420,7 @@ function StagingAreas.apply(state, intent)
     elseif change == "machine_next" or change == "machine_previous" then
         if zone.purpose ~= "machine_output" then return false, "Choose Machine Output to assign a machine." end
         if zone.id == "cutter-output" then return false, "The cutter output area stays assigned to the Polar cutter." end
-        local machines = StagingAreas.machineOptions(state)
+        local machines = StagingAreas.machineOptions(state,zone.sceneId)
         if #machines == 0 then return false, "Install a machine before assigning its output area." end
         local current = 0
         for index, machine in ipairs(machines) do if machine.id == zone.machineId then current = index end end
@@ -365,8 +434,8 @@ function StagingAreas.apply(state, intent)
     return true, "Staging area settings saved."
 end
 
-function StagingAreas.draw(state)
-    for _, zone in ipairs(StagingAreas.areas(state)) do
+function StagingAreas.draw(state,sceneId)
+    for _, zone in ipairs(StagingAreas.areas(state,sceneId)) do
         local palette = StagingAreas.color(zone.color)
         love.graphics.push("all")
         love.graphics.setLineWidth(2)

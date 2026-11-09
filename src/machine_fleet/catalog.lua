@@ -37,8 +37,24 @@ function Component.install(Runtime)
         return result
     end
 
-    Runtime.Fleet.order = { "polar_115", "skid_wrapper", "heidelberg_10x15", "regal_moll" }
+    -- This is the active gameplay and purchase catalog. Expansion definitions
+    -- remain below so their art and implementation can be restored later.
+    Runtime.Fleet.order = { "polar_115", "skid_wrapper", "heidelberg_10x15" }
     Runtime.Fleet.definitions = {
+        chandler_price_platen = {
+            id = "chandler_price_platen", name = "Chandler & Price platen die cutter",
+            shortName = "C&P platen", placementKey = "chandlerPrice",
+            requiresWorldPosition = true,
+            basePrice = 5400, onlineCondition = 91, dealerCondition = 58,
+            components = {
+                platenAlignment = { label = "Platen alignment", weight = 0.4, wear = 0.08,
+                    serviceTask = "Check platen alignment and packing" },
+                grippers = { label = "Grippers", weight = 0.3, wear = 0.1,
+                    serviceTask = "Inspect grippers and gauge pins" },
+                drive = { label = "Drive", weight = 0.3, wear = 0.08,
+                    serviceTask = "Lubricate the press drive" },
+            },
+        },
         regal_moll = {
             id = "regal_moll", name = "Regal Moll practice folder",
             shortName = "Regal Moll folder", placementKey = "regalFolder",
@@ -167,6 +183,16 @@ function Component.install(Runtime)
             item.maintenance.windmill = {
                 serviceCount = 0, lastDailyOilHours = nil, lastRollerStripe = 0.8,
                 technicianDueDay = nil,
+            }
+        elseif modelId == "polar_115" then
+            item.maintenance.cutter = {
+                oilServices = 0, lubricationServices = 0, lastLubricationScore = 0,
+                backgaugeLubrication = 100, guideLubrication = 100,
+                crankLubrication = 100, gearOilLevel = 0.48,
+                bladeRemoved = false, bladeInSleeve = false, spareBladeInstalled = false,
+                bladeDullNoticeSent = false,
+                bladeGrade = "standard", weeklyTechnician = false,
+                technicianSequence = 0, technicianRescheduled = false,
             }
         end
         item.condition = Runtime.calculateCondition(item)

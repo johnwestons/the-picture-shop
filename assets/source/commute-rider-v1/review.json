@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-01",
+  "generator": "Built-in image generation; transparent RGBA outputs",
+  "identityReferences": [
+    "references/weekend-commute-concept/rider-gear-study-v2.png",
+    "assets/generated/characters/rabbit-worker/idle.png"
+  ],
+  "runtimePublished": false,
+  "normalization": "tools/commute_lab/compile_rider.py slices equal cells, scales uniformly per strip and aligns helmet center/boot baseline; no painted corrections",
+  "automatedAudit": "Ten staged idle/walk strips, zero errors and zero warnings. This does not approve visual motion.",
+  "files": [
+    {
+      "file": "directional-idle-source.png",
+      "layout": "5 columns x 2 rows; north, northeast, east, southeast, south; neutral then settle",
+      "review": "Useful identity/direction pilot. Compact shared suited avatar, full helmet, closed leather one-piece, gloves and broad boots. In-engine scale review still required."
+    },
+    {
+      "file": "walk-east-source.png",
+      "layout": "4 columns x 2 rows",
+      "review": "Reinspection finds a support-leg change between contact and down plus inconsistent arm counter-swing. Repair before loop/native-scale approval."
+    },
+    {
+      "file": "walk-northeast-source.png",
+      "layout": "4 columns x 2 rows; eight chronological walk phases",
+      "review": "Back of torso differs from east but helmet angle is too similar; review/revise against directional idle before publishing."
+    },
+    {
+      "file": "walk-southeast-source.png",
+      "layout": "4 columns x 2 rows; eight chronological walk phases",
+      "review": "Second half rotates toward side view. Repair the view consistency before publishing."
+    },
+    {
+      "file": "walk-south-source.png",
+      "layout": "4 columns x 2 rows",
+      "review": "Front view and alternating feet are useful. Compiler now swaps source frames 4 and 8 so each lifted knee prepares the opposite contact. This reordered candidate still needs arm/loop/native-scale review."
+    },
+    {
+      "file": "walk-north-source.png",
+      "layout": "4 columns x 2 rows",
+      "review": "Rejected: support leg switches too early; frame 2 is already opposite the first support stance."
+    },
+    {
+      "file": "walk-north-repair-v2.png",
+      "review": "Rejected: edit retains incorrect early support switch. Not used by compiler."
+    },
+    {
+      "file": "walk-north-repair-v3.png",
+      "review": "New generation from idle reference fixes which leg supports each half, but passing/forward swing remain too similar to trailing-sole poses. Not used by compiler."
+    },
+    {
+      "file": "walk-north-swing-study.png",
+      "layout": "4 columns x 1 row",
+      "review": "Focused passing/forward-swing study. Passing candidates are closer to the requested motion; swing poses still put the wrong foot forward. Not used by compiler."
+    },
+    {
+      "file": "walk-north-repair-v4.png",
+      "layout": "4 columns x 2 rows",
+      "review": "Staged current north candidate. Passing boots now move under the hips and swing forward away from the viewer. Contact-sheet improvement; counter-swing and native loop remain unapproved."
+    },
+    {
+      "file": "walk-northeast-repair-v2.png",
+      "review": "Rejected full-cycle edit: still switches support legs early and repeats similar recovery poses. Not used by compiler."
+    },
+    {
+      "file": "walk-northeast-repair-v3.png",
+      "review": "Rejected rotation from north reference: near leg trails in both halves and passing/up poses repeat the extended stride. Not used by compiler."
+    },
+    {
+      "file": "walk-northeast-left-half-v1.png",
+      "layout": "2 columns x 2 rows",
+      "review": "First three poses offer left support and near right recovery; fourth raises the wrong leg. Not used by compiler."
+    },
+    {
+      "file": "walk-northeast-left-half-v2.png",
+      "layout": "2 columns x 2 rows",
+      "review": "Targeted fourth-pose edit fixes near right forward knee/boot. Near arm still swings forward with that leg instead of backward; needs correction and common anchor review. Not published."
+    },
+    {
+      "file": "walk-northeast-right-half-v1.png",
+      "layout": "2 columns x 2 rows",
+      "review": "Frame 1 still has the wrong supporting leg. Frames 2/3 offer near right support and far left recovery; frame 4 may supply far-left-up. A selective assembly needs arm and identity/anchor review; not used by compiler."
+    }
+  ],
+  "generationDirection": "Use the compact rabbit body proportions with completely concealed species features. Olive full-face closed-visor helmet; continuous front-zip dark brown one-piece leathers; protected broad animal-shaped boots and gloves. Fixed elevated camera and upper-left light, hand-painted outlined game sprite appearance. Eight walk phases: left contact/down, right passing/up, right contact/down, left passing/up. No labels, scenery, shadows or baked checkerboard. Western on-foot views may intentionally mirror symmetric eastern views; motorcycle views must not mirror side-specific parts.",
+  "remaining": [
+    "Repair east and diagonal support-leg/arm phases",
+    "Review north and reordered south animated loops at native scale",
+    "Review common ground anchors and preserve intended bob",
+    "Publish only reviewed strips",
+    "Add movement/action animation to the separately published static motorcycle pilot",
+    "Produce rabbit-specific dressing, visible zip, helmet, mount, ignition, dismount and removal sequences",
+    "Verify selected-character preservation during exposed transition frames"
+  ],
+  "status": "superseded_body_proportions",
+  "supersededReason": "User rejected short/chibi body proportions. All v1 rider art, including recent east repairs, is superseded by suit-up-derived v2 identity. Do not publish v1 rider strips."
+}

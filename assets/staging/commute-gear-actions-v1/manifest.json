@@ -1,0 +1,411 @@
+{
+  "status": "staged_unapproved",
+  "generator": "built-in imagegen",
+  "direction": "southeast",
+  "frameSize": [
+    256,
+    256
+  ],
+  "anchor": [
+    128,
+    238
+  ],
+  "groundAnchorMethod": "manual planted-foot centers for suit_on frames 1-2; median center of lowest 16 source-alpha rows elsewhere",
+  "uniformSourceScale": 0.45,
+  "runtimeIntegrated": false,
+  "actions": {
+    "suit_on": {
+      "path": "assets\\staging\\commute-gear-actions-v1\\suit_on_southeast.png",
+      "duration": 1.2,
+      "frameCount": 4,
+      "maskPath": "assets\\staging\\commute-gear-actions-v1\\suit_on_southeast_mask.png",
+      "normalizationHeight": 215.0,
+      "source": "assets\\source\\commute-gear-actions-v1\\equip-suit-alpha-v2.png",
+      "sourceSha256": "3bbdf69f810ced7c40c48e0a78960904be5f817b8548bbe9e226e7d0acd28f48",
+      "sha256": "89eb25b3fef653f91407cf73207cccdbb16909c4f0b890e3f6e57fc1c214e30f",
+      "maskSha256": "3ffc0ec96b57858dbfa8b66207a085aec756dd62db9771b6dbf991e170eabe90",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            512
+          ],
+          "sourceGroundAnchor": [
+            151,
+            488
+          ],
+          "groundAnchorMethod": "manual_planted_foot",
+          "bounds": [
+            109,
+            25,
+            226,
+            239
+          ],
+          "furMaskPixels": 15463,
+          "overallsMaskPixels": 7341
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            512
+          ],
+          "sourceGroundAnchor": [
+            566,
+            488
+          ],
+          "groundAnchorMethod": "manual_planted_foot",
+          "bounds": [
+            92,
+            25,
+            215,
+            240
+          ],
+          "furMaskPixels": 15170,
+          "overallsMaskPixels": 12101
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            512
+          ],
+          "sourceGroundAnchor": [
+            977.0,
+            488
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            69,
+            23,
+            178,
+            238
+          ],
+          "furMaskPixels": 15472,
+          "overallsMaskPixels": 6850
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            512
+          ],
+          "sourceGroundAnchor": [
+            1358.75,
+            489
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            62,
+            22,
+            180,
+            238
+          ],
+          "furMaskPixels": 14100,
+          "overallsMaskPixels": 5706
+        }
+      ]
+    },
+    "zip_up": {
+      "path": "assets\\staging\\commute-gear-actions-v1\\zip_up_southeast.png",
+      "duration": 0.8,
+      "frameCount": 4,
+      "maskPath": "assets\\staging\\commute-gear-actions-v1\\zip_up_southeast_mask.png",
+      "normalizationHeight": 218.5,
+      "source": "assets\\source\\commute-gear-actions-v1\\equip-suit-alpha-v2.png",
+      "sourceSha256": "3bbdf69f810ced7c40c48e0a78960904be5f817b8548bbe9e226e7d0acd28f48",
+      "sha256": "dbc1f600b9e4ef469674d7e1953d4bcf331a86b130b10c2a4817b2a66f324193",
+      "maskSha256": "ff7f8d8ae5975cb96996db6691830e03ed3f36a5cfb65f6bbe7c814dc41dd5f3",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            512,
+            384,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            239.75,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            78,
+            22,
+            177,
+            239
+          ],
+          "furMaskPixels": 14790,
+          "overallsMaskPixels": 2057
+        },
+        {
+          "sourceRect": [
+            384,
+            512,
+            768,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            616.5,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            76,
+            21,
+            178,
+            239
+          ],
+          "furMaskPixels": 14959,
+          "overallsMaskPixels": 364
+        },
+        {
+          "sourceRect": [
+            768,
+            512,
+            1152,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            976.0,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            77,
+            19,
+            180,
+            239
+          ],
+          "furMaskPixels": 15027,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            1152,
+            512,
+            1536,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            1361.25,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            72,
+            20,
+            177,
+            239
+          ],
+          "furMaskPixels": 14571,
+          "overallsMaskPixels": 0
+        }
+      ]
+    },
+    "boots_gloves": {
+      "path": "assets\\staging\\commute-gear-actions-v1\\boots_gloves_southeast.png",
+      "duration": 0.7,
+      "frameCount": 4,
+      "maskPath": "assets\\staging\\commute-gear-actions-v1\\boots_gloves_southeast_mask.png",
+      "normalizationHeight": 218.0,
+      "source": "assets\\source\\commute-gear-actions-v1\\gloves-helmet-source-v1.png",
+      "sourceSha256": "18cc83924abfb9109bc473d14714c59eef23fe55a956e53efe0aa76a679d1488",
+      "sha256": "8edb49e8fe98dccf062c9e4fff2eb789db76ef2bc3fe0fea34960323708e3f59",
+      "maskSha256": "73f36c720f448928960cbc79361b1d20e9ce66b3dfda607511f16c68d55c1b9d",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            0,
+            384,
+            495
+          ],
+          "sourceGroundAnchor": [
+            211.75,
+            491
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            79,
+            21,
+            204,
+            239
+          ],
+          "furMaskPixels": 15714,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            384,
+            0,
+            768,
+            495
+          ],
+          "sourceGroundAnchor": [
+            588.5,
+            491
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            78,
+            22,
+            193,
+            239
+          ],
+          "furMaskPixels": 15854,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            768,
+            0,
+            1152,
+            495
+          ],
+          "sourceGroundAnchor": [
+            963.25,
+            491
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            78,
+            21,
+            196,
+            239
+          ],
+          "furMaskPixels": 13487,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            1152,
+            0,
+            1536,
+            495
+          ],
+          "sourceGroundAnchor": [
+            1348.25,
+            491
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            69,
+            21,
+            185,
+            239
+          ],
+          "furMaskPixels": 12891,
+          "overallsMaskPixels": 0
+        }
+      ]
+    },
+    "helmet_on": {
+      "path": "assets\\staging\\commute-gear-actions-v1\\helmet_on_southeast.png",
+      "duration": 1.0,
+      "frameCount": 4,
+      "maskPath": "assets\\staging\\commute-gear-actions-v1\\helmet_on_southeast_mask.png",
+      "normalizationHeight": 213.5,
+      "source": "assets\\source\\commute-gear-actions-v1\\gloves-helmet-source-v1.png",
+      "sourceSha256": "18cc83924abfb9109bc473d14714c59eef23fe55a956e53efe0aa76a679d1488",
+      "sha256": "8860d710e4b0a772d5bdf52384237c890fadf25182166438a06428c328190ae4",
+      "maskSha256": "f924348338ff56989a3001e4ce6f40436a56a41a11fed9b09a865d9860fa6643",
+      "frames": [
+        {
+          "sourceRect": [
+            0,
+            495,
+            392,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            218.25,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            77,
+            15,
+            204,
+            238
+          ],
+          "furMaskPixels": 13947,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            392,
+            495,
+            768,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            599.25,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            67,
+            11,
+            187,
+            238
+          ],
+          "furMaskPixels": 5873,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            768,
+            495,
+            1152,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            978.25,
+            999
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            73,
+            35,
+            185,
+            239
+          ],
+          "furMaskPixels": 0,
+          "overallsMaskPixels": 0
+        },
+        {
+          "sourceRect": [
+            1152,
+            495,
+            1536,
+            1024
+          ],
+          "sourceGroundAnchor": [
+            1353.25,
+            1001
+          ],
+          "groundAnchorMethod": "lowest_16px_alpha_band",
+          "bounds": [
+            69,
+            36,
+            183,
+            238
+          ],
+          "furMaskPixels": 0,
+          "overallsMaskPixels": 0
+        }
+      ]
+    }
+  },
+  "pending": [
+    "Other facing directions or an explicit turn-to-dress presentation",
+    "Removal/glove removal continuity and mount/ignition/dismount artwork",
+    "Boot fastening is not shown; the staged boots_gloves strip only depicts gloves."
+  ]
+}

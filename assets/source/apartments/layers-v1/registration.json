@@ -1,0 +1,158 @@
+{
+  "canvas": [
+    1536,
+    1024
+  ],
+  "origin": [
+    0,
+    0
+  ],
+  "units": "source pixels",
+  "status": "Preliminary fixture depth guides for the art preview, not collision or walkmask definitions",
+  "apartments": {
+    "brick-walkup": {
+      "floor": "brick-walkup-floor-fixtures-v2.png",
+      "walls": "brick-walkup-walls.png",
+      "fixtureRepaintRegions": [
+        [
+          1040,
+          145,
+          80,
+          130
+        ],
+        [
+          1140,
+          145,
+          85,
+          110
+        ],
+        [
+          1215,
+          108,
+          195,
+          225
+        ],
+        [
+          1038,
+          310,
+          100,
+          170
+        ],
+        [
+          1250,
+          435,
+          210,
+          275
+        ]
+      ]
+    },
+    "garden": {
+      "floor": "garden-floor-fixtures.png",
+      "walls": "garden-walls.png",
+      "fixtureRepaintRegions": [
+        [
+          950,
+          90,
+          95,
+          175
+        ],
+        [
+          1080,
+          175,
+          85,
+          155
+        ],
+        [
+          1180,
+          175,
+          90,
+          120
+        ],
+        [
+          1250,
+          135,
+          215,
+          245
+        ],
+        [
+          1190,
+          400,
+          275,
+          320
+        ]
+      ]
+    },
+    "courtyard": {
+      "floor": "courtyard-floor-fixtures.png",
+      "walls": "courtyard-walls-v2.png",
+      "fixtureRepaintRegions": [
+        [
+          300,
+          40,
+          165,
+          245
+        ],
+        [
+          450,
+          140,
+          95,
+          120
+        ],
+        [
+          540,
+          145,
+          85,
+          150
+        ],
+        [
+          680,
+          115,
+          95,
+          170
+        ],
+        [
+          75,
+          385,
+          190,
+          260
+        ]
+      ]
+    },
+    "corner": {
+      "floor": "corner-floor-fixtures.png",
+      "walls": "corner-walls-v2.png",
+      "fixtureRepaintRegions": [
+        [
+          410,
+          195,
+          300,
+          190
+        ],
+        [
+          740,
+          140,
+          85,
+          150
+        ],
+        [
+          820,
+          140,
+          90,
+          130
+        ],
+        [
+          880,
+          90,
+          150,
+          240
+        ],
+        [
+          1060,
+          145,
+          100,
+          210
+        ]
+      ]
+    }
+  }
+}

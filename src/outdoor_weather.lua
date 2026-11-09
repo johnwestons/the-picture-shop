@@ -85,6 +85,12 @@ function Weather.drawExterior(state, bayDoor, config, assets)
     if not graphics then return end
     local sprite = assets and assets.get and assets.get("loadingBayExterior")
     if not sprite then return end
+    -- The yellow/black dock threshold is painted into the room background just
+    -- below the shutter. Let the exterior opening grow over it as the shutter
+    -- rises so the threshold does not remain visible with the door open.
+    local thresholdReveal = progress * 34
+    aperture[6], aperture[8] = aperture[6] + thresholdReveal, aperture[8] + thresholdReveal
+    bounds.bottom = bounds.bottom + thresholdReveal
     local daylight, raining = Weather.sample(state, config)
     graphics.push("all")
     graphics.setStencilTest()

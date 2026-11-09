@@ -110,6 +110,9 @@ function Component.install(Runtime)
         blade = { x = 488, y = 210, width = 324, height = 54 },
         technician = { x = 122, y = 292, width = 324, height = 54 },
         weekly = { x = 488, y = 292, width = 324, height = 54 },
+        installSpare = { x = 122, y = 372, width = 690, height = 54 },
+        premiumBlade = { x = 122, y = 460, width = 690, height = 36 },
+        carbideBlade = { x = 122, y = 504, width = 690, height = 36 },
         advance = { x = 222, y = 286, width = 516, height = 66 },
         pump = { x = 122, y = 430, width = 210, height = 48 },
         gear = { x = 350, y = 430, width = 210, height = 48 },
@@ -134,7 +137,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.cutterBladeBoltRect(index)
-        return { x = 162 + (index - 1) * 170, y = 260, width = 126, height = 54 }
+        return { x = 142 + (index - 1) * 138, y = 260, width = 122, height = 54 }
+    end
+
+    function Runtime.cutterBladeBoltRemoved(view, index)
+        local mask = tonumber(view and view.bladeBoltMask)
+        if mask then return math.floor(mask / 2 ^ (index - 1)) % 2 == 1 end
+        return index <= (tonumber(view and view.bladeBoltsDone) or 0)
     end
 
     Runtime.WINDMILL_TAB_ORDER = { "run", "plates", "setup", "service" }

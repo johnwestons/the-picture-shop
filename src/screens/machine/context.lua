@@ -5,6 +5,7 @@ local Component = {}
 function Component.install(Runtime)
     Runtime.dependencies = Runtime.dependencies or {}
     Runtime.Config = require("src.config")
+    Runtime.CutterMotion = require("src.screens.cutter_motion")
     Runtime.Machine = Runtime.dependencies.Machine or require("src.machine")
     Runtime.MachineFleet = require("src.machine_fleet")
     Runtime.MachineMaintenance = require("src.machine_maintenance")
@@ -27,9 +28,13 @@ function Component.install(Runtime)
         oilSession = nil,
         bladeStage = nil,
         bladeBolts = nil,
+        bladeBoltAnimations = nil,
         wrapperSession = nil,
         helpOpen = false,
         helpStep = 1,
+        paperTurn = Runtime.CutterMotion.newPaperTurn(),
+        paperVisualOrientation = 0,
+        paperTurnProgress = 1,
     }
     Runtime.buttons = {}
     Runtime.gaugeInput = { x = 55, y = 263, width = 182, height = 28 }
@@ -47,6 +52,11 @@ function Component.install(Runtime)
     Runtime.bladeServiceButton = { x = 526, y = 244, width = 342, height = 122 }
     Runtime.technicianButton = { x = 526, y = 390, width = 342, height = 72 }
     Runtime.weeklyButton = { x = 526, y = 478, width = 342, height = 82 }
+    Runtime.spareBladeButton = { x = 92, y = 390, width = 342, height = 70 }
+    Runtime.bladeUpgradeButtons = {
+        premium_hss = { x = 92, y = 468, width = 342, height = 38 },
+        carbide_edge = { x = 92, y = 512, width = 342, height = 38 },
+    }
     Runtime.lockoutButtons = {
         disconnect = { x = 105, y = 235, width = 210, height = 150 },
         key = { x = 375, y = 235, width = 210, height = 150 },
@@ -138,8 +148,11 @@ function Component.install(Runtime)
         Runtime.Screen.oilSession = nil
         Runtime.Screen.bladeStage = nil
         Runtime.Screen.bladeBolts = nil
+        Runtime.Screen.bladeBoltAnimations = nil
         Runtime.Screen.wrapperSession = nil
         Runtime.Screen.helpOpen, Runtime.Screen.helpStep = false, 1
+        Runtime.Screen.paperTurn = Runtime.CutterMotion.newPaperTurn()
+        Runtime.Screen.paperVisualOrientation, Runtime.Screen.paperTurnProgress = 0, 1
         Runtime.formatGauge()
     end
 
@@ -148,12 +161,12 @@ function Component.install(Runtime)
         { "2 — LOAD THE CORRECT PALLET", "Move a received paper pallet to the cutter staging area. Press L or click LOAD, then choose the pallet ID that matches the job. Its unique paper record follows every size and rotation change. Wait for the stack animation to settle on the bed before setting the gauge." },
         { "3 — READ THE CUT PROGRAM", "The active cut number identifies the margin currently nearest the operator/screen. Compare the required measurement to the job's cut list. Easy work often repeats one margin; harder work has four different values. Never guess: the displayed target and pallet ID are the source of truth." },
         { "4 — SET OR PROGRAM THE BACK GAUGE", "Click the gauge number field, type inches with decimals, then press ENTER or SET. SAVE stores the measurement in the selected P1–P4 program. RECALL restores saved values. AUTOSET recalls the next saved cut, moves to its cut number automatically and prepares the next repeat measurement." },
-        { "5 — POSITION AND ROTATE", "Press P or POSITION to push the stack against the back gauge. The red active margin must face the operator/screen. Press Q or ROTATE for a 90-degree counter-clockwise turn between sides. Reposition against the gauge after every rotation or measurement change." },
+        { "5 — POSITION AND ROTATE", "Paper loads aligned for the first cut. Set the back gauge, then press P or PUSH / POS to feed the stack toward it while keeping the yellow cut guide visible. After each cut, set the next gauge and press Q or ROTATE CCW once to line up the next edge. More presses keep rotating the stock if you need to adjust it." },
         { "6 — CLAMP AND CUT", "Clear the light barrier. Press SPACE or CLAMP to lower the clamp. Offline, trigger both CUT buttons (J and K) within 0.30 seconds. The safety controls prevent injury, but they do not check your measurement. A wrong gauge, program, or rotation ruins the whole lift. A dull blade also lowers edge quality, so watch its sharpness meter and request a fresh blade when needed." },
         { "7 — FINISH ALL LIFTS", "The cutter holds a maximum 500 sheets per lift. Repeat the programmed sides for each lift until the pallet's full sheet count is processed. Verify the size after every side. When all required margins are removed, press U or UNLOAD; the animated stack returns to its pallet at cutter output." },
         { "8 — TROUBLESHOOTING", "If the blade will not cycle, check: pallet loaded, transfer animation finished, paper positioned, barrier clear, clamp down, the required offline or multiplayer cut control pressed, and E-STOP reset. The cutter intentionally permits off-size work—compare the selected program, rotation, and gauge to the ticket yourself." },
         { "9 — ROUTINE MAINTENANCE", "Unload the bed and return to IDLE. Open MAINTENANCE. Lubrication requires one delivered maintenance kit and an ordered lockout sequence: disconnect, keep the key and attach the tag. Clean and grease each marked point, inspect the gearbox sight glass, pump lubricant, then finish inspection." },
-        { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all four blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book Mara Mouse, the blade exchange courier. She collects the dull blade and fits a freshly sharpened replacement. Never run with the blade removed." },
+        { "10 — CHANGE THE BLADE", "With the bed empty, lock out power in order. Open REMOVE & SLEEVE BLADE. Release all five blade bolts, support the blade, lower/remove it without touching the edge, and place it immediately in the wooden sleeve. Book Mara Mouse, the blade exchange courier. She collects the dull blade and fits a freshly sharpened replacement. Weekly service handles removal and sleeving for you. Never run with the blade removed." },
     }
 end
 

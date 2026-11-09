@@ -1,4 +1,5 @@
 local PaperWork = require("src.paper_work")
+local CutterMotion = require("src.screens.cutter_motion")
 
 local Presentation = {}
 Presentation.__index = Presentation
@@ -8,7 +9,8 @@ local function fraction(value)
 end
 
 function Presentation.new()
-    return setmetatable({ elapsed = 0, phase = 0, clamp = 0 }, Presentation)
+    return setmetatable({ elapsed = 0, phase = 0, clamp = 0, blade = 0,
+        paperTurn = CutterMotion.newPaperTurn(), turnPaper = nil }, Presentation)
 end
 
 function Presentation:accept(view)
@@ -16,9 +18,22 @@ function Presentation:accept(view)
     local revision = tonumber(view.runtimeRevision) or -1
     if self.revision and revision < self.revision then return false end
     local phase, clamp = fraction(view.phasePermille), fraction(view.clampPermille)
+    local blade=fraction(view.bladePermille)
     local paper = type(view.paper) == "table" and view.paper or {}
     local paperKey = table.concat({ tostring(paper.palletId), tostring(paper.activeLift),
-        tostring(paper.activeCut), tostring(paper.orientation) }, ":")
+        tostring(paper.activeCut) }, ":")
+    self.turnPaper = next(paper) and paper or nil
+    CutterMotion.observePaperTurn(self.paperTurn, self.turnPaper)
+    self.paperVisualOrientation = self.paperTurn.orientation
+    self.paperTurnProgress = self.paperTurn.progress
+    if self.step == view.step and self.paperKey == paperKey and self.loaded == view.loaded
+        and self.emergency == view.emergencyStopped and self.targetPhase == phase
+        and self.targetClamp == clamp and self.targetBlade == blade then
+        -- A retransmission (or another unchanged host tick) must not restart
+        -- the interpolation clock while the guest is finishing the prior move.
+        self.revision = revision
+        return true
+    end
     -- The host increments runtimeRevision every simulation frame, not merely
     -- on commands. Smooth across newer revisions within the same physical phase.
     local continuous = self.step == view.step and self.revision ~= nil
@@ -26,8 +41,11 @@ function Presentation:accept(view)
         and self.loaded == view.loaded and self.emergency == view.emergencyStopped
     self.fromPhase = continuous and self.phase or phase
     self.fromClamp = continuous and self.clamp or clamp
+    self.fromBlade=continuous and self.blade or blade
     self.targetPhase, self.targetClamp = phase, clamp
+    self.targetBlade=blade
     self.phase, self.clamp = self.fromPhase, self.fromClamp
+    self.blade=self.fromBlade
     self.step, self.revision = view.step, revision
     self.paperKey = paperKey
     self.loaded, self.emergency = view.loaded, view.emergencyStopped
@@ -40,6 +58,10 @@ function Presentation:update(dt)
     local t = self.elapsed / 0.1
     self.phase = (self.fromPhase or 0) + ((self.targetPhase or 0) - (self.fromPhase or 0)) * t
     self.clamp = (self.fromClamp or 0) + ((self.targetClamp or 0) - (self.fromClamp or 0)) * t
+    self.blade=(self.fromBlade or 0)+((self.targetBlade or 0)-(self.fromBlade or 0))*t
+    CutterMotion.observePaperTurn(self.paperTurn, self.turnPaper)
+    self.paperVisualOrientation, self.paperTurnProgress =
+        CutterMotion.updatePaperTurn(self.paperTurn, dt)
 end
 
 local function findPaper(state, id)
@@ -57,7 +79,11 @@ function Presentation:model(state, view)
         step = view.step or "idle", loaded = view.loaded == true,
         transferTime = 1, cycleTime = 1, progress = self.phase,
         clampProgress = self.clamp,
+        bladeProgress = self.blade,
+        gauge = (tonumber(view.gaugeCentiInch) or 0) / 100,
         programIndex = view.programIndex,
+        paperVisualOrientation = self.paperVisualOrientation,
+        paperTurnProgress = self.paperTurnProgress,
     }
     local record = view.paper
     local source = record and findPaper(state, record.palletId)
@@ -83,6 +109,8 @@ function Presentation:model(state, view)
     end
     model.paper = {
         orientation = record.orientation or 0, currentSize = size,
+        visualOrientation = self.paperVisualOrientation or record.orientation or 0,
+        turnProgress = self.paperTurnProgress or 1,
         margins = source.margins, history = history,
         artworkId = source.artworkId, artworkKey = source.artworkKey,
         offSpec = record.offSpec == true,

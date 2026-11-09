@@ -1,0 +1,74 @@
+{
+  "status": "isolated_pose_test_unapproved",
+  "runtimeIntegrated": false,
+  "direction": "east",
+  "frameSize": [
+    256,
+    256
+  ],
+  "targetVisibleHeight": 214,
+  "anchor": [
+    128,
+    238
+  ],
+  "stagedStrip": "assets/staging/commute-rider-v2-east-contact-test/east-contact-pair.png",
+  "stagedSha256": "ffe5c853a6070bd1e9d6bdfe339b3fcd230d18c075e790455532ab767aff624f",
+  "poses": [
+    {
+      "pose": "left-contact",
+      "source": "assets/source/commute-rider-v2/walk-east-left-contact-v2.png",
+      "sourceSha256": "2433dfec345c47d7436525d25805400cbd4c0d44383f83ae8701885eef7cf8c8",
+      "prompt": "assets/source/commute-rider-v2/walk-east-left-contact-v2-prompt.txt",
+      "promptSha256": "8c312ea8f2ffbf427e854dec50906bb0751b12d0c138dd07693bb46bea2d36a7",
+      "sourceBounds": [
+        262,
+        32,
+        1043,
+        1212
+      ],
+      "stageBounds": [
+        63,
+        23,
+        205,
+        238
+      ],
+      "uniformScale": 0.181356,
+      "stageAnchor": [
+        128,
+        238
+      ],
+      "phaseApproved": false
+    },
+    {
+      "pose": "right-contact-edit",
+      "source": "assets/source/commute-rider-v2/walk-east-right-contact-edit-v2.png",
+      "sourceSha256": "be828c375b56164061b8305a3a8cf67b408733c80f81b5e7a0c353c85d747b5c",
+      "prompt": "assets/source/commute-rider-v2/walk-east-right-contact-edit-v2-prompt.txt",
+      "promptSha256": "14a2af8b2d6c6dfa57dedb2410ac32af83cdc18de10eea4a5daaafb8fc196ec6",
+      "sourceBounds": [
+        243,
+        31,
+        1061,
+        1193
+      ],
+      "stageBounds": [
+        59,
+        23,
+        211,
+        238
+      ],
+      "uniformScale": 0.184165,
+      "stageAnchor": [
+        128,
+        238
+      ],
+      "phaseApproved": false
+    }
+  ],
+  "manualFinding": "The edited right-contact candidate moves the forward knee/boot to the near-side leg, but the forward screen-right arm still appears to match the left-contact reference. This pair is not accepted as a gait sequence.",
+  "pending": [
+    "Verify limb side labels at native scale",
+    "Generate distinct passing/up poses",
+    "Review counter-swing before any integration"
+  ]
+}

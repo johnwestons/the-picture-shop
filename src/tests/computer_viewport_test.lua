@@ -6,7 +6,34 @@ local function near(a, b) return math.abs(a - b) < .001 end
 
 function Test.run(context, check)
     local app, state, computer = context.app, context.state, context.computerScreen
-    local oldDimensions, oldSafeArea = love.graphics.getDimensions, love.window.getSafeArea
+    local stagingComputer = computer.new({warehouseEnabled = true})
+    stagingComputer.tab, stagingComputer.warehouseStagingPage = "warehouse", true
+    local oldSetScissor = love.graphics.setScissor
+    local stagingClip
+    local drawOkay, drawError = xpcall(function()
+        love.graphics.setScissor = function(...)
+            if select("#", ...) == 4 then stagingClip = {...} end
+            return oldSetScissor(...)
+        end
+        love.graphics.push("all")
+        love.graphics.translate(41, 29)
+        love.graphics.scale(1.37)
+        stagingComputer.draw(state, nil, nil, context.assets)
+        love.graphics.pop()
+    end, debug.traceback)
+    love.graphics.setScissor = oldSetScissor
+    if not drawOkay then love.graphics.pop() end
+    assert(drawOkay, drawError)
+    local mapScale = math.min(520 / 960, 344 / 678)
+    local mapX = 76 + (520 - 960 * mapScale) / 2
+    local left, top = 41 + mapX * 1.37, 29 + 260 * 1.37
+    local right, bottom = 41 + (mapX + 960 * mapScale) * 1.37, 29 + 604 * 1.37
+    check("computer_staging_map_clip_tracks_mobile_viewport",
+        stagingClip and stagingClip[1] == math.floor(left)
+            and stagingClip[2] == math.floor(top)
+            and stagingClip[3] == math.ceil(right) - math.floor(left)
+            and stagingClip[4] == math.ceil(bottom) - math.floor(top))
+    local oldDimensions, oldSafeArea, oldOS = love.graphics.getDimensions, love.window.getSafeArea, love.system.getOS
     local oldCamera, oldScreen, oldSlot = app.mobileCamera, state.screen, state.activeSlot
     local oldTab, oldDropdown = computer.tab, computer.tabDropdownOpen
     local oldResource = Remote.resourceId
@@ -18,6 +45,10 @@ function Test.run(context, check)
         { name = "tablet", width = 1536, height = 2048, area = {0, 24, 1536, 1988} },
     }
     local ok, message = xpcall(function()
+        -- This suite supplies synthetic desktop, phone and tablet safe areas.
+        -- Keep the test platform synthetic too; native Android intentionally
+        -- ignores orientation-dependent safe-area insets for the fitted office.
+        love.system.getOS = function() return "Windows" end
         for _, case in ipairs(cases) do
             love.graphics.getDimensions = function() return case.width, case.height end
             love.window.getSafeArea = function() return unpack(case.area) end
@@ -56,6 +87,7 @@ function Test.run(context, check)
         end
     end, debug.traceback)
     love.graphics.getDimensions, love.window.getSafeArea = oldDimensions, oldSafeArea
+    love.system.getOS = oldOS
     app.mobileCamera, state.screen, state.activeSlot = oldCamera, oldScreen, oldSlot
     computer.tab, computer.tabDropdownOpen, Remote.resourceId = oldTab, oldDropdown, oldResource
     assert(ok, message)

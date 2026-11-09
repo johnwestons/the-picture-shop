@@ -1,0 +1,125 @@
+THE PICTURE SHOP - GAMEPLAY FUNCTIONALITY AUDIT
+Started: November 8, 2026 (America/New_York)
+
+Scope
+Review active gameplay against the repository's gameplay notes, current feature
+contracts and recent delivery/grocery instructions. Exercise entry, intermediate
+steps, completion, payment/rewards, cancellation, duplicate input, interruption,
+save/reload and guest authority. Existing work on delivery, estimates and cutter
+maintenance was retained. Relevant disposable saves were reset without making
+backups; existing backup files were left alone.
+
+Confirmed gameplay defects fixed
+1. Grocery cart routes could not reliably leave the entrance or reach shelves
+   and checkout. The center display left insufficient clearance, and the route
+   planner did not use the directional cart footprint enforced by movement.
+   Opened the cross aisle, aligned planning with collision, and routed to a
+   reachable interaction position instead of the center of a shelf.
+2. Clicking a shelf again could return the cart when its sprite overlapped the
+   shelf target. Shelf targets now take priority while pushing the cart. Cart
+   interaction elsewhere and the F return action remain available.
+3. A five-pallet printing quote with delivery information exceeded the multiplayer
+   packet budget, preventing the reception view from reaching the guest. Quote
+   rows now use compact wire tuples, retain named fields in the game, and still
+   validate sizes, counts and totals. Multiplayer protocol is now 71; participants
+   must use matching builds.
+
+Test and audit repairs
+- Estimating's emailButtonCenter helper pointed at the old button position, now
+  occupied by another input. It now returns the actual button for the active tab.
+- The guest job journey expected employee delivery even though its estimate did
+  not offer delivery. It now verifies customer-arranged transportation and runs
+  the customer's actual pickup through payment, without rewriting driver state.
+- The apartment journey waited for automatic shutdown. It now performs the
+  owner's explicit shutdown request at the entrance. Its scripted rider follows
+  a road lane, uses the warehouse driveway and parking aisle around parked trucks,
+  and brakes inside the current stall boundaries. No exterior teleporting or
+  removal of traffic is used to complete those journeys.
+- Added gameplay_journey_audit_test.lua to the full suite and a focused
+  gameplay-recovery run. Every ordered pair of grocery destinations is exercised
+  in solo and shared movement, including repeated selection, changing destination,
+  menu pause, checkout access and cart return. Added failed-funds/duplicate-buy,
+  cargo save/reload and duplicate-unload checks, plus complete solo air hockey,
+  finished-match scoring, opponent disconnect, restart and leave checks.
+- Added guest-job-journey focus. Added individual network view diagnostics and
+  short/inconsistent compact quote tuple rejection checks.
+
+Gameplay coverage reviewed and exercised
+Activity                         Completion and recovery evidence
+Customers and estimates         Reception, written estimates, delayed client
+                                replies, repeat clients, guest office controls.
+Cutting                         Load, gauge/program, clamp/cut sequence, multiple
+                                lifts, spoil/replacement, unload; stale commands,
+                                double input, disconnect and fresh-lease recovery.
+Windmill printing               Plate preparation, setup activities, proof and
+                                multi-color production; supplies and finished stock.
+Wrapping and maintenance        Wrap consumption/completion, leaving mid-cycle,
+                                cutter blade/service and wrapper service authority.
+Shipping and player delivery    Inspection, dock orientation, shared manifest,
+                                employee/player loading, partial-load restrictions,
+                                saved cargo, local/city stops and once-only payment.
+Warehouse logistics             Pallet jack/forklift cargo, receiving occupancy,
+                                storage/racks, placement, machine movement and rooms.
+Employees and business          Hiring, shifts, assignments, payroll, technician,
+                                construction, supplies, bills, loans, deadlines,
+                                quality/rework, customer response and progression.
+Town and vehicles              Mount/gear, controls, physics/collision, damage,
+                                mechanic work, upgrades/paint, parking, route map,
+                                town stores, independent scenes and traffic.
+Grocery and household cargo     All shelf/register route pairs, stock/funds,
+                                stale retries, purchase, persisted cargo, home unload.
+Home and weekly cycle           Needs/activities, shopping/furniture, finances,
+                                Friday shutdown, home travel and Monday return.
+Air hockey                     Complete seven-point solo matches in both rooms;
+                                finished state, join limits, disconnect/restart/leave.
+Basketball                     Possession, aim/release, scoring/return, remote
+                                input and ball replication, room isolation.
+Critter Kombat / Critter Crisis Active arcade game suites, control/state/network
+                                contracts, round progression and mobile UI.
+Menus, input and persistence    Title/continue, options, exit/save, mobile layout,
+                                keyboard/controller contracts, snapshot validation,
+                                interrupted saves and recovery, reconnect handling.
+
+Evidence
+Reports are in output/gameplay-audit-20261108 unless otherwise noted.
+- full4.rpt: SMOKE_OK, 11,001 passing assertions in the complete suite.
+  These include data, rendering, validation and simulation assertions; this is
+  not a claim of 11,001 distinct human-played journeys.
+- guest.rpt and guest-mobile.rpt: complete cutting and two-color printing guest
+  jobs through pickup, payment and save/reload (261 assertions each).
+- network-final2.rpt: protocol round trips and malformed tuple rejection
+  (39 assertions).
+- recovery-mobile2.rpt and recovery-desktop-final.rpt: expanded grocery,
+  household cargo, air hockey and recent feature regressions under forced mobile
+  and desktop layouts (40 assertions each).
+- delivery-mobile.rpt: player delivery/loading/signing flow under forced mobile
+  (29 assertions).
+- apartments8.rpt: SMOKE_OK, 213 assertions; all four apartments physically ridden
+  both ways, with mid-ride save/reload, gear transitions, home activity, Monday
+  return, parking and duplicate-arrival rejection.
+- output/delivery-route-smoke/run-01.rpt and run-01.stdout.txt: SMOKE_OK;
+  816/816 ordered destination routes completed across seeds 712345, 712346 and
+  43127, plus the live mainland-gate-to-warehouse route for each seed. No route
+  failures. Longest simulated journey: 111.8 seconds. GPS snapshot round trip
+  used 364,880 of the 524,288-byte budget.
+- independent-scenes-grocery.png in output/: inspected the resulting grocery
+  layout, visible aisle, shelf targets, register and cart presentation.
+- Manual Windows UI: launched a reset save, opened Options, saved to title,
+  continued the same save, exited via the world button and quit successfully.
+- git diff --check: no whitespace errors.
+
+The full run began before the final shelf-click priority adjustment. The final
+grocery implementation was then checked by the expanded focused mobile run.
+The final tuple validation additions were checked by network-final2.rpt.
+All listed final runs completed successfully. Earlier failing reports are kept
+in the output directory as reproduction evidence, not unresolved final failures.
+
+Verification limits
+Most coverage uses real LOVE game modules, controls and simulation driven by
+automated fixtures. Physical travel tests drive actual movement/vehicle physics;
+some other workflow tests place actors or establish inventory to reach the
+mechanic under test. Manual UI checks were limited to launch, menus and saves.
+Forced mobile layout is not a physical Android test. This pass does not certify
+public Internet multiplayer, separate physical devices, or a newly packaged
+installer. No release/APK was built or published. Retired machines excluded from
+the active catalog were not reintroduced to satisfy obsolete test expectations.

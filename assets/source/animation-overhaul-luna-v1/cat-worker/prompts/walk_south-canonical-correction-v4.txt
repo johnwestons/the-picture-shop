@@ -1,0 +1,14 @@
+Use the approved south-facing cat-worker idle image as the character identity, costume, pixel-art style, palette, outline, light, scale and side-detail reference. Use the simple 8-pose color diagram only to understand which leg moves in each phase. In that guide, red means screen-left leg and blue means screen-right leg; ignore its colors, body shape, labels, and drawing style.
+
+Create exactly eight full-body canonical walk drawings for the same cat, in a clean 4-column by 2-row transparent contact sheet, row-major. Face directly SOUTH toward the camera in every cell. Make every phase a clear walking pose, not a standing variant. Follow the leg actions and screen-side ownership shown in the guide:
+1 left contact: screen-left boot is the forward planted support; screen-right leg trails slightly lifted.
+2 left weight-down: keep screen-left support planted and lower the torso slightly as screen-right leg begins to swing beneath the pelvis.
+3 right passing: screen-left remains support; screen-right boot passes close under the pelvis, lifted.
+4 right knee-up: screen-left remains support; screen-right knee clearly rises, boot lifted.
+5 right contact: reverse support: screen-right boot is the forward planted contact; screen-left leg trails slightly lifted. This must be visibly opposite to pose 1.
+6 right weight-down: keep screen-right support planted and lower torso slightly as screen-left swings beneath pelvis.
+7 left passing: screen-right remains support; screen-left boot passes under the pelvis, lifted, opposite to pose 3.
+8 left knee-up: screen-right remains support; screen-left knee clearly rises, opposite to pose 4.
+Contact poses 1 and 5 must have opposite visibly identifiable planted boots. Passing poses 3 and 7 must show opposite leg in front beneath the pelvis. Knee-up poses 4 and 8 must raise opposite knees. Keep both boots separated enough to see which one is planted, passing or raised.
+
+Preserve exactly two pointed ears, two arms, two legs and one attached tail. Keep the face and chest directly toward camera, two bright eyes, olive-yellow scarf tied on the same side as the approved idle, orange-brown work jacket, same cross-body strap, tool satchel/clasp on screen-right, dark trousers, boots and tail on the original screen-right side. Do not mirror, swap hands/tools or alter asymmetric details. Compact walk with fixed stride distance, same body size and stable screen center; only natural weight bob, no body shifting to fake leg motion. Crisp hand-painted pixel art, source texture, outline and lighting. Transparent background. No checkerboard, scenery, floor, shadow, panel dividers, grid, labels, numbers, text or watermark.

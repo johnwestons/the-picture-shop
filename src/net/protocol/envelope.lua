@@ -82,6 +82,7 @@ function Component.install(Runtime)
         wrapper_snapshot = Runtime.normalizeWrapperSnapshot,
         windmill_snapshot = Runtime.normalizeWindmillSnapshot,
         pallet_jack_snapshot = Runtime.normalizePalletJackSnapshot,
+        extra_pallet_jack_snapshot = Runtime.normalizeExtraPalletJackSnapshot,
         forklift_snapshot = Runtime.normalizeForkliftSnapshot,
         input = Runtime.normalizeInput,
         snapshot = Runtime.normalizeSnapshot,
@@ -111,6 +112,102 @@ function Component.install(Runtime)
             and Runtime.SHOP_CODEC_LIMITS or Runtime.REALTIME_CODEC_LIMITS
     end
 
+    local function wireEnvelope(normalized)
+        if (normalized.type == "workshop_grant" or normalized.type == "workshop_result")
+            and normalized.payload.resourceId == "reception_customer" and normalized.payload.view then
+            -- Five print pallets plus delivery terms must fit the existing
+            -- datagram budget. Repeated field names are unnecessary on the wire.
+            local payload, view, rows = {}, {}, {}
+            for key, value in pairs(normalized.payload) do payload[key] = value end
+            for key, value in pairs(payload.view) do view[key] = value end
+            for index, row in ipairs(view.quoteRows) do
+                rows[index] = Runtime.Codec.array(view.printJob
+                    and {row.number, row.sheetCount, row.requiredLifts, row.requestedCopies, row.spoilageAllowance}
+                    or {row.number, row.sheetCount, row.requiredLifts, row.price})
+            end
+            view.quoteRows, payload.view = Runtime.Codec.array(rows), view
+            return {version=normalized.version,type=normalized.type,payload=payload}
+        end
+        if normalized.type~="workshop_snapshot" then return normalized end
+        local resources={}
+        for index,record in ipairs(normalized.payload.resources) do
+            local tuple={record.resourceId,record.revision,record.occupied}
+            if record.ownerPlayerId~=nil then tuple[4]=record.ownerPlayerId end
+            resources[index]=Runtime.Codec.array(tuple)
+        end
+        return {version=normalized.version,type=normalized.type,payload={
+            sessionId=normalized.payload.sessionId,revision=normalized.payload.revision,
+            resources=Runtime.Codec.array(resources),wrapper=normalized.payload.wrapper,
+        }}
+    end
+
+    local function encodeCanonical(normalized)
+        return Runtime.Codec.encode(wireEnvelope(normalized),Runtime.limitsFor(normalized.type))
+    end
+
+    local function compressShopPacket(kind, packet)
+        if (kind ~= "shop_snapshot" and kind ~= "shop_state")
+            or #packet < Runtime.Protocol.SHOP_COMPRESSION_MIN_BYTES
+        then
+            return packet
+        end
+        local data = type(love) == "table" and love.data or nil
+        if type(data) ~= "table" or type(data.compress) ~= "function" then return packet end
+        local okay, compressed = pcall(data.compress, "string", "lz4", packet)
+        if not okay or type(compressed) ~= "string" then return packet end
+        if #compressed + #Runtime.Protocol.SHOP_COMPRESSION_MAGIC
+            + Runtime.Protocol.SHOP_COMPRESSION_MIN_SAVING_BYTES > #packet
+        then
+            return packet
+        end
+        return Runtime.Protocol.SHOP_COMPRESSION_MAGIC .. compressed
+    end
+
+    local function decompressShopPacket(packet)
+        local magic = Runtime.Protocol.SHOP_COMPRESSION_MAGIC
+        if packet:sub(1, #magic) ~= magic then return packet end
+        local compressed = packet:sub(#magic + 1)
+        if #compressed < 4 then return nil, "compressed packet header is truncated" end
+        -- LÖVE's LZ4 string format begins with its little-endian raw byte count.
+        -- Validate that count before asking the decompressor to allocate output.
+        local b1, b2, b3, b4 = compressed:byte(1, 4)
+        local rawBytes = b1 + b2 * 256 + b3 * 65536 + b4 * 16777216
+        if rawBytes < 1 or rawBytes > Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES then
+            return nil, "compressed packet exceeds maximum decoded size"
+        end
+        local data = type(love) == "table" and love.data or nil
+        if type(data) ~= "table" or type(data.decompress) ~= "function" then
+            return nil, "compressed packets are unavailable"
+        end
+        -- Keep the compressed input as a string. LÖVE's string overload uses
+        -- bounded LZ4 decoding; its CompressedData overload can select the
+        -- fast decoder when given a claimed decompressed size.
+        local okay, decoded = pcall(data.decompress, "string", "lz4", compressed)
+        if not okay or type(decoded) ~= "string" or #decoded ~= rawBytes then
+            return nil, "compressed packet is invalid"
+        end
+        return decoded
+    end
+
+    -- Codec.decode already rejects noncanonical scalar encodings, map order,
+    -- duplicate keys, and trailing bytes. Compare the validated wire shape to
+    -- the decoded value instead of encoding a second full copy of large shop
+    -- snapshots solely to prove canonicality.
+    local function sameCanonicalValue(left,right)
+        local leftType,rightType=type(left),type(right)
+        if leftType~=rightType then return false end
+        if leftType~="table" then return left==right end
+        if Runtime.Codec.isArray(left)~=Runtime.Codec.isArray(right) then return false end
+        local leftCount,rightCount=0,0
+        for key,value in next,left do
+            leftCount=leftCount+1
+            local other=right[key]
+            if other==nil or not sameCanonicalValue(value,other) then return false end
+        end
+        for _ in next,right do rightCount=rightCount+1 end
+        return leftCount==rightCount
+    end
+
     function Runtime.Protocol.packetLimitFor(kindOrEnvelope)
         local kind = type(kindOrEnvelope) == "table" and kindOrEnvelope.type or kindOrEnvelope
         if type(kind) ~= "string" or not Runtime.PAYLOAD_NORMALIZERS[kind] then
@@ -131,7 +228,7 @@ function Component.install(Runtime)
     function Runtime.Protocol.validate(envelope)
         local normalized, validationError = Runtime.normalizeEnvelope(envelope)
         if not normalized then return Runtime.protocolError(validationError) end
-        local _, codecError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
+        local _, codecError = encodeCanonical(normalized)
         if codecError then return Runtime.protocolError("codec validation failed: " .. tostring(codecError)) end
         return normalized
     end
@@ -151,9 +248,9 @@ function Component.install(Runtime)
         end
         local normalized, validationError = Runtime.normalizeEnvelope(envelope)
         if not normalized then return Runtime.protocolError(validationError) end
-        local encoded, codecError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
+        local encoded, codecError = encodeCanonical(normalized)
         if not encoded then return Runtime.protocolError("codec encode failed: " .. tostring(codecError)) end
-        return encoded
+        return compressShopPacket(normalized.type, encoded)
     end
 
     function Runtime.Protocol.decode(packet)
@@ -161,16 +258,20 @@ function Component.install(Runtime)
         if #packet > Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES then
             return Runtime.protocolError("packet exceeds maximum size")
         end
-        local decoded, codecError = Runtime.Codec.decode(packet, Runtime.SHOP_CODEC_LIMITS)
+        local codecPacket, decompressError = decompressShopPacket(packet)
+        if not codecPacket then
+            return Runtime.protocolError("compressed packet decode failed: " .. tostring(decompressError))
+        end
+        local decoded, codecError = Runtime.Codec.decode(codecPacket, Runtime.SHOP_CODEC_LIMITS)
         if not decoded then return Runtime.protocolError("codec decode failed: " .. tostring(codecError)) end
         local normalized, validationError = Runtime.normalizeEnvelope(decoded)
         if not normalized then return Runtime.protocolError(validationError) end
         local limit = (normalized.type == "shop_snapshot" or normalized.type == "shop_state")
             and Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES or Runtime.Protocol.MAX_PACKET_BYTES
-        if #packet > limit then return Runtime.protocolError("packet exceeds limit for " .. normalized.type) end
-        local canonical, canonicalError = Runtime.Codec.encode(normalized, Runtime.limitsFor(normalized.type))
-        if not canonical then return Runtime.protocolError("codec encode failed: " .. tostring(canonicalError)) end
-        if canonical ~= packet then return Runtime.protocolError("packet is not canonical") end
+        if #codecPacket > limit then return Runtime.protocolError("packet exceeds limit for " .. normalized.type) end
+        if not sameCanonicalValue(decoded,wireEnvelope(normalized)) then
+            return Runtime.protocolError("packet is not canonical")
+        end
         return normalized
     end
 end

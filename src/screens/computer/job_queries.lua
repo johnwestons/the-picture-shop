@@ -22,8 +22,8 @@ function Component.install(Runtime)
 
     function Runtime.machineBuyRect(index)
         return { x = Runtime.MACHINE_OFFER.x + Runtime.MACHINE_OFFER.width - 100,
-            y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap) + 10,
-            width = 88, height = 42 }
+            y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap) + 5,
+            width = 88, height = 40 }
     end
 
     function Runtime.machineSellRect(index)
@@ -57,19 +57,73 @@ function Component.install(Runtime)
     function Runtime.deliveries(state)
         local result = {}
         for _, job in ipairs(state.jobs.active or {}) do
-            if job.status == "awaiting_delivery"
-                or job.status == "ready_for_pickup"
-                or job.status == "pickup_in_progress"
-            then
+            local delivery=job.delivery or {}
+            if job.status == "awaiting_delivery" and delivery.status~="received" then
                 result[#result + 1] = job
             end
         end
         local procurement = Runtime.Procurement.ensure(state)
-        for _, order in ipairs(procurement.orders or {}) do result[#result + 1] = order end
+        local ordersByShipment={}
+        for _,order in ipairs(procurement.orders or {}) do
+            local list=ordersByShipment[order.shipmentId]
+            if not list then list={};ordersByShipment[order.shipmentId]=list end
+            list[#list+1]=order
+        end
+        for _, shipment in ipairs(procurement.shipments or {}) do
+            local delivery=shipment.delivery or {}
+            if shipment.status=="awaiting_delivery" and delivery.status~="received" then
+                local orders,companies,products={},{},{}
+                local company
+                for _,order in ipairs(ordersByShipment[shipment.id] or {}) do
+                    orders[#orders+1]=order
+                    local name=order.productName or order.item or "Supplies"
+                    if not products[name] then products[name]=true end
+                    local vendor=order.company or order.vendor
+                    if vendor and vendor~="" then companies[vendor]=true end
+                end
+                local productNames={}
+                for name in pairs(products) do productNames[#productNames+1]=name end
+                table.sort(productNames)
+                for name in pairs(companies) do
+                    if not company then company=name
+                    elseif company~=name then company="Millhaven Freight";break end
+                end
+                company=delivery.route and delivery.route.originCompany or company or "Millhaven Freight"
+                local description=#productNames==0 and "Supply shipment"
+                    or table.concat(productNames," · ")
+                if #description>64 then description=description:sub(1,61).."..." end
+                result[#result+1]={id=shipment.id,shipmentId=shipment.id,shipmentRecord=shipment,
+                    orderIds=shipment.orderIds,orders=orders,company=company,vendor=company,
+                    productName=description,status=shipment.status,delivery=delivery}
+            end
+        end
+        local function arrival(item)
+            local delivery=item.delivery or {}
+            local route=delivery.route or {}
+            return tonumber(route.arrivalAtHours or delivery.expectedAtHours or delivery.readyAtHours)
+                or math.huge
+        end
+        table.sort(result,function(a,b)
+            local at,bt=arrival(a),arrival(b)
+            if at~=bt then return at<bt end
+            return tostring(a.id)<tostring(b.id)
+        end)
         return result
     end
 
-    function Runtime.ComputerScreen.deliveryRows(state) return Runtime.deliveries(state) end
+    -- Keep the older per-job/per-order projection for callers that use it to
+    -- display operational delivery records. The DELIVERIES tab itself uses
+    -- one tracker row per inbound truck shipment.
+    function Runtime.ComputerScreen.deliveryRows(state)
+        local rows={}
+        for _,job in ipairs(state.jobs.active or {}) do
+            if job.status=="awaiting_delivery" or job.status=="ready_for_pickup"
+                or job.status=="pickup_in_progress" then rows[#rows+1]=job end
+        end
+        local procurement=Runtime.Procurement.ensure(state)
+        for _,order in ipairs(procurement.orders or {}) do rows[#rows+1]=order end
+        return rows
+    end
     function Runtime.ComputerScreen.statusLabel(status) return Runtime.StatusLabels.get(status) end
 
     function Runtime.jobsForTab(state, tab)
@@ -138,6 +192,12 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.quoteText = base and tostring(math.floor(base)) or ""
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.quoteReplaceOnType = true
+        local deliveryTerms=email and email.job and Runtime.JobService.deliveryQuoteTerms(email.job)
+        Runtime.ComputerScreen.deliveryQuoteText = deliveryTerms
+            and tostring(math.floor(deliveryTerms.recommendedPrice)) or ""
+        Runtime.ComputerScreen.deliveryQuoteFocused = false
+        Runtime.ComputerScreen.deliveryQuoteReplaceOnType = true
+        Runtime.ComputerScreen.includeDeliveryQuote = deliveryTerms ~= nil
     end
 
     function Runtime.currentPageJobs(state)

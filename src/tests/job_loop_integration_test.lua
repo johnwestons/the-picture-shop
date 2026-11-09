@@ -34,7 +34,17 @@ function Test.run(context, check, jobs)
     context.machine.update(context.machine.transferTime + 0.01, fullLoopState)
     for cutNumber = 1, 4 do
         context.machine.selectProgram(cutNumber, fullLoopState)
-        context.machine.keypressed("q", fullLoopState)
+        local targetOrientation = fullLoopPallet.paper.cuts[cutNumber].orientation
+        local rotateOk = true
+        for _ = 1, 4 do
+            if fullLoopPallet.paper.orientation == targetOrientation then break end
+            if not context.machine.keypressed("q", fullLoopState) then
+                rotateOk = false
+                break
+            end
+        end
+        check("full_loop_rotation_matches_cut_" .. cutNumber,
+            rotateOk and fullLoopPallet.paper.orientation == targetOrientation)
         context.machine.setGauge(fullLoopPallet.paper.cuts[cutNumber].gauge, fullLoopState)
         context.machine.saveGauge(fullLoopState)
         context.machine.autoGauge(fullLoopState)
@@ -84,11 +94,21 @@ function Test.run(context, check, jobs)
     fullLoopInput.state = fullLoopState
     fullLoopInput.saveCurrent = function() fullLoopSaveCalls = fullLoopSaveCalls + 1; return true end
     local pickupX, pickupY = context.computerScreen.completeCenter()
+    local inspectionAction = context.input.mousepressed(pickupX, pickupY, 1, fullLoopInput)
+    check("full_loop_inspection_is_saved_before_pickup",
+        inspectionAction and fullLoopOffer.inspection and fullLoopOffer.inspection.status == "passed"
+            and fullLoopSaveCalls == 1)
+    fullLoopSaveCalls = 0
     check("full_loop_requests_pickup", context.input.mousepressed(
         pickupX, pickupY, 1, fullLoopInput)
         and fullLoopOffer.status == "ready_for_pickup"
         and fullLoopOffer.pickup.status == "awaiting_schedule"
         and fullLoopSaveCalls == 1)
+
+    check("full_loop_defaults_to_employee_delivery",fullLoopOffer.pickup.driverMode=="employee")
+    -- Continue through the legacy warehouse pickup path to verify that older
+    -- saved jobs without a driver selection can still be loaded and paid.
+    fullLoopOffer.pickup.driverMode=nil
 
     context.world.load()
     fullLoopState.screen = "world"
@@ -163,9 +183,10 @@ function Test.run(context, check, jobs)
         and fullLoopState.accountsReceivable == 0
         and fullLoopState.money == fullLoopStartingCash + 150)
     local cashAfterPickup = fullLoopState.money
+    check("full_loop_household_books_collected_income",fullLoopState.home.finance.totals.revenue==15000)
     check("full_loop_payment_cannot_repeat", not context.jobService.completePickup(
         fullLoopState, fullLoopOffer.id, 999)
-        and fullLoopState.money == cashAfterPickup)
+        and fullLoopState.money == cashAfterPickup and fullLoopState.home.finance.totals.revenue==15000)
     context.computerScreen.enter(fullLoopState)
     local fullLoopArrowX, fullLoopArrowY = context.computerScreen.dropdownCenter()
     context.computerScreen.mousepressed(fullLoopState, fullLoopArrowX, fullLoopArrowY, 1)

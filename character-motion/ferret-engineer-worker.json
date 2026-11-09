@@ -111,31 +111,34 @@
       "fps": 5.538461538461538
     },
     "work_cutter": {
-      "path": "assets/generated/characters/ferret-engineer-worker/work_cutter.png",
+      "path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_cutter.png",
       "frame_width": 256,
       "frame_height": 256,
-      "frame_count": 4,
-      "loop": true,
+      "frame_count": 8,
+      "loop": false,
       "role": "task_action",
-      "fps": 4
+      "fps": 4,
+      "timing": "Authoritative task approach/contact/operation/recovery; src/employee_work_presentation.lua"
     },
     "work_press": {
-      "path": "assets/generated/characters/ferret-engineer-worker/work_press.png",
+      "path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_press.png",
       "frame_width": 256,
       "frame_height": 256,
-      "frame_count": 4,
-      "loop": true,
+      "frame_count": 8,
+      "loop": false,
       "role": "task_action",
-      "fps": 4
+      "fps": 4,
+      "timing": "Authoritative task approach/contact/operation/recovery; src/employee_work_presentation.lua"
     },
     "work_wrapping": {
-      "path": "assets/generated/characters/ferret-engineer-worker/work_wrapping.png",
+      "path": "assets/generated/worker-actions-v2/ferret-engineer-worker/work_wrapping.png",
       "frame_width": 256,
       "frame_height": 256,
-      "frame_count": 4,
-      "loop": true,
+      "frame_count": 8,
+      "loop": false,
       "role": "task_action",
-      "fps": 4
+      "fps": 4,
+      "timing": "Authoritative task approach/contact/operation/recovery; src/employee_work_presentation.lua"
     },
     "push_jack": {
       "path": "assets/generated/characters/ferret-engineer-worker/push_jack.png",

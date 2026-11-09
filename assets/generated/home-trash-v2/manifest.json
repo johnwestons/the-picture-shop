@@ -1,0 +1,169 @@
+{
+  "version": 1,
+  "directions": [
+    "east",
+    "southeast",
+    "south",
+    "southwest",
+    "west",
+    "northwest",
+    "north",
+    "northeast"
+  ],
+  "grid": {
+    "columns": 4,
+    "rows": 2,
+    "width": 384,
+    "height": 512
+  },
+  "assets": [
+    {
+      "file": "bag-eight-directions.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-3a5edb95-584e-4fdf-ae30-69ec8bef7975.png",
+      "prompt": "Use case: stylized-concept. Asset type: transparent eight-direction game sprite atlas of one tied black household trash bag, using ONLY the black tied bag in the reference as design/style reference. Canvas1536x1024, four equal columns and two rows, each cell384x512. Exactly eight separate genuine isometric views, reading order EAST, SOUTHEAST, SOUTH, SOUTHWEST / WEST, NORTHWEST, NORTH, NORTHEAST. Fixed elevated game camera and fixed upper-left lighting. Same modest filled black plastic bag with irregular folds, short tied neck, asymmetric knot with two flaps, no handles, no labels, no contents visible. Rotate the physical bag in3D between views, do not mirror or simply rotate a flat picture. Each bag is suspended upright by its knot and hangs naturally with gravity. Knot grip centered local(192,115), bag bottom localy450, entire silhouette within localx70..314 y60..465. Consistent physical volume and scale in all eight cells, generous transparent gutters. Clean hand-painted cartoon game sprite, readable dark outline, gray highlights. Genuinely transparent background, no haze, ground, shadows, checkerboard, words, labels, borders, hands, character or other props.",
+      "runtime": true,
+      "sha256": "065d0d1737849270ea2ecf35b589990fa12bdb1f6150a8ebdd08d62133f79c61",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-1-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-3cda0a48-ef31-4975-b99c-e506ad27d743.png",
+      "prompt": "Edit this 1536x1024 transparent 4x2 eight-direction sprite sheet into the FIRST phase of picking up the trash bag. Keep same eight cells, exact character appearance, direction order E,SE,S,SW / W,NW,N,NE and planted boot positions and sizes. In EVERY cell, rabbit bends noticeably at hips and knees and reaches both paws DOWN to clasp tied neck of bag resting on floor ahead of feet. Lower head and torso approximately70pixels, arms reach lower, bag bottom level with boot soles. E must be true right side profile and SE distinctly front right three-quarter. Keep generous transparent gutters. Full body including both ears and shoes in every cell. This is a genuinely different crouching pickup pose, not a translated standing image. Fixed camera and lighting and same character volume. No floor/shadows/labels/lines. Preserve true transparency.",
+      "runtime": false,
+      "sha256": "a10324c0302e92a067409bf920cde3a7a9ad27caa8f95777624980a50f4f96d0",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-1-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-d1eca14f-5c42-4530-8373-68072492af89.png",
+      "prompt": "Precise sprite layer separation edit. Remove ALL black trash bags and tied knots from all eight characters in this sheet, including small portions visible between legs and beside body in rear view. Fill only formerly covered character pixels appropriately. Keep EVERY character in EXACT original pose with both paws still curled gripping invisible knot at exact same location. Do NOT lower arms, reposition hands, straighten body, move feet or change expression, colors, clothing, size, facing, cell placement or canvas.1536x1024 four columns two rows. Remove colored haze/background/shadows too; every non-character pixel must be fully transparent. This is eight isolated empty-handed character animation layers for later compositing with separate bag sprites. No objects, text, grids or floor.",
+      "runtime": true,
+      "sha256": "91373ed842ee471243f0f8f06f8e726009ff59e64e4c12a6e79ab3ac9ead67a7",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-2-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-3391bf96-b0fd-4da2-9aa3-6a1f11504c22.png",
+      "prompt": "Create middle rising phase between reference1 crouched pickup and reference2 standing carry. Same1536x1024 transparent4columns2rows eight direction atlas E,SE,S,SW / W,NW,N,NE. Exact same orange rabbit worker size/design gray shirt blue overalls boots and toolbelt, fixed camera. Feet remain planted at same positions. Knees halfway straight, hips and chest halfway up, both paws clasp black trash bag knot ahead of waist, bag lifted partway off floor. This should be an actual middle animation pose, neither full crouch nor fully upright. Each384x512cell independent, no overlaps, no text/lines/floor/shadows. Preserve transparency.",
+      "runtime": false,
+      "sha256": "5b26faf6a6a6fe6ebb3f67529d4704fd4859ecefce29fa4ccaf22d1aa69ed093",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-2-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-81fcd01d-a641-455f-a1fe-a6760d07a23f.png",
+      "prompt": "Precise sprite layer separation edit. Remove ALL black trash bags and tied knots from all eight characters in this sheet, including small portions visible between legs and beside body in rear view. Fill only formerly covered character pixels appropriately. Keep EVERY character in EXACT original pose with both paws still curled gripping invisible knot at exact same location. Do NOT lower arms, reposition hands, straighten body, move feet or change expression, colors, clothing, size, facing, cell placement or canvas.1536x1024 four columns two rows. Remove colored haze/background/shadows too; every non-character pixel must be fully transparent. This is eight isolated empty-handed character animation layers for later compositing with separate bag sprites. No objects, text, grids or floor.",
+      "runtime": true,
+      "sha256": "f8b9b30668137c319cab50dab94110245b77b0cb9032287756af0af2e87e1edb",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-3-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-26584797-f41d-4e1f-a6d2-ed87d00430aa.png",
+      "prompt": "Transparent game sprite atlas, 1536x1024 canvas, exactly 4 columns by 2 rows of eight full-body views of the SAME orange rabbit worker from reference 1. Reading order EAST, SOUTHEAST, SOUTH, SOUTHWEST / WEST, NORTHWEST, NORTH, NORTHEAST. Fixed slightly elevated isometric camera, never change lighting. Exact rabbit design: orange fur, white muzzle and tail, large ears, gray shirt, blue overalls, brown boots and small tool belt. Character height from boot soles to ear tips approx400px, within each384x512cell, centered with planted boot contact near local(192,465), generous empty margins. One standing lifting/holding pose across all eight angles. Rabbit holds a modest black tied household trash bag like reference2, both paws clasped around its tied neck ahead of waist; arms extended slightly down and forward, bag hangs naturally upright in gravity, bottom just above ankles. Both hands hold SAME knot, elbows flexed, knees softly bent, torso slightly leaned back with weight. View directions must really rotate character and bag, including full rear NORTH with both ears, tail and overall back, and both back three-quarter views NW/NE. Bag partly hidden behind body on rear views. Match clean handpainted cartoon sprite style and character proportions of reference1, not photographic. No text, no borders, no other props, no floor, no ground shadow. Truly transparent background.",
+      "runtime": false,
+      "sha256": "73acda2319a48bff3e021b46bf446db8e0ee398a18d311271bc7969ee8179943",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-3-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-2ac8d872-821f-483f-8dde-f77a66e22060.png",
+      "prompt": "Precise sprite layer separation edit. Remove ALL black trash bags and tied knots from all eight characters in this sheet, including small portions visible between legs and beside body in rear view. Fill only formerly covered character pixels appropriately. Keep EVERY character in EXACT original pose with both paws still curled gripping invisible knot at exact same location. Do NOT lower arms, reposition hands, straighten body, move feet or change expression, colors, clothing, size, facing, cell placement or canvas.1536x1024 four columns two rows. Remove colored haze/background/shadows too; every non-character pixel must be fully transparent. This is eight isolated empty-handed character animation layers for later compositing with separate bag sprites. No objects, text, grids or floor.",
+      "runtime": true,
+      "sha256": "2a5022d592b3021ab7865cc0e97c178583f34f62d8dc28be1c266d88d50f22f4",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-4-study.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-26cb09d0-a398-4b84-8bcb-643a8771744d.png",
+      "prompt": "Edit reference into one subtle HOLD-SETTLE animation frame. Same1536x1024 transparent4x2eight directions E,SE,S,SW / W,NW,N,NE. Preserve character design/proportions/camera/cell placement/feet. Rabbit still upright holding bag knot with both paws. Relax shoulders slightly, elbows extend gently so hands and bag lower approx12pixels, torso breathes out with head lowered4pixels. Keep both feet planted, no walking, no change of facing. Clean transparent background, no floor/shadows/labels/borders.",
+      "runtime": false,
+      "sha256": "c96922615be340ea0915c415c1b6ec5f4948e07a611b0c7add27564bcee80a7e",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    },
+    {
+      "file": "phase-4-body.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a19537-3c85-7ea3-bc63-34b03179b30e\\exec-cad3969e-5a3c-48d3-b3d4-d858c027a103.png",
+      "prompt": "Precise sprite layer separation edit. Remove ALL black trash bags and tied knots from all eight characters in this sheet, including small portions visible between legs and beside body in rear view. Fill only formerly covered character pixels appropriately. Keep EVERY character in EXACT original pose with both paws still curled gripping invisible knot at exact same location. Do NOT lower arms, reposition hands, straighten body, move feet or change expression, colors, clothing, size, facing, cell placement or canvas.1536x1024 four columns two rows. Remove colored haze/background/shadows too; every non-character pixel must be fully transparent. This is eight isolated empty-handed character animation layers for later compositing with separate bag sprites. No objects, text, grids or floor.",
+      "runtime": true,
+      "sha256": "a0b3ff333e2e11838fbfab9ae3a0a92dc7cac364b2f7883c138dc32f44171c1e",
+      "sourceBytesMatch": true,
+      "dimensions": [
+        1536,
+        1024
+      ],
+      "alphaRange": [
+        0,
+        254
+      ]
+    }
+  ],
+  "registration": "src/home_trash_registration.lua",
+  "renderer": "src/home_trash_art.lua",
+  "review": "src/tests/home_trash_test.lua",
+  "status": "integrated"
+}

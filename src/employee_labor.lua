@@ -24,6 +24,7 @@ function Labor.validJob(t)
 end
 function Labor.record(state,w,hours,cents)
     if cents<=0 then return end
+    require("src.household_finances").record(state,"wages",cents)
     w.laborTotals=w.laborTotals or Labor.fromWeeks(w.weeks) or Labor.defaultTotals()
     local job
     if state and w.assignment and w.reserved and (w.phase=="working" or w.phase=="walking" or w.phase=="pushing") then
@@ -43,7 +44,7 @@ function Labor.actionDelay(w,focus)
     return .32+(100-skill)/100*.70+(100-(focus or w.focus))/100*.40
 end
 local function qualified(w,job)
-    return w.status=="employed" and not w.terminationRequested
+    return w.status=="employed" and not w.terminationRequested and Contracts.hasOpenHours(w.contract)
 end
 local function estimate(state,job,w)
     local cutter=require("src.machine").forId(nil)
@@ -87,9 +88,7 @@ local function estimate(state,job,w)
         end
     end
     local hours=seconds*24/Calendar.secondsPerDay(state)+.25
-    local t=w.contract;local days=0
-    for day=1,7 do if Contracts.hasDay(t.days,day) then days=days+1 end end
-    local productive=Contracts.productiveHours(t)*days
+    local t=w.contract;local _,_,productive=Contracts.weeklyHours(t)
     local weekly=Contracts.weeklyEstimate(t)
     local rate=weekly/math.max(.25,productive)
     local laborCost=hours*rate

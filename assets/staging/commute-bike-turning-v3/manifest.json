@@ -1,0 +1,1577 @@
+{
+  "before": {
+    "helmetBandWidths": [
+      55,
+      57,
+      55,
+      57,
+      57,
+      59,
+      56,
+      58,
+      56,
+      58,
+      58,
+      58,
+      58,
+      58,
+      55,
+      57,
+      54,
+      55,
+      55,
+      56,
+      56,
+      58,
+      56,
+      57,
+      54,
+      56,
+      55,
+      55,
+      52,
+      54,
+      52,
+      54,
+      52,
+      53,
+      52,
+      54,
+      56,
+      56,
+      56,
+      59,
+      54,
+      57,
+      54,
+      58,
+      54,
+      57,
+      55,
+      56,
+      52,
+      55,
+      53,
+      57,
+      54,
+      58,
+      55,
+      57,
+      55,
+      57,
+      56,
+      58,
+      56,
+      56,
+      55,
+      56
+    ],
+    "maxAdjacentHelmetWidthChange": 5,
+    "meanAdjacentHelmetWidthChange": 1.875,
+    "meanHelmetWidthSecondDifference": 3.6875,
+    "meanSilhouetteChange": 0.10387612397510608,
+    "p95SilhouetteChange": 0.18883903981522485,
+    "wrapSilhouetteChange": 0.1115139949109415
+  },
+  "after": {
+    "helmetBandWidths": [
+      54,
+      54,
+      57,
+      58,
+      57,
+      59,
+      58,
+      58,
+      56,
+      57,
+      57,
+      57,
+      56,
+      56,
+      55,
+      55,
+      55,
+      56,
+      55,
+      55,
+      55,
+      55,
+      54,
+      55,
+      55,
+      56,
+      56,
+      57,
+      56,
+      57,
+      56,
+      57,
+      57,
+      58,
+      59,
+      58,
+      59,
+      59,
+      58,
+      58,
+      56,
+      58,
+      56,
+      59,
+      57,
+      58,
+      56,
+      55,
+      53,
+      54,
+      54,
+      56,
+      54,
+      55,
+      54,
+      55,
+      57,
+      56,
+      55,
+      56,
+      56,
+      56,
+      55,
+      55
+    ],
+    "maxAdjacentHelmetWidthChange": 3,
+    "meanAdjacentHelmetWidthChange": 0.9375,
+    "meanHelmetWidthSecondDifference": 1.6875,
+    "meanSilhouetteChange": 0.08608740713858759,
+    "p95SilhouetteChange": 0.15437730135149277,
+    "wrapSilhouetteChange": 0.08203686756438755
+  },
+  "targetHeadTop": 70,
+  "targetGroundAnchor": [
+    160,
+    260
+  ],
+  "normalization": "Uniform scale only; fixed head height with continuous projected tire-depth extent.",
+  "qualityAcceptance": {
+    "all64Regenerated": true,
+    "lowerWorstSizeJump": true,
+    "lowerAverageSizeJump": true,
+    "lowerSizePulse": true,
+    "lowerMeanSilhouetteChange": true,
+    "lowerP95SilhouetteChange": true,
+    "lowerWrapChange": true,
+    "higherResolutionSources": true
+  },
+  "runtimeSha256": "e20a817500682b7124af1f904a3d5590df1eeaa8c36e65167ccad6c69890ab7b",
+  "frames": [
+    {
+      "frame": 1,
+      "yawFromRearDegrees": 0.0,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6923076923076923,
+      "sourceObjectHeight": 312,
+      "bbox": [
+        103,
+        70,
+        217,
+        286
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 2,
+      "yawFromRearDegrees": 5.625,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.6919064195303753,
+      "sourceObjectHeight": 312,
+      "bbox": [
+        103,
+        70,
+        216,
+        286
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 3,
+      "yawFromRearDegrees": 11.25,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.6907064656746282,
+      "sourceObjectHeight": 312,
+      "bbox": [
+        103,
+        70,
+        217,
+        286
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 4,
+      "yawFromRearDegrees": 16.875,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.688719386952043,
+      "sourceObjectHeight": 312,
+      "bbox": [
+        100,
+        70,
+        220,
+        285
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 5,
+      "yawFromRearDegrees": 22.5,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.6926241677841213,
+      "sourceObjectHeight": 309,
+      "bbox": [
+        91,
+        70,
+        228,
+        285
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 6,
+      "yawFromRearDegrees": 28.125,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6890936986183082,
+      "sourceObjectHeight": 309,
+      "bbox": [
+        89,
+        70,
+        231,
+        283
+      ],
+      "helmetBandWidth": 59
+    },
+    {
+      "frame": 7,
+      "yawFromRearDegrees": 33.75,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.6848485757924471,
+      "sourceObjectHeight": 309,
+      "bbox": [
+        85,
+        70,
+        236,
+        282
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 8,
+      "yawFromRearDegrees": 39.375,
+      "source": "assets/source/commute-bike-turning-v3/views-00-source.png",
+      "sourceSha256": "c8b6069eb7aa80765b3b5c178cc8f1532eb9d50b2081b4dc7c72607f339af724",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6821372460630881,
+      "sourceObjectHeight": 308,
+      "bbox": [
+        82,
+        70,
+        238,
+        280
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 9,
+      "yawFromRearDegrees": 45.0,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6573652249553634,
+      "sourceObjectHeight": 317,
+      "bbox": [
+        69,
+        70,
+        249,
+        279
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 10,
+      "yawFromRearDegrees": 50.625,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.6534627385704266,
+      "sourceObjectHeight": 316,
+      "bbox": [
+        68,
+        70,
+        251,
+        276
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 11,
+      "yawFromRearDegrees": 56.25,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.6510981721608587,
+      "sourceObjectHeight": 314,
+      "bbox": [
+        66,
+        70,
+        253,
+        275
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 12,
+      "yawFromRearDegrees": 61.875,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.6461863104072715,
+      "sourceObjectHeight": 313,
+      "bbox": [
+        63,
+        71,
+        258,
+        273
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 13,
+      "yawFromRearDegrees": 67.5,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.6408646450047831,
+      "sourceObjectHeight": 312,
+      "bbox": [
+        62,
+        70,
+        259,
+        270
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 14,
+      "yawFromRearDegrees": 73.125,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6372496826084388,
+      "sourceObjectHeight": 310,
+      "bbox": [
+        59,
+        70,
+        261,
+        268
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 15,
+      "yawFromRearDegrees": 78.75,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.63541481554534,
+      "sourceObjectHeight": 307,
+      "bbox": [
+        57,
+        70,
+        263,
+        265
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 16,
+      "yawFromRearDegrees": 84.375,
+      "source": "assets/source/commute-bike-turning-v3/views-01-source.png",
+      "sourceSha256": "7fbf515b6f6d6676e520c7dbb868402995f500b32567cd780fe5b689ff130acd",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6292432864332307,
+      "sourceObjectHeight": 306,
+      "bbox": [
+        53,
+        69,
+        266,
+        262
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 17,
+      "yawFromRearDegrees": 90.0,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6985294117647058,
+      "sourceObjectHeight": 272,
+      "bbox": [
+        57,
+        70,
+        263,
+        259
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 18,
+      "yawFromRearDegrees": 95.625,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.7027315534619292,
+      "sourceObjectHeight": 274,
+      "bbox": [
+        56,
+        70,
+        264,
+        262
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 19,
+      "yawFromRearDegrees": 101.25,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.7119428772716034,
+      "sourceObjectHeight": 274,
+      "bbox": [
+        57,
+        70,
+        262,
+        265
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 20,
+      "yawFromRearDegrees": 106.875,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.71060216405977,
+      "sourceObjectHeight": 278,
+      "bbox": [
+        59,
+        70,
+        262,
+        267
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 21,
+      "yawFromRearDegrees": 112.5,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.7065362870724111,
+      "sourceObjectHeight": 283,
+      "bbox": [
+        66,
+        71,
+        254,
+        271
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 22,
+      "yawFromRearDegrees": 118.125,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.7096712812543017,
+      "sourceObjectHeight": 285,
+      "bbox": [
+        67,
+        70,
+        253,
+        272
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 23,
+      "yawFromRearDegrees": 123.75,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.7074215434550507,
+      "sourceObjectHeight": 289,
+      "bbox": [
+        75,
+        70,
+        244,
+        275
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 24,
+      "yawFromRearDegrees": 129.375,
+      "source": "assets/source/commute-bike-turning-v3/views-02-source.png",
+      "sourceSha256": "f026af3e996c3467ac0607a1da5c0f251ce7bb9311175120711cb533326ed067",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.7071720047542972,
+      "sourceObjectHeight": 292,
+      "bbox": [
+        81,
+        70,
+        239,
+        277
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 25,
+      "yawFromRearDegrees": 135.0,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6147043548992631,
+      "sourceObjectHeight": 339,
+      "bbox": [
+        91,
+        70,
+        228,
+        278
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 26,
+      "yawFromRearDegrees": 140.625,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.6197589138272305,
+      "sourceObjectHeight": 339,
+      "bbox": [
+        99,
+        70,
+        221,
+        280
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 27,
+      "yawFromRearDegrees": 146.25,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.6205812607620709,
+      "sourceObjectHeight": 341,
+      "bbox": [
+        103,
+        69,
+        217,
+        282
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 28,
+      "yawFromRearDegrees": 151.875,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.6226022013832083,
+      "sourceObjectHeight": 342,
+      "bbox": [
+        106,
+        70,
+        213,
+        283
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 29,
+      "yawFromRearDegrees": 157.5,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.6239675447384649,
+      "sourceObjectHeight": 343,
+      "bbox": [
+        111,
+        70,
+        208,
+        284
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 30,
+      "yawFromRearDegrees": 163.125,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6264736114549196,
+      "sourceObjectHeight": 343,
+      "bbox": [
+        108,
+        70,
+        211,
+        285
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 31,
+      "yawFromRearDegrees": 168.75,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.6282810999722566,
+      "sourceObjectHeight": 343,
+      "bbox": [
+        108,
+        70,
+        211,
+        286
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 32,
+      "yawFromRearDegrees": 174.375,
+      "source": "assets/source/commute-bike-turning-v3/views-03-source.png",
+      "sourceSha256": "3d797cc7d2a4debbd46b135817c671ac6079d04b61633bc816810a8fe18df482",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6293726031879799,
+      "sourceObjectHeight": 343,
+      "bbox": [
+        108,
+        70,
+        211,
+        286
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 33,
+      "yawFromRearDegrees": 180.0,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6153846153846154,
+      "sourceObjectHeight": 351,
+      "bbox": [
+        107,
+        70,
+        214,
+        286
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 34,
+      "yawFromRearDegrees": 185.625,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.6167851511242204,
+      "sourceObjectHeight": 350,
+      "bbox": [
+        107,
+        69,
+        213,
+        286
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 35,
+      "yawFromRearDegrees": 191.25,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.6139613028218918,
+      "sourceObjectHeight": 351,
+      "bbox": [
+        104,
+        70,
+        216,
+        286
+      ],
+      "helmetBandWidth": 59
+    },
+    {
+      "frame": 36,
+      "yawFromRearDegrees": 196.875,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.6121950106240382,
+      "sourceObjectHeight": 351,
+      "bbox": [
+        99,
+        70,
+        221,
+        285
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 37,
+      "yawFromRearDegrees": 202.5,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.6080138291059474,
+      "sourceObjectHeight": 352,
+      "bbox": [
+        99,
+        69,
+        221,
+        284
+      ],
+      "helmetBandWidth": 59
+    },
+    {
+      "frame": 38,
+      "yawFromRearDegrees": 208.125,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6049146388439126,
+      "sourceObjectHeight": 352,
+      "bbox": [
+        89,
+        70,
+        231,
+        284
+      ],
+      "helmetBandWidth": 59
+    },
+    {
+      "frame": 39,
+      "yawFromRearDegrees": 213.75,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.6011880963632561,
+      "sourceObjectHeight": 352,
+      "bbox": [
+        81,
+        70,
+        238,
+        282
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 40,
+      "yawFromRearDegrees": 219.375,
+      "source": "assets/source/commute-bike-turning-v3/views-04-source.png",
+      "sourceSha256": "3033227dd46617ca90a794379dc61dcad8a476698eb7bc2956477c7da858fbfb",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.5968700903052021,
+      "sourceObjectHeight": 352,
+      "bbox": [
+        74,
+        70,
+        246,
+        280
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 41,
+      "yawFromRearDegrees": 225.0,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.711210840651366,
+      "sourceObjectHeight": 293,
+      "bbox": [
+        71,
+        70,
+        249,
+        278
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 42,
+      "yawFromRearDegrees": 230.625,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.7096021491005319,
+      "sourceObjectHeight": 291,
+      "bbox": [
+        67,
+        69,
+        253,
+        276
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 43,
+      "yawFromRearDegrees": 236.25,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.7074215434550507,
+      "sourceObjectHeight": 289,
+      "bbox": [
+        65,
+        70,
+        256,
+        275
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 44,
+      "yawFromRearDegrees": 241.875,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.7022788720745693,
+      "sourceObjectHeight": 288,
+      "bbox": [
+        61,
+        70,
+        258,
+        272
+      ],
+      "helmetBandWidth": 59
+    },
+    {
+      "frame": 45,
+      "yawFromRearDegrees": 247.5,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.7040484832446913,
+      "sourceObjectHeight": 284,
+      "bbox": [
+        58,
+        70,
+        261,
+        270
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 46,
+      "yawFromRearDegrees": 253.125,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6955894422838593,
+      "sourceObjectHeight": 284,
+      "bbox": [
+        56,
+        70,
+        264,
+        268
+      ],
+      "helmetBandWidth": 58
+    },
+    {
+      "frame": 47,
+      "yawFromRearDegrees": 258.75,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.6917459162142531,
+      "sourceObjectHeight": 282,
+      "bbox": [
+        57,
+        70,
+        262,
+        265
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 48,
+      "yawFromRearDegrees": 264.375,
+      "source": "assets/source/commute-bike-turning-v3/views-05-source.png",
+      "sourceSha256": "f80b853d80789f4272890c529a2f533ec317c046823d6cc9d270f84d70eb4fac",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6852257852262227,
+      "sourceObjectHeight": 281,
+      "bbox": [
+        56,
+        70,
+        264,
+        263
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 49,
+      "yawFromRearDegrees": 270.0,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.7116104868913857,
+      "sourceObjectHeight": 267,
+      "bbox": [
+        62,
+        70,
+        259,
+        260
+      ],
+      "helmetBandWidth": 53
+    },
+    {
+      "frame": 50,
+      "yawFromRearDegrees": 275.625,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.7105108695519136,
+      "sourceObjectHeight": 271,
+      "bbox": [
+        61,
+        70,
+        259,
+        263
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 51,
+      "yawFromRearDegrees": 281.25,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.7145507266388987,
+      "sourceObjectHeight": 273,
+      "bbox": [
+        65,
+        70,
+        256,
+        265
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 52,
+      "yawFromRearDegrees": 286.875,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.71060216405977,
+      "sourceObjectHeight": 278,
+      "bbox": [
+        66,
+        70,
+        255,
+        268
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 53,
+      "yawFromRearDegrees": 292.5,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.7065362870724111,
+      "sourceObjectHeight": 283,
+      "bbox": [
+        69,
+        70,
+        250,
+        270
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 54,
+      "yawFromRearDegrees": 298.125,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.7071899131380277,
+      "sourceObjectHeight": 286,
+      "bbox": [
+        71,
+        70,
+        249,
+        272
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 55,
+      "yawFromRearDegrees": 303.75,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.7049821588224471,
+      "sourceObjectHeight": 290,
+      "bbox": [
+        78,
+        70,
+        242,
+        275
+      ],
+      "helmetBandWidth": 54
+    },
+    {
+      "frame": 56,
+      "yawFromRearDegrees": 309.375,
+      "source": "assets/source/commute-bike-turning-v3/views-06-source.png",
+      "sourceSha256": "6da89df549f46e9166e417298f50e5749aa8629ef88b3dbf4ef49afa9e81c697",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6999804250449315,
+      "sourceObjectHeight": 295,
+      "bbox": [
+        84,
+        70,
+        237,
+        277
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 57,
+      "yawFromRearDegrees": 315.0,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 1,
+      "sourceRect": [
+        0,
+        0,
+        443,
+        443
+      ],
+      "uniformScale": 0.6451541062255425,
+      "sourceObjectHeight": 323,
+      "bbox": [
+        83,
+        69,
+        237,
+        278
+      ],
+      "helmetBandWidth": 57
+    },
+    {
+      "frame": 58,
+      "yawFromRearDegrees": 320.625,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 2,
+      "sourceRect": [
+        443,
+        0,
+        887,
+        443
+      ],
+      "uniformScale": 0.6484514561340468,
+      "sourceObjectHeight": 324,
+      "bbox": [
+        90,
+        70,
+        231,
+        280
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 59,
+      "yawFromRearDegrees": 326.25,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 3,
+      "sourceRect": [
+        887,
+        0,
+        1330,
+        443
+      ],
+      "uniformScale": 0.6491356132511232,
+      "sourceObjectHeight": 326,
+      "bbox": [
+        95,
+        70,
+        226,
+        282
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 60,
+      "yawFromRearDegrees": 331.875,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 4,
+      "sourceRect": [
+        1330,
+        0,
+        1774,
+        443
+      ],
+      "uniformScale": 0.6531593646412799,
+      "sourceObjectHeight": 326,
+      "bbox": [
+        102,
+        69,
+        219,
+        282
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 61,
+      "yawFromRearDegrees": 337.5,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 5,
+      "sourceRect": [
+        0,
+        443,
+        443,
+        887
+      ],
+      "uniformScale": 0.6605582340904118,
+      "sourceObjectHeight": 324,
+      "bbox": [
+        103,
+        69,
+        218,
+        284
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 62,
+      "yawFromRearDegrees": 343.125,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 6,
+      "sourceRect": [
+        443,
+        443,
+        887,
+        887
+      ],
+      "uniformScale": 0.6632112615093748,
+      "sourceObjectHeight": 324,
+      "bbox": [
+        102,
+        69,
+        217,
+        284
+      ],
+      "helmetBandWidth": 56
+    },
+    {
+      "frame": 63,
+      "yawFromRearDegrees": 348.75,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 7,
+      "sourceRect": [
+        887,
+        443,
+        1330,
+        887
+      ],
+      "uniformScale": 0.6630782070476431,
+      "sourceObjectHeight": 325,
+      "bbox": [
+        104,
+        70,
+        216,
+        285
+      ],
+      "helmetBandWidth": 55
+    },
+    {
+      "frame": 64,
+      "yawFromRearDegrees": 354.375,
+      "source": "assets/source/commute-bike-turning-v3/views-07-source.png",
+      "sourceSha256": "6a01cf3c7d3463efc9920b70e543979dcf512299a939fc7b9bd965dfd9b1c44c",
+      "sourceCell": 8,
+      "sourceRect": [
+        1330,
+        443,
+        1774,
+        887
+      ],
+      "uniformScale": 0.6642301627491604,
+      "sourceObjectHeight": 325,
+      "bbox": [
+        104,
+        70,
+        216,
+        286
+      ],
+      "helmetBandWidth": 55
+    }
+  ]
+}

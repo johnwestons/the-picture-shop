@@ -1,13 +1,22 @@
 -- Machine selection, installation, use, and maintenance.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function Component.install(Runtime)
+    function Runtime.Fleet.isGameplayEnabled(modelId)
+        for _, enabledModelId in ipairs(Runtime.Fleet.order) do
+            if enabledModelId == modelId then return true end
+        end
+        return false
+    end
+
     function Runtime.Fleet.byId(state, machineId)
         return Runtime.indexedMachine(state, machineId)
     end
 
     function Runtime.Fleet.installed(state, modelId, machineId)
+        if not Runtime.Fleet.isGameplayEnabled(modelId) then return nil end
         local first
         local activeId = machineId or state._operatingMachineId
             or ((state.screen == "machine" or state.screen == "press") and state.machineId)
@@ -31,8 +40,10 @@ function Component.install(Runtime)
 
     function Runtime.Fleet.installedUnits(state, modelId)
         local units = {}
+        if modelId ~= nil and not Runtime.Fleet.isGameplayEnabled(modelId) then return units end
         for _, item in ipairs(Runtime.Fleet.current(state).items) do
-            if item.status == "installed" and (modelId == nil or item.modelId == modelId) then
+            if item.status == "installed" and Runtime.Fleet.isGameplayEnabled(item.modelId)
+                and (modelId == nil or item.modelId == modelId) then
                 units[#units + 1] = item
             end
         end
@@ -51,6 +62,10 @@ function Component.install(Runtime)
         if modelId == "polar_115" and item.maintenance.cutter.bladeRemoved then
             return false, "The blade is removed for exchange. Wait for the sharpened replacement before production."
         end
+        if modelId == "polar_115" and (item.maintenance.cutter.technicianStatus == "traveling"
+            or item.maintenance.cutter.technicianStatus == "servicing") then
+            return false, "Mara Mouse is exchanging the cutter blade. Wait until the service visit is complete."
+        end
         if modelId == "heidelberg_10x15" and item.variables.safetyCircuit < 20 then
             return false, "The Windmill safety circuit must be serviced before production."
         end
@@ -67,7 +82,12 @@ function Component.install(Runtime)
         if not item or not model then return false, "No installed machine can receive wear." end
         cycles = math.max(0, tonumber(cycles) or 1)
         for componentId, component in pairs(model.components) do
-            item.variables[componentId] = Runtime.clamp(item.variables[componentId] - component.wear * cycles, 0, 100)
+            local wear = component.wear
+            if modelId == "polar_115" and componentId == "bladeSharpness" then
+                local profile = BladeProfiles.get(item.maintenance.cutter and item.maintenance.cutter.bladeGrade)
+                wear = wear * (profile and profile.wearMultiplier or 1)
+            end
+            item.variables[componentId] = Runtime.clamp(item.variables[componentId] - wear * cycles, 0, 100)
         end
         item.cycles = item.cycles + cycles
         item.operatingMinutes = item.operatingMinutes + cycles * (modelId == "heidelberg_10x15" and 20 or 0.25)
@@ -77,6 +97,29 @@ function Component.install(Runtime)
             cutter.guideLubrication = Runtime.clamp(cutter.guideLubrication - cycles * 0.24, 0, 100)
             cutter.crankLubrication = Runtime.clamp(cutter.crankLubrication - cycles * 0.20, 0, 100)
             cutter.gearOilLevel = Runtime.clamp(cutter.gearOilLevel - cycles * 0.00035, 0, 1)
+            local sharpness = Runtime.clamp(item.variables.bladeSharpness or 100, 0, 100)
+            if sharpness <= 50 and not cutter.bladeDullNoticeSent then
+                cutter.bladeDullNoticeSent = true
+                local Speech = require("src.employee_speech")
+                local Calendar = require("src.business_calendar")
+                local now = Calendar.absoluteHours(state)
+                local speaker
+                for _, worker in ipairs(state.employment and state.employment.staff or {}) do
+                    if worker.status == "employed" and worker.visible then speaker = worker; break end
+                end
+                if speaker then
+                    speaker.greetingKind = Speech.EMPLOYEE_BLADE_DULL
+                    speaker.greetingUntilHours = now + Speech.GREETING_SECONDS * 24 / Calendar.secondsPerDay(state)
+                end
+                local serviceAdvice = cutter.weeklyTechnician
+                    and "Mara Mouse's weekly service will remove and replace it automatically."
+                    or "Schedule weekly service with Mara Mouse to have it removed and replaced automatically."
+                local report = "The Polar 115 blade has dropped to " .. math.floor(sharpness)
+                    .. "% sharpness. " .. serviceAdvice
+                Runtime.Fleet.addServiceNotice(state, "Paper cutter blade is getting dull", report, "Shop Floor Team")
+                state.message = speaker and (speaker.name .. " says: " .. Speech.message(Speech.EMPLOYEE_BLADE_DULL))
+                    or ("Your employees say: " .. Speech.message(Speech.EMPLOYEE_BLADE_DULL))
+            end
         end
         item.condition = Runtime.calculateCondition(item)
         return true, item
@@ -108,14 +151,17 @@ function Component.install(Runtime)
         if not item or not model then return false, "Machine not found." end
         local stock = state.inventory and state.inventory.stock or {}
         if (stock.maintenance_kit or 0) < 1 then return false, "A machine maintenance kit is required." end
-        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1, {allowAbstract=true})
+        local consumed, consumptionError = Runtime.Procurement.consumePhysicalProduct(state, "maintenance_kit", 1,
+            { allowAbstract = true, autoShelf = true })
         if not consumed then return false, consumptionError end
         local total, count = 0, 0
         for componentId in pairs(model.components) do
             local score = type(taskScores) == "table" and tonumber(taskScores[componentId]) or nil
             score = Runtime.clamp(score or 0, 0, 1)
             total, count = total + score, count + 1
-            item.variables[componentId] = Runtime.clamp(item.variables[componentId] + 25 + score * 45, 0, 100)
+            -- Completing the full maintenance-kit service restores the machine,
+            -- rather than merely improving condition based on minigame score.
+            item.variables[componentId] = 100
         end
         local quality = count > 0 and total / count or 0
         stock.maintenance_kit = stock.maintenance_kit - 1

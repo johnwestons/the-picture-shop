@@ -23,6 +23,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.warehouseOptionRect(bayIndex,optionIndex)
+        if optionIndex==4 then optionIndex=3 end
         return {x=96+(bayIndex-1)*380,y=280+(optionIndex-1)*51,width=360,height=43}
     end
 
@@ -39,9 +40,10 @@ function Component.install(Runtime)
     Runtime.WAREHOUSE_STAGING_DOWN={x=718,y=508,width=40,height=32}
     Runtime.WAREHOUSE_STAGING_RIGHT={x=762,y=508,width=40,height=32}
     Runtime.WAREHOUSE_STAGING_MAP={x=76,y=260,width=520,height=344}
+    Runtime.WAREHOUSE_STAGING_ROOM={x=76,y=226,width=232,height=28}
 
     function Runtime.warehouseStagingAreaTabRect(index)
-        return {x=76+(index-1)*130,y=226,width=124,height=28}
+        return {x=314+(index-1)*94,y=226,width=90,height=28}
     end
 
     function Runtime.warehouseStagingMapLayout()
@@ -50,6 +52,14 @@ function Component.install(Runtime)
         local width,height=Runtime.Config.baseWidth*scale,Runtime.Config.baseHeight*scale
         return {rect=rect,scale=scale,width=width,height=height,
             x=rect.x+(rect.width-width)/2,y=rect.y+(rect.height-height)/2}
+    end
+
+    function Runtime.ComputerScreen.warehouseStagingMapScissor()
+        local map=Runtime.warehouseStagingMapLayout()
+        local left,top=love.graphics.transformPoint(map.x,map.y)
+        local right,bottom=love.graphics.transformPoint(map.x+map.width,map.y+map.height)
+        local x,y=math.floor(math.min(left,right)),math.floor(math.min(top,bottom))
+        return x,y,math.ceil(math.max(left,right))-x,math.ceil(math.max(top,bottom))-y
     end
 
     function Runtime.warehouseStagingMapWorldPoint(x,y,clampToFloor)
@@ -74,6 +84,7 @@ function Component.install(Runtime)
         return area
     end
     local function productFor(choice)
+        if choice.kind=="buy_garage_door" then return require("src.room_loading_bays").catalog() end
         if choice.kind=="buy_breakroom_fixture" then return Runtime.BreakroomGames.CATALOG[choice.fixtureId] end
         return Runtime.Upgrades.catalog(choice.optionId or "forklift")
     end
@@ -127,6 +138,11 @@ function Component.install(Runtime)
         elseif bayId=="cancel" then rect=Runtime.WAREHOUSE_CANCEL
         elseif bayId=="acknowledge" then rect=Runtime.WAREHOUSE_ACK
         else
+            if optionId=="garage_door" then
+                for bi,bay in ipairs(Runtime.WAREHOUSE_BAYS) do
+                    if bayId==bay then rect=Runtime.warehouseOptionRect(bi,4) end
+                end
+            end
             for bi,bay in ipairs(Runtime.WAREHOUSE_BAYS) do for oi,option in ipairs(Runtime.WAREHOUSE_OPTIONS) do
                 if bayId==bay and optionId==option then rect=Runtime.warehouseOptionRect(bi,oi) end
             end end
@@ -136,9 +152,22 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.warehouseView(state)
         local warehouse=state.warehouse or Runtime.Upgrades.defaultState()
-        local stagingAreas=Runtime.StagingAreas.areas(state)
+        local roomOptions=Runtime.StagingAreas.roomOptions(state)
+        local selectedRoomId=Runtime.ComputerScreen.warehouseSelectedStagingRoomId or "warehouse"
+        local selectedRoom
+        for index,room in ipairs(roomOptions) do
+            if room.id==selectedRoomId then selectedRoom=room;Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=index;break end
+        end
+        if not selectedRoom then
+            selectedRoom=roomOptions[1]
+            selectedRoomId=selectedRoom.id
+            Runtime.ComputerScreen.warehouseSelectedStagingRoomId=selectedRoomId
+            Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=1
+        end
+        local stagingAreas=Runtime.StagingAreas.areas(state,selectedRoomId)
         local selectedAreaId=Runtime.ComputerScreen.warehouseSelectedStagingAreaId
         local selectedArea=Runtime.StagingAreas.findById(state,selectedAreaId)
+        if selectedArea and (selectedArea.sceneId or "warehouse")~=selectedRoomId then selectedArea=nil end
         if not selectedArea then
             selectedArea=stagingAreas[1]
             if not Runtime.ComputerScreen.warehousePending then
@@ -151,7 +180,8 @@ function Component.install(Runtime)
             gamesPage=Runtime.ComputerScreen.warehouseGamesPage,
             stagingPage=Runtime.ComputerScreen.warehouseStagingPage,
             stagingAreas=stagingAreas,selectedArea=selectedArea,
-            machineOptions=Runtime.StagingAreas.machineOptions(state)}
+            roomOptions=roomOptions,selectedRoom=selectedRoom,selectedRoomId=selectedRoomId,
+            machineOptions=Runtime.StagingAreas.machineOptions(state,selectedRoomId)}
         for _,bayId in ipairs(Runtime.WAREHOUSE_BAYS) do
             local bay=warehouse.bays and warehouse.bays[bayId] or {status="locked"}
             local project
@@ -165,6 +195,8 @@ function Component.install(Runtime)
                 owned[fixtureId]=Runtime.BreakroomGames.owns(state,bayId,fixtureId)
             end
             result.bays[#result.bays+1]={id=bayId,status=bay.status,optionId=bay.optionId,owned=owned,
+                garageOwned=require("src.room_loading_bays").owns(state,bayId),
+                garageAvailable=bay.status=="complete" and (bay.optionId=="storage" or bay.optionId=="floor"),
                 phase=project and project.phase,stage=project and project.stage or 0,options={
                     options[1],options[2],options[3]}}
         end
@@ -257,6 +289,16 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.warehouseStagingPage then
             local view=Runtime.ComputerScreen.warehouseView(state)
+            if Runtime.contains(Runtime.WAREHOUSE_STAGING_ROOM,x,y) then
+                local nextIndex=(Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex or 1)%#view.roomOptions+1
+                local room=view.roomOptions[nextIndex]
+                Runtime.ComputerScreen.warehouseSelectedStagingRoomIndex=nextIndex
+                Runtime.ComputerScreen.warehouseSelectedStagingRoomId=room.id
+                local areas=Runtime.StagingAreas.areas(state,room.id)
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=areas[1] and areas[1].id or nil
+                Runtime.ComputerScreen.warehouseMessage=nil
+                return {action="staging_room_selected",roomId=room.id}
+            end
             for index,area in ipairs(view.stagingAreas) do
                 local rect=Runtime.warehouseStagingAreaTabRect(index)
                 if Runtime.contains(rect,x,y) then
@@ -267,8 +309,9 @@ function Component.install(Runtime)
             end
             if Runtime.contains(Runtime.WAREHOUSE_STAGING_ADD,x,y) then
                 local settings=state.stagingAreas or Runtime.StagingAreas.defaultState()
-                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=Runtime.StagingAreas.nextAreaId(settings)
-                return submitStagingIntent(state,{kind="staging_area_add"})
+                Runtime.ComputerScreen.warehouseSelectedStagingAreaId=Runtime.StagingAreas.nextAreaId(
+                    settings,view.selectedRoomId)
+                return submitStagingIntent(state,{kind="staging_area_add",sceneId=view.selectedRoomId})
             end
             local area=view.selectedArea
             if area and Runtime.contains(Runtime.WAREHOUSE_STAGING_REMOVE,x,y) then
@@ -324,6 +367,10 @@ function Component.install(Runtime)
         local view=Runtime.ComputerScreen.warehouseView(state)
         local kind,bayId,optionId,fixtureId
         for bi,bay in ipairs(view.bays) do
+            if not view.gamesPage and bay.garageAvailable and not bay.garageOwned
+                and Runtime.contains(Runtime.warehouseOptionRect(bi,4),x,y) then
+                kind,bayId="buy_garage_door",bay.id
+            end
             local choices=view.gamesPage and Runtime.BreakroomGames.ORDER or Runtime.WAREHOUSE_OPTIONS
             for oi,option in ipairs(choices) do
                 if Runtime.contains(Runtime.warehouseOptionRect(bi,oi),x,y) then

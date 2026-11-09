@@ -63,6 +63,7 @@ function Component.install(Runtime)
             if payload.clamp ~= nil then arguments.clamp = payload.clamp end
             if payload.barrierClear ~= nil then arguments.barrierClear = payload.barrierClear end
             if payload.enabled ~= nil then arguments.enabled = payload.enabled end
+            if payload.bladeGrade ~= nil then arguments.bladeGrade = payload.bladeGrade end
             local result = Runtime.workshopAuthority:command(player, {
                 requestId = payload.commandId,
                 resourceId = payload.resourceId,
@@ -95,7 +96,7 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.updateMultiplayer(dt, inputX, inputY, predictedJackOwner)
+    function Runtime.updateMultiplayer(dt, inputX, inputY, predictedJackOwner, inputBoost)
         local now = love and love.timer and love.timer.getTime and love.timer.getTime() or os.clock()
         local localPlayer = Runtime.World.player
         local localTaskAction = PlayerActivity.forState(
@@ -112,8 +113,23 @@ function Component.install(Runtime)
         end
         Runtime.multiplayer:update(dt, {
             localPlayer = localPlayer,
+            getBikeMotion = function(id)
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                if not trip then return end
+                local actor=id==(localPlayer.id or 1) and localPlayer or Runtime.multiplayer.players[id]
+                local part=actor and trip.participants[require('src.home_residents').key(actor)]
+                if part then
+                    local rider=part.rider
+                    if not part.interior and rider.gear.mounted and rider.vehicle~='truck' and not part.arrived then
+                        local bike=rider.bike
+                        return {token=trip.token, heading=bike.heading, speed=bike.speed,
+                            steer=bike.steering or 0, brake=bike.brake or 0}
+                    end
+                end
+            end,
             inputX = inputX or 0,
             inputY = inputY or 0,
+            inputBoost = inputBoost == true,
             gameX = Runtime.basketballCharge and Runtime.basketballCharge.aimX/100
                 or (Runtime.airHockeyInputX or 0)+(Runtime.kombatInputX or 0),
             gameY = Runtime.basketballCharge and (Runtime.basketballCharge.arcHeight-105)/85
@@ -122,10 +138,26 @@ function Component.install(Runtime)
             arcade = Runtime.state.screen=='critter_kombat'
                 and require('src.screens.critter_crisis_screen').arcadeInputs(Runtime) or nil,
             moveRemote = function(player, moveDt, moveX, moveY)
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                if trip and trip.participants[require('src.home_residents').key(player)] then return end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
             end,
+            bindResident = function(player,token,players)
+                local id,reason=require("src.home_residents").bind(Runtime.state,player,token,players)
+                if id then
+                    local okay,commuteReason=require('src.commute.runtime').bind(Runtime,player,players)
+                    if not okay then return nil,commuteReason end
+                end
+                if id then Runtime.multiplayer:markShopDirty();Runtime.saveCurrent() end
+                return id,reason
+            end,
             resolveGuestSpawn = function(hostX, hostY, guestIndex, players)
+                if require("src.home_travel").guestJoined(Runtime.state,guestIndex) then Runtime.multiplayer:markShopDirty() end
+                if require("src.shop_rooms").scene(Runtime.World.player)=="home" then
+                    local x,y=require("src.home_layouts").spawn(Runtime.state,guestIndex)
+                    return x,y,"home"
+                end
                 if require("src.shop_rooms").scene(Runtime.World.player)~="warehouse" then
                     hostX,hostY=Runtime.Config.player.spawnX,Runtime.Config.player.spawnY
                 end
@@ -162,6 +194,8 @@ function Component.install(Runtime)
             getPalletJackSnapshot = function()
                 return Runtime.World.networkPalletJackSnapshot(Runtime.state)
             end,
+            getPalletJackId=function() return Runtime.state.palletJack and Runtime.state.palletJack.id end,
+            getExtraPalletJackSnapshots=function() return require("src.pallet_jack_fleet").snapshots(Runtime.state) end,
             getForkliftSnapshot=function() return Runtime.Forklift.snapshot(Runtime.state,Runtime.Config.forklift) end,
             getMachinePoseSnapshot = function()
                 return Runtime.World.networkMachinePoseSnapshot(Runtime.state)
@@ -233,6 +267,11 @@ function Component.install(Runtime)
                 end
             end,
             performInteraction = function(player, targetKind, desiredState, shotAim)
+                if targetKind=='commute' then return require('src.commute.runtime').command(Runtime,player,desiredState) end
+                if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
+                if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end
+                if targetKind=="homeDelivery" then return require("src.home_delivery_controls").command(Runtime,player) end
+                if targetKind=="homeFurniture" then return require("src.home_furniture_controls").command(Runtime,player,desiredState) end
                 local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim)
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="roomGame" and
@@ -293,13 +332,14 @@ function Component.install(Runtime)
             end
         end
         if Runtime.multiplayer:isClient() then
+            require("src.technician_replica").update(Runtime.state,dt)
             local jack = Runtime.PalletJack.ensure(Runtime.state, Runtime.Config.palletJack)
             -- Predicting drivers already advanced their turn during movement.
             -- Observers (including clients in menus) still need one visual step.
             local presentationDt = predictedJackOwner ~= nil
                 and predictedJackOwner == jack.operatorPlayerId and 0 or dt
             Runtime.World.updatePalletJackPresentation(Runtime.state, presentationDt,
-                Runtime.multiplayer:remotePlayers(), Runtime.World.player)
+                Runtime.multiplayer:remotePlayers(), Runtime.World.player,dt)
         end
     end
 end

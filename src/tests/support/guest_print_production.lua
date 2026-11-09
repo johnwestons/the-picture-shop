@@ -87,8 +87,13 @@ function Test.run(context, check, journey)
             confirmed("resume_run",function() click(647,439) end)
         end
         advance(10)
+        if process.status == "production" then advance(1) end
         expect("exact_pass_target_"..color,process.status=="pass_complete" and process.goodSheets==process.targetSheets
-            and remote.view.goodSheets==process.goodSheets)
+            and remote.view.goodSheets==process.goodSheets,
+            string.format("status=%s good=%d target=%d remote=%d feed=%d motor=%s feeder=%s impression=%s",
+                tostring(process.status), process.goodSheets or 0, process.targetSheets or 0,
+                remote.view.goodSheets or 0, process.feedRemaining or 0,
+                tostring(process.motor), tostring(process.feeder), tostring(process.impression)))
         local wash=state.inventory.stock.press_wash
         confirmed("clean_unload_"..color,function() click(822,439); click(822,439) end,true)
         expect("wash_and_pass_record_once_"..color,state.inventory.stock.press_wash==wash-1

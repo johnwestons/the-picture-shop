@@ -1,6 +1,7 @@
 local CutterZones = {}
 local Footprint = require("src.floor_footprint")
 local Config = require("src.config")
+local MachineRotation = require("src.machine_rotation")
 
 local palletFrames = {
     northwest = 1, north = 1,
@@ -47,14 +48,15 @@ local function cutter(state, config)
         x = type(value.x) == "number" and value.x or config.spawnX,
         y = type(value.y) == "number" and value.y or config.spawnY,
         direction = signs[value.direction] and value.direction or config.defaultDirection or "northwest",
+        rotationIndex = MachineRotation.normalizedFrame("cutter", value, config.defaultDirection or "northwest"),
     }
 end
 
 function CutterZones.inputAnchor(state, config)
     local machine = cutter(state, config)
-    local sign = signs[machine.direction]
-    return machine.x + sign.x * (config.palletInputOffsetX or 78),
-        machine.y + sign.y * (config.palletInputOffsetY or 38)
+    local signX, signY = MachineRotation.operatorVector("cutter", machine.rotationIndex)
+    return machine.x + signX * (config.palletInputOffsetX or 78),
+        machine.y + signY * (config.palletInputOffsetY or 38)
 end
 
 function CutterZones.inputDistanceSquared(state, pallet, config)
@@ -71,11 +73,11 @@ function CutterZones.inInputZone(state, pallet, config, radius)
     radius = math.max(1, tonumber(radius) or config.palletInputZoneRadius or 62)
     if type(pallet and pallet.world) ~= "table" then return false end
     local machine = cutter(state,config)
-    local sign = signs[machine.direction]
+    local signX, signY = MachineRotation.operatorVector("cutter", machine.rotationIndex)
     local dx,dy = pallet.world.x-machine.x,pallet.world.y-machine.y
     -- The feed half-plane follows this particular cutter's rotation. Pallets
     -- alongside the feed table count by their edges, even near its corners.
-    local feedSide = dx*sign.x + dy*sign.y >= 0
+    local feedSide = dx*signX + dy*signY >= 0
     if not feedSide then return false end
     return CutterZones.inputDistanceSquared(state, pallet, config) <= radius * radius
         or Footprint.distanceSquared(Footprint.at(machine.x,machine.y,config),

@@ -1,0 +1,7 @@
+East LEFT CONTACT single-pose experiment. One isolated full-body sprite, transparent background, side profile facing screen-right.
+
+Use only the v2 east idle crop as identity and body-shape reference: tall suit-up-derived proportions, bronze full-face helmet enclosing ears, brown one-piece leather suit, gloves and broad boots. Preserve the helmet/body ratio and long torso/legs. Use east-eight-phase-guide only for limb anatomy: RED is far/anatomical LEFT, BLUE is near/anatomical RIGHT. No old short/chibi reference.
+
+Draw a LEFT CONTACT pose: the far/anatomical LEFT leg reaches forward to screen-right and makes heel contact on the ground; this is the clear front leg. The near/anatomical RIGHT leg stretches behind the hip toward screen-left and its toe is just lifting. Keep both knee pads and both boots visible and separated. Layer the far left leg/boot in front of the near right leg where they cross, so the front heel is clearly the far/left leg. Opposite arm swing: near/anatomical RIGHT arm reaches forward toward screen-right, far LEFT arm swings back toward screen-left.
+
+Stable east profile, consistent neutral light and materials, no motion blur, no props, no text, no arrows, no extra figures or setting. Leave empty transparent margin; show full helmet through both boots. Ground contact must be clear. No repeated generic walk stance; communicate the named limbs anatomically.

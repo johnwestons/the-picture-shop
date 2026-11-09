@@ -1,16 +1,22 @@
 -- Default save state and legacy job normalization helpers.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local MachineRotation = require("src.machine_rotation")
 
 function Component.install(Runtime)
     function Runtime.defaultPlacement(config)
-        return {
+        local placement = {
             x = config.spawnX,
             y = config.spawnY,
             direction = config.defaultDirection or "northwest",
             moving = false,
             inMotion = false,
         }
+        if config.rotationKind then
+            placement.rotationIndex = MachineRotation.frameForDirection(
+                config.rotationKind, placement.direction) or 1
+        end
+        return placement
     end
 
     function Runtime.Schema.defaultState()
@@ -19,6 +25,7 @@ function Component.install(Runtime)
         jack.animationClock = 0
         return {
             money = 180,
+            home = Runtime.Home.new(),
             inventory = {
                 paper = 40,
                 prints = 0,
@@ -34,8 +41,11 @@ function Component.install(Runtime)
             nextJobId = 1,
             accountsReceivable = 0,
             reputation = Runtime.Reputation.defaultState(),
+            deliveryDriver = { version=1,status="idle",waitSeconds=0,
+                driverReturned=false,penaltyApplied=false },
             cutterMemory = {},
             procurement = { orders = {}, nextOrderId = 1, shipments = {}, nextShipmentId = 1 },
+            groceryStore = require("src.commute.grocery_inventory").defaultState(),
             vendorCategory = 1,
             calendar = Runtime.BusinessCalendar.defaultCalendar(),
             bills = Runtime.BusinessCalendar.defaultBills(),
@@ -43,10 +53,12 @@ function Component.install(Runtime)
             employment = Runtime.Employees.defaultState(0),
             clientEmails = { nextEmailId = 1, nextPromotionId = 1,
                 pending = {}, inbox = {}, archive = {}, sentPromotions = {} },
-            workPhone = { nextCallId = 1, nextCallAtHours = 6, incoming = nil, history = {} },
+            workPhone = { nextCallId = 1, nextCallAtHours = 6, incoming = nil,
+                deferredCalls = {}, history = {} },
             machines = Runtime.MachineFleet.defaultState(),
             cutter = Runtime.defaultPlacement(Runtime.Config.cutterPlacement),
             palletJack = jack,
+            extraPalletJacks = {},
             warehouse = Runtime.WarehouseUpgrades.defaultState(),
             stagingAreas = Runtime.StagingAreas.defaultState(),
             breakroomGames = Runtime.BreakroomGames.defaultState(),
@@ -57,12 +69,19 @@ function Component.install(Runtime)
         }
     end
 
-    function Runtime.mergePlacement(fallback, source)
+    function Runtime.mergePlacement(fallback, source, rotationKind)
         local result = Runtime.copy(fallback)
         if type(source) ~= "table" then return result end
         if Runtime.number(source.x) then result.x = source.x end
         if Runtime.number(source.y) then result.y = source.y end
         if Runtime.directions[source.direction] then result.direction = source.direction end
+        if rotationKind then
+            result.rotationIndex = MachineRotation.normalizedFrame(rotationKind, {
+                direction = result.direction,
+                rotationIndex = source.rotationIndex,
+            }, result.direction)
+            result.direction = MachineRotation.directionForFrame(rotationKind, result.rotationIndex)
+        end
         result.moving = source.moving == true
         result.inMotion = source.inMotion == true
         return result

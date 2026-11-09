@@ -1,4 +1,5 @@
 local PaperWork = {}
+local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
 function PaperWork.createStockPaper()
     local job = { id = "STOCK", sourceSize = { width = 13, height = 10 },
@@ -53,7 +54,7 @@ function PaperWork.create(job, pallet, difficulty, seed)
         finishedSize = { width = finished.width, height = finished.height },
         currentSize = { width = source.width, height = source.height },
         margins = { left = left, right = right, top = top, bottom = bottom },
-        orientation = 0,
+        orientation = cuts[1].orientation or 0,
         activeCut = 1,
         cuts = cuts,
         status = "uncut",
@@ -66,14 +67,39 @@ function PaperWork.currentCut(paper)
     return paper and paper.cuts and paper.cuts[paper.activeCut]
 end
 
+function PaperWork.prepareFirstCut(paper)
+    if not paper or type(paper.cuts) ~= "table" or (paper.activeCut or 1) ~= 1
+        or #(paper.history or {}) > 0 or not paper.cuts[1]
+    then return false end
+    paper.orientation = paper.cuts[1].orientation or 0
+    return true
+end
+
+-- Positive rotation is clockwise in the cutter's screen-space presentation.
+-- Follow the same quarter-turn direction as the programmed cut sequence so a
+-- single click after each cut presents the next edge to the blade.
+function PaperWork.rotationDirection(paper)
+    local cuts = paper and paper.cuts
+    if type(cuts) ~= "table" or #cuts < 2 then return -1 end
+    local active = math.max(1, math.floor(tonumber(paper.activeCut) or 1))
+    local fromIndex, toIndex
+    if active > 1 and cuts[active - 1] and cuts[active] then
+        fromIndex, toIndex = active - 1, active
+    elseif cuts[active] and cuts[active + 1] then
+        fromIndex, toIndex = active, active + 1
+    else
+        return -1
+    end
+    local from = tonumber(cuts[fromIndex].orientation) or 0
+    local to = tonumber(cuts[toIndex].orientation) or from
+    local delta = (to - from + 540) % 360 - 180
+    if math.abs(delta) < 0.001 then return -1 end
+    return delta > 0 and 1 or -1
+end
+
 function PaperWork.rotate(paper)
     if not paper or paper.status == "complete" then return false end
-    local cut = PaperWork.currentCut(paper)
-    if not cut or paper.orientation == cut.orientation then return false end
-    -- Move directly to the next programmed quarter-turn. This is one
-    -- counter-clockwise handling turn for the operator, even though the
-    -- stored screen orientation alternates across the four bed quadrants.
-    paper.orientation = cut.orientation
+    paper.orientation = ((tonumber(paper.orientation) or 0) + 90 * PaperWork.rotationDirection(paper)) % 360
     return true
 end
 
@@ -90,7 +116,7 @@ function PaperWork.gaugeMatches(paper, gauge)
     return cut ~= nil and math.abs((gauge or 0) - cut.gauge) < 0.011
 end
 
-function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness)
+function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness, operatorSkill, bladeGrade)
     local cut = PaperWork.currentCut(paper)
     if not cut then return false, "No remaining programmed cut." end
     gauge = round(tonumber(gauge) or 0)
@@ -100,7 +126,11 @@ function PaperWork.applyCut(paper, gauge, programIndex, bladeSharpness)
     local correctGauge = PaperWork.gaugeMatches(paper, gauge)
     local offSpec = not correctProgram or not correctRotation or not correctGauge
     local sharpness = math.max(0, math.min(100, tonumber(bladeSharpness) or 100))
-    local edgeQuality = 0.70 + 0.30 * sharpness / 100
+    local blade = BladeProfiles.get(bladeGrade) or BladeProfiles.get("standard")
+    local bladeQuality = blade.qualityFloor + (1 - blade.qualityFloor) * sharpness / 100
+    local skillQuality = operatorSkill == nil and 1
+        or 0.82 + 0.18 * math.max(0, math.min(100, tonumber(operatorSkill) or 0)) / 100
+    local edgeQuality = math.min(bladeQuality, skillQuality)
     paper.cutQuality = math.min(tonumber(paper.cutQuality) or 1, edgeQuality)
     local horizontal = correctRotation and (cut.edge == "left" or cut.edge == "right")
         or paper.orientation == 90 or paper.orientation == 270
@@ -155,7 +185,7 @@ function PaperWork.resetForNextLift(paper)
         width = paper.sourceSize.width,
         height = paper.sourceSize.height,
     }
-    paper.orientation = 0
+    paper.orientation = paper.cuts and paper.cuts[1] and paper.cuts[1].orientation or 0
     paper.activeCut = 1
     paper.status = "uncut"
     paper.offSpec = nil
