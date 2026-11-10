@@ -122,6 +122,7 @@ local DOMAIN_SUITES = {
     require("src.tests.lan_reconnect_session_test"),
     require("src.tests.lan_screen_test"),
     require("src.tests.keyboard_mobile_test"),
+    require("src.tests.mobile_controls_platform_test"),
     require("src.tests.direct_screen_test"),
     require("src.tests.direct_composite_transport_test"),
     require("src.tests.direct_composite_session_integration_test"),
@@ -225,3 +226,4 @@ function Suites.verifyAuditCoverage(passed, check)
 end
 
 return Suites
+

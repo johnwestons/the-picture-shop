@@ -25,7 +25,9 @@ end
 
 local function defaultEnabled()
     if os.getenv("PICTURE_SHOP_MOBILE") == "1" then return true end
-    return love and love.system and love.system.getOS and love.system.getOS() == "Android"
+    local operatingSystem = love and love.system and love.system.getOS
+        and love.system.getOS()
+    return operatingSystem == "Android" or operatingSystem == "iOS"
 end
 
 local function distance(x1, y1, x2, y2)
@@ -363,3 +365,4 @@ function MobileControls:draw()
 end
 
 return MobileControls
+
