@@ -103,8 +103,10 @@ local function packagedLibraryPath()
     -- Include a per-load suffix so simultaneous game instances never race to
     -- rewrite the same DLL while Windows may have it mapped already.
     local suffix = tostring({}):gsub("[^%w]", "")
+    -- The filename only distinguishes cache entries; both reads still verify
+    -- the complete SHA-256. Keep it short enough for longer Windows save paths.
     local cacheRelative = cacheDirectory .. "/tps_route_"
-        .. PACKAGED_ROUTE_SHA256 .. "_" .. suffix .. ".dll"
+        .. PACKAGED_ROUTE_SHA256:sub(1, 16) .. "_" .. suffix .. ".dll"
     local writeOk, written = pcall(
         love.filesystem.write, cacheRelative, bytes)
     if not writeOk or written ~= true then return nil end
