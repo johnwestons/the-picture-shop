@@ -108,6 +108,11 @@ function Test.run(context, check)
         { status = "loaded_for_pickup" })
     local closed = loaded and context.jobService.completePickup(late, lateJob.id, 104)
     local reviewBefore = late.reputation.reviews[1] and late.reputation.reviews[1].rating
+    check('feedback_overnight_complaint_waits_for_business_hours',closed and not late.workPhone.incoming
+        and #late.workPhone.deferredCalls==1)
+    Calendar.update(late,8/24*Calendar.secondsPerDay(late))
+    context.jobService.updateClientEmails(late)
+    WorkPhone.update(late,.1)
     local complaintCall = late.workPhone.incoming
     if complaintCall then
         WorkPhone.answer(late)

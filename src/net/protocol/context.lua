@@ -17,7 +17,7 @@ function Component.install(Runtime)
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 71,
+        VERSION = 74,
         MAX_PACKET_BYTES = 1200,
         MAX_SHOP_SNAPSHOT_BYTES = 1024 * 1024,
         SHOP_COMPRESSION_MAGIC = "TPSL",

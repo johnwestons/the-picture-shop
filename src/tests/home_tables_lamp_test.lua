@@ -42,7 +42,8 @@ function Test.run(context,check)
         local intent={productId=kind,quantity=1,requestId="tables-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,intent));assert(Shopping.order(s,p,intent))
     end
-    check("home_tables_three_orders_debit_household_once",#s.home.shopping.orders==3 and s.home.balanceCents==money-10000 and s.money==business)
+    -- $85 of furniture plus the 15% delivery fee, despite duplicate requests.
+    check("home_tables_three_orders_debit_household_once",#s.home.shopping.orders==3 and s.home.balanceCents==money-9775 and s.money==business)
     time(s,46);assert(Shopping.advance(s));local parcel=Shopping.target(p,s);p.x,p.y=parcel.x,parcel.y
     assert(Shopping.collect(s,p));check("home_tables_all_deliver_once",#s.home.furniture.items==4 and not Shopping.collect(s,p))
     local tableItem=s.home.furniture.items[2];local lamp=s.home.furniture.items[4]

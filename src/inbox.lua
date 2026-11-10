@@ -2,9 +2,11 @@ local BusinessCalendar = require("src.business_calendar")
 
 local Inbox = {}
 
-local function isClientNotice(kind)
-    kind = tostring(kind or "")
-    return kind:match("^client_") ~= nil or kind:match("^customer_") ~= nil
+-- Automated receipts and household accounts can arrive at any time. People
+-- replying about shop business wait until their office opens.
+function Inbox.isBusinessNotice(kind)
+    return not ({receipt=true,home_order=true,home_delivery=true,
+        household_pay=true,payroll=true,shift_report=true})[tostring(kind or '')]
 end
 
 function Inbox.ensure(state)
@@ -40,9 +42,11 @@ function Inbox.addNotice(state, notice, delayHours)
         discountedTotal = tonumber(notice.discountedTotal),
         readyAtHours = now + math.max(0, tonumber(delayHours) or 0),
     }
-    if notice.readyAtHours then notice.readyAtHours = math.max(now, tonumber(notice.readyAtHours) or now) end
+    if Inbox.isBusinessNotice(noticeKind) then
+        notice.readyAtHours=require('src.business_hours').nextService(notice.readyAtHours)
+    end
     if notice.readyAtHours <= now
-        and not (BusinessCalendar.isWeekend(state) and isClientNotice(noticeKind))
+        and (not Inbox.isBusinessNotice(noticeKind) or BusinessCalendar.isBusinessOpen(state))
     then
         notice.receivedAtHours = now
         emails.inbox[#emails.inbox + 1] = notice

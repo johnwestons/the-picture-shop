@@ -210,7 +210,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
             id = string.format("SHIP-%04d", shipmentNumber), orderIds = {},
             status = "awaiting_delivery", openedAtHours = now,
             closesAtHours = now + GROUP_WINDOW_HOURS,
-            delivery = { status = "awaiting_schedule", expectedAtHours = now + DELIVERY_DELAY_HOURS },
+            delivery = { status = "awaiting_schedule", expectedAtHours = require('src.business_hours').nextService(now + DELIVERY_DELAY_HOURS) },
         }
         procurement.shipments[#procurement.shipments + 1] = shipment
     end
@@ -234,6 +234,8 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     procurement.orders[#procurement.orders + 1] = order
     shipment.orderIds[#shipment.orderIds + 1] = order.id
     state.money = state.money - price
+    require('src.receipt_book').expense(state,'Supply order '..id,price*100,onlineVendor or category.salesman,
+        'Shop',tostring(quantity)..' '..tostring(item.unit or 'units')..' - '..productName,'order:'..id)
     if channel == "computer" then
         local receiptBody=string.format(
             "Payment received for %s from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Your order will arrive at the loading dock.",
@@ -401,6 +403,7 @@ function Procurement.orderById(state, orderId)
 end
 
 function Procurement.nextInbound(state)
+    if not BusinessCalendar.isBusinessOpen(state) then return nil end
     local now = BusinessCalendar.absoluteHours(state)
     for _, shipment in ipairs(ensure(state).shipments) do
         -- Truck motion is transient. After loading, a saved scheduled/backing/

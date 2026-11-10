@@ -474,14 +474,16 @@ def verify_windows_route_package(package: Path, provider: Path) -> dict[str, str
 def build(
     windows_route_provider: Path | None = None,
     output_dir: Path | None = None,
+    runtime_version_name: str | None = None,
 ) -> Path:
     output = (output_dir or OUTPUT).resolve()
     stage = output / "stage"
     config = json.loads(CONFIG.read_text(encoding="utf-8"))
+    runtime_version_name = runtime_version_name or config["versionName"]
     output.mkdir(parents=True, exist_ok=True)
     safe_clean(stage, output)
     copy_runtime(stage)
-    write_runtime_version(stage, config["versionName"])
+    write_runtime_version(stage, runtime_version_name)
     route_manifest = None
     if windows_route_provider is not None:
         route_manifest = copy_windows_route_provider(stage, windows_route_provider)
@@ -489,7 +491,7 @@ def build(
     manifest = {
         "applicationId": config["applicationId"],
         "applicationName": config["applicationName"],
-        "versionName": config["versionName"],
+        "versionName": runtime_version_name,
         "versionCode": config["versionCode"],
         "loveVersion": config["loveVersion"],
         "sourceCommit": git_value("rev-parse", "HEAD"),
@@ -503,7 +505,7 @@ def build(
     if route_manifest is not None:
         manifest["windowsRouteProvider"] = route_manifest
     (stage / "mobile-build.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    package = output / f"the-picture-shop-{config['versionName']}.love"
+    package = output / f"the-picture-shop-{runtime_version_name}.love"
     temporary = package.with_suffix(".tmp.love")
     temporary.unlink(missing_ok=True)
     write_reproducible_archive(stage, temporary)
@@ -536,6 +538,10 @@ if __name__ == "__main__":
         default=OUTPUT,
         help="write the package, stage, report, and icons under this directory",
     )
+    parser.add_argument(
+        "--runtime-version-name",
+        help="override the version embedded in the shared .love runtime",
+    )
     arguments = parser.parse_args()
     if arguments.verify_windows_route_package is not None:
         if arguments.windows_route_provider is None:
@@ -545,4 +551,8 @@ if __name__ == "__main__":
             arguments.windows_route_provider,
         ), indent=2))
     else:
-        build(arguments.windows_route_provider, arguments.output_dir)
+        build(
+            arguments.windows_route_provider,
+            arguments.output_dir,
+            arguments.runtime_version_name,
+        )

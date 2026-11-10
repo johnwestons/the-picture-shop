@@ -211,11 +211,13 @@ function Component.install(Runtime)
             return true
         end
         if Runtime.Screen.loadMenu then
-            local pageStart = math.floor((Runtime.Screen.loadMenu.selected - 1) / Runtime.loadMenuPageSize)
-                * Runtime.loadMenuPageSize + 1
-            local pageEnd = math.min(#Runtime.Screen.loadMenu.options, pageStart + Runtime.loadMenuPageSize - 1)
-            for index = pageStart, pageEnd do
-                local displayIndex = index - pageStart + 1
+            local layout = Runtime.loadMenuLayout(Runtime.Screen.loadMenu)
+            if Runtime.inside(layout.back, x, y) then
+                Runtime.Screen.loadMenu = nil
+                return true
+            end
+            for index = layout.pageStart, layout.pageEnd do
+                local displayIndex = index - layout.pageStart + 1
                 local row = {
                     x = Runtime.loadMenuRect.x + 16,
                     y = Runtime.loadMenuRect.y + 68 + (displayIndex - 1) * Runtime.loadMenuRect.rowHeight,

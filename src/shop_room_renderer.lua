@@ -159,14 +159,15 @@ local function tableForeground(state,sceneId,assets)
     Renderer.drawBackground(state,sceneId,assets)
     love.graphics.setStencilTest()
 end
-function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement,drawMachine,physicalPallets)
+function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement,drawMachine,physicalPallets,exteriorPlayers,exteriorContext)
     local sceneId=Rooms.scene(world.player)
     Renderer.drawBackground(state,sceneId,assets)
-    require("src.room_loading_bay_renderer").draw(world,assets,state,sceneId)
+    require("src.room_loading_bay_renderer").draw(world,assets,state,sceneId,characters,exteriorPlayers,exteriorContext)
     if drawPlacement then drawPlacement() end
     Renderer.drawShelves(assets,state,sceneId,drawPallet)
     require("src.staging_areas").draw(state,sceneId)
     local visible={[world.player.character]=true}
+    for character in pairs(require('src.dock_renderer').characters())do visible[character]=true end
     local jack=state and require("src.pallet_jack").ensure(state,require("src.config").palletJack)
     local jackInScene=jack and jack.sceneId==sceneId
     local lift=state and state.forklift

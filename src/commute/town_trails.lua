@@ -3,6 +3,7 @@
 local M=require('src.commute.vendor.mathx')
 local Sites=require('src.commute.sites')
 local Terrain=require('src.commute.town_terrain_v2')
+local Recreation=require('src.commute.recreation_layout')
 local Trails={WIDTH=2.8}
 local function q(v)return math.floor(v*1000+.5)/1000 end
 local function distance(a,b)return M.length(a[1]-b[1],a[2]-b[2]) end
@@ -287,34 +288,47 @@ local function addPerimeterTrail(ctx,anchors,used)
         end
     end
 end
-local kinds={'picnic','camp','park'}
+local kinds={'park','camp','picnic'}
 local labels={picnic='Shaded Picnic Grove',camp='Pine Campground',park='Woodland Park'}
 local function clearing(ctx,points,index,trailId)
-    local radius=4.2
+    for _,radius in ipairs({Recreation.RADIUS,20,4.2}) do
     for i=4,#points-3 do
         local p=points[i];local next=points[i+1]
         local d=distance(p,next)
         local nx,nz=-(next[2]-p[2])/d,(next[1]-p[1])/d
         for _,side in ipairs({1,-1}) do
             local x,z=q(p[1]+nx*side*(radius+2)),q(p[2]+nz*side*(radius+2))
-            local h=ctx.plan:height(x,z)
-            -- Keep the whole clearing outside the building grading aprons so
-            -- its saved flat height does not get pulled toward a nearby pad.
-            local safe=h>1 and clearLot(ctx,x,z,radius+2+Sites.GRADE_APRON) and clearEdges(ctx,x,z,radius+3)
+            local h=radius>=16 and p[3] or ctx.plan:height(x,z)
+            -- The large landscaped clearing owns its grading and five-metre
+            -- transition. Keep foundations, hardscape and road lanes outside it.
+            local setback=radius>=16 and 6 or 2+Sites.GRADE_APRON
+            local safe=h>1 and clearLot(ctx,x,z,radius+setback) and clearEdges(ctx,x,z,radius+3)
+            -- The rest of a curved trail must also stay outside the clearing.
+            for j=1,#points-1 do
+                if roadDistance(edge(points[j],points[j+1],Trails.WIDTH),x,z)<(radius+.6)^2 then safe=false;break end
+            end
             for _,area in ipairs(ctx.town.recreation) do
                 if M.length(area.x-x,area.z-z)<25 then safe=false end
             end
             for k=1,8 do
                 local angle=math.pi*k/4
                 local sample=ctx.plan:height(x+math.cos(angle)*(radius+1.5),z+math.sin(angle)*(radius+1.5))
-                if sample<.8 or math.abs(sample-h)>1 then safe=false;break end
+                if sample<.8 or math.abs(sample-h)>(radius>5 and 2.5 or 1) then safe=false;break end
+            end
+            if safe and radius>=16 then
+                -- Check inside the footprint too: a narrow stream can miss
+                -- all of the perimeter samples of a larger clearing.
+                for sx=-2,2 do for sz=-2,2 do
+                    if sx*sx+sz*sz<=6.25 and ctx.plan:height(x+sx*radius*.4,z+sz*radius*.4)<.8 then safe=false end
+                end end
             end
             if safe then
-                local kind=kinds[(index+ctx.town.seed-1)%#kinds+1]
+                local kind=kinds[(index-1)%#kinds+1]
                 return {id=kind..'-'..index,kind=kind,label=labels[kind],trailId=trailId,
                     x=x,z=z,h=q(h),radius=radius,heading=q(math.atan2(-nz*side,-nx*side))}
             end
         end
+    end
     end
 end
 local function commitJunctions(inserts)
@@ -360,7 +374,7 @@ function Trails.generate(town,plan)
                 local points=path(ctx,pair,bend)
                 if points then
                     local id='woodland-trail-'..(count+1)
-                    local area=#town.recreation<3 and clearing(ctx,points,count+1,id)
+                    local area=#town.recreation<3 and clearing(ctx,points,#town.recreation+1,id)
                     if settings or area or #town.recreation>=2 then
                         for _,n in ipairs({pair.a,pair.b}) do
                             used[n]=true
@@ -379,6 +393,18 @@ function Trails.generate(town,plan)
             end
         end
         if count>=target then break end
+    end
+    -- Assign the two larger destinations first, even when the second trail
+    -- only had room for the small, legacy picnic stop.
+    local ordered={}
+    for _,large in ipairs({true,false}) do
+        for _,area in ipairs(town.recreation) do
+            if Recreation.expanded(area)==large then ordered[#ordered+1]=area end
+        end
+    end
+    town.recreation=ordered
+    for index,area in ipairs(ordered) do
+        area.kind=kinds[index];area.id=area.kind..'-'..index;area.label=labels[area.kind]
     end
     commitJunctions(inserts)
     return count

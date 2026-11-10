@@ -3,7 +3,7 @@
 -- ground without allocating the whole town's GPU meshes.
 local Town=require('src.commute.town')
 local TerrainMesh=require('src.commute.terrain_mesh')
-local Cache={VERSION=1}
+local Cache={VERSION=2}
 local vertexFormat='<'..string.rep('f',24)
 local headerFormat='<I4I4I4I4I4'
 local headerBytes=4+20+32

@@ -5,7 +5,9 @@ local GearActionArt=require('src.commute.gear_action_art')
 local RoadScale=require('src.commute.rider_scale')
 local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
-local P={}
+-- Store scenes share an indoor fit for the riding outfit so its body remains
+-- readable beside shelving, carts and store staff. Foot anchors stay fixed.
+local P={STORE_RIDER_SCALE=1.15}
 local roadMirrorFor={west='east',northwest='northeast',southwest='southeast'}
 local gearActionArt,gearActionArtFailed
 local function getGearActionArt()
@@ -98,7 +100,7 @@ function P.foot(x,y,zoom,gear,distance,speed,presentation,appearance)
     end
     g.pop();g.setLineWidth(1);g.setColor(1,1,1)
 end
-local function drawSuitedWalker(characterAssets,player,opacity)
+local function drawSuitedWalker(characterAssets,player,opacity,statureScale)
     if not characterAssets then return false end
     local character="suited-rider"
     local animation=require("src.character_animation")
@@ -118,7 +120,7 @@ local function drawSuitedWalker(characterAssets,player,opacity)
     local image,quad=characterAssets.get(character,action,frame)
     if not image or not quad then return false end
     local anchorX,anchorY=characterAssets.getAnchor(character,action,frame)
-    local scale=Config.player.drawScale*characterAssets.getNormalization(character,action)
+    local scale=Config.player.drawScale*(statureScale or 1)*characterAssets.getNormalization(character,action)
     love.graphics.push('all');love.graphics.setShader();love.graphics.setColor(1,1,1,opacity or 1)
     love.graphics.draw(image,quad,player.x,player.y,0,scale*mirror,scale,anchorX,anchorY)
     love.graphics.pop()
@@ -228,7 +230,7 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
     return drew
 end
 
-function P.indoor(player,state,characterAssets,gearOverride)
+function P.indoor(player,state,characterAssets,gearOverride,statureScale)
     local resident=require('src.home_residents').display(state,player)
     local gear=gearOverride or resident and resident.ridingGear
     if not gear or gear.outfit=='normal' and not gear.transition then return false end
@@ -239,7 +241,7 @@ function P.indoor(player,state,characterAssets,gearOverride)
         local Config=require('src.config')
         local appearance={character=selected,furColorway=player.furColorway,
             overallsColorway=player.overallsColorway}
-        if drawGearAction(pose,progress,player.x,player.y,Config.player.drawScale,appearance) then return true end
+        if drawGearAction(pose,progress,player.x,player.y,Config.player.drawScale*(statureScale or 1),appearance) then return true end
     end
     if transition and (transition.kind=='equip' or transition.kind=='remove') then
         if selected~='rabbit-worker' then return false end
@@ -248,12 +250,12 @@ function P.indoor(player,state,characterAssets,gearOverride)
         local normal=1-suited
         local drew=false
         if normal>.001 then drew=drawNormalWalker(characterAssets,player,normal) or drew end
-        if suited>.001 then drew=drawSuitedWalker(characterAssets,player,suited) or drew end
+        if suited>.001 then drew=drawSuitedWalker(characterAssets,player,suited,statureScale) or drew end
         return drew
     end
     if gear.outfit=='geared' and not gear.transition and not gear.mounted
         and selected=="rabbit-worker"
-        and drawSuitedWalker(characterAssets,player) then
+        and drawSuitedWalker(characterAssets,player,nil,statureScale) then
         return true
     end
     return false

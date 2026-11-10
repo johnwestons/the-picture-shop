@@ -3,7 +3,7 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim)
+    function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim,signature)
         local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
         if not allowed then return false,'riding_gear',reason,requestedKind end
         if requestedKind=="roomGame" then
@@ -45,7 +45,7 @@ function Component.install(Runtime)
             if dx*dx+dy*dy>radius*radius then
                 return false,"out_of_range","Move closer to the driver to sign for the delivery.",requestedKind
             end
-            local accepted=Runtime.World.signDelivery(state,player)
+            local accepted=Runtime.World.signDelivery(state,player,signature)
             return accepted,accepted and "accepted" or "state_changed",
                 state and state.message or "The delivery signature could not be completed.",requestedKind
         end
@@ -132,8 +132,8 @@ function Component.install(Runtime)
         return false, code, state and state.message or "The loading-bay door cannot move right now.", requestedKind
     end
 
-    function Runtime.World.signDelivery(state,player)
-        local accepted,message=require("src.warehouse_delivery_driver").sign(state,player)
+    function Runtime.World.signDelivery(state,player,signature)
+        local accepted,message=require("src.warehouse_delivery_driver").sign(state,player,signature)
         if state then state.message=message or state.message end
         return accepted
     end
@@ -209,7 +209,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.World.loadPickupPallet(state, palletId)
-        local allowed,reason=require('src.player_delivery_loading').canLoad(state,Runtime.World.truck)
+        local allowed,reason,jobId=require('src.player_delivery_loading').canLoad(state,Runtime.World.truck,palletId)
         if not allowed then state.message=reason;return false,reason end
         if Runtime.World.truck.state ~= "cargo_open" or Runtime.World.truck.mode ~= "pickup" then
             if state then state.message = "Open the scheduled pickup truck before loading pallets." end
@@ -231,7 +231,10 @@ function Component.install(Runtime)
             return false,state.message
         end
         local succeeded, pallet, remaining = Runtime.JobService.loadForPickup(
-            state, Runtime.World.truck.jobId, palletId, os.time())
+            state, jobId, palletId, os.time())
+        if succeeded and Runtime.World.truck.playerDelivery then
+            remaining=require('src.player_delivery_loading').remaining(state,Runtime.World.truck)
+        end
         if state then
             state.message = succeeded
                 and string.format("Loaded %s. %d pallet(s) remain on the floor.", pallet.id, remaining)
@@ -242,7 +245,7 @@ function Component.install(Runtime)
 
     function Runtime.World.loadEmployeePickup(state,worker,palletId)
         local truck=Runtime.World.truck
-        local allowed,reason=require('src.player_delivery_loading').canLoad(state,truck)
+        local allowed,reason,jobId=require('src.player_delivery_loading').canLoad(state,truck,palletId)
         if not allowed then return false,reason end
         local jack=require("src.pallet_jack_fleet").owned(state,worker.id)
         if truck.mode~="pickup" or truck.state~="cargo_open" or not jack
@@ -256,8 +259,11 @@ function Component.install(Runtime)
         local options=Runtime.World._employeeOptions or {}
         if options.canLoadTruck and not options.canLoadTruck() then return false,"The truck manifest is in use." end
         local ok,pallet,remaining=Runtime.JobService.loadForPickup(
-            require("src.pallet_jack_fleet").view(state,jack),truck.jobId,palletId,os.time(),worker.id)
-        if ok then state.message="Loaded "..pallet.id.." onto its assigned truck for "..truck.jobId.."." end
+            require("src.pallet_jack_fleet").view(state,jack),jobId,palletId,os.time(),worker.id)
+        if ok then
+            if truck.playerDelivery then remaining=require('src.player_delivery_loading').remaining(state,truck) end
+            state.message="Loaded "..pallet.id.." onto its assigned truck for "..jobId.."."
+        end
         return ok,pallet,remaining
     end
 
@@ -279,7 +285,7 @@ function Component.install(Runtime)
         end
         if Runtime.World.truck.state ~= "cargo_open" then return false end
         if Runtime.World.truck.mode == "pickup" then
-            if Runtime.JobService.remainingPickup(state, Runtime.World.truck.jobId) > 0 then
+            if require('src.player_delivery_loading').remaining(state,Runtime.World.truck) > 0 then
                 if state then state.message = "Load every pickup pallet before closing the cargo door." end
                 return false
             end

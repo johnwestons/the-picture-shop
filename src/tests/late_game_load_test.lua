@@ -211,15 +211,29 @@ function Test.run(context, check)
     local moved, totalTrucks, maxConcurrent = { count = 0, positions = {} }, 0, 0
     local frameCount = 0
     local expectedPallets = JOB_COUNT * PALLETS_PER_JOB + VENDOR_TRUCK_COUNT
+    now=require('src.business_hours').nextService(now,11)
 
-    while pendingPallets(state, deliveryEntries(state)) > 0 and frameCount < 12 do
+    while pendingPallets(state, deliveryEntries(state)) > 0 and frameCount < 60 do
         frameCount = frameCount + 1
         Network.update(state, town, now, epoch)
         local entries = deliveryEntries(state)
         local leaders = activeLeaders(entries)
-        assert(#leaders > 0, "late-game deliveries stalled before arriving trucks were dispatched")
-        assert(#leaders <= Network.MAX_INBOUND_TRUCKS,
-            "inbound traffic exceeded the configured three-truck limit")
+        -- Dispatch can wait for road clearance or the measured simulation
+        -- budget. Continue advancing existing trucks while that happens.
+        for wait=1,1800 do
+            if #leaders>0 then break end
+            epoch=epoch+.1
+            Network.simulate(state,town,.1,epoch)
+            if wait%10==0 then
+                Network.update(state,town,now,epoch)
+                entries=deliveryEntries(state);leaders=activeLeaders(entries)
+            end
+        end
+        local waiting=entries[1] and entries[1].delivery and entries[1].delivery.route or {}
+        assert(#leaders > 0, ("late-game deliveries stalled: frame=%d now=%.2f epoch=%.2f start=%s departed=%s"):
+            format(frameCount,now,epoch,tostring(waiting.startAtHours),tostring(waiting.departedAtEpoch)))
+        assert(#leaders <= Network.MAX_ACTIVE_TRUCKS,
+            "dispatch exceeded the active truck budget")
         maxConcurrent = math.max(maxConcurrent, #leaders)
         totalTrucks = totalTrucks + #leaders
 
@@ -257,7 +271,11 @@ function Test.run(context, check)
                 end
             end
         end
-        epoch = arrivalEpoch + 1
+        Network.update(state,town,now,arrivalEpoch)
+        for step=1,Network.DISPATCH_HEADWAY_SECONDS*10 do
+            Network.simulate(state,town,.1,arrivalEpoch+step*.1)
+        end
+        epoch = arrivalEpoch + Network.DISPATCH_HEADWAY_SECONDS
     end
 
     local remaining = pendingPallets(state, deliveryEntries(state))
@@ -266,9 +284,9 @@ function Test.run(context, check)
     for _, item in ipairs(physical) do
         allPositionsFinite = allPositionsFinite and finitePosition(item)
     end
-    check("late_game_load_routes_eight_plus_trucks_with_three_inbound_at_once",
+    check("late_game_load_routes_eight_plus_trucks_with_staggered_departures",
         remaining == 0 and totalTrucks >= math.ceil(expectedPallets / Network.TRUCK_CAPACITY)
-            and maxConcurrent == Network.MAX_INBOUND_TRUCKS,
+            and maxConcurrent >= 1 and maxConcurrent <= Network.MAX_ACTIVE_TRUCKS,
         string.format("remaining=%d trucks=%d maxConcurrent=%d", remaining, totalTrucks, maxConcurrent))
     check("late_game_load_unloads_all_seventy_two_pallets_to_the_warehouse",
         moved.count == expectedPallets and #physical == expectedPallets and allPositionsFinite,

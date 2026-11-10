@@ -48,7 +48,9 @@ function Component.install(Runtime)
         end,
         palletJackControl = Runtime.handlePalletJackControl,
         requestDeliverySignature = function()
-            local requested,errorMessage=Runtime.multiplayer:requestInteraction("deliverySignature","sign")
+            local screen=Runtime.RuntimeDependencies.DeliverySignatureScreen
+            local requested,errorMessage=Runtime.multiplayer:requestInteraction("deliverySignature","sign",nil,
+                {deliveryId=screen.deliveryId(),ink=screen.signature()})
             Runtime.state.message=requested
                 and "Waiting for the host device to verify the delivery signature..."
                 or tostring(errorMessage or "The delivery signature could not be sent.")

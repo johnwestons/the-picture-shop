@@ -17,6 +17,7 @@ local function event(events,kind)
 end
 function Test.run(context,check)
     local state=context.State.new(); state.money=10000
+    state.calendar.elapsed=Calendar.secondsPerDay(state)*10/24
     local saves,inRange=0,true
     local options={state=state,save=function() saves=saves+1 end,world={validateNetworkWorkshopAccess=function()
         return inRange,inRange and "available" or "out_of_range","Move closer to the workstation."

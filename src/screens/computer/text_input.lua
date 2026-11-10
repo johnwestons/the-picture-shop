@@ -4,6 +4,10 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.ComputerScreen.keypressed(state, key)
+        if Runtime.ComputerScreen.tab=='receipts' then
+            if key=='up' or key=='pageup' then return Runtime.ComputerScreen.receiptScroll(state,-1) end
+            if key=='down' or key=='pagedown' then return Runtime.ComputerScreen.receiptScroll(state,1) end
+        end
         local focused = Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused
             or (Runtime.ComputerScreen.tab == "estimating" and (Runtime.ComputerScreen.quoteFocused
                 or Runtime.ComputerScreen.deliveryQuoteFocused))

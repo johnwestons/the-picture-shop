@@ -54,6 +54,10 @@ function Test.run(check)
     local oilOkay=Station.buy(rider,world,wallet,'oil',rider.bike.service.revision,nil,nil,state)
     check('gas_station_counter_sells_oil_change_at_station',Station.atCounter(rider,world)
         and oilOkay and rider.bike.service.oil==0 and oilBefore>0)
+    check('archive_gas_station_keeps_itemized_fuel_and_oil_payments',#state.receipts.entries==2
+        and state.receipts.entries[1].amountCents==360 and state.receipts.entries[1].details=='2.25 L of fuel'
+        and state.receipts.entries[2].title=='Motorcycle oil service'
+        and require('src.receipt_book').valid(state.receipts))
     check('gas_station_service_scope_is_fuel_and_oil_only',#BikeService.orders==2
         and BikeService.orders[1]=='fuel' and BikeService.orders[2]=='oil')
 end

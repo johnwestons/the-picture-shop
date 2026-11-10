@@ -51,6 +51,7 @@ local SHARED_FIELDS = {
     "vendorCategory",
     "calendar",
     "bills",
+    "receipts",
     "clientEmails",
     "workPhone",
     "machines",
@@ -100,8 +101,13 @@ function State.applySave(state, payload)
         if not PalletStorage.validate(ownership) then return false end
     end
     saved = SaveSchema.copy(saved)
+    local notifications=require('src.notifications').normalize(saved.notifications)
+    local tutorial=require('src.tutorial').normalize(saved.tutorial)
+    if not notifications or not tutorial then return false end
 
     state.activeSlot = payload.slot
+    state.notifications,state.tutorial=notifications,tutorial
+    state.notificationReturnScreen,state.notificationSelection=nil,nil
     state.home = home
     state.money = type(saved.money) == "number" and saved.money or 0
     state.inventory = type(saved.inventory) == "table" and saved.inventory or {}
@@ -182,6 +188,7 @@ function State.applySave(state, payload)
     state.vendorCategory = tonumber(saved.vendorCategory) or 1
     state.calendar = type(saved.calendar) == "table" and saved.calendar or BusinessCalendar.defaultCalendar()
     state.bills = type(saved.bills) == "table" and saved.bills or BusinessCalendar.defaultBills()
+    state.receipts=require('src.receipt_book').normalize(saved.receipts,saved)
     state.credit = Credit.normalize(saved.credit) or Credit.defaultState()
     state.employment = employment
     state._employeePoses = nil
@@ -238,6 +245,11 @@ function State.applySharedSnapshot(state, snapshot)
     local staged = State.new()
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    -- A newly joined shop gets a fresh local inbox; subsequent snapshots keep
+    -- it and its read state. Never inherit another player's tutorial progress.
+    state.notifications=require('src.notifications').new()
+    state.tutorial=require('src.tutorial').new(false)
+    state.notificationReturnScreen,state.notificationSelection=nil,nil
     state.activeSlot = nil
     state.currentOffer = nil
     state._networkMachinePoses = nil

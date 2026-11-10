@@ -151,6 +151,7 @@ local function createInvoice(state)
     bills.nextInvoiceId = bills.nextInvoiceId + 1
     bills.balance = bills.balance + total
     bills.ledger[#bills.ledger + 1] = invoice
+    require('src.receipt_book').invoice(state,invoice)
     return invoice
 end
 
@@ -216,6 +217,7 @@ function Calendar.pay(state)
         if invoice.status == "unpaid" then
             invoice.status = "paid"
             invoice.paidOnDay = date.totalDays
+            require('src.receipt_book').invoice(state,invoice)
         end
     end
     if operating>0 then require("src.credit").recordBillsPaid(state, bills.ledger) end
@@ -244,6 +246,7 @@ function Calendar.addCharge(state, label, amount, reference, kind)
     bills.balance = bills.balance + amount
     bills.ledger[#bills.ledger + 1] = invoice
     require("src.household_finances").record(state,"refunds",amount*100)
+    require('src.receipt_book').invoice(state,invoice)
     return invoice
 end
 
@@ -263,6 +266,7 @@ function Calendar.recordPaidExpenseCents(state,label,amountCents,reference)
         charges={{id=reference or "operating_expense",label=tostring(label or "Company expense"),amount=amount}},
         total=amount,status="paid",kind="operating_expense",reference=reference,
         issuedOnDay=date.totalDays,paidOnDay=date.totalDays}
+    require('src.receipt_book').invoice(state,bills.ledger[#bills.ledger])
     return true,id
 end
 
@@ -297,6 +301,10 @@ function Calendar.weekNumber(state)
     local elapsedDays = date.day - 1
     for month = 1, date.month - 1 do elapsedDays = elapsedDays + daysInMonth(date.year, month) end
     return math.floor(elapsedDays / 7) + 1
+end
+
+function Calendar.isBusinessOpen(state)
+    return require('src.business_hours').isOpen(Calendar.absoluteHours(state))
 end
 
 function Calendar.isWeekend(state)

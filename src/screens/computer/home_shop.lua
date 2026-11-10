@@ -97,6 +97,10 @@ function Component.install(Runtime)
         if confirmation then
             local q=Shopping.quote(confirmation.productId,confirmation.quantity)
             local ordered=recorded(state)
+            if ordered then
+                q.subtotalCents=ordered.unitPriceCents*ordered.quantity
+                q.shippingCents,q.totalCents=ordered.shippingCents,ordered.totalCents
+            end
             text("HOUSEHOLD CHECKOUT",104,208,700,{1,.86,.41,1})
             productArt(confirmation.productId,q.product,248,352,190)
             text(q.product.name,414,252,424)
@@ -113,7 +117,9 @@ function Component.install(Runtime)
             text(q.product.furnitureId and string.format("Household funds $%.2f  |  Guest furniture buying: %s",home.balanceCents/100,
                 home.furniture.permissions.purchase and "enabled by host" or "disabled")
                 or string.format("Household funds $%.2f  |  Shared guest budget remaining $%.2f",home.balanceCents/100,remaining/100),104,465,730)
-            text(ordered and "Order recorded. See Home deliveries for its saved arrival time." or "Your purchase waits at the apartment entrance, even while you are away.",104,494,730)
+            text(ordered and "Order recorded. See Home deliveries for its saved arrival time."
+                or ("Delivery: %d%% of items, $%.2f minimum. Parcels wait at your apartment entrance."):format(
+                    Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100),104,494,730)
             button(buttons.cancel,ordered and "DONE" or "BACK",true)
             button(buttons.confirm,ordered and "ORDER RECORDED" or "CONFIRM ORDER",not ordered and home.balanceCents>=q.totalCents)
             return
@@ -121,7 +127,7 @@ function Component.install(Runtime)
         if Runtime.ComputerScreen.tab=="home_orders" then
             local count=#shop.orders;local pages=math.max(1,math.ceil(count/6));page=(page-1)%pages+1
             text("HOME DELIVERIES / "..address,104,208,730,{1,.86,.41,1})
-            text("Collect ready parcels at your apartment entrance. They never block the door.",104,240,720)
+            text("Collect ready parcels at your apartment entrance.",104,240,620)
             button({x=750,y=250,width=88,height=44},page.."/"..pages.." >",pages>1)
             for i=1,6 do
                 local row=shop.orders[count-(page-1)*6-i+1]
@@ -144,8 +150,8 @@ function Component.install(Runtime)
         local group=Runtime.ComputerScreen.tab;local list=products(group);page=math.max(1,math.min(page,math.ceil(#list/4)))
         text(group=="furniture" and "CRITTERNET HOME & LIVING" or group=="takeout" and "CRITTERNET TAKEOUT" or "CRITTERNET GROCERIES",104,208,500,{1,.86,.41,1})
         text(string.format("Household funds: $%.2f  |  Deliver to: %s",home.balanceCents/100,address),104,239,730)
-        text(group=="furniture" and "Receive at home, then use Furnish [M] to place. All prices use household funds."
-            or "Review quantity, delivery fee and arrival before paying. Ready food needs no appliance.",104,267,730)
+        text(("Delivery: %d%% of items, $%.2f minimum. Review before paying."):format(
+            Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100),104,267,730)
         for i=1,4 do
             local id=list[(page-1)*4+i];local p=id and Catalog.PRODUCTS[id]
             if p then

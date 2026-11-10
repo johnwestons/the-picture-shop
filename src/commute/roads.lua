@@ -98,7 +98,7 @@ local function indexGround(roads)
     for k in pairs(roads.bins) do mark(k) end
     for k in pairs(roads.junctionBins) do mark(k) end
     for _,area in ipairs(roads.recreation) do
-        local r=area.radius+2
+        local r=area.radius+(area.radius>=16 and 5 or 2)
         cells(area.x-r,area.z-r,area.x+r,area.z+r,size,mark)
     end
     if roads.sites.bins then
@@ -143,7 +143,7 @@ function Roads.new(options)
         destinations=options.destinations or DefaultLayout.destinations,recreation=options.recreation or {},
         sites=options.sites or Sites.create(),bounds=options.bounds or DefaultLayout.bounds,
         layoutId=options.layoutId or DefaultLayout.id,version=options.version or Roads.VERSION,
-        drivingMap=options.drivingMap},Roads)
+        drivingMap=options.drivingMap,broadEarthworks=options.broadEarthworks==true},Roads)
     for _,def in ipairs(definitions) do
         local path={id=def.id,width=def.width,points={},length=0,role=def.role,
             surface=def.surface or 'paved',lanes=def.lanes,oneWay=def.oneWay,
@@ -178,7 +178,7 @@ function Roads.new(options)
                 or not def.bridgeEdges and def.id=='east-bank' and (a.x+b.x)*.5>=302 and (a.x+b.x)*.5<=360
             s.nx,s.nz=-dz/len,dx/len;path.length=path.length+len
             self.segments[#self.segments+1]=s
-            local reach=def.width*.5+7
+            local reach=def.width*.5+(self.broadEarthworks and 18 or 7)
             for bx=math.floor((math.min(a.x,b.x)-reach)/16),math.floor((math.max(a.x,b.x)+reach)/16) do
                 for bz=math.floor((math.min(a.z,b.z)-reach)/16),math.floor((math.max(a.z,b.z)+reach)/16) do
                     local key=bx..':'..bz;self.bins[key]=self.bins[key] or {};table.insert(self.bins[key],s)
@@ -188,7 +188,7 @@ function Roads.new(options)
     end
     self.junctions=junctionCandidates(definitions)
     for _,junction in ipairs(self.junctions) do
-        local reach=junction.outerRadius+6
+        local reach=junction.outerRadius+(self.broadEarthworks and 18 or 6)
         for bx=math.floor((junction.x-reach)/self.binSize),math.floor((junction.x+reach)/self.binSize) do
             for bz=math.floor((junction.z-reach)/self.binSize),math.floor((junction.z+reach)/self.binSize) do
                 local key=bx..':'..bz;self.junctionBins[key]=self.junctionBins[key] or {}
@@ -241,14 +241,18 @@ function Roads:grade(base,x,z)
     local pad,d=self:padAt(x,z)
     if pad then graded=M.lerp(pad.h,graded,M.smooth((d-5)/4)) end
     if s and not s.bridge then
-        local blend=s.junction and 1-M.smooth(distance/5) or 1-M.smooth((distance-s.width*.5)/5)
+        -- Grade the land around the designed road. Large cuts and fills need
+        -- a broader embankment instead of a five-metre wall at the shoulder.
+        local apron=self.broadEarthworks and M.clamp(5+math.abs(base-h)*2,5,18) or 5
+        local blend=s.junction and 1-M.smooth(distance/apron) or 1-M.smooth((distance-s.width*.5)/apron)
         graded=M.lerp(graded,h,blend)
     end
     for _,area in ipairs(self.recreation) do
-        local dx,dz=x-area.x,z-area.z;local reach=area.radius+2
+        local apron=area.radius>=16 and 5 or 2
+        local dx,dz=x-area.x,z-area.z;local reach=area.radius+apron
         if math.abs(dx)<reach and math.abs(dz)<reach then
             local d=M.length(dx,dz)
-            local blend=1-M.smooth((d-area.radius)/2)
+            local blend=1-M.smooth((d-area.radius)/apron)
             if s then blend=blend*M.smooth((distance-s.width*.5)/1.5) end
             graded=M.lerp(graded,area.h,blend)
         end

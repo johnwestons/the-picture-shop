@@ -41,7 +41,9 @@ local function imageChecks(context,check)
     characters.retainCharacters({"rabbit-worker"},true)
     check("performance_player_textures_survive_brief_menu_changes",
         inactive and characters.get("rabbit-worker","idle_south",1)==playerImage
-        and characters.cachedTextureBytes()<=56*1024*1024)
+        -- General, player-walk and suited-walk caches have separate 16/40/12 MiB limits.
+        and characters.cachedTextureBytes()<=68*1024*1024,
+        string.format("inactive=%s cachedBytes=%d",tostring(inactive),characters.cachedTextureBytes()))
     characters.retainCharacters({})
     check("performance_explicit_character_release_clears_cache",
         characters.textureBytes()==0 and characters.cachedTextureBytes()==0)

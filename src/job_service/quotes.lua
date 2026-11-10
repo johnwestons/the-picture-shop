@@ -272,7 +272,7 @@ function Component.install(Runtime)
             subject = "Reply to estimate for " .. job.id,
             body = "The client is reviewing your estimate.",
             sourceJobId = job.id,
-            readyAtHours = now + Runtime.emailDelay(job, 1, 3),
+            readyAtHours = require('src.business_hours').nextService(now + Runtime.emailDelay(job, 1, 3)),
             expiresAtHours = job.estimate.expiresAtHours,
             quotedPrice = terms.amount,
             accepted = accepted,

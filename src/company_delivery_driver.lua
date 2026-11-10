@@ -6,10 +6,12 @@ local Roads=require('src.commute.roads')
 local Contracts=require('src.employment_contracts')
 local Calendar=require('src.business_calendar')
 local Payroll=require('src.payroll')
+local ScheduledDriving=require('src.commute.scheduled_driving')
 local CompanyTruck={TANK_LITERS=60,FUEL_PRICE_CENTS_PER_LITER=160,
     FUEL_PER_METER=.0003,LOW_FUEL_LITERS=12,VERSION=1}
 local BASELINE_DRIVER_SKILL=55
 local routeLookupCache=setmetatable({},{__mode='k'})
+local exteriorRoutes=setmetatable({},{__mode='k'})
 local leg
 
 local function finite(n) return type(n)=='number' and n==n and math.abs(n)<1e12 end
@@ -129,6 +131,10 @@ end
 local function privateExitPath(world,vehicle)
     local site=world and world.sites and world.sites.byId and world.sites.byId.warehouse
     if not site or not vehicle then return nil end
+    local cached=exteriorRoutes[vehicle]
+    if cached and cached.world==world and cached.x==vehicle.x and cached.z==vehicle.z then
+        return cached.route.points,site,cached.route
+    end
     local layout=require('src.commute.sites').warehouseTruckLayout
     local x,z=site:toLocal(vehicle.x,vehicle.z)
     local laneZ=z
@@ -140,28 +146,9 @@ local function privateExitPath(world,vehicle)
         local wx,wz,h=site:toWorld(point.x,point.z,0)
         result[#result+1]={x=wx,z=wz,h=h}
     end
-    return result,site
-end
-
-local function pathSample(points,progress)
-    if not points or #points<2 then return nil end
-    local lengths,total={},0
-    for index=2,#points do
-        local a,b=points[index-1],points[index]
-        local distance=math.sqrt((b.x-a.x)^2+(b.z-a.z)^2)
-        lengths[index]=distance;total=total+distance
-    end
-    local remaining=total*math.max(0,math.min(1,progress))
-    for index=2,#points do
-        local a,b=points[index-1],points[index];local distance=lengths[index]
-        if remaining<=distance or index==#points then
-            local t=distance>1e-6 and math.max(0,math.min(1,remaining/distance)) or 1
-            return {x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t,
-                h=(a.h or 0)+((b.h or 0)-(a.h or 0))*t,
-                heading=math.atan2(b.z-a.z,b.x-a.x),distance=total,progress=progress}
-        end
-        remaining=remaining-distance
-    end
+    local route={points=result}
+    exteriorRoutes[vehicle]={world=world,x=vehicle.x,z=vehicle.z,route=route}
+    return result,site,route
 end
 
 function CompanyTruck.updateExterior(state,world,epoch,now)
@@ -200,8 +187,9 @@ function CompanyTruck.updateExterior(state,world,epoch,now)
         truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=
             vehicle.x,vehicle.z,vehicle.heading
     end
-    local points,site=privateExitPath(world,vehicle)
-    if epoch-started<8 then return false end
+    local points,site,route=privateExitPath(world,vehicle)
+    local plan=route and ScheduledDriving.sample(route,0,world,vehicle)
+    if epoch-started<(plan and plan.duration or 8) then return false end
     if vehicle and points then
         local last=points[#points]
         vehicle.x,vehicle.z,vehicle.heading=last.x,last.z,last.heading or vehicle.heading
@@ -232,12 +220,13 @@ function CompanyTruck.actors(state,world,epoch)
     local started=truck.departureStartedAtEpoch or epochNow
     if stage=='truck_departure' then
         local actor=copy(vehicle)
-        local points=privateExitPath(world,vehicle)
-        local pose=pathSample(points,(epochNow-started)/8)
+        local _,_,route=privateExitPath(world,vehicle)
+        local plan=route and ScheduledDriving.sample(route,0,world,vehicle)
+        local pose=plan and ScheduledDriving.sample(route,(epochNow-started)/math.max(.01,plan.duration),world,vehicle)
         if pose then
             actor.x,actor.z,actor.heading=pose.x,pose.z,pose.heading
-            actor.h=world:supportHeight(actor.x,actor.z);actor.speed=math.min(6.5,pose.distance/8)
-            actor.distance=(actor.distance or 0)+math.max(0,epochNow-started)*actor.speed/8
+            actor.h=world:supportHeight(actor.x,actor.z);actor.speed=pose.speed
+            actor.distance=(actor.distance or 0)+pose.distance
         end
         return {{id='company-delivery-truck',actor=actor,truck=true,
             deliveryTruck=true,phase='departing',label='Company delivery truck · leaving the warehouse'}}
@@ -418,7 +407,13 @@ local function makeRun(state,worker,now)
                 run.vehicleModel=run.palletCount<=4 and 'kei' or 'box'
                 local fuel,hours,_,_,reason=routeMetrics(run,town,run.driverSkill,now)
                 if not fuel then routeError=reason end
-                if fuel and hours and fuel+1<=CompanyTruck.TANK_LITERS and now+hours<=shiftEnd then
+                local departureHours=30*24/Calendar.secondsPerDay(state)
+                local finishes=hours and now+hours+departureHours
+                local receivingOpen=finishes and require('src.business_hours').nextService(now,hours+departureHours)==now
+                for _,stop in ipairs(run.stops) do
+                    if finishes and Run.nextStopOpen(state,stop,finishes)>finishes then receivingOpen=false end
+                end
+                if fuel and hours and receivingOpen and fuel+1<=CompanyTruck.TANK_LITERS and finishes<=shiftEnd then
                     ids=candidate;chosen=run;total=total+item.palletCount
                 end
             end
@@ -502,6 +497,7 @@ end
 
 function CompanyTruck.reserveNextDriver(state,now)
     if not state or not state.employment then return false end
+    if not require('src.business_hours').isOpen(now) then return false end
     local truck=CompanyTruck.ensure(state)
     local revision=truck.revision
     if truck.status=='refueling' or truck.deliveryRun or playerHasTruck(state) then return false end
@@ -578,6 +574,13 @@ function CompanyTruck.update(state,now,activeRunOnly)
             return true
         end
         local performance=deliveryPerformance(run,stop,now,truck.driverEmployeeId)
+        local nextOpening=Run.nextStopOpen(state,stop,now)
+        if nextOpening>now+1e-7 then
+            truck.nextActionAtHours=nextOpening;truck.revision=truck.revision+1
+            setActivity(state,truck.driverEmployeeId,'Waiting for receiving to open',true)
+            state.message='The delivery is waiting until the customer opens for receiving.'
+            return true
+        end
         local completed,reason=Run.completeStop(state,stop,performance)
         if not completed then
             state.message='The scheduled driver could not complete a delivery: '..tostring(reason)
@@ -603,6 +606,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
         return true
     end
     if activeRunOnly then return false end
+    if not require('src.business_hours').isOpen(now) then return false end
     if not hasReadyJobs(state,now) then
         if truck.pendingDriverEmployeeId then
             truck.pendingDriverEmployeeId=nil;truck.revision=truck.revision+1

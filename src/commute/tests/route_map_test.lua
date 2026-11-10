@@ -15,6 +15,7 @@ local function fixture(count)
     return world
 end
 function Test.run(check)
+    require('src.commute.tests.gps_test').run(check)
     local world=fixture(16);local map=Map.new(world);local rect={x=24,y=132,width=912,height=522}
     check('travel_map_construction_is_lazy',map.background==nil and map.terrainSamples==0 and map.backgroundBuilds==0)
     local s=map:snapshot(rect,{x=300,z=240,heading=0},{destination='building-03',home='building-08'})
@@ -66,7 +67,7 @@ function Test.run(check)
     check('mini_zoom_enlarges_cached_map_about_rider',closer.viewport.scale>initial.viewport.scale
         and near(closer.marker.x,initial.marker.x) and near(closer.marker.y,initial.marker.y))
     for _=1,8 do map:pressMiniZoom(small,plus.x+5,plus.y+5) end
-    check('mini_zoom_in_is_bounded',map.miniLevel==4)
+    check('mini_zoom_in_is_bounded',map.miniLevel==Map.MINI_LEVELS and closer.range<initial.range)
     local edge=map:miniSnapshot(small,{x=bounds.x1-2,z=bounds.z1-2,heading=0},options)
     check('mini_map_follows_rider_and_stops_at_world_edge',near(edge.viewport.x+edge.viewport.width,edge.area.x+edge.area.width)
         and near(edge.viewport.y+edge.viewport.height,edge.area.y+edge.area.height)
@@ -85,7 +86,20 @@ function Test.run(check)
     local facing=map:miniSnapshot(small,nearby,options)
     check('mini_unnumbered_footprints_remain_selectable',map:hitMini(small,
         facing.marker.x,facing.marker.y-10*facing.viewport.scale,nearby,options)==site.id)
+    local auto=Map.miniFollowButton(small)
+    map:pressMiniFollow(small,auto.x+2,auto.y+2,actor)
+    local slow=map:miniSnapshot(small,actor,options)
+    local fast=map:miniSnapshot(small,{x=300,z=240,heading=0,speed=25},options)
+    check('gps_auto_restores_follow_and_looks_further_ahead_at_speed',map.miniAuto and map.miniFollow
+        and fast.range>slow.range and slow.marker.y>slow.area.y+slow.area.height*.6)
+    map:pressMiniZoom(small,plus.x+2,plus.y+2)
+    local manual=map:miniSnapshot(small,actor,options)
+    check('gps_manual_zoom_survives_speed_change',not map.miniAuto
+        and manual.range==map:miniSnapshot(small,{x=300,z=240,heading=0,speed=30},options).range)
+    local uiFont=map:font(16)
     map:release();map:release();map:prepare()
+    check('travel_map_release_preserves_shared_ui_fonts',uiFont==require('src.screens.typography').get(16)
+        and uiFont:getWidth('Title screen')>0)
     check('travel_map_release_is_idempotent_and_cannot_recreate_resources',map.released and map.background==nil
         and map.backgroundBuilds==1 and map.terrainSamples==samples)
 end

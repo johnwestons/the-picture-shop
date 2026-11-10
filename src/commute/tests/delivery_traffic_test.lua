@@ -17,6 +17,7 @@ local function byCompany(actors)
 end
 
 function Test.run(check)
+    require('src.commute.tests.npc_driving_test').run(check)
     local actor={x=0,z=0,h=0}
     check('truck_free_camera_keeps_isometric_art_at_every_tilt',
         TruckArt.viewKind({tilt=30},actor,0)=='isometric'
@@ -61,6 +62,7 @@ function Test.run(check)
 
     local town=assert(Town.generate(712345))
     local world=Town.world(town)
+    require('src.commute.tests.scheduled_driving_test').run(check,town,world)
     local planner=Routes.new(world.roads,{includeTruckOnly=world.truckDestinations~=nil,
         pavedOnly=true,destinations=world.truckDestinations})
     local liveRoute=planner:findFromPoint(world.mainlandExit.x,world.mainlandExit.z,
@@ -76,11 +78,11 @@ function Test.run(check)
         orders={{id='PO-TRAFFIC-1',shipmentId='SHIP-TRAFFIC-1',category='paper',
             company='CritterNet Paper Depot',pallets={{id='PO-TRAFFIC-1-PALLET',location='awaiting_delivery'}}}},
         shipments={{id='SHIP-TRAFFIC-1',status='awaiting_delivery',orderIds={'PO-TRAFFIC-1'},delivery={
-            status='awaiting_schedule',expectedAtHours=100}}},
+            status='awaiting_schedule',expectedAtHours=105}}},
     },jobs={active={{id='JOB-TRAFFIC-1',company='Blue Ridge Packaging',delivery={
-        status='pending_arrival',readyAtHours=100},pallets={{id='JOB-TRAFFIC-1-P1',location='awaiting_delivery'}}}},completed={}}}
+        status='pending_arrival',readyAtHours=105},pallets={{id='JOB-TRAFFIC-1-P1',location='awaiting_delivery'}}}},completed={}}}
     local epoch=1700000000
-    local routesChanged=Network.update(state,town,100,epoch)
+    local routesChanged=Network.update(state,town,105,epoch)
     local supplierRoute=state.procurement.shipments[1].delivery.route
     local jobRoute=state.jobs.active[1].delivery.route
     check('delivery_traffic_routes_supplier_and_client_shipments',
@@ -96,9 +98,9 @@ function Test.run(check)
     local job=state.jobs.active[1]
     local duration=shipment.delivery.route.arrivedAtEpoch-epoch
     local midEpoch=epoch+duration*.5
-    local midway=byCompany(Network.actors(state,town,100,midEpoch))
+    local midway=byCompany(Network.actors(state,town,105,midEpoch))
     check('delivery_traffic_merges_manifests_into_one_shared_freight_truck',
-        midway['Millhaven Freight'] and #Network.actors(state,town,100,midEpoch)==1
+        midway['Millhaven Freight'] and #Network.actors(state,town,105,midEpoch)==1
         and midway['Millhaven Freight'].phase=='approaching'
         and midway['Millhaven Freight'].actor.livery=='plain')
     local sharedTruck={phase='approaching'}
@@ -116,19 +118,19 @@ function Test.run(check)
             tostring(job.delivery.route.vehicle and job.delivery.route.vehicle.phase)))
 
     job.delivery.status='received'
-    job.delivery.receivedAtHours=100.5
+    job.delivery.receivedAtHours=105.5
     shipment.delivery.status='received'
-    shipment.delivery.receivedAtHours=100.5
+    shipment.delivery.receivedAtHours=105.5
     local returnEpoch=job.delivery.route.arrivedAtEpoch+1
-    local returnChanged=Network.update(state,town,101,returnEpoch)
-    local returning=byCompany(Network.actors(state,town,101,returnEpoch+1))
+    local returnChanged=Network.update(state,town,106,returnEpoch)
+    local returning=byCompany(Network.actors(state,town,106,returnEpoch+1))
     check('delivery_traffic_preserves_client_brand_on_return_route',
         returnChanged
         and job.delivery.returnRoute.originCompany=='Blue Ridge Packaging'
         and returning['Blue Ridge Packaging']~=nil,
         string.format("changed=%s returnCompany=%s actorCount=%d shipmentStatus=%s jobStatus=%s",
             tostring(returnChanged),tostring(job.delivery.returnRoute and job.delivery.returnRoute.originCompany),
-            #Network.actors(state,town,101,returnEpoch+1),tostring(shipment.delivery.status),tostring(job.delivery.status)))
+            #Network.actors(state,town,106,returnEpoch+1),tostring(shipment.delivery.status),tostring(job.delivery.status)))
 
     local art=TruckArt.new()
     local g=love.graphics
@@ -163,6 +165,7 @@ function Test.run(check)
     previewData:release();preview:release();art:release()
     check('delivery_company_decal_draws_over_the_existing_64_angle_truck',rendered>100)
     StopControl.run(check,town)
+    require('src.commute.tests.pickup_and_deadlock_test').run(check,town)
 end
 
 return Test

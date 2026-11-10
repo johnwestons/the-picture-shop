@@ -151,14 +151,21 @@ function Component.run(Context)
     Context.check("walk_in_email_arrival_is_hidden_from_calendar", hiddenReply)
     Context.context.businessCalendar.update(walkInEstimateState,
         7 / 24 * Context.context.config.businessCalendar.secondsPerDay)
+    Context.check("walk_in_written_details_wait_until_business_opens",
+        not Context.context.jobService.updateClientEmails(walkInEstimateState)
+        and #walkInEstimateState.clientEmails.inbox == 0)
+    Context.context.businessCalendar.update(walkInEstimateState,
+        2 / 24 * Context.context.config.businessCalendar.secondsPerDay)
     Context.check("walk_in_written_details_arrive_after_delay",
         Context.context.jobService.updateClientEmails(walkInEstimateState)
         and #walkInEstimateState.clientEmails.inbox == 1)
     local walkInRequest = walkInEstimateState.clientEmails.inbox[1]
     local reminderLimit = walkInRequest.followupLimit
     for _ = 1, reminderLimit do
+        local now = Context.context.businessCalendar.absoluteHours(walkInEstimateState)
+        local nextReply = require('src.business_hours').nextService(now + 24)
         Context.context.businessCalendar.update(walkInEstimateState,
-            Context.context.config.businessCalendar.secondsPerDay)
+            (nextReply - now) / 24 * Context.context.config.businessCalendar.secondsPerDay)
         Context.context.jobService.updateClientEmails(walkInEstimateState)
     end
     local remindersSent = walkInRequest.followupCount

@@ -5,6 +5,11 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.ComputerScreen.mousepressed(state, x, y, button)
         if button ~= 1 then return nil end
+        local detail=Runtime.ComputerScreen
+        if (detail.tab=='active' or detail.tab=='completed') and not detail.promoJobId and not detail.tabDropdownOpen
+            and (detail.jobDetailMaxScroll or 0)>0 and Runtime.contains(detail.jobDetailViewport(),x,y) then
+            detail.jobDetailDragY=y;return {action='detail_scroll'}
+        end
         -- Do not retain Android keyboard focus when the player taps elsewhere.
         -- The estimate and promotion input hit targets below explicitly opt back in.
         Runtime.ComputerScreen.quoteFocused = false
@@ -14,9 +19,6 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.promoFocused = true
             Runtime.ComputerScreen.tabDropdownOpen = false
             return { action = "promo_focus" }
-        end
-        if x>=738 and x<=872 and y>=107 and y<=132 then
-            Runtime.ComputerScreen.tab="clock";Runtime.ComputerScreen.tabDropdownOpen=false;return {action="clock"}
         end
         if Runtime.contains(Runtime.CLOSE, x, y) then
             Runtime.ComputerScreen.tabDropdownOpen = false
@@ -53,6 +55,7 @@ function Component.install(Runtime)
             end
         end
         if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=='receipts' then return Runtime.receiptsMousepressed(state,x,y) end
         if Runtime.ComputerScreen.tab=='financials' or Runtime.ComputerScreen.tab=='bills'
             or Runtime.ComputerScreen.tab=='player_wages' then
             return Runtime.financialsMousepressed(state,x,y)
@@ -230,7 +233,7 @@ function Component.install(Runtime)
                     Runtime.ComputerScreen.promoFocused = true
                     return { action = "promo_focus" }
                 end
-                if Runtime.contains(Runtime.EMAIL_DECLINE, x, y) then
+                if Runtime.contains(Runtime.PROMO_CANCEL, x, y) then
                     Runtime.ComputerScreen.promoJobId, Runtime.ComputerScreen.promoText = nil, ""
                     Runtime.ComputerScreen.promoFocused = false
                     return { action = "promo_cancelled" }
@@ -561,6 +564,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.wheelmoved(state, _, y)
+        if Runtime.ComputerScreen.tab=='receipts' then return Runtime.ComputerScreen.receiptScroll(state,y>0 and -1 or 1) end
+        local detail=Runtime.ComputerScreen
+        if (detail.tab=='active' or detail.tab=='completed') and (detail.jobDetailMaxScroll or 0)>0 then
+            detail.scrollJobDetail(-y*42);return true
+        end
         if Runtime.ComputerScreen.tab ~= "calendar" or y == 0 then return false end
         if not Runtime.ComputerScreen.calendarDayOpen then return false end
         local _,_,maximum=Runtime.clampCalendarDayScroll(state)
@@ -570,6 +578,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.mousemoved(state,x,y)
+        local detail=Runtime.ComputerScreen
+        if detail.jobDetailDragY then detail.scrollJobDetail(detail.jobDetailDragY-y);detail.jobDetailDragY=y;return true end
         if Runtime.ComputerScreen.tab=="warehouse" then
             return Runtime.warehouseMouseMoved(state,x,y)
         end
@@ -577,6 +587,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.mousereleased(state,x,y,button)
+        if button==1 then Runtime.ComputerScreen.jobDetailDragY=nil end
         if Runtime.ComputerScreen.tab=="warehouse" then
             return Runtime.warehouseMouseReleased(state,x,y,button)
         end

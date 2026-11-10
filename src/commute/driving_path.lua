@@ -57,7 +57,7 @@ local function metrics(points)
         end
         if speed then
             speedLimits[#speedLimits+1]={index=index,
-                distanceBefore=cumulative[index-1] or 0,speed=speed}
+                distanceBefore=cumulative[index-1] or 0,distance=cumulative[index],speed=speed}
         end
     end
     saved={total=total,segments=segments,cumulative=cumulative,suffix=suffix,
@@ -112,13 +112,13 @@ function Path.lookAhead(points,x,z,startIndex,wantedDistance,projectToRoute)
         local segment=index==first and math.sqrt(dx*dx+dz*dz) or data.segments[index]
         if segment>1e-7 and remaining<=segment then
             local blend=remaining/segment
-            return {x=ax+dx*blend,z=az+dz*blend},math.atan2(dz,dx)
+            return {x=ax+dx*blend,z=az+dz*blend},math.atan2(dz,dx),index
         end
         remaining=remaining-(segment>1e-7 and segment or 0)
         ax,az=at.x,at.z
     end
     local before,last=points[#points-1],points[#points]
-    return last,math.atan2(last.z-before.z,last.x-before.x)
+    return last,math.atan2(last.z-before.z,last.x-before.x),#points
 end
 
 function Path.remaining(points,index,x,z)
@@ -136,6 +136,16 @@ function Path.station(points,index)
     local data=metrics(points)
     index=math.max(1,math.min(#points,math.floor(index or 1)))
     return data.cumulative[index] or data.total
+end
+
+function Path.progress(points,index,x,z)
+    if type(points)~='table' or #points<2 then return 0 end
+    index=math.max(2,math.min(#points,index or 2))
+    local a,b=points[index-1],points[index]
+    local dx,dz=b.x-a.x,b.z-a.z
+    local length=math.sqrt(dx*dx+dz*dz)
+    local along=length>1e-8 and math.max(0,math.min(length,((x-a.x)*dx+(z-a.z)*dz)/length)) or 0
+    return Path.station(points,index-1)+along
 end
 
 function Path.speedLimits(points)

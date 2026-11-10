@@ -26,9 +26,21 @@ function Test.run(context,check)
     local g=love.graphics;local originalDimensions=g.getDimensions
     local canvas=g.newCanvas(1200,540,{dpiscale=1})
     local stack=g.getStackDepth()
+    local previousMotion=R.World.player._visualTruckMotion
+    local cockpitTruck
+    local cockpit=require('src.commute.truck_cockpit').new()
+    local drawCockpit=cockpit.draw
+    cockpit.draw=function(self,actor,...)
+        cockpitTruck=actor
+        return drawCockpit(self,actor,...)
+    end
+    R._commute.truckCockpit=cockpit
     local okay,err=xpcall(function()
         g.getDimensions=function()return 1200,540 end
         R.App.update(0)
+        local motion=require('src.commute.truck_motion').snapshot(part,trip.token)
+        motion.speed,motion.steer,motion.brake,motion.throttle=7.4,.48,.2,.8
+        R.World.player._visualTruckMotion=motion
         check('kei_live_cab_expands_scene_to_phone_aspect',camera.firstPerson and camera.localVehicle=='truck'
             and R._commute.renderer.viewportWidth>1900)
         g.push('all');g.setCanvas({canvas,stencil=true});g.origin();g.clear(0,0,0,0)
@@ -41,6 +53,9 @@ function Test.run(context,check)
         local _,_,_,left=data:getPixel(1,270)
         local _,_,_,right=data:getPixel(1198,270)
         check('kei_live_cab_draw_covers_phone_edges',left>.99 and right>.99)
+        check('kei_live_cab_uses_realtime_vehicle_motion',cockpitTruck and cockpitTruck~=truck
+            and cockpitTruck.speed==7.4 and cockpitTruck.steering==.48 and cockpitTruck.throttle==.8
+            and cockpitTruck.brake==.2 and truck.speed==0)
         if os.getenv('PICTURE_SHOP_CAB_AUDIT_IMAGES')=='1' then
             local png=data:encode('png');local file=assert(io.open('output/kei-cab-live.png','wb'))
             file:write(png:getString());file:close();png:release()
@@ -54,6 +69,7 @@ function Test.run(context,check)
     end,debug.traceback)
     while g.getStackDepth()>stack do g.pop() end
     g.getDimensions=originalDimensions;canvas:release()
+    R.World.player._visualTruckMotion=previousMotion
     C.release(R);R.state.screen='title'
     assert(okay,err)
 end

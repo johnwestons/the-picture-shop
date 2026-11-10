@@ -2,7 +2,7 @@ param(
     [ValidateRange(1,10)][int]$Runs = 3,
     [ValidateRange(1,1000)][int]$StartIndex = 1,
     [ValidateRange(60,1800)][int]$TimeoutSeconds = 600,
-    [ValidateSet('delivery-route-smoke','delivery-traffic','delivery-docking','player-delivery','independent-scenes','delivery-manifest','room-shipping','ai-watchdog','parking','ai-motorcycle-traffic')]
+    [ValidateSet('delivery-route-smoke','delivery-traffic','delivery-docking','pickup-traffic','receiving','late-game-traffic','route-map','player-delivery','city-delivery-scene','independent-scenes','delivery-manifest','room-shipping','ai-watchdog','parking','ai-motorcycle-traffic')]
     [string]$Focus = 'delivery-route-smoke',
     [ValidateRange(0,2147483646)][int]$Seed = 0,
     [string]$From = '',

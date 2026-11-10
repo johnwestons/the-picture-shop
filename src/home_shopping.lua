@@ -1,7 +1,7 @@
 local Catalog=require("src.home_shop_catalog")
 local Calendar=require("src.business_calendar")
 local Residents=require("src.home_residents")
-local Shopping={}
+local Shopping={DELIVERY_PERCENT=15,MINIMUM_DELIVERY_CENTS=200}
 local function integer(n,a,b) return type(n)=="number" and n==n and n>=a and n<=b and n==math.floor(n) end
 local function time(n) return type(n)=="number" and n==n and n>=0 and n<=24000100 end
 function Shopping.new()
@@ -47,8 +47,11 @@ end
 function Shopping.quote(productId,quantity)
     local product=Catalog.PRODUCTS[productId]
     if not product or not integer(quantity,1,10) then return nil end
-    return {product=product,subtotalCents=product.priceCents*quantity,shippingCents=product.shippingCents,
-        totalCents=product.priceCents*quantity+product.shippingCents,minutes=product.minutes,servings=product.servings*quantity}
+    local subtotal=product.priceCents*quantity
+    local shipping=math.max(Shopping.MINIMUM_DELIVERY_CENTS,
+        math.floor(subtotal*Shopping.DELIVERY_PERCENT/100+.5))
+    return {product=product,subtotalCents=subtotal,shippingCents=shipping,
+        totalCents=subtotal+shipping,minutes=product.minutes,servings=product.servings*quantity}
 end
 function Shopping.setLimit(state,player,intent)
     if (player.id or 1)~=1 then return false,"Only the host can change the shared guest food budget." end
@@ -94,6 +97,8 @@ function Shopping.order(state,player,intent,twelveHourTime)
         for i,old in ipairs(shop.orders) do if old.status=="collected" then table.remove(shop.orders,i);break end end
     end
     state.home.balanceCents=state.home.balanceCents-row.totalCents;state.home.revision=state.home.revision+1
+    require('src.receipt_book').expense(state,'Home order #'..row.id,row.totalCents,'CritterNet Home Delivery','Household',
+        ('%d x %s\nDelivery fee: $%.2f'):format(row.quantity,product.name,row.shippingCents/100),'home-order:'..row.id)
     require("src.inbox").addNotice(state,{id="HOME-ORDER-"..row.id,sender="CritterNet Home Delivery",noticeKind="home_order",
         subject="Home order #"..row.id..": "..product.name,total=row.totalCents/100,
         body=string.format("Paid $%.2f from your household account, including $%.2f delivery. %d serving(s)/item(s) "..

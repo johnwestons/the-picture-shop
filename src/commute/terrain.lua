@@ -5,15 +5,15 @@ local Plan=require('src.commute.vendor.island_plan')
 
 local Terrain={SEED=4261,SIZE=512}
 
-function Terrain.new(options)
+function Terrain.new(options,progress)
     options=options or {}
     local seed=options.seed or Terrain.SEED
     local size=options.size or Terrain.SIZE
     local config={size=size,center=size/2,radius=201}
     local v2=options.mode=='inland-town-v2'
     local v3=options.mode=='island-town-v3'
-    local plan=v3 and require('src.commute.town_terrain_v3').new(options,config)
-        or v2 and require('src.commute.town_terrain_v2').new(options,config)
+    local plan=v3 and require('src.commute.town_terrain_v3').new(options,config,progress)
+        or v2 and require('src.commute.town_terrain_v2').new(options,config,progress)
         or Plan.newTown(seed,config)
     -- Saved towns pin the sampled relief instead of re-rolling it on load.
     -- The immutable inland-town-v1 analytical river/detail code is retained.
@@ -22,6 +22,7 @@ function Terrain.new(options)
         assert(#options.heights==(cells+1)^2,'Invalid saved town terrain')
         for x=0,cells do for z=0,cells do
             index=index+1;plan.grid[x][z]=options.heights[index]
+            if progress and z==cells and x%8==0 then progress(x/cells,'Preparing terrain grid')end
         end end
     end
     local world={seed=seed,size=config.size,config=config,streamed=true,

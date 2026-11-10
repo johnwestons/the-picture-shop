@@ -181,6 +181,22 @@ function Art.new()
     return setmetatable({pages=Pages.new(),keiPages=KeiPages.new(),decals=Decals.new()},Art)
 end
 
+-- Screen-space shots use the same calibrated turntables, model proportions,
+-- and company markings as the actual vehicle, without a world camera.
+function Art:drawSprite(actor,kind,angle,x,y,zoom)
+    local frame=actor.model=='kei' and KeiPages.frame(angle,kind) or Pages.frame(angle)
+    local pages=actor.model=='kei' and self.keiPages or self.pages
+    local image,quad,format=pages:get(kind,frame)
+    local scale=format.scale*zoom*(MODEL_ART_SCALE[actor.model] or 1)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(image,quad,x,y,0,scale,scale,format.anchorX,format.anchorY)
+    if actor.model~='kei' then
+        local decal=self.decals:companyImage(actor.company)
+            or self.decals.images[actor.livery or 'picture_shop']
+        self.decals:drawTurntable(decal,kind,frame,x,y,scale,format)
+    end
+end
+
 function Art:draw(actor,camera,world,silhouetteMode)
     local h=actor.h or world:supportHeight(actor.x,actor.z)
     local x,y=camera:screen(actor.x,actor.z,h)

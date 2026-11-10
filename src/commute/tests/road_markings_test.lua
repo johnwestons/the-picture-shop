@@ -1,5 +1,5 @@
 -- Exercise the triangles uploaded to both cameras, with distinguishable lane
--- elevations and wet/dirt exclusions rather than relying on a screenshot alone.
+-- elevations and bridge decks rather than relying on a screenshot alone.
 local Paint=require('src.commute.road_markings')
 local Bays=require('src.commute.parking_bays')
 local Roads=require('src.commute.roads')
@@ -27,12 +27,17 @@ function Test.run(check)
     local vertices,stats=Paint.build(w)
     local insideLanes,cleanSurfaces,plainPaint,followingGrade=true,true,true,true
     local oneMin,oneMax,twoMin,twoMax=math.huge,-math.huge,math.huge,-math.huge
-    local arrowVertices,barVertices=0,0
+    local arrowVertices,barVertices,bridgePaint=0,0,0
+    local bridgePaintClear=true
     for _,v in ipairs(vertices) do
         local x,z,y=v[1],v[2],v[3]
         local d,segment=w.roads:nearest(x,z)
         insideLanes=insideLanes and segment and d<=segment.width*.5 and x>=10 and x<=100
-        cleanSurfaces=cleanSurfaces and segment and segment.surface~='dirt' and not segment.bridge
+        cleanSurfaces=cleanSurfaces and segment and segment.surface~='dirt'
+        if segment and segment.bridge then
+            bridgePaint=bridgePaint+1
+            bridgePaintClear=bridgePaintClear and d<=segment.width*.5-.5
+        end
         local lift=y-w:supportHeight(x,z)
         followingGrade=followingGrade and lift>=.07499 and lift<=.09001
         if close(lift,.085) then arrowVertices=arrowVertices+1 end
@@ -48,6 +53,8 @@ function Test.run(check)
         #vertices>0 and #vertices%3==0 and insideLanes and cleanSurfaces)
     check('road_markings_straight_and_turn_arrows_follow_sixteen_percent_grade',
         followingGrade and stats.arrows>0 and stats.turnArrows>0 and arrowVertices>0)
+    check('road_markings_bridge_keeps_two_lanes_and_edge_lines',bridgePaint==stats.bridgeSegments*24
+        and stats.bridgeSegments>0 and bridgePaintClear)
     check('road_markings_use_visible_opaque_vertex_paint_without_material_or_water',
         plainPaint)
     check('road_markings_one_way_stop_bar_spans_full_lane',stats.stopBars==2 and barVertices==12

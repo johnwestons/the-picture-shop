@@ -20,7 +20,7 @@ local function dry(plan,x,z,h)
     local height=plan:height(x,z)
     return height>.7 and math.abs(plan:landHeight(x,z)-h)<4.5
 end
-local function clear(site,pad,placed,pads,roads,plan,anchor)
+local function clear(site,pad,placed,pads,roads,plan,anchor,protectFoundation)
     if site.minX<63 or site.maxX>451 or site.minZ<63 or site.maxZ>451 then return false end
     for _,other in ipairs(placed)do if overlap(site,other,5)then return false end end
     for _,other in ipairs(pads)do if M.length(other.x-pad.x,other.z-pad.z)<19 then return false end end
@@ -28,7 +28,9 @@ local function clear(site,pad,placed,pads,roads,plan,anchor)
     for i=0,7 do local angle=i*math.pi/4;if not dry(plan,pad.x+math.cos(angle)*5,pad.z+math.sin(angle)*5,pad.h)then return false end end
     for _,r in ipairs(roads)do for edge=1,#r.points-1 do
         local a,b=r.points[edge],r.points[edge+1];local n=math.max(1,math.ceil(M.length(b[1]-a[1],b[2]-a[2])/2))
-        for i=0,n do if site:distance(M.lerp(a[1],b[1],i/n),M.lerp(a[2],b[2],i/n))<r.width*.5+2.5 then return false end end
+        -- A farm's fields are graded even where there is no solid building.
+        -- Keep the full foundation clear so its terrace cannot flatten a road.
+        for i=0,n do if site:distance(M.lerp(a[1],b[1],i/n),M.lerp(a[2],b[2],i/n),protectFoundation)<r.width*.5+2.5 then return false end end
     end end
     for i=0,10 do
         local x,z=M.lerp(anchor[1],pad.x,i/10),M.lerp(anchor[2],pad.z,i/10)

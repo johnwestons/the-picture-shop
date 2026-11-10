@@ -180,7 +180,7 @@ function Component.run(Context)
     Context.check("computer_print_job_detail_text_clears_pallet_table",
         Context.printDetailLayout.textBottom < Context.printDetailLayout.tableY)
     Context.check("computer_print_job_detail_table_clears_action_button",
-        Context.printDetailLayout.tableBottom + 4 <= Context.printDetailLayout.actionTop,
+        Context.printDetailLayout.tableBottom - Context.printDetailLayout.scrollMax + 4 <= Context.printDetailLayout.actionTop,
         string.format("tableBottom=%.1f actionTop=%.1f",
             Context.printDetailLayout.tableBottom, Context.printDetailLayout.actionTop))
     Context.completeX, Context.completeY = Context.context.computerScreen.completeCenter()

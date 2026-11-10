@@ -99,6 +99,9 @@ function Component.install(Runtime)
     function Runtime.Screen.hasMachineModal()
         return Runtime.Screen.sharedMachine and Runtime.Screen.sharedMachine.screen.hasModal() or false
     end
+    function Runtime.Screen.dismissBrowserOverlay()
+        return Runtime.Screen.sharedComputer and Runtime.Screen.sharedComputer.dismissBrowserOverlay() or false
+    end
     function Runtime.Screen.wantsTextInput()
         if Runtime.Screen.sharedMachine then return Runtime.Screen.sharedMachine.screen.wantsTextInput() end
         if Runtime.Screen.sharedComputer then return Runtime.Screen.sharedComputer.wantsTextInput() end

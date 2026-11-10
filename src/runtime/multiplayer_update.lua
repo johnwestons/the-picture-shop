@@ -127,6 +127,13 @@ function Component.install(Runtime)
                     end
                 end
             end,
+            getTruckMotion = function(id)
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                if not trip then return end
+                local actor=id==(localPlayer.id or 1) and localPlayer or Runtime.multiplayer.players[id]
+                local part=actor and trip.participants[require('src.home_residents').key(actor)]
+                return require('src.commute.truck_motion').snapshot(part,trip.token)
+            end,
             inputX = inputX or 0,
             inputY = inputY or 0,
             inputBoost = inputBoost == true,
@@ -164,8 +171,10 @@ function Component.install(Runtime)
                 return Runtime.World.resolveNetworkSpawn(hostX, hostY, guestIndex, Runtime.Assets, Runtime.state, players)
             end,
             getShopSnapshot = function()
+                local snapshot=Runtime.SaveSchema.snapshot(Runtime.state)
+                if snapshot then snapshot.notifications=nil;snapshot.tutorial=nil end
                 return {
-                    state = Runtime.SaveSchema.snapshot(Runtime.state),
+                    state = snapshot,
                     player = Runtime.World.snapshot(),
                 }
             end,
@@ -266,13 +275,14 @@ function Component.install(Runtime)
                     end
                 end
             end,
-            performInteraction = function(player, targetKind, desiredState, shotAim)
+            performInteraction = function(player, targetKind, desiredState, shotAim,signature)
                 if targetKind=='commute' then return require('src.commute.runtime').command(Runtime,player,desiredState) end
                 if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
                 if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end
                 if targetKind=="homeDelivery" then return require("src.home_delivery_controls").command(Runtime,player) end
                 if targetKind=="homeFurniture" then return require("src.home_furniture_controls").command(Runtime,player,desiredState) end
-                local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim)
+                local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim,signature)
+                if okay and targetKind=='deliverySignature' then Runtime.saveCurrent() end
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="roomGame" and
                     (desiredState=="basketball:pickup" or desiredState=="basketball:drop") then

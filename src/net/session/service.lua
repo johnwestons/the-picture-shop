@@ -216,6 +216,8 @@ function Component.install(Runtime)
                     players = Runtime.Codec.array({ record }),
                     bike = record.sceneId=='commute' and context and context.getBikeMotion
                         and context.getBikeMotion(record.id) or nil,
+                    truck = record.sceneId=='commute' and context and context.getTruckMotion
+                        and context.getTruckMotion(record.id) or nil,
                     games = index==1 and Runtime.Codec.array(games) or nil,
                     balls = nil,
                 })

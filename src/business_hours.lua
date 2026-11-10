@@ -2,6 +2,28 @@
 -- Friday 20:00 through Monday 09:00; calendar obligations use their own clock.
 local Hours={OPEN_HOUR=9,CLOSE_HOUR=20}
 function Hours.weekday(day) return (day+3)%7+1 end
+-- Customer-facing hours are separate from the owner's overtime/payroll week
+-- below. Working on a pallet at night does not open a customer's receiving dock.
+function Hours.serviceWindow(day)
+    if Hours.weekday(day)>=6 then return 0,0 end
+    return Hours.OPEN_HOUR,Hours.CLOSE_HOUR
+end
+function Hours.isOpen(at)
+    local day=math.floor(at/24);local a,b=Hours.serviceWindow(day)
+    return at-day*24>=a and at-day*24<b
+end
+function Hours.nextService(at,duration)
+    duration=math.max(0,tonumber(duration) or 0)
+    local day=math.floor(at/24)
+    -- Keep the complete journey inside the receiving window when possible.
+    local reserve=math.min(duration,Hours.CLOSE_HOUR-Hours.OPEN_HOUR-.001)
+    while true do
+        local a,b=Hours.serviceWindow(day)
+        local start=math.max(at,day*24+a)
+        if b>a and start+reserve<day*24+b then return start end
+        day=day+1;at=day*24
+    end
+end
 function Hours.window(day)
     local weekday=Hours.weekday(day)
     if weekday>=6 then return 0,0 end

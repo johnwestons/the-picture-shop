@@ -5,6 +5,10 @@ local BusinessCalendar = require("src.business_calendar")
 local Inbox = require("src.inbox")
 
 local Test = {}
+local function openShop()
+    local state=State.new();state.calendar.elapsed=BusinessCalendar.secondsPerDay(state)*9/24
+    return state
+end
 
 local function call(state, spec)
     local queued, result = WorkPhone.queueCall(state, spec)
@@ -13,7 +17,7 @@ local function call(state, spec)
 end
 
 function Test.run(context, check)
-    local orderState = State.new()
+    local orderState = openShop()
     call(orderState, {
         kind = "customer_order", caller = "Maple Street Books", role = "CUSTOMER",
         subject = "NEW JOB ORDER", message = "We would like to place a print order.",
@@ -30,7 +34,7 @@ function Test.run(context, check)
         and #orderState.clientEmails.pending == 1
         and response:find("written specifications", 1, true) ~= nil)
 
-    local statusState = State.new()
+    local statusState = openShop()
     local statusJob = {
         id = "JOB-0099", company = "Blue Ridge Packaging", status = "in_production",
         details = { dueDate = "Friday" },
@@ -59,7 +63,7 @@ function Test.run(context, check)
         and statusResponse:find("warehouse staging", 1, true) ~= nil
         and statusResponse:find("production hour", 1, true) ~= nil)
 
-    local serviceState = State.new()
+    local serviceState = openShop()
     serviceState.money = 1000
     call(serviceState, {
         kind = "service_order", caller = "Otis Wrench", role = "MACHINE SERVICE SUPPLIER",
@@ -78,7 +82,7 @@ function Test.run(context, check)
         and receipt and receipt.noticeKind == "salesman_confirmation"
         and receipt.body:find("Thanks so much", 1, true) ~= nil)
 
-    local screenState = State.new()
+    local screenState = openShop()
     call(screenState, {
         kind = "supplier_status", caller = "CritterNet Paper Depot",
         role = "SUPPLIER / SERVICE", subject = "DELIVERY UPDATE",
@@ -95,7 +99,7 @@ function Test.run(context, check)
     local weekendState = State.new()
     local weekendDate = BusinessCalendar.ensure(weekendState)
     weekendDate.year, weekendDate.month, weekendDate.day = 2026, 1, 2
-    weekendDate.weekday, weekendDate.totalDays, weekendDate.elapsed = 5, 1, 0
+    weekendDate.weekday, weekendDate.totalDays, weekendDate.elapsed = 5, 1, BusinessCalendar.secondsPerDay(weekendState)*9/24
     local fridayCall = call(weekendState, {
         kind = "customer_order", caller = "Friday Client", role = "CUSTOMER",
         subject = "NEW JOB ORDER", message = "Please quote a job.",
@@ -132,6 +136,7 @@ function Test.run(context, check)
         and weekendState.workPhone.incoming.id == fridayCall.id
         and weekendState.workPhone.incoming.receivedAtHours == BusinessCalendar.absoluteHours(weekendState))
     weekendEmailDate.day, weekendEmailDate.weekday, weekendEmailDate.totalDays = 5, 1, 4
+    weekendEmailDate.elapsed=BusinessCalendar.secondsPerDay(weekendEmailState)*9/24
     local mondayEmailDelivered = context.jobService.updateClientEmails(weekendEmailState)
     check("deferred_client_emails_arrive_on_monday",
         mondayEmailDelivered and #weekendEmailState.clientEmails.pending == 0

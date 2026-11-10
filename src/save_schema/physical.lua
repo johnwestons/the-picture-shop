@@ -104,6 +104,8 @@ function Component.install(Runtime)
         return type(value) == "table"
             and Runtime.Schema.validPhysicalSource(value)
             and Runtime.nonnegative(value.money)
+            and require('src.notifications').normalize(value.notifications)~=nil
+            and require('src.tutorial').normalize(value.tutorial)~=nil
             and Runtime.Home.valid(value.home)
             and Runtime.inventory(value.inventory)
             and type(value.shopProgress) == "table"
@@ -123,6 +125,7 @@ function Component.install(Runtime)
             and Runtime.array(value.procurement.orders, Runtime.purchaseOrder)
             and Runtime.positiveInteger(value.vendorCategory)
             and Runtime.BusinessCalendar.valid(value.calendar, value.bills)
+            and require('src.receipt_book').valid(value.receipts)
             and Runtime.clientEmails(value.clientEmails)
             and Runtime.workPhone(value.workPhone)
             and Runtime.MachineFleet.validState(value.machines)

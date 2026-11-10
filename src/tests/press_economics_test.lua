@@ -190,6 +190,10 @@ function Test.run(context, check)
     oldSave.clientEmails.sentPromotions[1]={id="PROMO-OLD-0001",recipient="Old Client",
         discountPercent=10,customMessage="Please come back.",sentAtHours=0,
         sourceJobId="OLD-JOB",responseOutcome="no_response"}
+    check("previously_silent_promotion_waits_for_shop_hours",
+        not context.jobService.updateClientEmails(oldSave)
+        and #oldSave.clientEmails.inbox==0)
+    oldSave.calendar.elapsed=calendar.secondsPerDay(oldSave)*10/24
     check("previously_silent_promotion_gets_one_reply",
         context.jobService.updateClientEmails(oldSave)
         and oldSave.clientEmails.sentPromotions[1].responseOutcome=="thank_you"

@@ -36,7 +36,7 @@ function Test.run(context,check)
         local q={productId=kind,quantity=1,requestId="utility-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,q));assert(Shopping.order(s,p,q))
     end
-    check("home_utilities_checkout_household_once",s.home.balanceCents==7250 and s.money==business)
+    check("home_utilities_checkout_household_once",s.home.balanceCents==7000 and s.money==business)
     time(s,46);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
     assert(Shopping.collect(s,p));check("home_utilities_delivery_once",#s.home.furniture.items==5 and not Shopping.collect(s,p))
     local wardrobe,cabinet,tv,bin=unpack(s.home.furniture.items,2)

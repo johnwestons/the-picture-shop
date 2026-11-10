@@ -73,6 +73,27 @@ function Component.install(Runtime)
     Runtime.loadMenuRect = { x = 190, y = 126, width = 580, rowHeight = 54 }
     Runtime.loadMenuPageSize = 7
 
+    function Runtime.loadMenuLayout(menu)
+        local options = menu and menu.options or {}
+        local selected = math.max(1, tonumber(menu and menu.selected) or 1)
+        local pageStart = math.floor((selected - 1) / Runtime.loadMenuPageSize)
+            * Runtime.loadMenuPageSize + 1
+        local pageEnd = math.min(#options, pageStart + Runtime.loadMenuPageSize - 1)
+        local visibleCount = math.max(0, pageEnd - pageStart + 1)
+        local height = visibleCount == 0 and 180 or 138 + visibleCount * Runtime.loadMenuRect.rowHeight
+        return {
+            pageStart = pageStart,
+            pageEnd = pageEnd,
+            visibleCount = visibleCount,
+            x = Runtime.loadMenuRect.x,
+            y = Runtime.loadMenuRect.y,
+            width = Runtime.loadMenuRect.width,
+            height = height,
+            back = { x = Runtime.loadMenuRect.x + Runtime.loadMenuRect.width - 150,
+                y = Runtime.loadMenuRect.y + height - 48, width = 130, height = 34 },
+        }
+    end
+
     function Runtime.inside(button, x, y)
         return x >= button.x and x <= button.x + button.width and y >= button.y and y <= button.y + button.height
     end
@@ -90,8 +111,10 @@ function Component.install(Runtime)
         if not item then return end
         local condition = Runtime.MachineFleet.condition(item)
         local status = Runtime.MachineFleet.conditionStatus(condition)
+        love.graphics.push('all')
+        love.graphics.setFont(require('src.screens.typography').get(14))
         love.graphics.setColor(0.72, 0.80, 0.81)
-        love.graphics.printf(string.format("%s  •  %s  •  %.1f%%", item.id, status, condition),
+        love.graphics.printf(string.format("%s · %s · %.1f%%", item.id, status, condition),
             x, y, width, "right")
         love.graphics.setColor(0.12, 0.15, 0.17)
         love.graphics.rectangle("fill", x, y + 19, width, 7, 2, 2)
@@ -99,6 +122,7 @@ function Component.install(Runtime)
         elseif condition >= 55 then love.graphics.setColor(0.88, 0.67, 0.22)
         else love.graphics.setColor(0.89, 0.31, 0.22) end
         love.graphics.rectangle("fill", x, y + 19, width * condition / 100, 7, 2, 2)
+        love.graphics.pop()
     end
 
     function Runtime.addButton(action, label, x, y, width, height, key, value)

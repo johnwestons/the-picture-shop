@@ -28,6 +28,7 @@ local function fixtureWorld()
     return w
 end
 function Test.run(check)
+    require('src.commute.tests.recreation_test').run(check)
     local world=fixtureWorld()
     local plan=Infrastructure.ensure(world)
     local count=plan.counts

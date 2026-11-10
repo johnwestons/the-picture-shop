@@ -1,2 +1,3 @@
--- The package builder replaces this value in its staged runtime from mobile/config.json.
-return { name = "0.1.0-android.101" }
+-- Platform packages replace this value during staging. This is the current
+-- Windows development checkout version for launching directly from source.
+return { name = "0.1.0-test.105" }

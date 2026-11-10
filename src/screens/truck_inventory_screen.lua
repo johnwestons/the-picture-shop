@@ -26,20 +26,29 @@ end
 
 local commaNumber = Ui.commaNumber
 
+local function rowText(text,x,y,width)
+    local scale=math.min(1,width/math.max(1,love.graphics.getFont():getWidth(text)))
+    love.graphics.print(text,x,y,0,scale,scale)
+end
+
 local function manifest(state, snapshot)
-    if snapshot.mode == "pickup" then return JobService.pickupInventory(state, snapshot.jobId) end
+    if snapshot.mode == "pickup" then return require('src.player_delivery_loading').manifest(state, snapshot) end
     if snapshot.mode == "machine_delivery" then return MachineFleet.truckInventory(state, snapshot.jobId) end
     return Logistics.truckInventory(state, snapshot.jobId)
 end
 
 local function remainingCargo(state, snapshot)
-    if snapshot.mode == "pickup" then return JobService.remainingPickup(state, snapshot.jobId) end
+    if snapshot.mode == "pickup" then return require('src.player_delivery_loading').remaining(state, snapshot) end
     if snapshot.mode == "machine_delivery" then return MachineFleet.remainingOnTruck(state, snapshot.jobId) end
     return Logistics.remainingOnTruck(state, snapshot.jobId)
 end
 
 local function localPage(state,snapshot,count)
     local key=tostring(snapshot.mode)..':'..tostring(snapshot.jobId)
+    if snapshot.mode=='pickup' then
+        local record,_,run=require('src.player_delivery_loading').manifest(state,snapshot)
+        if run then key='delivery:'..record.id end
+    end
     if Screen.manifestState~=state or Screen.manifestKey~=key then
         Screen.manifestState,Screen.manifestKey,Screen.page=state,key,1
     end
@@ -122,7 +131,7 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
             canMove and { 0.25, 0.40, 0.46, 1 } or { 0.25, 0.62, 0.42, 1 }, 4)
         love.graphics.setColor(0.94, 0.96, 0.94)
         if item.display then
-            love.graphics.print(item.display.label,row.x+18,row.y+13)
+            rowText(item.display.label,row.x+18,row.y+13,ROW.width-180)
         elseif machineDelivery then
             love.graphics.print(string.format("MACHINE  •  %s", item.id), row.x + 18, row.y + 13)
         else
@@ -130,15 +139,17 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
         end
         love.graphics.setColor(0.70, 0.79, 0.81)
         if item.display then
-            love.graphics.print(item.display.detail,row.x+18,row.y+38)
+            rowText(item.display.detail,row.x+18,row.y+38,ROW.width-180)
         elseif machineDelivery then
             local model = MachineFleet.definition(item.modelId)
             love.graphics.print(string.format("%s  |  %s %.1f%% condition", model.shortName,
                 MachineFleet.conditionStatus(item.condition), item.condition), row.x + 18, row.y + 38)
         elseif pickup then
-            love.graphics.print(string.format("%s finished sheets  |  %s  |  %s",
+            local detail=item.jobId and require('src.player_delivery_loading').itemDetail(item)
+                or string.format("%s finished sheets  |  %s  |  %s",
                 commaNumber(item.sheets), tostring(item.pallet.packagedAs or item.pallet.packaging),
-                item.location=='outbound_truck' and 'Loaded' or tostring(item.status):gsub('_',' ')), row.x + 18, row.y + 38)
+                item.location=='outbound_truck' and 'Loaded' or tostring(item.status):gsub('_',' '))
+            rowText(detail,row.x+18,row.y+38,ROW.width-180)
         elseif vendorDelivery then
             love.graphics.print(string.format("%s  |  %s %s", item.productName,
                 tostring(item.quantity), item.unit), row.x + 18, row.y + 38)

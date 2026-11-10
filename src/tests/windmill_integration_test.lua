@@ -302,6 +302,7 @@ function Test.run(context, check)
         emergencyResetPreservesTerminalState(context))
 
     local plateRuntimeState = context.State.new()
+    plateRuntimeState.calendar.elapsed=require('src.business_calendar').secondsPerDay(plateRuntimeState)*10/24
     local plateRuntimeJob = makePressJob()
     plateRuntimeState.jobs.active = { plateRuntimeJob }
     local runtimePlate = context.plateService.ensureJob(plateRuntimeJob)[1]

@@ -32,13 +32,25 @@ local function selectedCount(planner)
 end
 
 local function routeOrder(planner,wanted)
-    local order=0
+    local order,stops=0,{}
     for _,kind in ipairs({'town','city'}) do
         for _,job in ipairs(planner.jobs) do
             if planner.selected[job.id] and job.destination.kind==kind then
-                order=order+1
-                if job.id==wanted then return order end
+                local key=kind=='city' and 'Millhaven' or job.destination.id
+                if not stops[key] then order=order+1;stops[key]=order end
+                if job.id==wanted then return stops[key] end
             end
+        end
+    end
+end
+
+local function fillTruck(R)
+    local planner=R._deliveryPlanner
+    local count=0
+    planner.selected={}
+    for _,job in ipairs(planner.jobs) do
+        if count+job.palletCount<=10 then
+            planner.selected[job.id]=true;count=count+job.palletCount
         end
     end
 end
@@ -101,6 +113,7 @@ function Controls.keypressed(key,R)
     if R.state.screen=='home_travel' then
         local planner=R._deliveryPlanner
         if planner then
+            if key=='a' then fillTruck(R);return true end
             if key=='escape' or key=='back' then R._deliveryPlanner=nil;return true end
             if key=='up' then planner.scroll=math.max(1,planner.scroll-1);return true end
             if key=='down' then planner.scroll=math.min(math.max(1,#planner.jobs-7),planner.scroll+1);return true end
@@ -131,6 +144,7 @@ function Controls.mousepressed(x,y,button,R)
     if button~=1 then return true end
     local planner=R._deliveryPlanner
     if planner then
+        if x>=140 and x<=330 and y>=478 and y<=514 then fillTruck(R);return true end
         if x>=760 and x<=850 and y>=100 and y<=144 then R._deliveryPlanner=nil;return true end
         if x>=140 and x<=464 and y>=526 and y<=570 then submitPlanner(R);return true end
         if x>=496 and x<=820 and y>=526 and y<=570 then R._deliveryPlanner=nil;return true end
@@ -170,7 +184,7 @@ local function drawPlanner(R)
     drawPanel('PLAN CUSTOMER DELIVERIES',R)
     local count=selectedCount(planner)
     g.setFont(small);g.setColor(count>10 and 1 or .83,count>10 and .35 or .86,count>10 and .3 or .75,1)
-    g.print(('Select jobs · %d / 10 pallets · town stops first, Millhaven after'):format(count),140,148)
+    g.print(('%d / 10 pallets · select jobs from several clients'):format(count),140,148)
     local maxStart=math.max(1,#planner.jobs-7)
     g.setColor(.71,.79,.72,1)
     if #planner.jobs>0 then g.printf(('JOBS %d–%d OF %d'):format(planner.scroll,math.min(#planner.jobs,planner.scroll+7),#planner.jobs),590,148,135,'right')
@@ -197,6 +211,16 @@ local function drawPlanner(R)
     if maxStart>1 then
         g.setFont(small);g.setColor(.88,.88,.79,1);g.print('↑',662,146);g.print('↓',735,146)
     end
+    local townStops,city={},false
+    for _,job in ipairs(planner.jobs) do if planner.selected[job.id] then
+        if job.destination.kind=='city' then city=true else townStops[job.destination.id]=true end
+    end end
+    local stopCount=0;for _ in pairs(townStops) do stopCount=stopCount+1 end
+    local route=stopCount>0 and ('%d town stop%s'):format(stopCount,stopCount==1 and '' or 's') or ''
+    if city then route=route..(stopCount>0 and ', then ' or '')..'Millhaven (all city jobs)' end
+    g.setFont(small);g.setColor(.13,.32,.35,1);g.rectangle('fill',140,478,190,36,5)
+    g.setColor(.96,.96,.88,1);g.printf('FILL TRUCK  [A]',145,489,180,'center')
+    g.setFont(tiny);g.printf(route~='' and ('Route: '..route) or 'Choose jobs to build your delivery route.',350,489,470,'left')
     g.setFont(small)
     g.setColor(.13,.32,.35,1);g.rectangle('fill',140,526,324,44,5)
     g.rectangle('fill',496,526,324,44,5)
@@ -207,7 +231,7 @@ local function drawPlanner(R)
 end
 
 function Controls.draw(R)
-    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15);tiny=tiny or love.graphics.newFont(13)
+    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15);tiny=tiny or require('src.screens.typography').get(13)
     if R._deliveryPlanner then return drawPlanner(R) end
     local g=love.graphics;drawPanel('TOWN / DELIVERIES',R)
     local week=R.state.home.weekend;local lines={

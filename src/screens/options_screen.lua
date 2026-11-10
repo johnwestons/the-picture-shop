@@ -293,6 +293,9 @@ function OptionsScreen.wantsTextInput()
 end
 
 function OptionsScreen.accessRect(screen, bounds)
+    if screen=='computer' and require('src.screens.computer.mobile_layout').active() then
+        return require('src.screens.computer.mobile_layout').geometry().options
+    end
     -- Keep the global shortcut clear of each console's own Back/Exit controls.
     if screen == "world" then
         local right = bounds and bounds.right or Config.baseWidth
@@ -1045,9 +1048,11 @@ local function drawControlPreview()
         love.graphics.setLineWidth(dragged and 4 or 3)
         love.graphics.circle("line", x, y, spec.radius)
         love.graphics.setColor(0.96, 0.98, 0.92, 1)
-        local textScale = spec.radius < 30 and 0.60 or 0.74
-        love.graphics.printf(spec.label, x - spec.radius, y - 6,
-            spec.radius * 2, "center", 0, textScale, textScale)
+        local Text=require('src.screens.typography')
+        love.graphics.push('all');love.graphics.setFont(Text.get(12,'bold'))
+        local label=spec.label:gsub('ACTION ','ACT ')
+        love.graphics.printf(label,x-spec.radius,y-7,spec.radius*2,'center')
+        love.graphics.pop()
     end
     love.graphics.setLineWidth(1)
 end
@@ -1144,7 +1149,10 @@ local function drawColorways()
             love.graphics.setLineWidth(1)
             love.graphics.setColor(choiceIndex == selected and { 0.98, 0.84, 0.38, 1 }
                 or { 0.78, 0.82, 0.77, 1 })
+            love.graphics.push('all')
+            love.graphics.setFont(require('src.screens.typography').get(14))
             love.graphics.printf(choice.name, rect.x + 1, rect.y + 51, rect.width - 2, "center")
+            love.graphics.pop()
         end
     end
     local image, quad = CharacterAssets.get("rabbit-worker", "idle", 1)
@@ -1159,7 +1167,8 @@ local function drawColorways()
     love.graphics.setColor(0.86, 0.88, 0.82)
     love.graphics.print("LIVE PLAYER PREVIEW", 514, 551)
     love.graphics.setColor(0.58, 0.64, 0.61)
-    love.graphics.printf("Your online avatar uses these colors.", 514, 575, 250, "left")
+    love.graphics.setFont(require('src.screens.typography').get(14))
+    love.graphics.printf("These colors appear online.", 514, 575, 282, "left")
 end
 
 function OptionsScreen.draw(mouseX, mouseY)
@@ -1198,12 +1207,13 @@ function OptionsScreen.draw(mouseX, mouseY)
             SilhouetteStyle.STYLE_LABELS[OptionsScreen.context.settings.occlusionHighlightStyle] or "FILLED",
         }
         drawRows(GAME_ROWS, values, false)
-        love.graphics.setColor(0.58, 0.64, 0.61)
+        love.graphics.setFont(require('src.screens.typography').get(14))
+        love.graphics.setColor(0.76, 0.83, 0.79)
         love.graphics.printf(android and "Fullscreen is managed by Android."
             or "Display, time format, and hidden-player highlight changes apply immediately.", 164, 522, 632, "center")
-        love.graphics.printf("Hidden-player highlights can be filled or outlined. Use left/right to change color.",
+        love.graphics.printf("Choose a filled or outlined highlight. Left/right changes color.",
             164, 548, 632, "center")
-        love.graphics.printf("Follow keeps you centered; turn it off to pan. Pinch or mouse wheel zooms.",
+        love.graphics.printf("Follow centers the camera. Pinch or mouse wheel to zoom.",
             164, 574, 632, "center")
     elseif OptionsScreen.tab == "audio" then
         love.graphics.setColor(0.78, 0.81, 0.76)
@@ -1218,8 +1228,9 @@ function OptionsScreen.draw(mouseX, mouseY)
         drawControlViewSelector()
         drawSensitivitySliders()
         love.graphics.setColor(0.58, 0.64, 0.61)
-        love.graphics.printf("Shared MOVE / USE positions carry across screens; move any other button per view. Layouts save on this device.",
-            164, 528, 632, "center")
+        love.graphics.setFont(require('src.screens.typography').get(14))
+        love.graphics.printf("MOVE / USE are shared. Other buttons save per view on this device.",
+            164, 518, 632, "center")
         drawButton(RESET_CONTROLS, OptionsScreen.selectedControlView == "shared"
             and "RESET SHARED" or "RESET THIS VIEW", false, false)
         local steering=OptionsScreen.context.settings.mobileVehicleSteering or 'radial'
@@ -1282,9 +1293,11 @@ function OptionsScreen.draw(mouseX, mouseY)
         end
     end
 
-    love.graphics.setColor(0.72, 0.76, 0.70)
+    love.graphics.setFont(require('src.screens.typography').get(14))
+    love.graphics.setColor(0.78, 0.84, 0.78)
     love.graphics.printf(OptionsScreen.message, 116, 604, 728, "center")
-    love.graphics.setColor(0.47, 0.53, 0.50)
+    love.graphics.setFont(require('src.screens.typography').get(12))
+    love.graphics.setColor(0.74, 0.81, 0.77)
     love.graphics.printf(OptionsScreen.tab=="controls"
         and "Drag sliders for stick sensitivity  |  H: steering mode  |  M: motorcycle controls"
         or OptionsScreen.tab=="cheats"

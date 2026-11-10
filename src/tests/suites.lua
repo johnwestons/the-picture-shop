@@ -8,16 +8,27 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    {run=function(context,check)
+        local receipts=require('src.tests.receipt_book_test').run(context,check)
+        require('src.tests.receipt_archive_ui_test').run(context,check,receipts)
+    end},
+    {run=function(_,check)require('src.tests.delivery_signature_test').run(check)end},
+    {run=function(_,check)require('src.commute.tests.warehouse_queue_test').run(check)end},
+    {run=function(_,check)require('src.commute.tests.city_delivery_scene_test').run(check)end},
     {run=function(_,check)require('src.tests.rabbit_colorways_shader_test').run(check)end},
     require('src.tests.independent_scenes_test'),
     require('src.tests.independent_scenes_runtime_test'),
     require('src.tests.player_delivery_test'),
+    require('src.tests.multi_job_delivery_test'),
     require('src.tests.menu_exit_test'),
     require("src.tests.town_setup_test"),
+    require('src.tests.notifications_test'),
+    require('src.tests.business_hours_test'),
     {run=function(_,check)require('src.commute.tests.island_variation_test').run(check)end},
     {run=function(_,check)require("src.tests.home_art_preload_test").run(check)end},
     {run=function(_,check)
         require('src.commute.tests.trip_test').run(check)
+        require('src.commute.tests.road_generation_test').run(check)
         require('src.commute.tests.mobile_vehicle_test').run(check)
         require('src.commute.tests.first_person_test').run(check)
         require('src.commute.tests.truck_cab_test').run(check)
@@ -42,6 +53,8 @@ local DOMAIN_SUITES = {
     require("src.tests.home_residents_test"),
     require("src.tests.guest_payroll_test"),
     require("src.tests.home_shopping_test"),
+    require("src.tests.store_regression_test"),
+    require("src.tests.dock_view_test"),
     require("src.tests.home_furniture_test"),
     require("src.tests.household_finances_test"),
     require("src.tests.home_test"),
@@ -100,6 +113,7 @@ local DOMAIN_SUITES = {
     require("src.tests.truck_authority_test"),
     require("src.tests.delivery_manifest_test"),
     require("src.tests.truck_session_test"),
+    require('src.commute.tests.truck_multiplayer_test'),
     require("src.tests.cutter_maintenance_authority_test"),
     require("src.tests.cutter_maintenance_session_test"),
     require("src.tests.cutter_presentation_test"),
@@ -122,6 +136,7 @@ local DOMAIN_SUITES = {
     require("src.tests.lan_reconnect_session_test"),
     require("src.tests.lan_screen_test"),
     require("src.tests.keyboard_mobile_test"),
+    require("src.tests.mobile_controls_platform_test"),
     require("src.tests.direct_screen_test"),
     require("src.tests.direct_composite_transport_test"),
     require("src.tests.direct_composite_session_integration_test"),
@@ -145,6 +160,7 @@ local DOMAIN_SUITES = {
     require("src.tests.recent_updates_test"),
     require("src.tests.camera_follow_test"),
     require("src.tests.computer_viewport_test"),
+    require("src.tests.computer_browser_test"),
     require("src.tests.sound_test"),
     require("src.tests.player_feedback_test"),
     require("src.tests.pallet_state_test"),

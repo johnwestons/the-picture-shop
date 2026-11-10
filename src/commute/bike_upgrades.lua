@@ -193,6 +193,7 @@ function Upgrades.purchase(state,player,trip,world,intent)
         if intent.level~=offer.level then return false,'Choose the next upgrade for this component.' end
         if state.home.balanceCents<offer.costCents then return false,'Not enough household money for this upgrade.' end
         state.home.balanceCents=state.home.balanceCents-offer.costCents
+        require('src.receipt_book').expense(state,'Motorcycle upgrade',offer.costCents,'Majic Blue','Household',offer.name)
         resident.ridingUpgradeParts=Upgrades.copyParts(resident.ridingUpgradeParts)
         resident.ridingUpgradeParts[intent.category]=offer.level;resident.revision=resident.revision+1
         bike.upgradeParts=Upgrades.copyParts(resident.ridingUpgradeParts);state.home.revision=state.home.revision+1
@@ -209,6 +210,7 @@ function Upgrades.purchase(state,player,trip,world,intent)
     if intent.level~=offer.level then return false,'Buy the next motorcycle upgrade in order.' end
     if state.home.balanceCents<offer.costCents then return false,'Not enough household money for this upgrade.' end
     state.home.balanceCents=state.home.balanceCents-offer.costCents
+    require('src.receipt_book').expense(state,'Motorcycle upgrade',offer.costCents,'Majic Blue','Household',offer.name)
     resident.ridingUpgradeLevel=offer.level;resident.revision=resident.revision+1
     bike.upgradeLevel=offer.level;state.home.revision=state.home.revision+1
     return true,offer.name..' installed.'

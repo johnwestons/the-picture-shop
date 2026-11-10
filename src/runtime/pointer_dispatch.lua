@@ -6,6 +6,7 @@ function Component.install(Runtime)
     -- Scene panels and town loading can consume all pointer input. Keep the
     -- global menu controls reachable before those scene controls consume taps.
     function Runtime.menuAccessPointer(x,y,button)
+        if require('src.screens.notifications_screen').pointer(Runtime,x,y,button) then return true end
         local visibility=require('src.screens.hud_visibility')
         if visibility.pointer(Runtime,x,y,button) then return true end
         if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error'

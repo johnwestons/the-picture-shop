@@ -15,6 +15,7 @@ local Test = {}
 
 function Test.run(context,check)
     local state=context.State.new()
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     state.money=1000000
     state.inventory.stock.maintenance_kit=3
     Fleet.buy(state,"dealer",3)
@@ -40,11 +41,12 @@ function Test.run(context,check)
     love.timer.getTime=function() return 10 end
     local function render(name,draw,save)
         love.graphics.push("all"); love.graphics.setCanvas(canvas); love.graphics.clear(0,0,0,1)
+        love.graphics.setFont(require('src.screens.typography').get(16))
         local ok,err=pcall(draw or function() Remote.draw(state,nil,nil,assets) end)
         love.graphics.pop()
         check("shared_gui_renders_"..name..(ok and "" or ": "..tostring(err)),ok)
         local data=canvas:newImageData()
-        if save then data:encode("png","gui-parity-"..name..".png") end
+        if save or os.getenv('PICTURE_SHOP_UI_OUTPUT') then data:encode("png","gui-parity-"..name..".png") end
         local hash=love.data.hash("sha256",data:getString()); data:release()
         return hash
     end
@@ -60,6 +62,21 @@ function Test.run(context,check)
         check("shared_gui_office_"..tab.."_pixel_matches_host",remoteHash==hostHash)
     end
     Remote.sharedComputer.tab="www"
+    do
+        Remote.sharedComputer.tab='active';render('office_long_job')
+        local screen=Remote.sharedComputer;local rect=screen.jobDetailViewport()
+        local x,y=rect.x+40,rect.y+rect.height-25
+        Remote.waiting=false;Remote.mousepressed(state,x,y,1,send)
+        local input=require('src.input')
+        local oldScreen=state.screen;state.screen='workshop_remote'
+        local inputContext={state=state,workshopRemoteScreen=Remote}
+        input.mousemoved(x,rect.y+25,inputContext)
+        input.mousereleased(x,rect.y+25,1,inputContext)
+        state.screen=oldScreen
+        check('shared_gui_guest_job_drag_routes_through_game_input',screen.jobDetailScroll>0 and not screen.jobDetailDragY)
+        render('office_long_job_scrolled')
+        Remote.sharedComputer.tab='www'
+    end
     for site=1,5 do Remote.sharedComputer.wwwSite=site; render("office_site_"..site) end
     Remote.sharedComputer.wwwSite=1
     click(Remote.sharedComputer.retailButtonCenter(1))

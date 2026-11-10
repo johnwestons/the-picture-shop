@@ -484,7 +484,7 @@ local function drawMaintenance(state, pointerX, pointerY)
         local press = machine.maintenance.windmill
         love.graphics.setColor(0.70, 0.76, 0.74)
         love.graphics.printf(press.technicianDueDay and ("TECHNICIAN DUE DAY " .. press.technicianDueDay)
-            or "Field service covers timing, lubrication, suction, and safety circuits.", 620, 535, 270, "center")
+            or "Timing, oil, suction and safety service.", 620, 515, 270, "center")
         button(650, 570, 240, 56, "BOOK TECHNICIAN  $350", not press.technicianDueDay
             and Windmill.ensure(state).status == "idle", pointerX, pointerY)
         return

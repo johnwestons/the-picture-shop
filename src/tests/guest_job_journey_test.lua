@@ -341,6 +341,27 @@ local function runJourney(context, check, printing)
             and state.jobs.active[1].outboundDelivery.transport=="customer")
         -- This estimate did not offer delivery; the customer's carrier collects
         -- the finished job through the real dock pickup flow.
+        local pickupJob=state.jobs.active[1]
+        local Calendar=context.businessCalendar
+        Calendar.update(state,(pickupJob.pickup.dispatchAtHours-Calendar.absoluteHours(state))
+            /24*Calendar.secondsPerDay(state)+.01)
+        local traffic=require('src.commute.delivery_traffic')
+        local town=state.home.town
+        local roadWorld=require('src.commute.town').world(town)
+        local epoch=os.time()+traffic.DISPATCH_HEADWAY_SECONDS
+        traffic.update(state,town,Calendar.absoluteHours(state),epoch,roadWorld)
+        for step=1,6500 do
+            if step%50==0 then traffic.update(state,town,Calendar.absoluteHours(state),epoch+step*.1,roadWorld) end
+            traffic.simulate(state,town,.1,epoch+step*.1,roadWorld)
+            if traffic.pickupArrived(pickupJob) then break end
+        end
+        local road=pickupJob.pickup.roadDelivery
+        local route=road and road.route
+        local vehicle=route and route.vehicle
+        check('guest_journey_customer_truck_drives_to_pickup',traffic.pickupArrived(pickupJob),
+            ('status=%s phase=%s waypoint=%s start=%s now=%s'):format(tostring(road and road.status),
+                tostring(vehicle and vehicle.phase),tostring(vehicle and vehicle.pathIndex),
+                tostring(route and route.startAtHours),tostring(Calendar.absoluteHours(state))))
         release(); context.world.load()
         context.world.update(context.config.truck.scheduleDelay+0.1,0,0,assets,state)
         context.world.update(context.config.loadingBay.duration+0.1,0,0,assets,state)

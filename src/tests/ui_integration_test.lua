@@ -15,6 +15,10 @@ end
 
 function Test.run(context, check)
     local function finishTownBake()
+        if context.title.mode=='town-setup' and context.title.townSetup.confirming then
+            local x,y=require('src.screens.town_setup_screen').buttonCenter('confirmCreate')
+            context.input.mousepressed(x,y,1,context.inputContext);context.title.update(.2)
+        end
         local deadline=love.timer.getTime()+90
         while context.title.mode=="terrain-bake" and love.timer.getTime()<deadline do
             context.title.update(1/60)
@@ -182,6 +186,7 @@ function Test.run(context, check)
         #titleStarts == 5 and titleStarts[5].mode == "continue" and titleStarts[5].payload.slot == 3)
 
     local phoneState = context.State.new()
+    phoneState.calendar.elapsed=require('src.business_calendar').secondsPerDay(phoneState)*10/24
     local phoneQueued, phoneCall = context.workPhone.queueCall(phoneState, {
         kind = "customer_order",
         caller = "Wall Phone Test Client",
@@ -204,7 +209,12 @@ function Test.run(context, check)
         and phoneCompleted and phoneCompleted.action == "call_completed"
         and phoneState.workPhone.incoming == nil
         and #phoneState.workPhone.history == 1
-        and #phoneState.clientEmails.pending == 1)
+        and #phoneState.clientEmails.pending == 1,
+        ('image=%s quad1=%s quad8=%s queued=%s answered=%s completed=%s incoming=%s history=%d email=%d'):format(
+            tostring(context.assets.get('workPhone')~=nil),tostring(context.assets.getQuad('workPhone1')~=nil),
+            tostring(context.assets.getQuad('workPhone8')~=nil),tostring(phoneQueued),tostring(phoneAnswered and phoneAnswered.action),
+            tostring(phoneCompleted and phoneCompleted.action),tostring(phoneState.workPhone.incoming~=nil),
+            #phoneState.workPhone.history,#phoneState.clientEmails.pending))
 
     local beforeDeleteCancel = love.filesystem.read("saves/slot3.lua")
     context.title.enter(captureTitleStart)

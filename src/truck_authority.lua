@@ -41,7 +41,7 @@ local function manifest(state, world)
     local snapshot = world.truckSnapshot()
     local record, inventory
     if snapshot.mode == "pickup" then
-        record, inventory = JobService.pickupInventory(state, snapshot.jobId)
+        record, inventory = require('src.player_delivery_loading').manifest(state, snapshot)
     elseif snapshot.mode == "machine_delivery" then
         record, inventory = MachineFleet.truckInventory(state, snapshot.jobId)
     else
@@ -68,8 +68,8 @@ local function itemCopy(item, mode, rowIndex,scene,state)
             available(item, mode) and "ready to unload" or "received")
     elseif mode == "pickup" then
         label = string.format("Pallet %d · %s", tonumber(item.number) or 0, tostring(item.id))
-        detail = string.format("%d finished sheets · %s", tonumber(item.sheets) or 0,
-            tostring(item.status or "wrapped"))
+        detail = item.jobId and require('src.player_delivery_loading').itemDetail(item)
+            or string.format("%d finished sheets · %s", tonumber(item.sheets) or 0,tostring(item.status or "wrapped"))
     elseif item.vendorProduct then
         label = tostring(item.productName or item.id)
         detail = string.format("%s %s · %s", tostring(item.quantity or 0),
@@ -89,7 +89,7 @@ end
 
 local function remaining(state, world, snapshot)
     if snapshot.mode == "pickup" then
-        return JobService.remainingPickup(state, snapshot.jobId)
+        return require('src.player_delivery_loading').remaining(state, snapshot)
     elseif snapshot.mode == "machine_delivery" then
         return MachineFleet.remainingOnTruck(state, snapshot.jobId)
     end
@@ -109,7 +109,7 @@ function TruckAuthority.view(state, world, page)
     return {
         mode = tostring(snapshot.mode),
         state = tostring(snapshot.state),
-        manifestId = tostring(snapshot.jobId),
+        manifestId = tostring(record and record.manifestId or snapshot.jobId),
         title = tostring(record and (record.company or record.machineName or record.id)
             or "Truck manifest"),
         page = page,

@@ -84,7 +84,7 @@ function Component.install(Runtime)
         love.graphics.setColor(0.73, 0.80, 0.81)
         love.graphics.print("SHOP STOCK", 116, 380)
         love.graphics.setColor(0.42, 0.73, 0.78)
-        love.graphics.printf("Buy more through the WWW tab at www.thecritternet.com",
+        love.graphics.printf("Order supplies in WWW",
             400, 380, 406, "right")
         love.graphics.setColor(0.73, 0.80, 0.81)
         love.graphics.print("Loose starter sheets", 116, 414)
@@ -207,22 +207,22 @@ function Component.install(Runtime)
             return
         end
         love.graphics.setColor(0.68, 0.83, 0.84)
-        love.graphics.print("MACHINE LISTINGS", Runtime.MACHINE_OFFER.x, 284)
+        love.graphics.print("MACHINE LISTINGS", Runtime.MACHINE_OFFER.x, 278)
         for index, offer in ipairs(Runtime.MachineFleet.offers("online")) do
+            local Text=require('src.screens.typography');love.graphics.setFont(Text.get(14))
             local y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap)
             local buy = Runtime.machineBuyRect(index)
             Runtime.panel({ x = Runtime.MACHINE_OFFER.x, y = y, width = Runtime.MACHINE_OFFER.width, height = Runtime.MACHINE_OFFER.height },
                 { 0.06, 0.09, 0.12, 1 }, { 0.24, 0.40, 0.46, 1 })
             love.graphics.setColor(0.92, 0.95, 0.93)
-            local nameScale = math.min(1, (buy.x - Runtime.MACHINE_OFFER.x - 20)
-                / math.max(1, love.graphics.getFont():getWidth(offer.name)))
-            love.graphics.print(offer.name, Runtime.MACHINE_OFFER.x + 12, y + 5, 0, nameScale, nameScale)
+            local labelWidth=buy.x-Runtime.MACHINE_OFFER.x-20
+            love.graphics.print(Text.ellipsize(offer.name,labelWidth), Runtime.MACHINE_OFFER.x + 12, y + 5)
             local red, green, blue = Runtime.conditionColor(offer.condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(string.format("%s • %.0f%% condition", offer.conditionStatus, offer.condition),
+            love.graphics.print(Text.ellipsize(string.format("%s • %.0f%%", offer.conditionStatus, offer.condition),labelWidth),
                 Runtime.MACHINE_OFFER.x + 12, y + 20)
             love.graphics.setColor(0.58, 0.67, 0.69)
-            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 36)
+            love.graphics.print(Text.ellipsize('Flatbed delivery',labelWidth), Runtime.MACHINE_OFFER.x + 12, y + 36)
             local total = Runtime.cartTotal()
             local affordable = (state.money or 0) >= total + offer.price
             local canFinance = (state.money or 0) < offer.price
@@ -234,7 +234,7 @@ function Component.install(Runtime)
         end
 
         love.graphics.setColor(0.63, 0.72, 0.74)
-        love.graphics.print("YOUR MACHINES", Runtime.OWNED_MACHINE.x, 284)
+        love.graphics.print("YOUR MACHINES", Runtime.OWNED_MACHINE.x, 278)
         local owned, pages = Runtime.ComputerScreen.ownedMachinePage(state)
         if #owned == 0 then
             love.graphics.setColor(0.52, 0.60, 0.62)
@@ -246,20 +246,22 @@ function Component.install(Runtime)
             if item then
             local y = Runtime.OWNED_MACHINE.y + (visibleIndex - 1) * (Runtime.OWNED_MACHINE.height + Runtime.OWNED_MACHINE.gap)
             local sell = Runtime.machineSellRect(visibleIndex)
+            local Text=require('src.screens.typography');love.graphics.setFont(Text.get(14))
+            local labelWidth=sell.x-Runtime.OWNED_MACHINE.x-18
             local condition = Runtime.MachineFleet.condition(item)
             local weakest = Runtime.MachineFleet.weakestComponent(item)
             Runtime.panel({ x = Runtime.OWNED_MACHINE.x, y = y, width = Runtime.OWNED_MACHINE.width, height = Runtime.OWNED_MACHINE.height },
                 { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.34, 0.38, 1 })
             love.graphics.setColor(0.92, 0.95, 0.93)
-            love.graphics.print(item.id .. "  " .. (Runtime.MachineFleet.definition(item.modelId).shortName),
+            love.graphics.print(Text.ellipsize(item.id .. "  " .. (Runtime.MachineFleet.definition(item.modelId).shortName),labelWidth),
                 Runtime.OWNED_MACHINE.x + 10, y + 9)
             local red, green, blue = Runtime.conditionColor(condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(string.format("%s %.1f%% • %s", Runtime.MachineFleet.conditionStatus(condition),
-                condition, item.status:upper()), Runtime.OWNED_MACHINE.x + 10, y + 30)
+            love.graphics.print(Text.ellipsize(string.format("%.1f%% • %s",
+                condition, item.status:upper()),labelWidth), Runtime.OWNED_MACHINE.x + 10, y + 30)
             love.graphics.setColor(0.55, 0.64, 0.66)
-            love.graphics.print(string.format("%s %.0f%% • %d cycles", weakest.label,
-                weakest.value, item.cycles), Runtime.OWNED_MACHINE.x + 10, y + 46)
+            love.graphics.print(Text.ellipsize(string.format("%s %.0f%% • %d cycles", weakest.label,
+                weakest.value, item.cycles),labelWidth), Runtime.OWNED_MACHINE.x + 10, y + 46)
             local hovered = pointerX and Runtime.contains(sell, pointerX, pointerY)
             Runtime.drawComputerButton(sell,
                 "SELL\n" .. Runtime.money(Runtime.MachineFleet.resaleValue(item, "online")),
@@ -279,9 +281,6 @@ function Component.install(Runtime)
             love.graphics.printf(string.format("%d / %d", Runtime.ComputerScreen.machinePage, pages),
                 588, 595, 164, "center")
         end
-        love.graphics.setColor(0.55, 0.68, 0.69)
-        love.graphics.printf("CritterNet verified listings • each machine gets a place on the shop floor",
-            486, 622, 354, "center")
     end
 end
 

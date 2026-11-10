@@ -5,6 +5,9 @@ local HudVisibility=require('src.screens.hud_visibility')
 
 function Component.install(Runtime)
     function Runtime.App.draw()
+        if Runtime.state.screen~='world'then require('src.dock_renderer').pause()
+        else require('src.dock_renderer').selectScene(require('src.shop_rooms').scene(Runtime.World.player),Runtime.state)end
+        love.graphics.setFont(require('src.screens.typography').get(16))
         Runtime.CharacterAssets.beginFrame()
         love.graphics.clear(0.04, 0.05, 0.07)
         local viewBounds = Runtime.syncCamera()
@@ -12,11 +15,14 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
+        local wideOffice=(Runtime.state.screen=='computer' or Runtime.state.screen=='workshop_remote'
+            and Runtime.WorkshopRemoteScreen.resourceId=='office_computer')
+            and require('src.screens.computer.mobile_layout').active()
         local wideCommute=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
             and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
             and Runtime.World.player.sceneId=='commute'
         Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight,
-            not (mobileWorld or mobileUi or wideCommute), Runtime.App.officeUsesSafeArea())
+            not (mobileWorld or mobileUi or wideCommute or wideOffice), Runtime.App.officeUsesSafeArea())
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
             Runtime.CharacterAssets.endFrame()
@@ -40,8 +46,12 @@ function Component.install(Runtime)
             end
             Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
             Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
+            require('src.screens.notifications_screen').drawAccess(Runtime,bounds)
             end
             HudVisibility.draw(Runtime)
+            if showHud and Runtime.App.playerFeedback then
+                Runtime.App.playerFeedback:drawToast(bounds,'commute')
+            end
             Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
             return
         end
@@ -86,6 +96,8 @@ function Component.install(Runtime)
         if Runtime.state.screen == "asset_error" then
             Runtime.CharacterAssets.retainCharacters({}, true)
             Runtime.AssetErrorScreen.draw(Runtime.state.assetErrors)
+        elseif Runtime.state.screen=='notifications' then
+            require('src.screens.notifications_screen').draw(Runtime)
         elseif Runtime.state.screen == "title" then
             Runtime.CharacterAssets.retainCharacters({}, true)
             Runtime.CharacterAssets.warmNextPlayerWalkAction()
@@ -107,13 +119,13 @@ function Component.install(Runtime)
                 local worldX, worldY = Runtime.App.mobileCamera:screenToWorld(mouseX, mouseY)
                 Runtime.App.mobileCamera:beginDraw()
                 Runtime.Viewport.drawWorldBackdrop(viewBounds,Runtime.App.mobileCamera)
-                Runtime.World.draw(Runtime.Assets, Runtime.CharacterAssets, Runtime.state, worldX, worldY, Runtime.multiplayer:remotePlayers())
+                Runtime.World.draw(Runtime.Assets, Runtime.CharacterAssets, Runtime.state, worldX, worldY, Runtime.multiplayer:remotePlayers(),Runtime)
                 Runtime.App.mobileCamera:endDraw()
             else
                 Runtime.World.draw(Runtime.Assets, Runtime.CharacterAssets, Runtime.state,
                     Runtime.state.screen == "world" and mouseX or nil,
                     Runtime.state.screen == "world" and mouseY or nil,
-                    Runtime.multiplayer:remotePlayers())
+                    Runtime.multiplayer:remotePlayers(),Runtime)
             end
             if Runtime.state.screen == "world" then
                 if showHud then
@@ -124,6 +136,8 @@ function Component.install(Runtime)
                     Runtime.App.playerFeedback,Runtime.World.player.sceneId,require("src.home_activity_controls").localPlayer(Runtime))
                 Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
                 Runtime.HighFiveUi.draw(Runtime.multiplayer:highFiveInfo())
+                local _,noticeBounds=Runtime.optionsAccessLayout()
+                require('src.screens.notifications_screen').drawAccess(Runtime,noticeBounds)
                 end
                 HudVisibility.draw(Runtime)
             elseif Runtime.state.screen == "computer" then
@@ -169,6 +183,7 @@ function Component.install(Runtime)
             end
         end
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
+            and Runtime.state.screen ~= 'notifications'
             and Runtime.state.screen ~= "delivery_signature"
             and Runtime.state.screen ~= "critter_kombat" and (Runtime.state.screen~='world' or showHud) then
             local optionsX, optionsY = Runtime.pointerPosition()
@@ -178,10 +193,11 @@ function Component.install(Runtime)
         if Runtime.App.playerFeedback and (Runtime.state.screen~='world' or showHud) and Runtime.state.screen ~= "title"
             and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"
             and Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
+            and Runtime.state.screen ~= 'notifications'
         then
             Runtime.App.playerFeedback:drawToast(viewBounds, Runtime.state.screen)
         end
-        if not mobileWorld and not mobileUi then
+        if not mobileWorld and not mobileUi and not wideOffice then
             Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
         end
         Runtime.Ui.drawPressFeedback()

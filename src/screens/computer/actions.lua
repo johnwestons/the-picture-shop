@@ -19,8 +19,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.enter(state)
+        Runtime.ComputerScreen.jobDetailScroll,Runtime.ComputerScreen.jobDetailMaxScroll=0,0
+        Runtime.ComputerScreen.jobDetailDragY,Runtime.ComputerScreen.jobDetailKey=nil,nil
         Runtime.ComputerScreen.tab = state.home and require("src.weekend_flow").atHome(state) and "home" or "active"
         if Runtime.resetHomeView then Runtime.resetHomeView() end
+        if Runtime.resetReceipts then Runtime.resetReceipts() end
         Runtime.ComputerScreen.emailFolder = "inbox"
         Runtime.ComputerScreen.pages = { active = 1, completed = 1, deliveries = 1 }
         Runtime.ComputerScreen.selectedJobId = nil

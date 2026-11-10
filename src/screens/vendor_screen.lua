@@ -69,7 +69,10 @@ function Screen.draw(state, assets, pointerX, pointerY)
             love.graphics.setColor(0.68, 0.78, 0.81)
             local bulkLine = string.format("Bulk $%.2f/%s  |  computer $%.2f/%s  |  dock delivery",
                 item.price / item.quantity, item.unit, (item.retailPrice or item.price) / (item.retailQuantity or item.quantity), item.unit)
-            love.graphics.print(available and bulkLine or item.unavailableReason, r.x + 22, r.y + 30)
+            love.graphics.setFont(require('src.screens.typography').get(14))
+            love.graphics.print(require('src.screens.typography').ellipsize(available and bulkLine or item.unavailableReason,
+                buy.x-r.x-34), r.x + 22, r.y + 30)
+            love.graphics.setFont(require('src.screens.typography').get(16))
             box(buy, affordable and { 0.16, 0.45, 0.31, 1 } or { 0.18, 0.19, 0.20, 1 },
                 affordable and { 0.48, 0.86, 0.58, 1 } or { 0.36, 0.38, 0.40, 1 })
             love.graphics.setColor(affordable and 0.95 or 0.58, affordable and 0.98 or 0.62,
@@ -79,12 +82,12 @@ function Screen.draw(state, assets, pointerX, pointerY)
         end
     end
     love.graphics.setColor(0.72, 0.80, 0.81)
-    love.graphics.print("Nothing needed today? Dismiss this visit without placing an order.", 104, 501)
+    love.graphics.print("Nothing needed? Dismiss this visit.", 104, 501)
     BackButton.draw(assets, NO_THANKS, "NO THANKS", pointerX, pointerY, false)
     love.graphics.setColor(0.70, 0.78, 0.80)
-    love.graphics.print(category.kind == "machines"
-        and "Dealer machines need clear floor space. For financing, use the computer's CREDIT tab."
-        or "Purchases are charged now. The delivery truck will arrive at the loading dock.", 104, 548)
+    love.graphics.printf(category.kind == "machines"
+        and "Dealer machines need clear floor space. Financing: computer > CREDIT."
+        or "Charged now. Your delivery truck will arrive at the loading dock.", 104, 548,740,'left')
 end
 
 function Screen.mousepressed(state, x, y, button)

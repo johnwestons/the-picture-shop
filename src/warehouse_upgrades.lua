@@ -243,6 +243,8 @@ function Upgrades.purchase(state, bayId, optionId, requestId, nowHours)
     warehouse.receipts[#warehouse.receipts + 1] = { requestId = requestId, kind = "upgrade", bayId = bayId,
         optionId = optionId, targetId = project.id, pricePaid = price, purchasedAtHours = now }
     state.money = state.money - price
+    require('src.receipt_book').expense(state,'Warehouse upgrade',price*100,'Warehouse contractor','Shop',
+        tostring(CATALOG[optionId].name or optionId)..' - '..bayId,'warehouse:'..requestId)
     return true, copy(project), "purchased"
 end
 
@@ -261,6 +263,7 @@ function Upgrades.purchaseForklift(state, requestId, nowHours)
     local receipt = { requestId = requestId, kind = "forklift", optionId = "forklift", targetId = "forklift",
         pricePaid = CATALOG.forklift.price, purchasedAtHours = now }
     state.money = state.money - receipt.pricePaid
+    require('src.receipt_book').expense(state,'Forklift purchase',receipt.pricePaid*100,'Warehouse equipment','Shop','Forklift','warehouse:'..requestId)
     warehouse.forkliftOwned = true
     warehouse.receipts[#warehouse.receipts + 1] = receipt
     return true, copy(receipt), "purchased"

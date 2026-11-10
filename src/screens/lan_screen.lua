@@ -500,6 +500,7 @@ local function drawAutoJoinToggle()
 end
 
 function LanScreen.draw()
+    love.graphics.setFont(require('src.screens.typography').get(14))
     love.graphics.clear(0.05, 0.06, 0.07)
     love.graphics.setColor(0.95, 0.82, 0.26)
     love.graphics.printf("LOCAL SHOP NETWORK", 0, 44, Config.baseWidth, "center")
@@ -515,9 +516,9 @@ function LanScreen.draw()
         love.graphics.setColor(0.91, 0.92, 0.86)
         love.graphics.printf("Selected save slot: " .. tostring(LanScreen.selectedSlot), 0, 144, Config.baseWidth, "center")
         love.graphics.setColor(0.68, 0.74, 0.73)
-        love.graphics.printf("Each device has a different IP; both addresses need to share a local subnet.", 170, 169, 620, "center")
+        love.graphics.printf("Connect both devices to the same local network.", 170, 169, 620, "center")
         love.graphics.setColor(0.60, 0.79, 0.76)
-        love.graphics.printf("The host keeps the save. USB-C needs a data cable and Android USB tethering.",
+        love.graphics.printf("Host keeps the save. USB-C: data cable + Android USB tethering.",
             155, 190, 650, "center")
         love.graphics.setColor(0.60, 0.79, 0.76)
         for _, mode in ipairs(CONNECTION_MODES) do drawModeButton(mode) end

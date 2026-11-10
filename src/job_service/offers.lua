@@ -193,7 +193,7 @@ function Component.install(Runtime)
             status = "pending_arrival",
             service = Runtime.copy(job.deliveryService),
             acceptedGameHours = acceptedGameHours,
-            readyAtHours = acceptedGameHours + job.deliveryService.delayHours,
+            readyAtHours = require('src.business_hours').nextService(acceptedGameHours + job.deliveryService.delayHours),
         }
         job.acceptedGameHours = acceptedGameHours
         require("src.business_deadlines").ensure(job)
@@ -207,13 +207,17 @@ function Component.install(Runtime)
     end
 
     function Runtime.JobService.deliveryReady(state, job)
+        if not Runtime.BusinessCalendar.isBusinessOpen(state) then return false end
         if type(job) ~= "table" or type(job.delivery) ~= "table" then return true end
         if type(job.delivery.readyAtHours) ~= "number" then return true end
         if job.delivery.status == "pending_arrival" and tonumber(job.delivery.acceptedGameHours) then
             local service = Runtime.deliveryService(job, job.sequence)
             job.deliveryService = service
             job.delivery.service = Runtime.copy(service)
-            job.delivery.readyAtHours = job.delivery.acceptedGameHours + service.delayHours
+            -- A missed signature or a road dispatch may have postponed this
+            -- shipment. Never replace that durable retry with the original ETA.
+            job.delivery.readyAtHours = require('src.business_hours').nextService(math.max(
+                job.delivery.readyAtHours,job.delivery.acceptedGameHours + service.delayHours))
         end
         return Runtime.BusinessCalendar.absoluteHours(state) + 0.000001 >= job.delivery.readyAtHours
     end
@@ -225,7 +229,8 @@ function Component.install(Runtime)
         local service = job and (job.deliveryService or (job.delivery and job.delivery.service))
         if not service then return "Delivery timing not assigned" end
         if state and job.delivery and not Runtime.JobService.deliveryReady(state, job) then
-            local remaining = math.max(0, job.delivery.readyAtHours - Runtime.BusinessCalendar.absoluteHours(state))
+            local remaining = math.max(0, require('src.business_hours').nextService(math.max(
+                job.delivery.readyAtHours,Runtime.BusinessCalendar.absoluteHours(state))) - Runtime.BusinessCalendar.absoluteHours(state))
             if remaining < 24 then
                 return string.format("%s — about %d hour%s", service.label,
                     math.max(1, math.ceil(remaining)), remaining > 1 and "s" or "")

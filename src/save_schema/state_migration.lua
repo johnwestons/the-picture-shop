@@ -79,6 +79,9 @@ function Component.install(Runtime)
             return nil, "Invalid saved credit account."
         end
         local result = Runtime.Schema.defaultState()
+        result.notifications=require('src.notifications').normalize(source.notifications)
+        result.tutorial=require('src.tutorial').normalize(source.tutorial)
+        if not result.notifications or not result.tutorial then return nil,'Invalid notification or tutorial history.' end
         result.home = Runtime.Home.normalize(source.home,
             type(source.calendar)=="table" and source.calendar.totalDays or 0)
         if not result.home then return nil,"Invalid household or apartment lease." end
@@ -212,6 +215,8 @@ function Component.install(Runtime)
             result.home.finance=require("src.household_finances").new(require("src.business_calendar").absoluteHours(result))
         end
         require("src.home_shopping").ensure(result)
+        result.receipts=require('src.receipt_book').normalize(source.receipts,result)
+        if not result.receipts then return nil,'Invalid receipt archive.' end
         return result
     end
 end

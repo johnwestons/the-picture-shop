@@ -434,6 +434,7 @@ function Maintenance.buyBladeUpgrade(state, grade)
     end
     if (state.money or 0) < profile.price then return false, "The shop cannot afford that specialty blade right now." end
     state.money = state.money - profile.price
+    require('src.receipt_book').expense(state,'Cutter blade purchase',profile.price*100,'Cutter supplies','Shop',tostring(grade)..' blade')
     cutter.orderedBladeGrade = grade
     if state.home then require("src.household_finances").record(state, "services", profile.price * 100) end
     return true, cutter
@@ -558,6 +559,7 @@ function Maintenance.requestWindmillTechnician(state)
     if press.technicianDueDay then return false, "A press technician is already scheduled." end
     if (state.money or 0) < 350 then return false, "The $350 service call is not affordable right now." end
     state.money = state.money - 350
+    require('src.receipt_book').expense(state,'Machine service',35000,'Service technician','Shop','Machine maintenance service')
     require("src.household_finances").record(state,"services",35000)
     press.technicianDueDay = state.calendar.totalDays + 1
     press.technicianStatus = "scheduled"
@@ -626,7 +628,7 @@ function Maintenance.completeTechnicianVisit(state, kind, visit)
 end
 
 function Maintenance.updateTechnician(state)
-    if BusinessCalendar.isWeekend(state) then return false end
+    if not BusinessCalendar.isBusinessOpen(state) then return false end
     local cutterChanged = updateCutterTechnician(state)
     local pressChanged = Maintenance.updateWindmillTechnician(state)
     return cutterChanged or pressChanged

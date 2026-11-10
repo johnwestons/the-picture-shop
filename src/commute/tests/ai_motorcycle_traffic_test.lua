@@ -427,7 +427,10 @@ function Test.run(check,town,routeSmoke)
     end
     check('ai_motorcycle_traffic_passes_or_yields_safely_around_a_stopped_truck',passOkay,passDetail)
 
-    for _=1,80 do Network.simulate(state,town,.05,epoch,world) end
+    for _=1,80 do
+        local _,stepMoving=Network.simulate(state,town,.05,epoch,world)
+        moving=moving or stepMoving
+    end
     local distance=0
     for index,agent in ipairs(agents) do
         distance=distance+math.sqrt((agent.bike.x-initial[index].x)^2+(agent.bike.z-initial[index].z)^2)
@@ -549,7 +552,8 @@ function Test.run(check,town,routeSmoke)
     world.sweepTrafficObstacles=realTrafficSweep
     local collisionSubjectPassed=sweepSubject==subjectBike and subjectBike.crashPending==nil
     world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil
-    check('ai_motorcycle_traffic_moves_with_live_motorcycle_physics',moving and distance>1)
+    check('ai_motorcycle_traffic_moves_with_live_motorcycle_physics',moving and distance>1,
+        ('moving=%s distance=%.3f'):format(tostring(moving),distance))
     check('ai_motorcycle_traffic_stays_out_of_crash_state',safe)
     check('ai_motorcycle_traffic_is_exposed_as_mounted_world_actors',rendered==BikeTraffic.MAX_BIKES)
     check('ai_motorcycle_traffic_survives_commute_snapshot_and_restore',snapshotOkay and restoreOkay)

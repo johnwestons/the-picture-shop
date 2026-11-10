@@ -201,7 +201,8 @@ local function drawCharacter(R,p)
     if not assets then return end
     local trip=R.state.home and R.state.home.commute
     local part=trip and trip.participants and trip.participants[require('src.home_residents').key(p)]
-    if require('src.commute.presentation').indoor(p,R.state,assets,part and part.rider.gear) then return end
+    local presentation=require('src.commute.presentation')
+    if presentation.indoor(p,R.state,assets,part and part.rider.gear,presentation.STORE_RIDER_SCALE) then return end
     local character=p.character or Config.player.character
     local action,mirror
     if p.moving then action,mirror=Animation.actorWalkAction(p)

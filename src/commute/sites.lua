@@ -38,9 +38,9 @@ Sites.warehouseTruckLayout={
     truckHomeParking={box={x=-4.6,z=12.5},kei={x=-.6,z=12.5}},
     truckHomeHeading=-math.pi*.5,
     truckHomeStalls={box=rect(-6.3,-2.9,9,16),kei=rect(-2.3,1.1,9,16)},
-    truckWaiting={x=-10.1,z=0},
+    truckWaiting={x=-10.1,z=-2.4},
     truckWaitingArea=rect(-13,-7.2,-5.4,18.6),
-    truckQueueAnchors={{x=-10.1,z=0},{x=-10.1,z=7},{x=-10.1,z=14}},
+    truckQueueAnchors={{x=-10.1,z=-2.4},{x=-10.1,z=6.4},{x=-10.1,z=15.2}},
     truckDockSetup={x=20,z=0},
     truckParkingArea=rect(6.2,15.4,-5.4,18.6),
     -- A broad private lot apron keeps the U-shaped truck circulation inside
@@ -50,8 +50,8 @@ Sites.warehouseTruckLayout={
         rect(15.4,23.5,-5.4,18.6),rect(-6.8,1.6,8.5,16.5)},
     -- One U through the private lot. Pull ahead of the dock, stop, then back
     -- straight in. Queue upstream of the building, never in the reversing aisle.
-    truckEntryWaypoints={{x=-10.1,z=18.6},{x=-10.1,z=14},{x=-10.1,z=7},
-        {x=-10.1,z=0},{x=-10.1,z=-5.4},{x=-7,z=-8.4},{x=2,z=-8.4},
+    truckEntryWaypoints={{x=-10.1,z=18.6},{x=-10.1,z=15.2},{x=-10.1,z=6.4},
+        {x=-10.1,z=-2.4},{x=-10.1,z=-5.4},{x=-7,z=-8.4},{x=2,z=-8.4},
         {x=6,z=-7.3},{x=9,z=-4},{x=12,z=-1},{x=15,z=0},
         {x=20,z=0},{x=9.3,z=0}},
     truckExitWaypoints={{x=9.3,z=0},{x=20,z=0},{x=20,z=8}},

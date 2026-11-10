@@ -64,7 +64,7 @@ function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointer
     love.graphics.setColor(.84,.91,.87,1);love.graphics.printf(Calendar.dateText(state),x+12,y+40,w-24,"center")
     if digitalOnly then
         love.graphics.setColor(.48,.70,.66,1)
-        love.graphics.printf("Shop time is shown in the computer's bottom-right status display.",
+        love.graphics.printf("Shop time: "..Calendar.timeText(state,twelveHourTime),
             x+24,y+112,w-48,"center")
         love.graphics.setColor(.84,.91,.87,1)
         love.graphics.printf("GAME SPEED",x+24,y+143,w-48,"center")
@@ -103,7 +103,7 @@ function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointer
     end
     love.graphics.setColor(.73,.85,.78,1)
     love.graphics.printf(string.format("At 1x, one game day = %d real minutes",Calendar.secondsPerDay(state)/60),x+16,y+h-49,w-32,"center")
-    love.graphics.printf("Employee shifts and wages follow this shop time.",x+16,y+h-27,w-32,"center")
+    love.graphics.printf("Shifts and wages follow shop time.",x+16,y+h-27,w-32,"center")
 end
 function Clock.draw(state,pointerX,pointerY,twelveHourTime)
     love.graphics.setColor(.005,.015,.02,.80);love.graphics.rectangle("fill",0,0,Config.baseWidth,Config.baseHeight)

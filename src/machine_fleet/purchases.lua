@@ -53,6 +53,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.Fleet.nextInbound(state)
+        if not Runtime.BusinessCalendar.isBusinessOpen(state) then return nil end
         local now=Runtime.BusinessCalendar.absoluteHours(state)
         for _, order in ipairs(Runtime.Fleet.current(state).deliveries) do
             -- Truck motion is intentionally transient. Any undelivered unit is
@@ -93,11 +94,13 @@ function Component.install(Runtime)
             delivery = {
                 status = "awaiting_delivery",
                 orderedAt = os.time(),
-                expectedAtHours = Runtime.BusinessCalendar.absoluteHours(state),
+                expectedAtHours = require('src.business_hours').nextService(Runtime.BusinessCalendar.absoluteHours(state)),
             },
         }
         fleet.deliveries[#fleet.deliveries + 1] = order
         state.money = state.money - cashPayment
+        require('src.receipt_book').expense(state,'Machinery purchase',cashPayment*100,'Machine Market','Shop',
+            offer.name..'\nFull price: $'..offer.price..(payment.loanId and ('\nFinancing: '..payment.loanId) or ''),'machine:'..machineId)
         local receiptBody = payment.loanId and string.format(
             "Machine price: $%d. Down payment: $%d. Financing agreement %s covers $%d.",
             offer.price, cashPayment, payment.loanId, offer.price - cashPayment)
@@ -183,6 +186,8 @@ function Component.install(Runtime)
         end
         fleet.items[#fleet.items + 1] = item
         state.money = state.money - cashPayment
+        require('src.receipt_book').expense(state,'Machinery purchase',cashPayment*100,'Machine Market','Shop',
+            offer.name..'\nFull price: $'..offer.price..(payment.loanId and ('\nFinancing: '..payment.loanId) or ''),'machine:'..id)
         return true, item
     end
 end

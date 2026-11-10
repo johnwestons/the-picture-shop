@@ -26,7 +26,7 @@ function Test.run(R,check)
     check("home_food_runtime_takeout_in_dropdown",screen.tab=="takeout")
     x,y=screen.homeShopControlCenter("buy",1);screen.mousepressed(state,x,y,1)
     x,y=screen.homeShopControlCenter("confirm");screen.mousepressed(state,x,y,1)
-    check("home_food_runtime_purchase_uses_household",state.home.balanceCents==balance-1800 and #state.home.shopping.orders==1,state.message)
+    check("home_food_runtime_purchase_uses_household",state.home.balanceCents==balance-1840 and #state.home.shopping.orders==1,state.message)
     R.App.update(Calendar.secondsPerDay(state)/24*.5)
     check("home_food_runtime_calendar_delivers_order",Shopping.waiting(state)==1)
     state.screen="world";local target=Shopping.target(host,state);host.x,host.y=target.x-28,target.y-4

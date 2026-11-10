@@ -186,7 +186,7 @@ function Renderer.drawBubble(entry,characterAssets,state)
     end
     local headY=top and originY-(anchorY-top)*scale
         or originY-Config.characterRendering.referenceHeight*.30
-    bubbleFont=bubbleFont or love.graphics.newFont(11)
+    bubbleFont=bubbleFont or require('src.screens.typography').get(14)
     local width,height=Renderer.bubbleLayout(message,bubbleFont)
     local x=math.max(4,math.min(Config.baseWidth-width-4,originX-width/2))
     local y=math.max(4,headY-height-9)

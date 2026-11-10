@@ -3,8 +3,8 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.World.draw(assets, characterAssets, state, mouseX, mouseY, remotePlayers)
-        return Runtime.WorldRenderer.draw(Runtime.World, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
+    function Runtime.World.draw(assets, characterAssets, state, mouseX, mouseY, remotePlayers, exteriorContext)
+        return Runtime.WorldRenderer.draw(Runtime.World, assets, characterAssets, state, mouseX, mouseY, remotePlayers, exteriorContext)
     end
 
     function Runtime.World.prompt()

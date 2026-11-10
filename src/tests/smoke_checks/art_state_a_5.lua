@@ -40,6 +40,7 @@ function Component.run(Context)
         and retailOrder.price / retailOrder.pallets[1].quantity
             > purchaseOrder.price / purchaseOrder.pallets[1].quantity)
     local groupedState = Context.context.State.new()
+    groupedState.calendar.elapsed = 10 / 24 * Context.context.config.businessCalendar.secondsPerDay
     groupedState.money = 1000
     local groupBuyA, groupOrderA = Context.context.procurement.buyRetail(groupedState, 1, 1)
     local groupBuyB, groupOrderB = Context.context.procurement.buyRetail(groupedState, 2, 4)

@@ -37,11 +37,38 @@ for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
 delivery truck at the loading dock. Employees automatically choose available
 jacks and can transport separate pallets at the same time. Each jack and its
 load survives saving; approach a free jack to operate it yourself. The current
-source uses multiplayer protocol **71**, so all players need the same build.
+source uses multiplayer protocol **74**, so all players need the same build.
+
+New commute towns use road generator 12: public streets carry traffic in both
+directions, bridge approaches keep their lane width, and the Millhaven link
+continues the incoming street alignment. Bridge decks now show center and edge
+lines. Streets favor direct routes with gentle terrain-driven bends; graded
+shoulders and building foundations respect the planned road corridor. Rendering,
+vehicle support, GPS, and AI routes use the same saved road geometry. Existing
+saved towns retain their layouts; create a new town to get the revised network.
+
+Town setup highlights **GENERATE PREVIEW** until the map is ready, then points
+to **CREATE SHOP**. The final town confirmation includes an **Enable tutorial**
+checkbox (on by default). Fourteen lessons follow actual progress through the office
+computer, jobs, receiving, cutting, wrapping, shipping, town travel, GPS, the
+motorcycle, apartment routines, errands, and weekend shutdown. Travel tips also
+appear when players explore early. The tutorial filter offers every lesson as
+a reference immediately, even before that activity has been completed.
+Open **NOTICES** on the world HUD, press **F6**, or tap a popup to read expanded
+instructions and recent email, call, and visitor alerts. Tutorial popups last
+14 seconds, as do Friday/weekend reminders; other alerts last 6 seconds. The inbox retains the latest 60 notices,
+their read status, and tutorial progress in the save. Its tutorial filter and
+pause/resume control let players revisit guidance at their own pace.
 
 ## NPC workers and hiring
 
-Open the office computer, tap the arrow beside the address bar, and choose
+The computer's browser toolbar supports back/forward history, the starting home
+page, the CritterNet menu, Find, session favorites, email, and online suppliers.
+Find searches page names, supplier names, and their supplies. On landscape phones,
+open the page menu to reach the same browser controls. Click the displayed clock
+to open Shop Clock; Escape closes an open menu or Find/Favorites panel first.
+
+Open the office computer, tap anywhere in the address bar or its arrow, and choose
 **HIRING**. Radio Cat, Tinker Fox and Ferret Engineer visit reception and email
 their resumes. Negotiate hourly wages, weekdays, 4–12 hour day or overnight
 shifts and pay every 1–4 weeks, wait for the email reply, then sign the
@@ -147,11 +174,13 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest Android test installer is [Android 104](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.104/ThePictureShop-0.1.0-android.104-Install.apk).
-Android 104 and the matching PC installer are built from the same clean source
-commit and share the same gameplay and multiplayer protocol. This update improves
-delivery loading and docking, repeat work orders, and machine maintenance
-reliability. Every multiplayer participant needs the same build and protocol.
+The latest test installers are [Android 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-0.1.0-android.105-Install.apk)
+and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
+Both packages use the same clean source commit and multiplayer protocol **74**.
+This update adds readable typewriter UI, larger mobile office pages, mixed-job
+delivery loads, visible customer pickup traffic and recovery, revised town roads
+and GPS, tutorial notices, an office receipt archive, and business-hour scheduling.
+Update every multiplayer participant together; older protocol builds cannot join.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
@@ -169,7 +198,7 @@ is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Installing over the existing app keeps saves. Android requires the same
-signing identity for an in-place update; the Android 104 playtest package uses the
+signing identity for an in-place update; the Android 105 playtest package uses the
 project's current debug signing key and is intended for this private tester flow.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
@@ -501,8 +530,20 @@ automatically; a slot with no valid recovery copy is marked as damaged instead o
 - Reception visits begin after randomized opening intervals, then customers return after 60-150 seconds
   and salespeople after 120-240 seconds. A waiting, reviewing, entering, or exiting visitor pauses the
   other visitor's timer so the shared entrance and reception desk never become overcrowded.
-- Reception is closed on Saturdays and Sundays. Scheduled customer and salesperson countdowns pause
-  for the entire weekend and resume with their remaining time on Monday; no new visitor enters while closed.
+- Customer business runs Monday-Friday, 09:00-20:00. Reception, calls, client emails,
+  industrial receiving, and new freight dispatches wait overnight and on weekends.
+  Missed deliveries retry at the next opening, with road travel fitted inside the receiving window.
+  Grocery stores (07:00-21:00) and gas stations (06:00-22:00) remain open daily.
+  New games start at 09:00. Friday notices at 18:00 and closing explain how to
+  shut down and leave; owners can instead keep cutting, printing, and wrapping.
+  Automated purchase receipts and account records remain available after hours.
+- The computer's **Receipts** tab files signed delivery documents, completed-job payments,
+  purchases, bills, and payouts in the host's saved game. Filters and page buttons work on
+  desktop and mobile; guests can browse the shared archive. Delivery documents preserve the
+  submitted drawing and signer, while payment receipts record the amount and work or items
+  purchased. Paying a bill marks its existing invoice paid. Employee wages stay in Financials.
+  Older saves import retained invoices, completed jobs, and shop/home orders; signatures from
+  deliveries made before the archive existed cannot be reconstructed.
 - Accepting a job records its promised stock-arrival service instead of spawning a truck immediately.
   **Express / Urgent** deliveries arrive after 2-6 in-game hours, **Quick** deliveries arrive the next
   day, and **Standard** deliveries arrive after 2-3 days. The service and remaining estimate appear on
@@ -684,9 +725,14 @@ neighborhood streets. Curve warnings and guardrails follow road bends and steep
 roadside drops. Fixtures are generated once and use batched geometry; sidewalks
 support walking and riding, while solid furniture and guardrails have collision.
 
-Wooded dirt trails provide off-road shortcuts between paved streets. Small parks,
-picnic clearings and campsites sit beside the trails, with benches, picnic tables,
-tents and fire rings. Both town maps show the brown trails and recreation areas.
+Wooded dirt trails provide off-road shortcuts between paved streets. New towns
+reserve larger park and campground footprints where the terrain permits. Parks
+have rounded walking paths, a pond with benches, a picnic gathering area, a small
+stage with log seats, and three parking bays reached from the woodland track.
+Campgrounds have three spaced tent pitches with fire rings and picnic tables,
+an outdoor restroom, and a ranger information hut, with footpaths and no parking.
+The hut and restroom are scenery. Existing saved small clearings keep their layout.
+Both town maps show the brown trails and recreation areas.
 Trail riding retains dirt traction, and the trails and clearings avoid waterways,
 building entrances and parking spaces.
 
@@ -724,6 +770,16 @@ Numbered buildings match the visible name key, with your destination highlighted
 in gold and your home in green. Terrain, waterways, roads and buildings come from
 your saved town. **M**, **Esc**, or **Close Map** closes it. The same map is available
 in the motorcycle preview, and its key can be changed in Motorcycle Controls.
+
+The travel GPS shows the next turn, distance to it, remaining route distance,
+and destination. A blue route and cyan vehicle arrow follow the road ahead;
+gold marks the destination. **+ / −** zoom from town context down to a junction,
+and the mouse wheel zooms the GPS when the pointer is over it. **AUTO** restores
+automatic following and zoom: it looks farther ahead at speed and closer near
+turns. Tap the map area to open the destination map. The GPS reports arrival,
+wrong-way travel, and leaving the route, and recalculates as you move. Its roads
+and building outlines stay sharp at street zoom, with larger touch controls in
+the compact layout.
 
 The motorcycle carries sideways momentum through turns. Pavement provides more
 grip than dirt, and acceleration, braking and cornering share the tires' available

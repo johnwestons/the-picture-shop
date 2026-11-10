@@ -294,6 +294,8 @@ function Credit.payLoan(state, loanId)
     local wasOnTime = loan.installmentsDue == 1 and loan.oldestDueDay ~= nil
         and (state.calendar.totalDays or 0) <= loan.oldestDueDay
     state.money = state.money - totalDue
+    require('src.receipt_book').add(state,{kind='bill',title='Machine loan payment',party='Equipment finance',
+        amountCents=totalDue*100,details=('Loan %s\nInstallment: $%.2f\nFees: $%.2f'):format(loanId,loan.amountDue,loan.feesDue)})
     loan.balance = math.max(0, loan.balance - loan.amountDue)
     loan.amountDue, loan.feesDue, loan.accruedInterest = 0, 0, 0
     loan.installmentsDue, loan.oldestDueDay = 0, nil

@@ -8,6 +8,7 @@ local PhoneScreen = require("src.screens.work_phone_screen")
 local Test = {}
 local function fixture(two)
     local state = State.new()
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     state.money = 20000
     assert(Upgrades.purchase(state,"front_left","floor","CONSTRUCTION-LEFT",0))
     if two then assert(Upgrades.purchase(state,"front_right","storage","CONSTRUCTION-RIGHT",0)) end

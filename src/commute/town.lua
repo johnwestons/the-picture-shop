@@ -4,7 +4,7 @@ local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
-local Town={VERSION=1,GENERATOR_VERSION=11,MIN_SEED=1,MAX_SEED=2147483646}
+local Town={VERSION=1,GENERATOR_VERSION=12,MIN_SEED=1,MAX_SEED=2147483646}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated labels are part of the saved seed fingerprint. Current signage
 -- is applied to the runtime destinations without mutating a town or preset.
@@ -392,13 +392,15 @@ local function attachWarehouseTruckAccess(t,sites)
     t.roads[#t.roads+1]=exitDefinition
     return t,{entryRoad=entryDefinition,exitRoad=exitDefinition}
 end
-local function constructWorld(t,validate)
+local function constructWorld(t,validate,pause)
     t=t or Town.legacy()
     if validate then assert(Town.valid(t),'Invalid saved town definition') end
-    local world=require('src.commute.terrain').new(t.terrain)
+    local world=require('src.commute.terrain').new(t.terrain,pause)
+    if pause then pause()end
     t=stationLayout(t,world)
     local runtimeTown=t
     local sites=Sites.create({placements=runtimeTown.placements,designs=runtimeTown.designs})
+    if pause then pause()end
     if not runtimeTown.mainlandExit then
         runtimeTown=copy(runtimeTown)
         local planner=require('src.commute.town_generator_v3')
@@ -408,6 +410,7 @@ local function constructWorld(t,validate)
     runtimeTown=copy(runtimeTown)
     local truckAccess
     runtimeTown,truckAccess=attachWarehouseTruckAccess(runtimeTown,sites)
+    if pause then pause()end
     local destinations=copy(runtimeTown.destinations)
     if destinations.mechanic then destinations.mechanic.label=Sites.MECHANIC_NAME end
     if runtimeTown.mainlandExit then
@@ -417,8 +420,10 @@ local function constructWorld(t,validate)
     local roadVersion=require('src.commute.roads').VERSION
     local roads=require('src.commute.roads').new({definitions=runtimeTown.roads,destinations=destinations,
         bounds=runtimeTown.bounds,sites=sites,layoutId=runtimeTown.id,version=roadVersion,
-        recreation=runtimeTown.recreation,drivingMap=runtimeTown.drivingMap})
+        recreation=runtimeTown.recreation,drivingMap=runtimeTown.drivingMap,
+        broadEarthworks=runtimeTown.generatorVersion>=12})
     roads:attach(world);world.townId=runtimeTown.id;world.town=runtimeTown
+    if pause then pause()end
     world.mainlandExit=runtimeTown.mainlandExit;world.neighboringCity='Millhaven'
     if truckAccess then
         local site=sites.byId.warehouse
@@ -441,11 +446,26 @@ local function constructWorld(t,validate)
             world.truckDestinations['warehouse_truck_queue_'..index]=anchor
         end
     end
-    if runtimeTown.generatorVersion>=3 then require('src.commute.infrastructure').ensure(world) end
+    if pause then pause()end
+    if runtimeTown.generatorVersion>=3 then
+        require('src.commute.infrastructure').ensure(world,pause and {progress=pause} or nil)
+    end
     return world
 end
 
 function Town.world(t)return constructWorld(t,true)end
+-- Cold indoor observers can prepare world metadata across frames without
+-- starting a terrain renderer or allocating town-wide GPU meshes.
+function Town.beginWorld(t)
+    return coroutine.create(function()
+        local clock=love and love.timer and love.timer.getTime or os.clock
+        local started=clock()
+        local function pause()
+            if clock()-started>=.0015 then coroutine.yield();started=clock()end
+        end
+        return constructWorld(t,true,pause)
+    end)
+end
 local function random(seed)
     local state=seed
     return function(lo,hi)

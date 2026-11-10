@@ -4,8 +4,8 @@ Menu.cards = {{80,266,380,278},{500,266,380,278}}
 local fonts = {}
 local cyan, pink = {.25,.95,1,1}, {1,.24,.66,1}
 local function label(value,x,y,width,size,color)
-    fonts[size] = fonts[size] or love.graphics.newFont("assets/fonts/VT323-Regular.ttf",size)
-    love.graphics.setFont(fonts[size]); love.graphics.setColor(unpack(color))
+    love.graphics.setFont(require('src.screens.typography').fit(value,size,width-16,nil,'bold',16))
+    love.graphics.setColor(unpack(color))
     love.graphics.printf(value,x,y,width,"center")
 end
 function Menu.hit(x,y)

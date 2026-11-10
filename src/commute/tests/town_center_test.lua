@@ -63,8 +63,8 @@ function Test.run(check)
             town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9,
             table.concat(frontageFailures,'; ')..' centerCount='..centerCount..' generator='..town.generatorVersion)
         local expectedArms=main.pattern=='crossroads' and 4 or 2
-        check('town_center_has_promised_junction_and_one_way_alternative_'..seed,
-            arms==expectedArms and oneWay>=1,
+        check('town_center_has_promised_junction_and_two_way_neighborhood_'..seed,
+            arms==expectedArms and oneWay==0,
             string.format('pattern=%s arms=%d expected=%d oneWay=%d cycles=%d',
                 tostring(main.pattern),arms,expectedArms,oneWay,town.topology.cycles or -1))
         local world=Town.world(town)
@@ -72,7 +72,7 @@ function Test.run(check)
         -- surface, including beside driveways and across junction pavement.
         local peak,errorHeight,peakSegment,errorSegment,errorAt,errorSupport=0,0,nil,nil,nil,nil
         for _,s in ipairs(world.roads.segments) do
-            if s.role=='main' or s.role=='local' then
+            if (s.role=='main' or s.role=='local') and not s.truckOnly then
                 local grade=math.abs(s.a.h-s.b.h)/s.len
                 if grade>peak then peak,peakSegment=grade,s end
                 for _,side in ipairs({-.3,0,.3}) do

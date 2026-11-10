@@ -136,17 +136,22 @@ function Test.run(context, check)
     local activeScreen = context.computerScreen.new()
     local statusState = context.State.new()
     local expectedTime = Calendar.timeText(statusState)
-    local originalPrintf = love.graphics.printf
+    local originalPrintf,originalPrint = love.graphics.printf,love.graphics.print
     ShopClock.drawFace = function(...) analogDraws = analogDraws + 1;return originalDrawFace(...) end
     love.graphics.printf = function(text, ...)
         if text == expectedTime then digitalTextSeen = true end
         return originalPrintf(text, ...)
+    end
+    love.graphics.print=function(text,...)
+        if type(text)=='string' and text:find(expectedTime,1,true) then digitalTextSeen=true end
+        return originalPrint(text,...)
     end
     activeScreen.enter(statusState)
     local activeDrawOkay = drawScreen(activeScreen, statusState, context.assets)
     activeScreen.tab = "clock"
     local clockDrawOkay = drawScreen(activeScreen, statusState, context.assets)
     love.graphics.printf = originalPrintf
+    love.graphics.print = originalPrint
     ShopClock.drawFace = originalDrawFace
     check("recent_computer_keeps_digital_status_time_without_analog_clock",
         activeDrawOkay and clockDrawOkay and digitalTextSeen and analogDraws == 0)

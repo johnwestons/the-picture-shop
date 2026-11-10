@@ -383,7 +383,7 @@ function Component.install(Runtime)
             end
         end
         if simulationActive then require("src.weekend_runtime").syncUi(Runtime) end
-        if Runtime.App.playerFeedback then Runtime.App.playerFeedback:update(dt) end
+        if Runtime.App.playerFeedback and Runtime.App.playerFeedback:update(dt) then saveNeeded=true end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
         if not headlessServer then
             Runtime.syncCamera()

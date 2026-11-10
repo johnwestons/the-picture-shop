@@ -43,7 +43,10 @@ function Component.install(Runtime)
                 love.graphics.rectangle("fill", rect.x + 2, rect.y + 6, 2, rect.height - 12)
             end
             love.graphics.setColor(0.93, 0.94, 0.92)
-            love.graphics.print(job.id .. "  " .. tostring(job.company or job.vendor or "Incoming shipment"), rect.x + 8, rect.y + 6)
+            love.graphics.setFont(require('src.screens.typography').get(14,'bold'))
+            love.graphics.print(require('src.screens.typography').ellipsize(job.id .. '  '
+                ..tostring(job.company or job.vendor or 'Incoming shipment'),rect.width-18), rect.x + 8, rect.y + 4)
+            love.graphics.setFont(require('src.screens.typography').get(14))
             love.graphics.setColor(0.78, 0.86, 0.84)
             local progress=not deliveryTab and Runtime.JobFeedback.progress(state,job) or nil
             local base=deliveryTab and DeliveryTraffic.tracking(job.shipmentRecord or job,now,os.time())
@@ -56,7 +59,7 @@ function Component.install(Runtime)
             if supplemental and font:getWidth(prefix) < maxWidth then
                 local available = maxWidth - font:getWidth(prefix)
                 while #supplemental > 3 and font:getWidth(supplemental) > available do
-                    supplemental = supplemental:sub(1, -2)
+                    supplemental = trimLastCharacter(supplemental)
                 end
                 subtitle = prefix .. supplemental
                 if progress and (progress.alert or progress.blocker) and #supplemental < #tostring(progress.alert or progress.blocker) then
@@ -283,19 +286,21 @@ function Component.install(Runtime)
 
     function Runtime.ComputerScreen.jobDetailLayout(selected, state)
         local font = love.graphics.getFont()
-        local y = Runtime.DETAIL.y + 96
+        local y = Runtime.DETAIL.y + 124
         local rows = Runtime.detailRows(selected, state)
         for _, row in ipairs(rows) do
+            row.width=Runtime.DETAIL.width-40
             local labelWidth = row.label and font:getWidth(row.label) or 0
             local valueWidth = math.max(1, row.width - labelWidth)
             local _, wrapped = font:getWrap(row.value or row.text, valueWidth)
             row.y = y
-            row.height = math.max(1, #wrapped) * font:getHeight()
+            row.height = font:getHeight()*(1+math.max(0,#wrapped-1)*font:getLineHeight())
             row.labelWidth = labelWidth
             y = y + row.height + 4
         end
         local valueY = y + 1
-        local tableY = valueY + font:getHeight() + 3
+        local _,valueLines=font:getWrap(Runtime.jobValueText(selected),Runtime.DETAIL.width-40)
+        local tableY = valueY + font:getHeight()*(1+math.max(0,#valueLines-1)*font:getLineHeight()) + 8
         local palletCount = #(selected.pallets or {})
         local palletRowHeight = palletCount >= 3 and 24 or 28
         return {
@@ -306,10 +311,30 @@ function Component.install(Runtime)
             textBottom = y,
             tableBottom = tableY + 30 + palletCount * palletRowHeight,
             actionTop = Runtime.ComputerScreen.tab == "completed" and Runtime.JOB_PROMO.y or Runtime.COMPLETE.y,
+            scrollMax=math.max(0,tableY+30+palletCount*palletRowHeight-
+                ((Runtime.ComputerScreen.tab=='completed' and Runtime.JOB_PROMO.y or Runtime.COMPLETE.y)-28)),
         }
     end
 
+    function Runtime.jobValueText(selected)
+        local quote=selected.quote or {}
+        local value='Job value: '..Runtime.money(quote.totalPrice or 0)
+        if selected.labor then return value..'\nStaff wages: '..Runtime.money(selected.labor.wageCents/100) end
+        if quote.employeeBudget then return value..'\nStaff budget: '..Runtime.money(quote.employeeBudget.laborCost) end
+        return value..'\nRequired lifts: '..tostring(quote.totalLifts or 0)
+    end
+    function Runtime.ComputerScreen.jobDetailViewport()
+        return {x=Runtime.DETAIL.x+12,y=Runtime.DETAIL.y+42,width=Runtime.DETAIL.width-24,
+            height=(Runtime.ComputerScreen.tab=='completed' and Runtime.JOB_PROMO.y or Runtime.COMPLETE.y)-28-(Runtime.DETAIL.y+42)}
+    end
+    function Runtime.ComputerScreen.scrollJobDetail(delta)
+        local s=Runtime.ComputerScreen
+        s.jobDetailScroll=math.max(0,math.min(s.jobDetailMaxScroll or 0,(s.jobDetailScroll or 0)+delta))
+    end
+
     function Runtime.drawDetail(state, pointerX, pointerY, assets, twelveHourTime)
+        Runtime.ComputerScreen.jobDetailMaxScroll=0
+        love.graphics.setFont(require('src.screens.typography').get(16))
         Runtime.panel(Runtime.DETAIL, { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
         if not selected then
@@ -350,14 +375,26 @@ function Component.install(Runtime)
             return
         end
         love.graphics.setColor(0.96, 0.84, 0.30)
-        love.graphics.print(selected.id .. "  •  " .. selected.company, Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 18)
+        local Text=require('src.screens.typography')
+        love.graphics.setFont(Text.get(14,'bold'))
+        love.graphics.print(Text.ellipsize(selected.id .. ' · ' .. selected.company,Runtime.DETAIL.width-40), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 18)
+        love.graphics.setFont(Text.get(16))
+        local layout=Runtime.ComputerScreen.jobDetailLayout(selected,state)
+        local s=Runtime.ComputerScreen
+        if s.jobDetailKey~=selected.id then s.jobDetailKey=selected.id;s.jobDetailScroll=0 end
+        s.jobDetailMaxScroll=layout.scrollMax;s.scrollJobDetail(0)
+        local viewport=s.jobDetailViewport()
+        love.graphics.push('all')
+        local sx,sy=love.graphics.transformPoint(viewport.x,viewport.y)
+        local ex,ey=love.graphics.transformPoint(viewport.x+viewport.width,viewport.y+viewport.height)
+        love.graphics.intersectScissor(sx,sy,ex-sx,ey-sy)
+        love.graphics.translate(0,-(s.jobDetailScroll or 0))
         love.graphics.setColor(0.72, 0.79, 0.80)
         local progress = Runtime.JobFeedback.progress(state, selected)
-        love.graphics.print(Runtime.StatusLabels.get(selected.status)
-            .. (progress and ("  •  " .. progress.stage) or ""), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 44)
+        love.graphics.print(Text.ellipsize(Runtime.StatusLabels.get(selected.status)
+            .. (progress and ("  •  " .. progress.stage) or ""),310), Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 44)
         love.graphics.printf("Inbound: " .. Runtime.JobService.deliverySummary(selected, state),
             Runtime.DETAIL.x + 20, Runtime.DETAIL.y + 66, 310, "left")
-        local layout = Runtime.ComputerScreen.jobDetailLayout(selected, state)
         for _, row in ipairs(layout.rows) do
             local rowX = Runtime.DETAIL.x + 20
             if row.label then
@@ -371,15 +408,11 @@ function Component.install(Runtime)
                 love.graphics.printf(row.text, rowX, row.y, row.width, "left")
             end
         end
-        local valueText="Job value: "..Runtime.money(selected.quote.totalPrice)
-        if selected.labor then valueText=valueText.." | Staff wages: "..Runtime.money(selected.labor.wageCents/100)
-        elseif selected.quote.employeeBudget then valueText=valueText.." | Staff budget: "..Runtime.money(selected.quote.employeeBudget.laborCost) end
+        local valueText=Runtime.jobValueText(selected)
         love.graphics.printf(valueText, Runtime.DETAIL.x + 20, layout.valueY, Runtime.DETAIL.width - 40, "left")
-        if not selected.labor and not selected.quote.employeeBudget then
-            love.graphics.print("Required lifts: " .. selected.quote.totalLifts, Runtime.DETAIL.x + 190, layout.valueY)
-        end
         Runtime.drawArtworkPreview(assets, selected, Runtime.DETAIL.x + 350, Runtime.DETAIL.y + 34, 70)
 
+        love.graphics.setFont(Text.get(14))
         love.graphics.setColor(0.16, 0.22, 0.24)
         love.graphics.rectangle("fill", Runtime.DETAIL.x + 18, layout.tableY, Runtime.DETAIL.width - 36, 26)
         love.graphics.setColor(0.85, 0.88, 0.87)
@@ -402,7 +435,17 @@ function Component.install(Runtime)
                 love.graphics.print(Runtime.commaNumber(pallet.remainingSheets), Runtime.DETAIL.x + 153, y + 7)
             end
             love.graphics.print(string.format("%d/%d", pallet.completedLifts, pallet.requiredLifts), Runtime.DETAIL.x + 274, y + 7)
-            love.graphics.print(Runtime.StatusLabels.get(pallet.status), Runtime.DETAIL.x + 340, y + 7)
+            love.graphics.print(Text.ellipsize(Runtime.StatusLabels.get(pallet.status),Runtime.DETAIL.width-350), Runtime.DETAIL.x + 340, y + 7)
+        end
+        love.graphics.pop()
+        if layout.scrollMax>0 then
+            love.graphics.setColor(.2,.33,.34,1)
+            love.graphics.rectangle('fill',viewport.x+viewport.width-3,viewport.y,3,viewport.height)
+            local thumb=math.max(30,viewport.height*viewport.height/(viewport.height+layout.scrollMax))
+            love.graphics.setColor(.85,.78,.46,1)
+            love.graphics.rectangle('fill',viewport.x+viewport.width-3,viewport.y+(viewport.height-thumb)*s.jobDetailScroll/layout.scrollMax,3,thumb)
+            love.graphics.setFont(Text.get(12));love.graphics.setColor(Text.colors.muted)
+            love.graphics.print('Swipe / wheel to read all pallets',viewport.x+8,Runtime.COMPLETE.y-24)
         end
 
         local qualityReady = Runtime.completionReady(selected)

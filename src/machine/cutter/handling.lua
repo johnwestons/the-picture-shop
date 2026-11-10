@@ -205,7 +205,7 @@ function Component.run(Context)
             kind = "replacement",
             service = service,
             acceptedGameHours = nowHours,
-            readyAtHours = math.max(priorReadyAt or 0, nowHours + delay),
+            readyAtHours = require('src.business_hours').nextService(math.max(priorReadyAt or 0, nowHours + delay)),
             palletIds = palletIds,
         }
         return replacement, delay

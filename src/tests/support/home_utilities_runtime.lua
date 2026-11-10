@@ -32,7 +32,7 @@ function Test.run(context,check)
     end
     for _=1,math.ceil(#Catalog.ORDER/4) do click("previous") end
     click("buy",2);click("confirm");click("cancel") -- chair for the powered television
-    check("home_utilities_runtime_buys_utilities_and_tv_chair",s.home.balanceCents==4250,s.message)
+    check("home_utilities_runtime_buys_utilities_and_tv_chair",s.home.balanceCents==4125,s.message)
     s.screen="world";advance(120);p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
     check("home_utilities_runtime_collects_utilities_and_chair",#s.home.furniture.items==6,s.message)

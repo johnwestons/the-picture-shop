@@ -25,6 +25,8 @@ function Component.install(Runtime)
         jack.animationClock = 0
         return {
             money = 180,
+            notifications = require('src.notifications').new(),
+            tutorial = require('src.tutorial').new(false),
             home = Runtime.Home.new(),
             inventory = {
                 paper = 40,
@@ -49,6 +51,7 @@ function Component.install(Runtime)
             vendorCategory = 1,
             calendar = Runtime.BusinessCalendar.defaultCalendar(),
             bills = Runtime.BusinessCalendar.defaultBills(),
+            receipts = require('src.receipt_book').new(),
             credit = Runtime.Credit.defaultState(),
             employment = Runtime.Employees.defaultState(0),
             clientEmails = { nextEmailId = 1, nextPromotionId = 1,

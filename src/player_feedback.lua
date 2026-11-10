@@ -1,9 +1,11 @@
 local Feedback = {}
 Feedback.__index = Feedback
+local Notifications=require('src.notifications')
+local Tutorial=require('src.tutorial')
 
 local MENU_SCREENS = { title = true, lan = true, direct = true, asset_error = true }
 local NOTICE_LIMIT = 3
-local NOTICE_SECONDS = 2.35
+local NOTICE_SECONDS = 6
 local CASH_SECONDS = 1.05
 local CASH_FEEDBACK_THRESHOLD = 1.00
 local CASH_CHANGE_EPSILON = 0.005
@@ -57,17 +59,27 @@ function Feedback:seed()
     self.emailState = emailStates(state)
     self.cashDelta, self.cashTimer, self.pendingCashDelta = 0, 0, 0
     self.notices = {}
+    self.tutorialStep=nil
     self.initialized = true
 end
 
-function Feedback:enqueue(kind, title, detail)
-    if #self.notices >= NOTICE_LIMIT then table.remove(self.notices, 1) end
-    self.notices[#self.notices + 1] = {
+function Feedback:enqueue(kind, title, detail, body, key)
+    local saved,added=Notifications.add(self.context.state,kind,title,detail,body,key)
+    self.dirty=self.dirty or added
+    -- Keep the currently visible instruction readable when several events
+    -- arrive together. Every notice still remains in the saved history.
+    if #self.notices >= NOTICE_LIMIT then table.remove(self.notices, 2) end
+    local duration=(kind=='tutorial' or kind=='calendar') and 14 or NOTICE_SECONDS
+    local notice = {
+        id=saved.id,
         kind = kind,
         title = title,
         detail = tostring(detail or ""),
-        remaining = NOTICE_SECONDS,
+        remaining = duration,
+        duration = duration,
     }
+    if kind=='calendar' then table.insert(self.notices,1,notice)
+    else self.notices[#self.notices+1]=notice end
 end
 
 local function updateEmails(self, state)
@@ -97,10 +109,13 @@ local function updateEmails(self, state)
         elseif newest.noticeKind == "client_estimate_accepted" then
             title = "JOB AWARDED"
         end
-        self:enqueue("email", title, newest.subject or "A new message arrived.")
+        self:enqueue("email", title, newest.subject or "A new message arrived.",
+            ('From: %s\n\n%s\n\nOpen EMAIL on the office computer to read the message and respond.'):format(
+                tostring(newest.sender or 'Client'),type(newest.body)=='string' and newest.body or newest.subject or 'A new message arrived.'))
     elseif added > 1 then
         self:enqueue("email", "NEW EMAILS", string.format("%d new messages. Latest: %s",
-            added, tostring(newest and newest.subject or "New message")))
+            added, tostring(newest and newest.subject or "New message")),
+            'Open EMAIL on the office computer to read your new messages. Select a message to see its details and available replies.')
     end
 end
 
@@ -108,7 +123,9 @@ local function updatePhone(self, state)
     local call = currentCall(state)
     local callId = call and tostring(call.id) or nil
     if call and call.answered ~= true and callId ~= self.callId then
-        self:enqueue("phone", "INCOMING CALL", call.caller or "The work phone is ringing.")
+        self:enqueue("phone", "INCOMING CALL", call.caller or "The work phone is ringing.",
+            ('%s\n\n%s\n\nWalk to the work phone and use it to answer. This notification records the call; check the phone for its current status.'):format(
+                tostring(call.caller or 'Incoming caller'),tostring(call.subject or 'The work phone is ringing.')))
         local playSound = self.context.playSound
         if type(playSound) == "function" then
             playSound("ui_confirm", { cooldown = 0.5, volume = 0.38 })
@@ -123,10 +140,12 @@ local function updateVisitors(self, world)
     local customerState = customer and customer.state or nil
     local vendorState = vendor and vendor.state or nil
     if customerState == "entering" and self.customerState ~= "entering" then
-        self:enqueue("customer", "CUSTOMER ARRIVING", "A client is walking in to reception.")
+        self:enqueue("customer", "CUSTOMER ARRIVING", "A client is walking in to reception.",
+            'Meet the client at reception and use the interaction prompt. Discuss the request, then look for their written job details in the office computer email.')
     end
     if vendorState == "entering" and self.vendorState ~= "entering" then
-        self:enqueue("supplier", "SUPPLIER ARRIVING", "A supplier is walking in to reception.")
+        self:enqueue("supplier", "SUPPLIER ARRIVING", "A supplier is walking in to reception.",
+            'Meet the supplier at reception and use the interaction prompt to see what they offer. Review the price and delivery information before placing an order.')
     end
     self.customerState, self.vendorState = customerState, vendorState
 end
@@ -139,12 +158,16 @@ function Feedback:update(dt)
     then
         self:seed()
         self.previousScreen = screen
-        return
+        if not MENU_SCREENS[screen] then
+            Tutorial.update(self)
+            require('src.business_notifications').update(self)
+        end
+        local dirty=self.dirty;self.dirty=false;return dirty
     end
 
     dt = math.max(0, tonumber(dt) or 0)
     self.cashTimer = math.max(0, self.cashTimer - dt)
-    if self.notices[1] then
+    if self.notices[1] and screen~='notifications' and screen~='options' then
         self.notices[1].remaining = self.notices[1].remaining - dt
         if self.notices[1].remaining <= 0 then table.remove(self.notices, 1) end
     end
@@ -170,7 +193,10 @@ function Feedback:update(dt)
     updateEmails(self, state)
     updatePhone(self, state)
     updateVisitors(self, world)
+    if screen~='notifications' and screen~='options' then Tutorial.update(self) end
+    require('src.business_notifications').update(self)
     self.previousScreen = screen
+    local dirty=self.dirty;self.dirty=false;return dirty
 end
 
 function Feedback:cashEffect()
@@ -178,33 +204,45 @@ function Feedback:cashEffect()
 end
 
 local function fitText(text, width)
-    text = tostring(text or "")
-    local font = love.graphics.getFont()
-    if font:getWidth(text) <= width then return text end
-    while #text > 1 and font:getWidth(text .. "…") > width do
-        text = text:sub(1, -2)
-    end
-    return text .. "…"
+    return require('src.screens.typography').ellipsize(text,width)
 end
 
+function Feedback:toastRect(bounds,screen)
+    bounds=bounds or {left=0,right=960}
+    if screen=='commute' then
+        local hud=require('src.commute.cockpit')
+        local x=hud.CARD_X+hud.CARD_WIDTH+8
+        local baseWidth=require('src.config').baseWidth
+        local mapWidth=math.min(370,math.max(300,baseWidth*.30))
+        local width=math.min(380,baseWidth-mapWidth-30-x)
+        if width<200 then x=(bounds.left or 0)+18;width=math.min(380,(bounds.right or 960)-x-18) end
+        return {x=x,y=hud.CARD_Y+hud.CARD_HEIGHT+10,width=width,height=80}
+    end
+    return {x=((bounds.left or 0)+(bounds.right or 960)-380)/2,y=screen=='world' and 140 or 78,width=380,height=80}
+end
+function Feedback:toastHit(x,y,bounds,screen)
+    local n=self.notices[1]
+    return n and require('src.screens.ui').contains(self:toastRect(bounds,screen),x,y) and n.id or nil
+end
 function Feedback:drawToast(bounds, screen)
     local notice = self.notices[1]
     if not notice then return end
-    bounds = bounds or { left = 0, right = 960 }
-    local width, height = 300, 46
-    local x = (bounds.left + bounds.right - width) / 2
-    local y = screen == "world" and 124 or 78
-    local elapsed = NOTICE_SECONDS - notice.remaining
+    local rect=self:toastRect(bounds,screen)
+    local x,y,width,height=rect.x,rect.y,rect.width,rect.height
+    local elapsed = (notice.duration or NOTICE_SECONDS) - notice.remaining
     local alpha = math.min(1, elapsed / 0.14, notice.remaining / 0.3)
     local accents = {
         email = { 0.38, 0.83, 0.91 },
         phone = { 0.98, 0.75, 0.34 },
         customer = { 0.97, 0.80, 0.42 },
         supplier = { 0.57, 0.82, 0.61 },
+        tutorial = { .55, .92, .63 },
+        calendar = { .98, .75, .34 },
     }
     local accent = accents[notice.kind] or { 0.72, 0.82, 0.84 }
 
     love.graphics.push("all")
+    love.graphics.setFont(require('src.screens.typography').get(14))
     love.graphics.setColor(0.035, 0.055, 0.065, 0.94 * alpha)
     love.graphics.rectangle("fill", x, y, width, height, 6, 6)
     love.graphics.setColor(accent[1], accent[2], accent[3], 0.9 * alpha)
@@ -216,11 +254,13 @@ function Feedback:drawToast(bounds, screen)
     love.graphics.setColor(accent[1], accent[2], accent[3], alpha)
     love.graphics.printf(notice.kind == "email" and "@"
         or notice.kind == "phone" and "!"
-        or notice.kind == "customer" and "C" or "S", x + 19, y + 15, 24, "center")
+        or notice.kind=='calendar' and '!' or notice.kind=='tutorial' and '?' or notice.kind == "customer" and "C" or "S", x + 19, y + 29, 24, "center")
     love.graphics.setColor(0.96, 0.97, 0.92, alpha)
-    love.graphics.print(fitText(notice.title, 236), x + 51, y + 6)
+    love.graphics.print(fitText(notice.title, width-64), x + 51, y + 9)
     love.graphics.setColor(0.72, 0.81, 0.82, alpha)
-    love.graphics.print(fitText(notice.detail, 236), x + 51, y + 24)
+    love.graphics.print(fitText(notice.detail, width-64), x + 51, y + 30)
+    love.graphics.setColor(.72,.89,.80,alpha)
+    love.graphics.print('Tap / click to read more',x+51,y+54)
     love.graphics.pop()
 end
 

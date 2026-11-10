@@ -10,6 +10,7 @@ local function options(now,canMove)
 end
 local function fixture(two)
     local state=State.new();state.money=20000
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     assert(Upgrades.purchase(state,"front_left","storage","BUILD-LEFT",0))
     if two then assert(Upgrades.purchase(state,"front_right","floor","BUILD-RIGHT",0)) end
     return state

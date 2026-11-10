@@ -26,7 +26,7 @@ function Test.run(context,check)
         local intent={productId=kind,quantity=1,requestId="desk-mat-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,intent));assert(Shopping.order(s,p,intent))
     end
-    check("home_desk_mat_household_checkout_once",s.home.balanceCents==15250 and s.money==business)
+    check("home_desk_mat_household_checkout_once",s.home.balanceCents==14475 and s.money==business)
     time(s,46);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
     assert(Shopping.collect(s,p));check("home_desk_mat_two_delivered_once",#s.home.furniture.items==3 and not Shopping.collect(s,p))
     local desk,mat=s.home.furniture.items[2],s.home.furniture.items[3]

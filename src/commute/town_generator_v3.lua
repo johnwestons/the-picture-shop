@@ -17,7 +17,7 @@ local function connectorEndpoint(result,desiredAngle,plan,sites)
     local candidates,fallback,seen={},{},{}
     for _,road in ipairs(result.roads or {}) do
         if road.role=='main' or road.role==nil then
-            for _,p in ipairs({road.points[1],road.points[#road.points]}) do
+            for endpointIndex,p in ipairs({road.points[1],road.points[#road.points]}) do
                 local key=('%0.3f:%0.3f:%0.3f'):format(p[1],p[2],p[3])
                 if not seen[key] then
                     seen[key]=true
@@ -31,6 +31,17 @@ local function connectorEndpoint(result,desiredAngle,plan,sites)
                     -- service frontage.
                     if radius>80 and not atCore then
                         local ux,uz=vx/radius,vz/radius
+                        local outward=1
+                        if result.generatorVersion>=12 then
+                            -- Continue the incoming road's surveyed tangent.
+                            -- A radial ray from the island center can create a
+                            -- sharp kink immediately before the coastal bridge.
+                            local neighbor=road.points[endpointIndex==1 and 2 or #road.points-1]
+                            local ax,az=p[1]-neighbor[1],p[2]-neighbor[2]
+                            local length=M.length(ax,az)
+                            ux,uz=ax/length,az/length
+                            outward=(ux*vx+uz*vz)/radius
+                        end
                         local score=(ux*dx+uz*dz)*2+radius/1000
                         local blocked=false
                         if sites and sites.all then
@@ -52,7 +63,7 @@ local function connectorEndpoint(result,desiredAngle,plan,sites)
                         end
                         local candidate={point=p,score=score,ux=ux,uz=uz}
                         fallback[#fallback+1]=candidate
-                        if not blocked then candidates[#candidates+1]=candidate end
+                        if not blocked and outward>.35 then candidates[#candidates+1]=candidate end
                     end
                 end
             end
@@ -60,7 +71,7 @@ local function connectorEndpoint(result,desiredAngle,plan,sites)
     end
     table.sort(candidates,function(a,b)return a.score>b.score end)
     table.sort(fallback,function(a,b)return a.score>b.score end)
-    local selected=candidates[1] or fallback[1]
+    local selected=candidates[1] or result.generatorVersion<12 and fallback[1]
     if not selected then return nil end
     local p=selected.point
     local distance=math.huge
@@ -93,7 +104,8 @@ function Planner.attachMainlandExit(result,plan,sites)
         if i==0 then
             -- Keep the connector's junction identical to the authored road
             -- endpoint in x, z and elevation so the route graph joins exactly.
-            points[#points+1]={endpoint.start[1],endpoint.start[2],endpoint.start[3]}
+            points[#points+1]=result.generatorVersion>=12 and endpoint.start
+                or {endpoint.start[1],endpoint.start[2],endpoint.start[3]}
         else
             points[#points+1]={Frontage.round(x),Frontage.round(z),Frontage.round(math.max(.35,h))}
         end
@@ -117,6 +129,9 @@ function Planner.attachMainlandExit(result,plan,sites)
         oneWay=false,turnLane=false,sidewalks=false,interpolation='linear',
         points=points,bridgeEdges=bridgeEdges}
     result.roads[#result.roads+1]=road
+    if result.generatorVersion>=12 then
+        assert(Alignment.connectedOnlyAtNodes(result.roads),'Mainland approach crosses another street')
+    end
     local gate={city=MAINLAND_CITY,roadId=roadId,x=points[#points][1],z=points[#points][2],
         h=points[#points][3],heading=math.atan2(endpoint.dz,endpoint.dx)}
     result.mainlandExit=gate
@@ -234,7 +249,7 @@ local function graph(rng, pattern, density, generatorVersion, branches, countryB
         local i=gridIndex(r,c)
         if c<4 then edge(i,i+1,r==row and (horizontal or pattern=='crossroads')) end
         if r<4 then edge(i,i+4,c==column and (not horizontal or pattern=='crossroads')) end
-        if c<4 and r<4 then
+        if c<4 and r<4 and generatorVersion<12 then
             if rng()<.5 then edge(i,i+5) else edge(i+1,i+4) end
         end
     end end
@@ -257,9 +272,9 @@ local function graph(rng, pattern, density, generatorVersion, branches, countryB
     local loops = math.min(#redundant,density==3 and 10 or math.floor(rng(1,8)))
     for i=1,loops do
         local e=redundant[i]
-        -- Every lot stays reachable in both directions through the two-way
-        -- spanning tree. Only redundant neighborhood links can be one-way.
-        if i==1 then
+        -- Legacy towns use one redundant link as a one-way alternative.
+        -- New public streets retain two-way access throughout the network.
+        if i==1 and generatorVersion<12 then
             e.oneWay=true
             if rng()<.5 then e.a,e.b=e.b,e.a end
         end
@@ -273,7 +288,7 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw, branches, cou
     local edges, hub, loops = graph(rng,pattern,settings and settings.roads,result.generatorVersion,branches,countryBypass)
     local scenic=result.generatorVersion>=5
     local curveRandom=Terrain.random(result.seed,91)
-    if scenic then Alignment.prepare(nodes,edges,plan,hub) end
+    if scenic then Alignment.prepare(nodes,edges,plan,hub,result.generatorVersion>=12) end
     local main = {pattern=pattern,roadIds={},x=nodes[hub][1],z=nodes[hub][2]}
     local bridges=0
     for index,e in ipairs(edges) do
@@ -286,15 +301,20 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw, branches, cou
             hasBridge=hasBridge or flag==true
         end
         local turnLane = e.main and (e.a==hub or e.b==hub)
+            and (result.generatorVersion<12 or settings and settings.roads==3 and not hasBridge)
         local lanes = turnLane and 3 or e.oneWay and 1 or 2
+        local width=e.main and (turnLane and 9.8 or 7.6) or e.oneWay and 4.2 or 5.8
+        if result.generatorVersion>=12 then
+            width=e.main and (turnLane and 9.8 or 7.6) or 6.6
+            -- Carry two actual traffic lanes across the water. The deck and
+            -- approaches share a width; a water crossing no longer turns an
+            -- entire residential street into a twelve-metre-wide boulevard.
+            if hasBridge then width=math.max(width,7.6) end
+        elseif hasBridge then width=math.max(12,width) end
         local road = {id=(e.main and 'main-' or 'street-')..index,
             role=e.main and 'main' or 'local',surface='paved',lanes=lanes,
             oneWay=e.oneWay==true,turnLane=turnLane,sidewalks=e.main or not e.oneWay,
-            -- Generated bridges need a truck-width deck and a generous
-            -- landing so a long vehicle can cross without clipping rails.
-            width=hasBridge and math.max(12,e.main and (turnLane and 9.8 or 7.6)
-                or e.oneWay and 4.2 or 5.8)
-                or e.main and (turnLane and 9.8 or 7.6) or e.oneWay and 4.2 or 5.8,
+            width=width,
             interpolation='linear',points=points,bridgeEdges=flags}
         result.roads[#result.roads+1]=road
         if e.main then main.roadIds[#main.roadIds+1]=road.id end
@@ -352,7 +372,7 @@ local function placeLot(result, id, candidates, rng, plan, placed, pads, names)
             local pad={x=Frontage.round(anchor[1]+nx*15),z=Frontage.round(anchor[2]+nz*15),h=anchor[3]}
             local lot=Frontage.placement(id,design,pad,nx,nz,scale)
             local site=Sites.create({placements={lot}}).all[1]
-            if Frontage.clear(site,pad,placed,pads,result.roads,plan,anchor) then
+            if Frontage.clear(site,pad,placed,pads,result.roads,plan,anchor,result.generatorVersion>=12) then
                 lot.frontageRoadId=c.road.id
                 local side=id=='warehouse' or design=='residential' or id=='courtyard' or id=='garden' or id=='brick-walkup' or id=='corner'
                 lot.district=id=='warehouse' and 'industrial' or side and 'residential' or 'center'
@@ -401,7 +421,7 @@ local function placeFarm(result,candidates,plan,placed,pads)
         if country or c.road.role=='local' then
             local lot=Frontage.placement('farm','farm',choice.pad,choice.nx,choice.nz,1)
             local site=Sites.create({placements={lot}}).all[1]
-            if Frontage.clear(site,choice.pad,placed,pads,result.roads,plan,choice.anchor) then
+            if Frontage.clear(site,choice.pad,placed,pads,result.roads,plan,choice.anchor,result.generatorVersion>=12) then
                 lot.frontageRoadId=c.road.id
                 lot.district='rural'
                 result.placements[#result.placements+1]=lot

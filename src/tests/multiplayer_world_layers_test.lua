@@ -11,6 +11,7 @@ function Test.run(context, check)
     for key,value in pairs(context.State.new()) do state[key]=value end
     state.employment.recruiting = false
     state.calendar.weekday = 4
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     world.load({ x = 300, y = 335, character = previousPlayer.character })
     state.screen = "computer"
     world.customer.timer = 0

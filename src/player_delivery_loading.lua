@@ -7,6 +7,54 @@ local Loading={}
 local siteCache=setmetatable({}, {__mode='k'})
 local legacySites
 
+local function brief(value,limit)
+    local text=tostring(value or '')
+    if #text<=limit then return text end
+    local last=limit-3
+    while text:byte(last+1)>=128 and text:byte(last+1)<192 do last=last-1 end
+    return text:sub(1,last)..'...'
+end
+
+function Loading.itemDetail(item)
+    return string.format('%s · %s · %s',brief(item.company,36),brief(item.destinationLabel,32),
+        item.location=='outbound_truck' and 'Loaded' or 'Ready to load')
+end
+
+local function manifestRun(state,truck)
+    local trip=state.home and state.home.commute
+    local run=trip and trip.deliveryRun
+    if not run or truck.mode~='pickup' or (truck.sceneId or 'warehouse')~='warehouse' then return nil end
+    for _,id in ipairs(run.jobIds) do if id==truck.jobId then return run end end
+end
+
+-- Both the local screen and the host's remote manifest use the same stable
+-- row order. Keep loaded rows so a later job never slides under a pending tap.
+function Loading.manifest(state,truck)
+    local run=manifestRun(state,truck)
+    if not run then return Service.pickupInventory(state,truck.jobId) end
+    local inventory,destinations={},{}
+    for _,stop in ipairs(run.stops) do
+        for _,id in ipairs(stop.jobIds) do
+            destinations[id]=stop.kind=='city' and (stop.city or 'Millhaven') or stop.label
+        end
+    end
+    for _,id in ipairs(run.jobIds) do
+        local job,items=Service.pickupInventory(state,id)
+        for _,item in ipairs(items) do
+            item.jobId=id;item.company=job.company or id;item.destinationLabel=destinations[id]
+            inventory[#inventory+1]=item
+        end
+    end
+    return {id=run.jobIds[1],manifestId=run.jobIds[1],company='Delivery run',status='pickup_in_progress'},inventory,run
+end
+
+function Loading.remaining(state,truck)
+    local run=manifestRun(state,truck)
+    if not run then return Service.remainingPickup(state,truck.jobId) end
+    local loaded,total=Run.loadingProgress(state,run)
+    return loaded and total-loaded or run.palletCount
+end
+
 function Loading.context(state)
     local home=state and state.home
     local trip=home and home.commute
@@ -26,14 +74,24 @@ function Loading.context(state)
     return run,vehicle,world
 end
 
-function Loading.canLoad(state,truck)
-    if not truck.playerDelivery then return true end
+function Loading.canLoad(state,truck,palletId)
+    if not truck.playerDelivery then return true,nil,truck.jobId end
     local run,vehicle,world=Loading.context(state)
-    if not run or run.status~='loading' or not vehicle
+    if not run or run.status~='loading' or not vehicle or not manifestRun(state,truck)
         or not require('src.commute.trip').truckAtLoadingBay(world,vehicle) then
         return false,'Back the assigned delivery truck squarely against the dock before loading.'
     end
-    for _,id in ipairs(run.jobIds) do if id==truck.jobId then return true end end
+    local loaded,total=Run.loadingProgress(state,run)
+    if not loaded or total~=run.palletCount or total>Run.CAPACITY then
+        return false,'The delivery manifest changed. Check the selected jobs before loading.'
+    end
+    if not palletId then return manifestRun(state,truck)~=nil end
+    for _,id in ipairs(run.jobIds) do
+        local job,items=Service.pickupInventory(state,id)
+        if job and not (job.outboundDelivery and job.outboundDelivery.transport=='customer') then
+            for _,item in ipairs(items) do if item.id==palletId then return true,nil,id end end
+        end
+    end
     return false,'This pallet is not on the active delivery manifest.'
 end
 

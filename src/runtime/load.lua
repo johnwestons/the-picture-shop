@@ -71,6 +71,7 @@ function Component.install(Runtime)
         Runtime.acceptanceHostPlan = acceptanceHost
         Runtime.acceptanceHostRelocationSignature = nil
         love.graphics.setDefaultFilter("nearest", "nearest")
+        love.graphics.setFont(require('src.screens.typography').get(16))
         Runtime.App.settings = Runtime.Settings.load()
         Runtime.ComputerScreen.configureTimeFormat(function()
             return Runtime.App.settings and Runtime.App.settings.twelveHourTime
@@ -186,6 +187,7 @@ function Component.install(Runtime)
         end
         Runtime.Assets.load()
         Runtime.CharacterAssets.load()
+        if Runtime.Config.warehouse.roomScenes then require('src.dock_shaders').prepare()end
         Runtime.spriteLabActive = Runtime.Smoke.spriteLabRequested()
         local startupTextureBytes = Runtime.Assets.textureBytes() + Runtime.CharacterAssets.textureBytes()
         local assetsHealthy, assetFailures = Runtime.Assets.assertHealthy()
@@ -220,6 +222,10 @@ function Component.install(Runtime)
         Runtime.App.playerFeedback = require("src.player_feedback").new({
             state = Runtime.state,
             world = Runtime.World,
+            machine = Runtime.Machine,
+            travel = function()return require('src.tutorial').travelContext(Runtime)end,
+            computerOpen = function()return Runtime.state.screen=='workshop_remote'
+                and Runtime.WorkshopRemoteScreen.resourceId=='office_computer'end,
             playSound = function(name, options)
                 if Runtime.App.sound then return Runtime.App.sound:play(name, options) end
             end,

@@ -125,7 +125,7 @@ function Test.run(context,check)
     check("home_furniture_guest_buy_permission_separate",not Shopping.order(shop,buyer,intent))
     assert(Furniture.command(shop,purchaser,"permission:purchase:1",{purchaser,buyer}));intent.expectedRevision=shop.home.revision
     assert(Shopping.order(shop,buyer,intent));local moneyAfter=shop.home.balanceCents
-    check("home_furniture_purchase_does_not_use_food_budget",shop.home.shopping.guestSpentCents==0 and moneyAfter==27000)
+    check("home_furniture_purchase_does_not_use_food_budget",shop.home.shopping.guestSpentCents==0 and moneyAfter==27125)
     assert(Shopping.order(shop,buyer,intent));check("home_furniture_order_replay_single_charge",shop.home.balanceCents==moneyAfter)
     shop.calendar.elapsed=2/24*shop.calendar.secondsPerDay;assert(Shopping.advance(shop))
     assert(Shopping.collect(shop,buyer))

@@ -3,6 +3,21 @@
 local Component = {}
 
 function Component.install(Runtime)
+    function Runtime.Screen.mousemoved(state,x,y)
+        local computer=Runtime.Screen.sharedComputer
+        if computer and computer.mousemoved then
+            return computer.mousemoved(Runtime.Screen.guiState or state,x,y)
+        end
+        return false
+    end
+
+    function Runtime.Screen.mousereleased(state,x,y,button)
+        local computer=Runtime.Screen.sharedComputer
+        if computer and computer.mousereleased then
+            return computer.mousereleased(Runtime.Screen.guiState or state,x,y,button)
+        end
+        return false
+    end
     function Runtime.Screen.mousepressed(state, x, y, button, sendCommand)
         if Runtime.Screen.hostLayout and Runtime.Screen.resourceId=="truck" then
             if button~=1 then return false end

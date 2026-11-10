@@ -1,7 +1,7 @@
 -- Clock-derived pedestrian and vehicle phases for NPC commutes. Walking uses
 -- the character's authored walk sheets; boarding and leaving use its idle pose.
 local Bays=require('src.commute.parking_bays')
-local Routes=require('src.commute.commuter_routes')
+local Driving=require('src.commute.scheduled_driving')
 local Journey={WALK_HOURS=.04,BOARD_HOURS=.015,WALK_SPEED=1.3}
 
 local function clamp(value,low,high)return math.max(low,math.min(high,value))end
@@ -82,9 +82,9 @@ function Journey.sample(journey,hours,world,route,fromSlot,toSlot)
     elseif elapsed<rideEnd then
         stage='riding'
         local progress=clamp((elapsed-rideStart)/math.max(rideEnd-rideStart,1e-8),0,1)
-        bikePose=Routes.sample(route,progress)
+        bikePose=Driving.sample(route,progress,world)
         if not bikePose then return nil end
-        bikePose.parked=false;bikePose.progress=progress
+        bikePose.parked=false
     elseif leave>0 and elapsed<rideEnd+leave then
         stage='dismounting'
         walkActor=walker(world,destinationFoot,destinationFoot,0,false,0,destination.yaw)
@@ -99,7 +99,7 @@ function Journey.sample(journey,hours,world,route,fromSlot,toSlot)
             parked=true,progress=1}
     else
         stage='riding'
-        bikePose=Routes.sample(route,1)
+        bikePose=Driving.sample(route,1,world)
         if not bikePose then return nil end
         bikePose.parked=false;bikePose.progress=1
     end

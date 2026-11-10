@@ -55,6 +55,7 @@ function Paint.purchase(state,player,trip,world,intent)
     -- Never accept a client-supplied price. A monotonic paint revision protects
     -- repeated purchases even when the selected finish cycles A -> B -> A.
     state.home.balanceCents=state.home.balanceCents-Paint.COST_CENTS
+    require('src.receipt_book').expense(state,'Motorcycle paint',Paint.COST_CENTS,'Majic Blue','Household',Paint.get(intent.paintId).name)
     resident.ridingPaintId=intent.paintId;resident.ridingPaintRevision=revision+1
     resident.revision=resident.revision+1;bike.paintId=intent.paintId
     state.home.revision=state.home.revision+1

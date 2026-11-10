@@ -41,6 +41,7 @@ function Repairs.purchase(state, player, trip, world, intent)
     if quote.revision >= Repairs.MAX_REVISION then return false, 'The repair record cannot accept another order.' end
     if quote.status ~= 'available' then return false, 'Not enough household money for this repair.' end
     state.home.balanceCents = state.home.balanceCents - quote.priceCents
+    require('src.receipt_book').expense(state,'Motorcycle repairs',quote.priceCents,'Majic Blue','Household','Collision damage repaired.')
     bike.damage = 0
     resident.ridingDamage = 0
     resident.ridingRepairRevision = quote.revision + 1

@@ -42,8 +42,9 @@ function Component.install(Runtime)
 
     function Runtime.scheduleTruck(state)
         if require("src.weekend_flow").shopClosed(state) then return false end
+        if not Runtime.BusinessCalendar.isBusinessOpen(state) then return false end
         if not state or Runtime.World.truck.state ~= "absent" then return false end
-        local pickup = Runtime.JobService.nextPickup(state)
+        local pickup = Runtime.JobService.nextPickup(state,require('src.commute.delivery_traffic').pickupArrived)
         local pickupScene=pickup and require("src.room_loading_bays").pickupScene(state,pickup)
         if pickup and Runtime.World.truck:schedule(pickup.id, "pickup", pickupScene) then
             Runtime.JobService.schedulePickup(pickup, os.time())
@@ -233,7 +234,7 @@ function Component.install(Runtime)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
         local receptionClosed = not require("src.weekend_flow").acceptsNewWork(state)
-            or Runtime.BusinessCalendar.isWeekend(state) or Runtime.EmployeeAI.receptionOccupied(state)
+            or not Runtime.BusinessCalendar.isBusinessOpen(state) or Runtime.EmployeeAI.receptionOccupied(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
         local customerEvent = Runtime.World.customer:update(dt, player,
             receptionClosed or Runtime.World.vendor:isPresent(), motionDt, employeeContext)

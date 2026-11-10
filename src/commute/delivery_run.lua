@@ -119,6 +119,7 @@ function Run.build(state,jobIds,world,driverMode)
 end
 
 function Run.reserve(state,run)
+    if not Run.valid(run,state.home) then return false,'The delivery manifest is invalid.' end
     for _,id in ipairs(run.jobIds) do
         local job=findJob(state,id)
         local reserved=job and job.status=='pickup_in_progress' and job.pickup and job.pickup.driverMode=='player'
@@ -176,6 +177,7 @@ end
 
 function Run.load(state,run)
     local service=require('src.job_service')
+    if not Run.valid(run,state.home) then return false,'The delivery manifest is invalid.' end
     -- Validate the complete manifest before changing a job or pallet so that
     -- a stale planner cannot leave a partly loaded truck behind.
     for _,jobId in ipairs(run.jobIds or {}) do
@@ -204,8 +206,30 @@ function Run.load(state,run)
     return true
 end
 
+function Run.nextStopOpen(state,stop,now)
+    now=now or require('src.business_calendar').absoluteHours(state)
+    local schedule=stop and stop.kind=='town'
+        and require('src.commute.town_characters').businessSchedule(stop.id)
+    local retail={diner=true,['coffee-shop']=true,['general-store']=true}
+    if not schedule and stop and stop.kind=='town' and retail[stop.id] then
+        schedule={openHour=7,closeHour=21}
+    end
+    if not schedule then return require('src.business_hours').nextService(now),'industrial' end
+    local day=math.floor(now/24);local hour=now%24
+    if hour<schedule.openHour then return day*24+schedule.openHour,'retail' end
+    if hour>=schedule.closeHour then return (day+1)*24+schedule.openHour,'retail' end
+    return now,'retail'
+end
+
 function Run.completeStop(state,stop,driverDelivery)
     if type(stop)~='table' or type(stop.jobIds)~='table' then return false,'Invalid delivery stop.' end
+    local now=require('src.business_calendar').absoluteHours(state)
+    local opens,kind=Run.nextStopOpen(state,stop,now)
+    if opens>now+1e-7 then
+        return false,('Receiving is closed. Return %s.%s'):format(
+            require('src.business_calendar').dateTimeTextAtHours(opens),kind=='industrial'
+                and ' Industrial deliveries run Monday-Friday, 09:00-20:00.' or '')
+    end
     local service=require('src.job_service')
     -- Validate the entire stop before archiving or paying any of its jobs.
     -- Completed jobs are accepted on retry, without paying them a second time.
@@ -264,7 +288,7 @@ function Run.valid(value,home)
         if type(jobId)~='string' or #jobId>80 or known[jobId] then return false end
         known[jobId]=true
     end
-    local counted=0
+    local counted,assigned=0,{}
     for _,stop in ipairs(value.stops) do
         if type(stop)~='table' or (stop.kind~='town' and stop.kind~='city')
             or type(stop.id)~='string' or #stop.id>80 or type(stop.label)~='string' or #stop.label>120
@@ -275,9 +299,13 @@ function Run.valid(value,home)
                 or stop.standardArrivalAtHours~=stop.standardArrivalAtHours
                 or stop.standardArrivalAtHours<0 or stop.standardArrivalAtHours>=1e12)) then return false end
         if stop.kind=='town' and town and not town.destinations[stop.id] then return false end
-        for _,jobId in ipairs(stop.jobIds) do if not known[jobId] then return false end end
+        for _,jobId in ipairs(stop.jobIds) do
+            if not known[jobId] or assigned[jobId] then return false end
+            assigned[jobId]=true
+        end
         counted=counted+stop.palletCount
     end
+    for jobId in pairs(known) do if not assigned[jobId] then return false end end
     return counted==value.palletCount
 end
 

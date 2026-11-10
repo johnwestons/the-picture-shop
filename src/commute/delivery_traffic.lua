@@ -12,7 +12,12 @@ local DrivingPath=require('src.commute.driving_path')
 local TrafficActorIndex=require('src.commute.traffic_actor_index')
 local AIWatchdog=require('src.ai_watchdog')
 local DockManeuver=require('src.commute.dock_maneuver')
-local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_INBOUND_TRUCKS=3,TRUCK_CAPACITY=10}
+local TrafficRecovery=require('src.commute.truck_traffic_recovery')
+local WarehouseQueue=require('src.commute.warehouse_queue')
+local TrafficBudget=require('src.commute.traffic_budget')
+-- Admission limits delay departures; they never hide or delete active traffic.
+local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_ACTIVE_TRUCKS=16,
+    DISPATCH_HEADWAY_SECONDS=8,TRUCK_CAPACITY=10}
 local stuckWatch=setmetatable({}, {__mode='k'})
 local ruleWatch=setmetatable({}, {__mode='k'})
 local maneuverPaths=setmetatable({}, {__mode='k'})
@@ -159,6 +164,20 @@ local function targetDestination(route,target)
 end
 
 local function deliveryPath(route,vehicle,target,base,anchor)
+    if anchor and anchor.points then
+        local cached=maneuverPaths[vehicle]
+        if not cached or cached.target~=target then
+            local best=math.huge
+            for i=2,#anchor.points do
+                local at=DrivingPath.progress(anchor.points,i,vehicle.x,vehicle.z)
+                local p=DrivingPath.sample(anchor.points,nil,at/DrivingPath.length(anchor.points))
+                local distance=(p.x-vehicle.x)^2+(p.z-vehicle.z)^2
+                if distance<best then vehicle.pathIndex=i;best=distance end
+            end
+            maneuverPaths[vehicle]={target=target,points=anchor.points}
+        end
+        return anchor.points
+    end
     if route.accessIntegrated then
         yardPaths[vehicle]=nil
         local destination=targetDestination(route,target)
@@ -202,6 +221,27 @@ local function turnAngle(points,index)
     return math.atan2(math.sin(outgoing-incoming),math.cos(outgoing-incoming))
 end
 
+-- A junction disk describes pavement, not a lane. Match the route's tangent
+-- to a real road segment so crossing streets cannot erase the lane offset.
+local function routeRoad(roads,x,z,heading)
+    local _,nearest=roads:nearest(x,z,true)
+    local fx,fz=math.cos(heading),math.sin(heading)
+    local key=math.floor(x/(roads.binSize or 16))..':'..math.floor(z/(roads.binSize or 16))
+    local best,score
+    for _,segment in ipairs(roads.bins and roads.bins[key] or {}) do
+        if segment.surface~='dirt' and segment.len and segment.len>0 then
+            local alignment=math.abs((segment.dx*fx+segment.dz*fz)/segment.len)
+            if alignment>.7 then
+                local t=clamp(((x-segment.a.x)*segment.dx+(z-segment.a.z)*segment.dz)/segment.length2,0,1)
+                local distance=math.sqrt((x-segment.a.x-t*segment.dx)^2+(z-segment.a.z-t*segment.dz)^2)
+                local rank=distance+(1-alignment)*8
+                if distance<=segment.width*.5 and (not score or rank<score) then best,score=segment,rank end
+            end
+        end
+    end
+    return best or nearest
+end
+
 local function leftTurnLaneBlend(points,index,vehicle,world)
     local roads=world.roads
     if not roads or not roads.nearest then return 1 end
@@ -209,14 +249,17 @@ local function leftTurnLaneBlend(points,index,vehicle,world)
     if not cached or cached.roads~=roads then
         local candidates={}
         for i=2,#points-1 do
-            if turnAngle(points,i)<-.32 then
+            local angle=turnAngle(points,i)
+            local acrossTraffic=TrafficRules.drivingSide(world.town)=='left' and angle>.32
+                or TrafficRules.drivingSide(world.town)~='left' and angle<-.32
+            if acrossTraffic then
                 local before,at=points[i-1],points[i]
                 local dx,dz=at.x-before.x,at.z-before.z
                 local length=math.sqrt(dx*dx+dz*dz)
                 if length>1e-8 then
                     local setback=math.max(5,math.min(9,length*.7))
                     local mx,mz=at.x-dx/length*setback,at.z-dz/length*setback
-                    local _,incoming=roads:nearest(mx,mz,true)
+                    local incoming=routeRoad(roads,mx,mz,math.atan2(dz,dx))
                     if incoming and incoming.turnLane then
                         candidates[#candidates+1]={index=i,station=DrivingPath.station(points,i)}
                     end
@@ -238,33 +281,22 @@ local function leftTurnLaneBlend(points,index,vehicle,world)
     local point=points[index]
     local walked=math.sqrt((point.x-vehicle.x)^2+(point.z-vehicle.z)^2)
         +math.max(0,candidate.station-current)
-    return clamp((walked-2)/10,0,1)
+    return clamp((walked-7)/18,0,1)
 end
 
-local function junctionLaneBlend(world,x,z)
-    local roads=world.roads
-    local binSize=roads and roads.binSize or 16
-    local key=math.floor(x/binSize)..':'..math.floor(z/binSize)
-    local blend=1
-    for _,junction in ipairs(roads and roads.junctionBins and roads.junctionBins[key] or {}) do
-        local radius=junction.outerRadius or junction.radius or 0
-        local distance=math.sqrt((x-junction.x)^2+(z-junction.z)^2)-radius
-        if distance<7 then blend=math.min(blend,clamp(distance/7,0,1)) end
-    end
-    return blend
-end
-
-local function laneTarget(points,index,vehicle,target,targetHeading,world,ruleState,dt)
+local function laneTarget(points,index,vehicle,target,targetHeading,targetIndex,world,ruleState,dt)
     local roads=world.roads
     if not roads or not roads.nearest then return target end
-    local _,segment=roads:nearest(target.x,target.z,true)
+    local segment=routeRoad(roads,target.x,target.z,targetHeading)
     local side=TrafficRules.drivingSide(world.town)
     local leftBlend=leftTurnLaneBlend(points,index,vehicle,world)
     local offset=TrafficRules.laneOffset(segment,side,false,vehicle)
     if segment and segment.turnLane then offset=offset*leftBlend end
-    local blend=junctionLaneBlend(world,target.x,target.z)
-    ruleState.laneOffset=ruleState.laneOffset or 0
-    local wanted=offset*blend
+    -- Return to the destination's anchor only on the final approach, never
+    -- simply because the route passes through an intersection.
+    local remaining=DrivingPath.length(points)-DrivingPath.progress(points,targetIndex,target.x,target.z)
+    local wanted=offset*clamp(remaining/12,0,1)
+    ruleState.laneOffset=ruleState.laneOffset or wanted
     local blendRate=segment and (segment.bridge or (segment.lanes or 0)<2 or segment.role=='drive')
         and 12 or 4
     ruleState.laneOffset=ruleState.laneOffset+(wanted-ruleState.laneOffset)*clamp(dt*blendRate,0,1)
@@ -274,6 +306,7 @@ end
 
 local function routePassesStop(points,stop,approachX,approachZ)
     local tolerance=math.max(1.1,(stop.roadWidth or 5.8)*.22)
+    local bestStation,bestDistance
     for i=2,#points do
         local a,b=points[i-1],points[i]
         local dx,dz=b.x-a.x,b.z-a.z
@@ -283,10 +316,14 @@ local function routePassesStop(points,stop,approachX,approachZ)
             local x,z=a.x+dx*t,a.z+dz*t
             local vx,vz=dx/math.sqrt(length2),dz/math.sqrt(length2)
             local distance2=(x-stop.stopX)^2+(z-stop.stopZ)^2
-            if distance2<=tolerance*tolerance and vx*approachX+vz*approachZ>.72 then return true end
+            if distance2<=tolerance*tolerance and vx*approachX+vz*approachZ>.72
+                and (not bestDistance or distance2<bestDistance) then
+                bestStation=DrivingPath.station(points,i-1)+math.sqrt(length2)*t
+                bestDistance=distance2
+            end
         end
     end
-    return false
+    return bestStation
 end
 
 local junctionBins=setmetatable({}, {__mode='k'})
@@ -336,10 +373,11 @@ local function stopCandidates(points,world)
             local length=math.sqrt(fixture.fx*fixture.fx+fixture.fz*fixture.fz)
             if length>.5 then
                 local ax,az=-fixture.fx/length,-fixture.fz/length
-                if routePassesStop(points,fixture,ax,az) then
+                local station=routePassesStop(points,fixture,ax,az)
+                if station then
                     local junctionX=fixture.junctionX or fixture.stopX+ax*12
                     local junctionZ=fixture.junctionZ or fixture.stopZ+az*12
-                    result[#result+1]={fixture=fixture,approachX=ax,approachZ=az,
+                    result[#result+1]={fixture=fixture,station=station,approachX=ax,approachZ=az,
                         roadWidth=fixture.roadWidth or 5.8,junctionX=junctionX,junctionZ=junctionZ,
                         junctionRadius=junctionRadius(world,junctionX,junctionZ),
                         key=('%s:%.1f:%.1f'):format(world.townId or 'town',junctionX,junctionZ)}
@@ -354,12 +392,15 @@ end
 local function nextStopSign(vehicle,points,index,world)
     local best,bestDistance
     local dimensions=TrafficRules.dimensions(vehicle)
+    local progress=DrivingPath.progress(points,index,vehicle.x,vehicle.z)
     for _,candidate in ipairs(stopCandidates(points,world)) do
         local fixture=candidate.fixture
         local dx,dz=fixture.stopX-vehicle.x,fixture.stopZ-vehicle.z
         local ahead=dx*candidate.approachX+dz*candidate.approachZ
         local lateral=math.abs(-dx*candidate.approachZ+dz*candidate.approachX)
-        if ahead>0 and ahead<26 and lateral<=candidate.roadWidth*.5+dimensions.halfWidth
+        local routeDistance=candidate.station-progress
+        if routeDistance>=-dimensions.halfLength and routeDistance<30
+            and ahead>0 and ahead<26 and lateral<=candidate.roadWidth*.5+dimensions.halfWidth
             and (not bestDistance or ahead<bestDistance) then
             best={fixture=fixture,approachX=candidate.approachX,approachZ=candidate.approachZ,
                 distance=ahead,junctionX=candidate.junctionX,junctionZ=candidate.junctionZ,
@@ -417,7 +458,8 @@ local function stopRule(vehicle,points,index,world,dt,state)
     local centerGap=stop.distance-TrafficRules.dimensions(vehicle).halfLength-.35
     if state.stopPassed then return stop,false end
     if centerGap<=.18 then
-        if (vehicle.speed or 0)<.22 then state.stopDwell=(state.stopDwell or 0)+dt end
+        if (vehicle.speed or 0)<.05 then state.stopDwell=(state.stopDwell or 0)+dt
+        else state.stopDwell=0 end
         if state.stopDwell>=TrafficRules.STOP_DWELL_SECONDS then
             if canEnterJunction(vehicle,stop,world,state) then
                 state.stopPassed=true
@@ -446,6 +488,9 @@ local function eachDelivery(state,callback)
         for _,job in ipairs(collection) do
             if job.delivery and job.delivery.route then
                 callback(job.id,job.delivery,job.company or 'Millhaven Freight')
+            end
+            if job.pickup and job.pickup.roadDelivery then
+                callback(job.id..':pickup',job.pickup.roadDelivery,job.company or 'Millhaven Freight')
             end
         end
     end
@@ -577,43 +622,12 @@ local function dockBlocked(state,world,subject)
     local occupied=false
     eachDelivery(state,function(_,delivery)
         if occupied or type(delivery)~='table' then return end
-        local inbound=delivery.route and delivery.route.vehicle
         local outbound=delivery.returnRoute and delivery.returnRoute.vehicle
-        if inbound and inbound~=subject then
-            if inbound.pathTarget=='dock' and inbound.phase~='offmap'
-                or inbound.phase=='at_bay' and truckAtDock(world,inbound) then
-                occupied=true;return
-            end
-        end
         if outbound and outbound~=subject and outbound.phase~='offmap' and truckAtDock(world,outbound) then
             occupied=true;return
         end
     end)
     return occupied
-end
-
-local function queueTarget(state,subject,id,delivery,site,integrated)
-    local anchors=integrated and site.truckQueueAnchors or {site.localTruckWaiting or site.design.truckWaiting}
-    if #anchors==0 then return 'waiting-1',anchors[1] end
-    local waiting={{vehicle=subject,id=tostring(id or ''),
-        arrived=tonumber(delivery and delivery.route and delivery.route.departedAtEpoch) or math.huge}}
-    eachDelivery(state,function(id,other)
-        local route=other and other.route
-        local vehicle=route and route.vehicle
-        if vehicle and vehicle~=subject and vehicle.phase~='offmap'
-            and tostring(vehicle.pathTarget or ''):match('^waiting%-%d+$') then
-            waiting[#waiting+1]={vehicle=vehicle,id=tostring(id),
-                arrived=tonumber(route.departedAtEpoch) or math.huge}
-        end
-    end)
-    table.sort(waiting,function(a,b)
-        if a.arrived~=b.arrived then return a.arrived<b.arrived end
-        return a.id<b.id
-    end)
-    local slot=1
-    for index,item in ipairs(waiting) do if item.vehicle==subject then slot=index;break end end
-    slot=math.min(slot,#anchors)
-    return 'waiting-'..slot,anchors[slot]
 end
 
 local function gatherDynamicActors(state,town,activeWorld)
@@ -885,14 +899,20 @@ local function updateTrafficActorIndex(world,vehicle,kind)
         halfLength=dimensions.halfLength,halfWidth=dimensions.halfWidth})
 end
 
-local function updateTrafficVehicle(vehicle,steer,desired,hold,dt,world)
+local function updateTrafficVehicle(vehicle,steer,desired,hold,dt,world,state)
+    local speed=vehicle.speed or 0
+    local motorcycle=vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle'
+    local acceleration=motorcycle and 1.5 or 1.0
+    -- Ramp the requested speed after a stop. Keep the ramp close to actual
+    -- motion so waiting behind traffic cannot store a full-throttle launch.
+    state.cruiseSpeed=hold and 0 or math.min(desired,
+        math.min(state.cruiseSpeed or speed,speed+.5)+acceleration*dt)
+    desired=state.cruiseSpeed
     if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
         local throttle,brake=0,0
-        local speed=vehicle.speed or 0
-        if hold or desired<.12 then brake=1
-        elseif speed<desired-.25 then throttle=clamp((desired-speed)*.55,.12,1)
-        elseif speed>desired+.25 then brake=clamp((speed-desired)*.70,.08,1)
-        else throttle=.10 end
+        if hold or desired<.01 then brake=1
+        elseif speed>desired+.08 then brake=clamp((speed-desired)*1.4,0,1)
+        else throttle=clamp(.10+(desired-speed)*.65,.02,.55) end
         world.activeTrafficBike=vehicle
         local moved=Bike.update(vehicle,{throttle=throttle,brake=brake,steer=steer},dt,world)
         world.activeTrafficBike=nil
@@ -900,8 +920,8 @@ local function updateTrafficVehicle(vehicle,steer,desired,hold,dt,world)
         return moved
     end
     world.activeTruck=vehicle
-    local drive=vehicle.speed<desired-.35 and -1 or 0
-    local brake=vehicle.speed>desired+.35 and math.min(1,(vehicle.speed-desired)*.7) or 0
+    local drive=-clamp((desired-speed)*1.4+.015,.002,.75)
+    local brake=speed>desired+.03 and clamp((speed-desired)*1.4,0,1) or 0
     if hold then drive,brake=0,1 end
     local moved=Truck.update(vehicle,{drive=drive,steer=steer,brake=brake},dt,world)
     world.activeTruck=nil
@@ -945,11 +965,53 @@ local function advanceRouteIndex(vehicle,points,laneOffset)
         local distance2=toX*toX+toZ*toZ
         local along=toX*dx+toZ*dz
         local crossTrack=length>1e-6 and math.abs(dx*toZ-dz*toX)/length or math.sqrt(distance2)
+        local nextPoint=points[index+1]
+        local nx,nz=nextPoint.x-p.x,nextPoint.z-p.z
+        local nextLength=math.sqrt(nx*nx+nz*nz)
+        local nextCross=nextLength>1e-6 and math.abs(nx*toZ-nz*toX)/nextLength or math.huge
+        local nextAlignment=nextLength>1e-6 and
+            (nx*math.cos(vehicle.heading)+nz*math.sin(vehicle.heading))/nextLength or 0
+        -- The inside lane of a sharp turn can join the exit before crossing
+        -- the centerline vertex's incoming plane. Recognize that local exit
+        -- instead of circling back toward a point behind the vehicle.
+        local joinedExit=distance2<=math.max(8,laneAllowance+4)^2 and toX*nx+toZ*nz>0
+            and nextAlignment>.5 and nextCross<=crossTrackLimit and nextCross+.5<crossTrack
         -- Curved roads are sampled more closely than the truck can follow
         -- point-by-point. Advance after crossing a waypoint while nearby, so
         -- missing the radius cannot make a driver loop back to a passed point.
-        if distance2<=1.35^2 or along>=0 and crossTrack<=crossTrackLimit then index=index+1
+        if distance2<=1.35^2 or along>=0 and crossTrack<=crossTrackLimit or joinedExit then index=index+1
         else break end
+    end
+    if index<#points then
+        local a,b=points[index-1],points[index]
+        local dx,dz=b.x-a.x,b.z-a.z
+        local length2=dx*dx+dz*dz
+        local t=length2>1e-8 and clamp(((vehicle.x-a.x)*dx+(vehicle.z-a.z)*dz)/length2,0,1) or 1
+        local bestDistance=(vehicle.x-a.x-t*dx)^2+(vehicle.z-a.z-t*dz)^2
+        if bestDistance>.25 then
+            -- Closely spaced junctions can put a long vehicle onto the exit
+            -- before it crosses every centerline waypoint. Rejoin only a
+            -- nearby forward segment that agrees with its travel direction.
+            -- Do this while still inside the incoming lane's tolerance too:
+            -- an inside turn can otherwise orbit its last pre-junction point.
+            local walked=0
+            for nextIndex=index+1,#points do
+                local from,to=points[nextIndex-1],points[nextIndex]
+                local nx,nz=to.x-from.x,to.z-from.z
+                local length=math.sqrt(nx*nx+nz*nz)
+                walked=walked+length
+                if walked>20 then break end
+                if length>1e-6 and (nx*math.cos(vehicle.heading)+nz*math.sin(vehicle.heading))/length>.7 then
+                    local along=((vehicle.x-from.x)*nx+(vehicle.z-from.z)*nz)/(length*length)
+                    if along>=0 and along<=1 then
+                        local distance=(vehicle.x-from.x-nx*along)^2+(vehicle.z-from.z-nz*along)^2
+                        if distance<=crossTrackLimit^2 and distance<bestDistance-.25 then
+                            bestDistance=distance;index=nextIndex
+                        end
+                    end
+                end
+            end
+        end
     end
     vehicle.pathIndex=index
     return index
@@ -959,14 +1021,16 @@ local function routeSpeedLimit(vehicle,points,index,waypointDistance,remaining,h
     local maxSpeed=Truck.MAX_SPEED
     if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then maxSpeed=Bike.MAX_SPEED end
     local desired=math.min(TrafficRules.driverTownSpeed(vehicle),maxSpeed)
-    if math.abs(headingError)>.45 then desired=5.4 end
-    if math.abs(headingError)>.95 then desired=2.8 end
-    local routeStation=DrivingPath.station(points,index-1)
+    if math.abs(headingError)>.45 then desired=math.min(desired,4.5) end
+    if math.abs(headingError)>.95 then desired=math.min(desired,2.8) end
+    local routeStation=DrivingPath.progress(points,index,vehicle.x,vehicle.z)
     for _,marker in ipairs(DrivingPath.speedLimits(points)) do
-        if marker.index>=index then
-            local turnDistance=waypointDistance+marker.distanceBefore-routeStation
-            if marker.index==index or turnDistance<=70 then
-                local available=math.max(0,turnDistance-1.5)
+        local turnDistance=marker.distance-routeStation
+        -- Reach corner speed before steering into the bend, then retain it
+        -- until the rear of the vehicle has followed the exit lane.
+        if turnDistance>=-6-TrafficRules.dimensions(vehicle).halfLength then
+            if turnDistance<=70 then
+                local available=math.max(0,turnDistance-8-TrafficRules.dimensions(vehicle).halfLength)
                 desired=math.min(desired,math.sqrt(marker.speed*marker.speed
                     +2*TrafficRules.brakeDeceleration(vehicle)*available))
             else
@@ -986,7 +1050,7 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
     end
     local ruleState=ruleWatch[vehicle]
     if not ruleState then
-        ruleState={routeTarget=targetName,laneOffset=0,passDelta=0,stopDwell=0}
+        ruleState={routeTarget=targetName,passDelta=0,stopDwell=0}
         ruleWatch[vehicle]=ruleState
     elseif ruleState.routeTarget~=targetName then
         ruleState.routeTarget=targetName
@@ -998,15 +1062,44 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
     local laneOffset=(ruleState.laneOffset or 0)+(ruleState.passDelta or 0)
     local index=advanceRouteIndex(vehicle,points,laneOffset)
     local remaining,waypointDistance=DrivingPath.remaining(points,index,vehicle.x,vehicle.z)
+    local _,currentSegment=world.roads:nearest(vehicle.x,vehicle.z,true)
     -- Follow a point several metres ahead instead of steering node-by-node.
     -- The road planner emits closely spaced points, and targeting each one
     -- directly makes long trucks cut or oscillate at junction turns.
-    local lookAhead=math.max(3.8,math.min(5.8,3.8+(vehicle.speed or 0)*.23))
-    local target,targetHeading=DrivingPath.lookAhead(points,vehicle.x,vehicle.z,index,lookAhead,
-        not DrivingPath.hasTurnGuidance(points)
-            and vehicle.trafficKind~='motorcycle' and vehicle.aiKind~='motorcycle')
+    local motorcycle=vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle'
+    local yard=currentSegment and (currentSegment.truckOnly or currentSegment.role=='drive')
+    local baseLookAhead=(motorcycle or yard) and 3.8 or Truck.profile(vehicle).wheelbase*1.8
+    if not motorcycle and not yard then
+        local ahead=0
+        for i=index,math.min(#points-1,index+16) do
+            if math.abs(turnAngle(points,i))>2.1 then baseLookAhead=3.8;break end
+            ahead=ahead+math.sqrt((points[i+1].x-points[i].x)^2+(points[i+1].z-points[i].z)^2)
+            if ahead>14 then break end
+        end
+    end
+    local lookAhead=baseLookAhead+math.min(2,(vehicle.speed or 0)*.23)
+    local target,targetHeading,targetIndex=DrivingPath.lookAhead(points,vehicle.x,vehicle.z,index,lookAhead,true)
+    if not yard then
+        local side=TrafficRules.drivingSide(world.town)
+        local incoming=routeRoad(world.roads,vehicle.x,vehicle.z,vehicle.heading)
+        local offset=math.abs(ruleState.laneOffset or TrafficRules.laneOffset(incoming,side,false,vehicle))
+        for i=index,math.min(#points-1,targetIndex-1) do
+            local angle=turnAngle(points,i)*(side=='left' and -1 or 1)
+            if angle>.32 and angle<2.1 then
+                -- The inside lane rounds the corner before the centerline.
+                -- Include that shortened distance when looking onto the exit;
+                -- otherwise a wide road can put the target on the wrong side
+                -- of the nose and make the driver circle away from its turn.
+                local shortcut=math.min(12,2*offset*math.tan(angle*.5))
+                target,targetHeading,targetIndex=DrivingPath.lookAhead(points,vehicle.x,vehicle.z,index,
+                    lookAhead+shortcut,true)
+                break
+            end
+        end
+    end
     local laneSegment
-    target,laneSegment=laneTarget(points,index,vehicle,target,targetHeading,world,ruleState,dt)
+    target,laneSegment=laneTarget(points,index,vehicle,target,targetHeading,targetIndex,world,ruleState,dt)
+    local stop,stopHold=stopRule(vehicle,points,index,world,dt,ruleState)
     local baseLaneOffset=ruleState.laneOffset or 0
     ruleState.passDelta=ruleState.passDelta or 0
     local passingActor=ruleState.passingActor
@@ -1048,7 +1141,9 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
             ruleState.passAborting=nil
         end
     end
-    if not passingActor and not passAbortHold then
+    if not passingActor and not passAbortHold and not (stop and not ruleState.stopPassed)
+        and not (targetName:match('^waiting%-') and remaining<45)
+        and not (currentSegment and currentSegment.junction) then
         local passTarget,blocker=TrafficRules.passLaneOffset(vehicle,laneSegment,baseLaneOffset,
             world.trafficActors,world.trafficActorIndex)
         if passTarget then
@@ -1066,11 +1161,10 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
         math.cos(math.atan2(dz,dx)-vehicle.heading))
     local steer=math.max(-1,math.min(1,headingError/math.rad(30)))
     local desired=routeSpeedLimit(vehicle,points,index,waypointDistance,remaining,headingError)
-    local _,currentSegment=world.roads:nearest(vehicle.x,vehicle.z,true)
+    desired=math.min(desired,TrafficRules.roadSpeed(laneSegment),TrafficRules.roadSpeed(currentSegment))
     local localYield
     desired,localYield=TrafficRules.limitForTraffic(vehicle,desired,world.trafficActors,
         laneSegment or currentSegment,world.trafficActorIndex,passingActor)
-    local stop,stopHold=stopRule(vehicle,points,index,world,dt,ruleState)
     if stop and not ruleState.stopPassed then
         local centerGap=stop.distance-TrafficRules.dimensions(vehicle).halfLength-.35
         local stopSpeed=math.sqrt(2*TrafficRules.brakeDeceleration(vehicle)*math.max(0,centerGap))
@@ -1104,6 +1198,7 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
             watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
             vehicle.pathTarget=nil
             vehicle.replanRoute=true
+            watch.waitTime=0;watch.waitX=nil;watch.waitZ=nil
         end
         return false
     end
@@ -1116,7 +1211,7 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
         system='Road traffic',subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
         scope='world-simulation',x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false},
         function()
-            return updateTrafficVehicle(vehicle,steer,desired,hold,dt,world)
+            return updateTrafficVehicle(vehicle,steer,desired,hold,dt,world,ruleState)
         end,
         function(operationError)
             world.activeTruck=nil;world.activeTrafficBike=nil
@@ -1149,27 +1244,79 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
     releaseJunctionClaim(vehicle,ruleState,world)
     watch.cooldown=math.max(0,watch.cooldown-dt)
     if final or stopHold or localYield or passAbortHold then
-        -- A real traffic wait is safe, but must not be invisible to F10 forever.
+        -- A moving queue is making progress. Only a stationary wait may
+        -- escalate; reverse movement is handled above and cannot erase attempts.
+        if not watch.waitX or (vehicle.x-watch.waitX)^2+(vehicle.z-watch.waitZ)^2>.4^2 then
+            watch.waitX,watch.waitZ=vehicle.x,vehicle.z
+            watch.waitTime=0
+        end
         watch.waitTime=(watch.waitTime or 0)+dt
+        local queueHold=targetName:match('^waiting%-') and remaining<35 and localYield
+        if queueHold then watch.waitTime=0 end
         if not final and watch.waitTime>=12 and not watch.waitReported then
             watch.waitReported=true
             AIWatchdog.note(watchdogState,watch.issueId,{status='STALLED',system='Road traffic',
                 subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
                 reason='Traffic wait has prevented route progress for 12 seconds',
-                action='Holding safely; checking traffic clearance every simulation step',
+                action='Waiting for clearance; prolonged stationary waits trigger reverse and safe road recovery',
                 detail=('yield=%s stop=%s passing=%s desired=%.2f waypoint=%d')
                     :format(tostring(localYield),tostring(stopHold),tostring(passAbortHold),desired,index),
                 elapsed=watch.waitTime,x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,
                 scope='world-simulation'})
         end
+        local waitLimit=(stopHold and 30 or 12)+hash(vehicle.trafficId or targetName)%21/10
+        if not final and watch.waitTime>=waitLimit and watch.cooldown<=0 then
+            -- Driving back to the same blockage after reversing is not a
+            -- recovery. Keep these attempts until we pass the original stall.
+            watch.recoveryAttempts=watch.recoveryAttempts+1
+            watch.recoveryProgressMark=watch.recoveryProgressMark or remaining
+            watch.recoveryRoute=watch.recoveryRoute or points
+            local rescued,reason=false,nil
+            if watch.recoveryAttempts>=3 then
+                if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
+                    -- Motorcycle recovery already checks terrain and traffic.
+                    rescued,reason=Bike.rescue(vehicle,world)
+                else
+                    rescued,reason=TrafficRecovery.rescue(vehicle,watch.recoveryRoute,world)
+                end
+            end
+            local action='Backing away under collision control, then retrying the route'
+            if rescued then
+                local claims=junctionClaims[world]
+                local claim=claims and claims[ruleState.junctionKey]
+                if claim and claim.vehicle==vehicle then claims[ruleState.junctionKey]=nil end
+                ruleWatch[vehicle]=nil;maneuverPaths[vehicle]=nil;yardPaths[vehicle]=nil
+                DockManeuver.clear(vehicle,watchdogState,'Traffic deadlock recovery')
+                vehicle.pathTarget=nil;vehicle.replanRoute=true
+                watch.cooldown=2
+                updateTrafficActorIndex(world,vehicle,
+                    (vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle')
+                action='Rescue moved the vehicle to a clear road position behind the obstruction; route retained'
+            else
+                watch.reverseTime=1.6
+                if reason then action='No clear rescue position; backing away and retrying' end
+            end
+            AIWatchdog.note(watchdogState,watch.issueId,{status='RECOVERING',system='Road traffic',
+                subject=vehicle.trafficId or 'Delivery vehicle',stage=routeKey,
+                reason='Prolonged stationary traffic wait',action=action,detail=reason,
+                elapsed=watch.waitTime,attempt=watch.recoveryAttempts,x=vehicle.x,z=vehicle.z,
+                visible=vehicle.visible~=false,scope='world-simulation'})
+            watch.waitTime=0;watch.waitX=nil;watch.waitZ=nil
+            return false
+        end
         watch.windowTime,watch.windowMoved,watch.stalled=0,0,0
         if final then AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Route waypoint reached',
             x=vehicle.x,z=vehicle.z}) end
     else
+        if watch.recoveryProgressMark and remaining<watch.recoveryProgressMark-5 then
+            watch.recoveryAttempts=0;watch.recoveryProgressMark=nil
+            watch.recoveryRoute=nil
+        end
         if watch.waitReported then
             AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Traffic obstruction cleared; driving resumed'})
         end
         watch.waitTime=0;watch.waitReported=false
+        watch.waitX=nil;watch.waitZ=nil
         if watch.windowTime==0 then watch.windowStartDistance=remaining end
         watch.windowTime=watch.windowTime+dt
         watch.windowMoved=watch.windowMoved+moved
@@ -1180,7 +1327,7 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
             local madeProgress=watch.windowStartDistance-remaining>=minimumProgress
             if watch.windowMoved<.03 or not madeProgress then watch.stalled=watch.stalled+watch.windowTime
             else
-                watch.stalled=0;watch.recoveryAttempts=0
+                watch.stalled=0
                 AIWatchdog.resolve(watchdogState,watch.issueId,{reason='Vehicle resumed route progress',
                     x=vehicle.x,z=vehicle.z})
             end
@@ -1188,6 +1335,8 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
         end
         if watch.stalled>=4.5 and watch.cooldown<=0 then
             watch.recoveryAttempts=watch.recoveryAttempts+1
+            watch.recoveryProgressMark=watch.recoveryProgressMark or remaining
+            watch.recoveryRoute=watch.recoveryRoute or points
             local action='Backed away from the obstruction and retried the same route'
             local rescued,rescueReason=false,nil
             if watch.recoveryAttempts>=3 then
@@ -1257,6 +1406,13 @@ Network.driveRoute=function(vehicle,points,dt,world,targetName,watchdogState)
     return driveVehicle(vehicle,points,dt,world,targetName,watchdogState)
 end
 
+-- Scheduled commuters use the same lane geometry and stop fixtures when
+-- deriving their deterministic, clock-sampled journeys on every peer.
+function Network.lanePosition(vehicle,points,sample,world)
+    return laneTarget(points,sample.pathIndex,vehicle,sample,sample.heading,sample.pathIndex,world,{},1)
+end
+Network.routeStops=stopCandidates
+
 local function firstOrder(state,shipment)
     local wanted={}
     for _,id in ipairs(shipment.orderIds or {}) do wanted[id]=true end
@@ -1319,7 +1475,30 @@ local function updateTrackedDelivery(delivery,company,location,id,now,durationHo
 end
 
 local function dispatchInbound(state,entries,groups,route,now,epoch)
+    local duration=route.length/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
+    if require('src.business_hours').nextService(now,duration)>now+1e-7 then return false end
     local carriers,activeCount={},0
+    local lastDeparture,queued=-math.huge,0
+    local gateClear=true
+    local gate=route.inward[1]
+    for _,entry in ipairs(entries) do
+        local delivery=entry.delivery
+        local inbound,outbound=delivery.route,delivery.returnRoute
+        if inbound and not inbound.transportId and finite(inbound.departedAtEpoch) then
+            lastDeparture=math.max(lastDeparture,inbound.departedAtEpoch)
+        end
+        if outbound and finite(outbound.departedAtEpoch) and not (inbound and inbound.transportId)
+            and (outbound.vehicle and outbound.vehicle.phase~='offmap'
+                or not outbound.vehicle and (outbound.arrivedAtEpoch or math.huge)>epoch) then
+            activeCount=activeCount+1
+        end
+        local vehicle=delivery.status=='received' and outbound and outbound.vehicle or inbound and inbound.vehicle
+        if vehicle and vehicle.phase~='offmap' and not (inbound and inbound.transportId) then
+            if vehicle.phase=='waiting_bay' then queued=queued+1 end
+            if finite(vehicle.x) and finite(vehicle.z)
+                and (vehicle.x-gate.x)^2+(vehicle.z-gate.z)^2<15^2 then gateClear=false end
+        end
+    end
     for _,entry in ipairs(entries) do
         local group=groups[entry.id]
         local inbound=entry.delivery.route
@@ -1327,7 +1506,8 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
             and finite(inbound.departedAtEpoch) and not groupReceived(group)
             and not (inbound.vehicle and inbound.vehicle.phase=='offmap') then
             local carrier={id=entry.id,group=group,route=inbound,
-                pallets=groupPalletCount(state,group),canLoad=canLoadOnTruck(inbound,epoch)}
+                pallets=groupPalletCount(state,group),canLoad=not entry.delivery.customerPickup
+                    and canLoadOnTruck(inbound,epoch)}
             carriers[#carriers+1]=carrier
             activeCount=activeCount+1
         end
@@ -1344,7 +1524,7 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
             and not finite(inbound.departedAtEpoch) and finite(inbound.startAtHours)
             and now>=inbound.startAtHours then
             local pallets=palletCountFor(state,entry.id,delivery)
-            if pallets>0 then due[#due+1]={entry=entry,pallets=pallets} end
+            if pallets>0 or delivery.customerPickup then due[#due+1]={entry=entry,pallets=pallets} end
         end
     end
     table.sort(due,function(a,b)
@@ -1359,7 +1539,7 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
         local entry=item.entry
         local inbound=entry.delivery.route
         local best,bestRemainder
-        if item.pallets<=Network.TRUCK_CAPACITY then
+        if not entry.delivery.customerPickup and item.pallets<=Network.TRUCK_CAPACITY then
             for _,carrier in ipairs(carriers) do
                 if carrier.canLoad and carrier.pallets+item.pallets<=Network.TRUCK_CAPACITY then
                     local remainder=Network.TRUCK_CAPACITY-carrier.pallets-item.pallets
@@ -1379,14 +1559,17 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
             best.group.members[#best.group.members+1]=entry
             best.pallets=best.pallets+item.pallets
             changed=true
-        elseif activeCount<Network.MAX_INBOUND_TRUCKS then
+        elseif activeCount<Network.MAX_ACTIVE_TRUCKS and gateClear and TrafficBudget.allows(state,activeCount)
+            and epoch-lastDeparture>=Network.DISPATCH_HEADWAY_SECONDS
+            and queued<#(route.world.sites.byId.warehouse.truckQueueAnchors or {1,2,3}) then
             inbound.departedAtEpoch=epoch
             inbound.arrivedAtEpoch=epoch+route.length/Network.AVERAGE_SPEED
             local group=groups[entry.id] or {id=entry.id,leader=entry,members={entry}}
             groups[entry.id]=group
             carriers[#carriers+1]={id=entry.id,group=group,route=inbound,
-                pallets=item.pallets,canLoad=item.pallets<Network.TRUCK_CAPACITY}
+                pallets=item.pallets,canLoad=not entry.delivery.customerPickup and item.pallets<Network.TRUCK_CAPACITY}
             activeCount=activeCount+1
+            lastDeparture=epoch
             changed=true
         end
     end
@@ -1467,9 +1650,53 @@ function Network.update(state,town,now,epoch,activeWorld)
             local company=job.company or 'Millhaven Freight'
             changed=updateTrackedDelivery(delivery,company,Network.cityLocationFor(job.id),town.id,
                 now,durationHours,outboundDurationHours,route,epoch) or changed
+            local pickup=job.pickup
+            if pickup and not pickup.driverMode and pickup.status~='player_delivery' then
+                if not pickup.roadDelivery and (job.status=='ready_for_pickup' or job.status=='pickup_in_progress') then
+                    pickup.dispatchAtHours=pickup.dispatchAtHours or now+.5
+                    pickup.roadDelivery={status='pending_arrival',customerPickup=true,
+                        readyAtHours=pickup.dispatchAtHours+durationHours}
+                    changed=true
+                    updateTrackedDelivery(pickup.roadDelivery,company,Network.cityLocationFor(job.id),town.id,
+                        now,durationHours,outboundDurationHours,route,epoch)
+                    -- Existing saves may already have the warehouse pickup
+                    -- loading. Restore its exterior at the dock, not at the gate.
+                    if pickup.status~='awaiting_schedule' then
+                        local inbound=pickup.roadDelivery.route
+                        inbound.departedAtEpoch=epoch-route.length/Network.AVERAGE_SPEED-2
+                        inbound.arrivedAtEpoch=epoch-1
+                    end
+                end
+                local road=pickup.roadDelivery
+                if road then
+                    if pickup.status=='completed' and road.status~='received' then
+                        road.status='received';road.receivedAtHours=now;changed=true
+                    end
+                    changed=updateTrackedDelivery(road,company,Network.cityLocationFor(job.id),town.id,
+                        now,durationHours,outboundDurationHours,route,epoch) or changed
+                end
+            end
         end
     end
     local entries=deliveryEntries(state)
+    -- ETAs and actual dispatch use the same receiving window. Also repair
+    -- undispatched routes loaded from older saves or held in a full queue.
+    local hours=require('src.business_hours')
+    for _,entry in ipairs(entries) do
+        local delivery=entry.delivery;local inbound=delivery.route
+        if inbound and not inbound.transportId and not finite(inbound.departedAtEpoch) then
+            local start=hours.nextService(inbound.startAtHours or now,durationHours)
+            if hours.nextService(now,durationHours)>now+1e-7 then
+                start=math.max(start,hours.nextService(now,durationHours))
+            end
+            if inbound.startAtHours~=start then
+                inbound.startAtHours=start;inbound.arrivalAtHours=start+durationHours
+                if delivery.readyAtHours then delivery.readyAtHours=inbound.arrivalAtHours end
+                if delivery.expectedAtHours then delivery.expectedAtHours=inbound.arrivalAtHours end
+                changed=true
+            end
+        end
+    end
     local linksChanged,_,groups=syncTransportLinks(entries)
     changed=linksChanged or changed
     changed=dispatchInbound(state,entries,groups,route,now,epoch) or changed
@@ -1479,7 +1706,7 @@ function Network.update(state,town,now,epoch,activeWorld)
     return changed
 end
 
-local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
+local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queue)
     if type(delivery)~='table' then return false end
     local inbound,outbound=delivery.route,delivery.returnRoute
     local record,kind
@@ -1530,15 +1757,15 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
     else
         local site=route.world.sites.byId.warehouse
         if not site or not site.design.truckParking then return false end
-        local blocked=dockBlocked(state,world,vehicle)
-        local target,anchor
-        if blocked then target,anchor=queueTarget(state,vehicle,entryId,delivery,site,route.accessIntegrated)
-        else target,anchor='dock',site.design.truckParking end
+        local assignment=queue[inbound]
+        if not assignment then return changed end
+        local target,anchor=assignment.target,assignment.anchor
+        local blocked=assignment.slot~=nil
         if created and finite(inbound.departedAtEpoch) and finite(inbound.arrivedAtEpoch)
             and epoch>inbound.departedAtEpoch+1 then
             if epoch>=inbound.arrivedAtEpoch then
                 vehicle.x,vehicle.z=site:toWorld(anchor.x,anchor.z,0)
-                vehicle.heading=blocked and (site.yaw-math.pi*.5) or site.yaw
+                vehicle.heading=anchor.heading or (blocked and (site.yaw-math.pi*.5) or site.yaw)
                 vehicle.h=world:supportHeight(vehicle.x,vehicle.z)
                 vehicle.speed=0;vehicle.phase=blocked and 'waiting_bay' or 'at_bay'
                 vehicle.pathTarget=target;vehicle.pathIndex=2
@@ -1573,6 +1800,14 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
                 state.message='A delivery truck is approaching, but the loading bay is occupied. Move the Picture Shop truck to clear it.'
                 changed=true
             end
+        end
+        local anchorX,anchorZ=site:toWorld(anchor.x,anchor.z,0)
+        if vehicle.pathTarget==target
+            and (vehicle.phase=='waiting_bay' and blocked or vehicle.phase=='at_bay' and not blocked)
+            and (vehicle.x-anchorX)^2+(vehicle.z-anchorZ)^2<1.2^2 then
+            vehicle.speed=0
+            AIWatchdog.clear(state,vehicle,'Holding assigned receiving position')
+            return changed
         end
         if vehicle.phase=='at_bay' and blocked then
             vehicle.pathTarget=nil;vehicle.phase='approaching';vehicle.pathIndex=2
@@ -1625,7 +1860,7 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId)
             local parked=points and driveVehicle(vehicle,points,step,world,target,state) or false
             if parked then
                 vehicle.speed=0;vehicle.phase=blocked and 'waiting_bay' or 'at_bay'
-                vehicle.heading=blocked and (site.yaw-math.pi*.5) or site.yaw
+                vehicle.heading=anchor.heading or (blocked and (site.yaw-math.pi*.5) or site.yaw)
                 vehicle.localManeuver=nil
                 if vehicle.phase=='at_bay' then inbound.arrivedAtEpoch=epoch end
                 changed=true
@@ -1641,6 +1876,8 @@ end
 
 function Network.simulate(state,town,dt,epoch,activeWorld)
     if type(state)~='table' then return false,false end
+    local started=love.timer.getTime()
+    epoch=finite(epoch) and epoch or os.time()
     local activeDelivery=false
     eachDelivery(state,function(_,delivery)
         local inbound=delivery and delivery.route
@@ -1648,7 +1885,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
         if delivery and ((delivery.status~='received' and inbound and finite(inbound.departedAtEpoch))
             or (delivery.status=='received' and outbound and finite(outbound.departedAtEpoch)
                 and (outbound.vehicle and outbound.vehicle.phase~='offmap'
-                    or not outbound.vehicle and (not finite(outbound.arrivedAtEpoch) or os.time()<outbound.arrivedAtEpoch)))) then
+                    or not outbound.vehicle and (not finite(outbound.arrivedAtEpoch) or epoch<outbound.arrivedAtEpoch)))) then
             activeDelivery=true
         end
     end)
@@ -1657,7 +1894,6 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
     local route=townWorld(town,activeWorld)
     if not route then return false,false end
     dt=finite(dt) and math.max(0,dt) or 0
-    epoch=finite(epoch) and epoch or os.time()
     local world=activeWorld
     if type(world)~='table' or world.townId~=route.world.townId then world=route.world end
     local motorcyclesCreated=AIMotorcycleTraffic.ensure(commute,world)
@@ -1669,6 +1905,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
     trafficClock=trafficClock+elapsed
     local changed,moving=motorcyclesCreated,false
     for _=1,stepCount do
+        local queue=WarehouseQueue.plan(deliveryEntries(state),route,dockBlocked(state,world),epoch,Network.lanePosition)
         -- Rebuild the shared actor index for each substep so every driver sees
         -- road users at their latest pose, including vehicles created during
         -- the preceding substep.
@@ -1688,7 +1925,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
             if delivery and delivery.route and delivery.route.transportId then
                 localChanged=false
             else
-                localChanged=simulateDelivery(delivery,route,step,state,epoch,world,id)
+                localChanged=simulateDelivery(delivery,route,step,state,epoch,world,id,queue)
             end
             changed=localChanged or changed
             local active=delivery and (delivery.status=='received'
@@ -1713,6 +1950,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
         world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil;world.activeTruck=nil
         world.activeTrafficBike=nil;world.trafficActors=nil;world.trafficActorIndex=nil
     end
+    TrafficBudget.record(state,(love.timer.getTime()-started)*1000,stepCount)
     return changed,moving
 end
 
@@ -1732,6 +1970,11 @@ function Network.arrived(shipment,epoch)
     return finite(route.arrivedAtEpoch) and epoch>=route.arrivedAtEpoch
 end
 
+function Network.pickupArrived(job)
+    local road=job and job.pickup and job.pickup.roadDelivery
+    return not road or Network.arrived({delivery=road})
+end
+
 function Network.tracking(shipment,now,epoch)
     local delivery=shipment and shipment.delivery or {}
     epoch=finite(epoch) and epoch or os.time()
@@ -1747,8 +1990,9 @@ function Network.tracking(shipment,now,epoch)
         and delivery.status=='received' then return 'Delivered · truck returned to '..Network.CITY end
     local inbound=delivery.route
     if inbound and inbound.vehicle and delivery.status~='received' then
-        if inbound.vehicle.phase=='waiting_bay' then return 'At The Picture Shop · loading bay occupied' end
-        if inbound.vehicle.phase=='approaching_wait' then return 'In town · loading bay occupied' end
+        local slot=tostring(inbound.vehicle.pathTarget or ''):match('^waiting%-(%d+)$')
+        if inbound.vehicle.phase=='waiting_bay' then return 'At The Picture Shop · queue position '..(slot or '?') end
+        if inbound.vehicle.phase=='approaching_wait' then return 'In town · joining queue position '..(slot or '?') end
         if inbound.vehicle.phase=='at_bay' then return 'At The Picture Shop · warehouse loading bay' end
         if inbound.vehicle.phase~='offmap' then return 'In town · on the way to The Picture Shop' end
     end
@@ -1765,6 +2009,30 @@ function Network.tracking(shipment,now,epoch)
     return Network.CITY..' · preparing shipment'
 end
 
+function Network.cachedWorld(town)
+    local cached=town and routeCache[town]
+    return cached and cached.world
+end
+-- Read physical poses without constructing route planners or sampling trips.
+-- Small indoor views do not need the full map's render-only fallback routes.
+function Network.physicalActors(state)
+    local result,seen={},{}
+    for _,entry in ipairs(deliveryEntries(state))do
+        local delivery=entry.delivery
+        local inbound,outbound=delivery.route,delivery.returnRoute
+        local vehicle=outbound and outbound.vehicle and outbound.vehicle.phase~='offmap' and outbound.vehicle
+            or delivery.status~='received' and inbound and inbound.vehicle
+                and inbound.vehicle.phase~='offmap' and inbound.vehicle
+        if vehicle and not (inbound and inbound.transportId) then
+            local id=vehicle.trafficId or entry.id
+            if not seen[id] then
+                seen[id]=true
+                result[#result+1]={id=id,shipmentId=entry.id,actor=vehicle,truck=true,phase=vehicle.phase}
+            end
+        end
+    end
+    return result
+end
 function Network.actors(state,town,now,epoch,activeWorld)
     local route=townWorld(town,activeWorld)
     if not route then return {} end

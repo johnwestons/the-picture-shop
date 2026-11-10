@@ -18,10 +18,12 @@ local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,wi
 local fields={seed={x=590,y=118,width=310,height=42},name={x=590,y=259,width=310,height=40}}
 buttons.island={x=215,y=73,width=180,height=28}
 local progressCancel={x=380,y=408,width=200,height=44}
+local confirmation={tutorial={x=240,y=320,width=480,height=58},
+    backPreview={x=240,y=433,width=220,height=46},confirmCreate={x=480,y=433,width=240,height=46}}
 local pageSize=4
 local generationSerial=0
 function Setup.buttonCenter(name)
-    local b=buttons[name] or fields[name];return b.x+b.width/2,b.y+b.height/2
+    local b=buttons[name] or fields[name] or confirmation[name];return b.x+b.width/2,b.y+b.height/2
 end
 local function randomSeed()
     return (love and love.math and love.math.random or math.random)(1,2147483646)
@@ -157,7 +159,8 @@ function Setup.new(options,asyncGeneration)
     local items,err=Presets.load()
     local state={seedText=tostring(options.townSeed or randomSeed()),nameText='',items=items,
         page=1,selected=nil,focus=nil,message='Roll or enter a number or word, then generate a preview.',
-        settings=Options.copy(options.island),dirty=true,terrainVisible=true,asyncGeneration=asyncGeneration==true}
+        settings=Options.copy(options.island),dirty=true,terrainVisible=true,asyncGeneration=asyncGeneration==true,
+        tutorialEnabled=options.tutorialEnabled~=false}
     if options.town and Town.valid(options.town) then show(state,options.town)
     end
     if err then state.message=err end
@@ -165,6 +168,7 @@ function Setup.new(options,asyncGeneration)
 end
 function Setup.wantsTextInput(state) return state and state.focus~=nil or false end
 function Setup.textinput(state,value)
+    if state.confirming then return false end
     if not state.focus or type(value)~='string' then return false end
     local key=state.focus=='seed' and 'seedText' or 'nameText'
     value=state.focus=='seed' and value:gsub('[^%a%d]','') or value:gsub('[^%w %.%-]','')
@@ -185,7 +189,7 @@ local function action(state,name,options)
         state.message='Seed rolled. Generate a preview to see this town.'
     elseif name=='start' then
         if state.dirty or not state.town then state.message='Generate a preview before creating your shop.'
-        elseif Town.valid(state.town) then options.town=Town.copy(state.town);options.townSeed=state.town.seed;return 'start' end
+        elseif Town.valid(state.town) then state.confirming=true end
     elseif name=='previous' or name=='next' then
         local pages=math.max(1,math.ceil(#state.items/pageSize))
         state.page=(state.page-1+(name=='next' and 1 or -1))%pages+1
@@ -208,7 +212,27 @@ local function action(state,name,options)
     end
     return 'changed'
 end
+local function confirm(state,name,options)
+    if name=='tutorial' then state.tutorialEnabled=not state.tutorialEnabled
+    elseif name=='backPreview' then state.confirming=false
+    elseif name=='confirmCreate' and not state.dirty and state.town and Town.valid(state.town) then
+        options.town=Town.copy(state.town);options.townSeed=state.town.seed
+        options.tutorialEnabled=state.tutorialEnabled
+        state.confirming=false;return 'start'
+    end
+    return 'changed'
+end
+function Setup.nextAction(state)
+    if state.previewJob or state.optionsPage or state.confirming then return nil end
+    return (state.dirty or not state.town) and 'generate' or 'start'
+end
 function Setup.keypressed(state,key,options)
+    if state.confirming then
+        if key=='escape' or key=='back' then return confirm(state,'backPreview',options) end
+        if key=='space' then return confirm(state,'tutorial',options) end
+        if key=='return' or key=='kpenter' then return confirm(state,'confirmCreate',options) end
+        return 'changed'
+    end
     if state.previewJob then
         if key=='escape' or key=='back' then Setup.cancelGeneration(state) end
         return 'changed'
@@ -270,6 +294,10 @@ local function optionRows(state)
     return rows
 end
 function Setup.mousepressed(state,x,y,options)
+    if state.confirming then
+        for name,b in pairs(confirmation) do if Ui.contains(b,x,y) then return confirm(state,name,options) end end
+        return 'changed'
+    end
     if state.previewJob then
         if Ui.contains(progressCancel,x,y) then Setup.cancelGeneration(state) end
         return 'changed'
@@ -394,9 +422,40 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
         local hovered=mouseX and mouseY and Ui.contains(b,mouseX,mouseY)
         local disabled=(name=='start' or name=='save') and (state.dirty or not state.town)
         Skin.button(assets,b,disabled and 'disabled' or Ui.pressWithin(b) and 'pressed' or hovered and 'hover' or 'normal')
+        if Setup.nextAction(state)==name then
+            local pulse=.5+.5*math.sin((love.timer and love.timer.getTime() or 0)*math.pi*1.5)
+            love.graphics.setColor(.22,.85,.43,.12+.10*pulse)
+            love.graphics.rectangle('fill',b.x,b.y,b.width,b.height,5,5)
+            love.graphics.setColor(.40,1,.57,.5+.35*pulse);love.graphics.setLineWidth(2)
+            love.graphics.rectangle('line',b.x-2,b.y-2,b.width+4,b.height+4,6,6)
+            love.graphics.setLineWidth(1)
+        end
         local font=Fonts.fit('metal',labels[name],15,b.width-16,b.height-12)
         love.graphics.setFont(font);love.graphics.setColor(disabled and {.5,.55,.52,1} or {.95,.98,.9,1})
         love.graphics.printf(labels[name],b.x+8,b.y+(b.height-font:getHeight())/2,b.width-16,'center')
+    end
+    text(Setup.nextAction(state)=='generate' and '1. Generate a preview to see your town.'
+        or '2. Review the map, then Create Shop.',590,215,310,12,{.60,.97,.70,1})
+    if state.confirming then
+        local g=love.graphics
+        g.setColor(.005,.012,.015,.84);g.rectangle('fill',0,0,960,684)
+        Skin.panel(assets,{x=205,y=190,width=550,height=315})
+        text('IS THIS YOUR TOWN?',235,215,490,24,{1,.86,.36,1},'center')
+        text('Create this town in save slot '..slot..'?',240,258,480,17,nil,'center')
+        text('Town seed: '..tostring(state.town.seed),240,292,480,15,nil,'center')
+        local b=confirmation.tutorial
+        Ui.panel(b,{.09,.16,.15,1},{.4,.65,.48,1},5,1)
+        g.setColor(.73,.94,.76,1);g.rectangle('line',b.x+15,b.y+16,25,25,3,3)
+        if state.tutorialEnabled then
+            g.setLineWidth(3);g.line(b.x+20,b.y+29,b.x+26,b.y+35,b.x+36,b.y+22);g.setLineWidth(1)
+        end
+        text('Enable tutorial',b.x+54,b.y+8,400,19,{.88,1,.88,1})
+        text('First steps with saved, detailed instructions.',b.x+54,b.y+33,408,12)
+        text('Space: tutorial  /  Enter: create  /  Esc: back',240,393,480,13,nil,'center')
+        for _,name in ipairs({'backPreview','confirmCreate'}) do
+            local rect=confirmation[name];Skin.button(assets,rect,'normal')
+            text(name=='backPreview' and 'KEEP LOOKING' or 'CREATE THIS SHOP',rect.x+8,rect.y+14,rect.width-16,16,nil,'center')
+        end
     end
     if state.previewJob then
         local g=love.graphics;local job=state.previewJob

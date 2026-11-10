@@ -1,6 +1,6 @@
 -- Shared local-road rules for autonomous delivery vehicles. Town road speed
 -- and driver skill are deliberately separate from off-map city trip estimates.
-local Rules={NORMAL_TOWN_SPEED=8.6,STOP_DWELL_SECONDS=1.0,
+local Rules={NORMAL_TOWN_SPEED=6.8,STOP_DWELL_SECONDS=1.0,
     MIN_FOLLOW_GAP=2.6,FOLLOW_HEADWAY=1.15,BRAKE_DECELERATION=2.2,
     INTERACTION_RADIUS=32,MAX_PASS_CLOSING_SPEED=48,PASS_SEARCH_MARGIN=8}
 local Footprint=require('src.commute.truck_footprint')
@@ -15,7 +15,7 @@ function Rules.dimensions(actor)
     return Footprint.dimensions(actor)
 end
 function Rules.brakeDeceleration(actor)
-    return actor and (actor.trafficKind=='motorcycle' or actor.aiKind=='motorcycle') and 4.5
+    return actor and (actor.trafficKind=='motorcycle' or actor.aiKind=='motorcycle') and 2.8
         or Rules.BRAKE_DECELERATION
 end
 
@@ -26,14 +26,14 @@ function Rules.drivingSide(town)
 end
 
 function Rules.laneOffset(segment,drivingSide,leftTurn,vehicle)
-    -- Bridge decks are narrow and have a hard rail immediately beyond the
-    -- paved edge. Keep the vehicle centered there instead of carrying a road
-    -- lane offset into the guardrail clearance.
-    if not segment or segment.bridge or segment.junction
+    -- Narrow decks need the center for rail clearance. Wide bridges retain
+    -- their traffic lanes, just like the road on either side.
+    if not segment or segment.junction
         or segment.surface=='dirt' or segment.role=='drive' then return 0 end
     local lanes=segment.lanes or 0
     local width=segment.width or 0
     if width<=0 then return 0 end
+    if segment.bridge and (width<7.2 or width/math.max(1,lanes)<3.2) then return 0 end
     if segment.turnLane and leftTurn then return 0 end
     if lanes<2 then
         local motorcycle=vehicle and (vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle')
@@ -63,6 +63,14 @@ function Rules.driverTownSpeed(vehicle)
     -- reaches ordinary town speed but never gains a speed bonus on the map.
     local factor=skill and (.70+.30*clamp(skill/55,0,1)) or 1
     return Rules.NORMAL_TOWN_SPEED*factor
+end
+
+function Rules.roadSpeed(segment)
+    if not segment then return Rules.NORMAL_TOWN_SPEED end
+    if segment.role=='drive' or segment.truckOnly then return 2.8 end
+    if segment.bridge then return 4.2 end
+    if segment.surface=='dirt' or (segment.lanes or 2)<2 then return 4.8 end
+    return Rules.NORMAL_TOWN_SPEED
 end
 
 local function followingSpeedLimit(vehicle,leadSpeed,desired,speed,clearance)

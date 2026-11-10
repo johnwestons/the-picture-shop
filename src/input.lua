@@ -6,6 +6,7 @@ local PalletPickup = require("src.pallet_pickup")
 local function submitDeliverySignature(context)
     local state=context.state
     local screen=context.deliverySignatureScreen
+    if screen and screen.canSign and not screen.canSign() then return true end
     local deliveryId=screen and screen.deliveryId and screen.deliveryId()
     if not deliveryId then
         state.message="The delivery receipt is no longer available."
@@ -17,7 +18,7 @@ local function submitDeliverySignature(context)
         return true
     end
     local accepted=context.world.signDelivery
-        and context.world.signDelivery(state,context.world.player)
+        and context.world.signDelivery(state,context.world.player,{deliveryId=deliveryId,ink=screen.signature and screen.signature()})
     if accepted then
         screen.clear()
         state.screen="world"
@@ -142,6 +143,11 @@ function Input.keypressed(key, context)
         return true
     end
     if context.roomControl and context.roomControl(key) then return true end
+    if key == "escape" or key == "back" then
+        local console = state.screen == "computer" and context.computerScreen
+            or state.screen == "workshop_remote" and context.workshopRemoteScreen
+        if console and console.dismissBrowserOverlay and console.dismissBrowserOverlay() then return true end
+    end
     if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
         and context.workshopRemoteScreen.hasMachineModal() then
         return context.workshopRemoteScreen.keypressed(key,state,context.requestWorkshopCommand)
@@ -497,7 +503,9 @@ function Input.keypressed(key, context)
             if state.machineType == "cutter" then context.saveCurrent() end
         end
     elseif state.screen == "computer" then
-        return context.computerScreen.keypressed(state, key)
+        local result = context.computerScreen.keypressed(state, key)
+        if type(result) == "table" and result.emailRead then context.saveCurrent() end
+        return result
     elseif state.screen == "pallet_work_order" then
         return false
     elseif state.screen == "job_offer" then
@@ -525,6 +533,13 @@ function Input.textinput(text, context)
         return context.workshopRemoteScreen.textinput(text)
     end
     return false
+end
+
+function Input.signaturePointerPressed(id,x,y,context)
+    local result=context.deliverySignatureScreen.pointerpressed(id,x,y)
+    if result and result.action=='cancel' then return Input.closeScreen(context) end
+    if result and result.action=='sign' then return submitDeliverySignature(context) end
+    return true
 end
 
 function Input.mousepressed(x, y, button, context)
@@ -769,6 +784,12 @@ function Input.wheelmoved(x, y, context)
 end
 
 function Input.mousereleased(x, y, button, context)
+    if context.state.screen=='workshop_remote' and context.workshopRemoteScreen.mousereleased then
+        return context.workshopRemoteScreen.mousereleased(context.state,x,y,button)
+    end
+    if context.state.screen=='delivery_signature' then
+        return context.deliverySignatureScreen.mousereleased(x,y,button)
+    end
     if context.state.screen=="air_hockey" then
         require("src.screens.air_hockey_screen").mousereleased()
         return true
@@ -792,6 +813,12 @@ function Input.mousereleased(x, y, button, context)
 end
 
 function Input.mousemoved(x, y, context)
+    if context.state.screen=='workshop_remote' and context.workshopRemoteScreen.mousemoved then
+        return context.workshopRemoteScreen.mousemoved(context.state,x,y)
+    end
+    if context.state.screen=='delivery_signature' then
+        return context.deliverySignatureScreen.mousemoved(x,y)
+    end
     if context.state.screen=="critter_kombat" then
         return require("src.screens.critter_kombat_screen").mousemoved(context.airHockeyRuntime,x,y)
     end

@@ -157,9 +157,8 @@ function C.miniMapButton(R)
     return camera and {x=camera.x-80,y=camera.y,width=72,height=camera.height} or nil
 end
 function C.miniMapRect(R)
-    local width=math.min(320,math.max(220,R.Config.baseWidth*.24))
-    local height=math.min(220,math.max(150,width*.68))
-    height=math.min(height,math.max(90,R.Config.baseHeight*.55-138))
+    local width=math.min(370,math.max(300,R.Config.baseWidth*.30))
+    local height=math.min(260,math.max(110,R.Config.baseHeight*.55-138))
     return {x=R.Config.baseWidth-width-18,y=138,width=width,height=height}
 end
 function C.mobileInputEnabled(R)
@@ -270,6 +269,7 @@ local function rideNotice(R,part)
     return Cockpit.riderHint(part.rider,part.presentation) or R.state.message
 end
 function C.controlContext(R,part,controlsTop)
+    require('src.commute.cockpit').syncLayout(R)
     part=part or C.localPart(R)
     local rider=part and part.rider
     local gear=rider and rider.gear or {}
@@ -539,19 +539,31 @@ function C.mapPointer(R,x,y)
             local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
             if view.routeMap:pressMiniFollow(rect,x,y,actor) then return true end
             if view.routeMap:pressMiniZoom(rect,x,y) then return true end
-            local id=view.routeMap:hitMini(rect,x,y,actor,
-                {destination=C.activeWaypoint(R),home=R.state.home.apartmentId})
-            if id then C.setWaypoint(R,id) end
+            -- The GPS is a glanceable driving display; open the town map for
+            -- choosing destinations instead of changing a route on a stray tap.
+            C.toggleMap(R)
             return true
         end
     end
     return false
+end
+function C.mapWheel(R,x,y,amount)
+    local view=R._commute
+    if not view or view.mapOpen or view.miniMapVisible==false or amount==0
+        or not require('src.screens.hud_visibility').isVisible(R) then return false end
+    local rect=C.miniMapRect(R)
+    if x<rect.x or y<rect.y or x>rect.x+rect.width or y>rect.y+rect.height then return false end
+    if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
+    view.routeMap:zoomMini(amount>0 and 1 or -1)
+    return true
 end
 function C.drawMap(R,part)
     local button=C.mapButton(R)
     if not button then return end
     local g=love.graphics;g.push('all')
     local view=R._commute
+    local mapTraffic=view.mapOpen and require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
+        require('src.business_calendar').absoluteHours(R.state),os.time(),view.world) or view.mapTraffic
     C.refreshNavigation(R,part,0,false)
     if view.mapOpen then
         if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
@@ -561,6 +573,7 @@ function C.drawMap(R,part)
         mapOptions.origin=trip.origin;mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
         mapOptions.bike=not part.rider.gear.mounted and part.rider.bike or nil
         mapOptions.route=view.navigationRoute
+        mapOptions.traffic=mapTraffic
         mapOptions.closeHint=mobile and 'Tap a marker or place to set a route'
             or 'Tap a marker or place to set a route · Esc closes'
         view.routeMap:draw(C.mapRect(R),Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),mapOptions)
@@ -574,7 +587,7 @@ function C.drawMap(R,part)
         end
         view.routeMap:drawMini(C.miniMapRect(R),Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
             destination=C.activeWaypoint(R),home=R.state.home.apartmentId,route=view.navigationRoute,
-            players=otherPlayers})
+            players=otherPlayers,traffic=mapTraffic})
     end
     require('src.screens.ui').panel(button,{.10,.15,.15,1},{.43,.53,.51,1},6,1)
     g.setColor(.94,.95,.89)
@@ -593,7 +606,6 @@ function C.drawMap(R,part)
         require('src.screens.ui').panel(nav,{.10,.15,.15,1},visible and {.64,.79,.57,1} or {.43,.53,.51,1},6,1)
         g.setColor(.94,.95,.89)
         local navLabel=visible and 'HIDE' or 'NAV'
-        if not C.mobileInputEnabled(R) then navLabel=navLabel..' TAB' end
         g.printf(navLabel,nav.x+4,nav.y+(nav.height-g.getFont():getHeight())/2,nav.width-8,'center')
     end
     g.pop()
@@ -719,7 +731,7 @@ function C.visualRider(part,player,token)
             visual.motion=player._rideMotion
             positioned.speed,positioned.heading=visual.motion.speed,visual.motion.heading
         end
-        if name=='truck' then
+        if name=='truck' and not require('src.commute.truck_motion').apply(positioned,player,token) then
             local vx,vy=player._visualVelocityX or player.velocityX or 0,
                 player._visualVelocityY or player.velocityY or 0
             local speed=M.length(vx,vy)
@@ -1284,6 +1296,7 @@ function C.update(R,dt,x,y,boost)
     return dirty
 end
 function C.draw(R)
+    require('src.commute.cockpit').syncLayout(R)
     local part=C.localPart(R);local view=R._commute
     if not part or not view then return end
     local showHud=require('src.screens.hud_visibility').isVisible(R)
@@ -1301,6 +1314,12 @@ function C.draw(R)
         end
         g.printf(message,20,R.Config.baseHeight*.46+30,R.Config.baseWidth-40,'center')
         g.setColor(1,1,1);return
+    end
+    local activeTrip=C.localTrip(R)
+    if activeTrip.deliveryRun and activeTrip.deliveryRun.status=='offmap' then
+        require('src.commute.city_delivery_scene').draw(R.Config.baseWidth,R.Config.baseHeight,
+            activeTrip.deliveryRun,Trip.truckFor(part.rider,activeTrip),view.renderer.truckArt)
+        love.graphics.setColor(1,1,1,1);return
     end
     local bindings=C.bindings(R)
     local g=love.graphics;local offsetX,offsetY,scaleX,scaleY=sceneTransform(R)
@@ -1366,6 +1385,7 @@ function C.draw(R)
     end
     local traffic=require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
         require('src.business_calendar').absoluteHours(R.state),os.time(),view.world)
+    view.mapTraffic=traffic
     if R.multiplayer:isClient() then
         view.trafficPresentation=view.trafficPresentation or {}
         local now=love.timer.getTime();local live={}
@@ -1436,7 +1456,10 @@ function C.draw(R)
     end
     if part.rider.vehicle=='truck' and view.camera.firstPerson then
         if not view.truckCockpit then view.truckCockpit=require('src.commute.truck_cockpit').new() end
-        view.truckCockpit:draw(part.rider.truck,1280,880,view.camera)
+        if view.controlFeedback and actor~=part.rider.truck then
+            actor.steering=view.controlFeedback.steer;actor.brake=view.controlFeedback.brake
+        end
+        view.truckCockpit:draw(actor,1280,880,view.camera)
     end
     if showHud then
         local truck=part.rider.vehicle=='truck' and part.rider.truck
@@ -1461,11 +1484,6 @@ function C.draw(R)
     end
     g.pop()
     end
-    local activeTrip=C.localTrip(R)
-    if activeTrip.deliveryRun and activeTrip.deliveryRun.status=='offmap' then
-        require('src.commute.city_delivery_scene').draw(R.Config.baseWidth,R.Config.baseHeight,activeTrip.deliveryRun)
-        g.setColor(1,1,1,1);return
-    end
     if not view.mapOpen and not view.doorTransition then
         drawDoorBeacon(R,part,activeTrip,view)
     end
@@ -1485,11 +1503,13 @@ function C.draw(R)
     local toolbar=require('src.screens.hud_visibility').buttons(R)[1]
     local right=(toolbar and toolbar.x or R.Config.baseWidth)-12
     local cameraWidth=math.max(1,math.min(224,right-Cockpit.CARD_X-Cockpit.CARD_WIDTH-8))
-    g.setColor(.025,.04,.035,.84);g.rectangle('fill',right-cameraWidth,62,cameraWidth,27,6)
+    g.setColor(.025,.04,.035,.94);g.rectangle('fill',right-cameraWidth,Cockpit.CARD_Y,cameraWidth,27,6)
     local mode=CameraMenu.currentLabel(view.camera)
-    local cameraLabel=cameraWidth>=180 and 'CAMERA  ·  '..mode or mode
+    local cameraLabel=cameraWidth>=180 and 'CAM  ·  '..mode or mode
+    g.push('all');g.setFont(require('src.screens.typography').get(14))
     g.setColor(.87,.91,.79);require('src.screens.player_status').printLine(cameraLabel,
-        right-cameraWidth+10,68,cameraWidth-20)
+        right-cameraWidth+10,Cockpit.CARD_Y+6,cameraWidth-20)
+    g.pop()
     local note=rideNotice(R,part)
     local mobile=C.mobileInputEnabled(R)
     local noteY,hintY,controlsTop=Cockpit.infoLayout(mobile,note)
@@ -1935,6 +1955,7 @@ function C.cameraTouchReleased(R,id)
     return true
 end
 function C.release(R)
+    require('src.commute.city_delivery_scene').release()
     if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').close(R,true) end
     if R._commute and R._commute.renderer then R._commute.renderer:release() end
     if R._commute and R._commute.cockpit then R._commute.cockpit:release() end

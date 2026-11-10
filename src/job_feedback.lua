@@ -377,7 +377,7 @@ function Feedback.requestRework(state, job)
         kind = "replacement",
         service = copy(service),
         acceptedGameHours = now,
-        readyAtHours = now + delay,
+        readyAtHours = require('src.business_hours').nextService(now + delay),
         palletIds = {},
     }
     for _, pallet in ipairs(added) do job.delivery.palletIds[#job.delivery.palletIds + 1] = pallet.id end

@@ -1,6 +1,7 @@
 -- Client input and reconciliation updates.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local TruckMotion = require('src.commute.truck_motion')
 
 local function smoothCommuteMotion(player,dt)
     local target=player and player._targetRecord
@@ -110,8 +111,9 @@ function Component.install(Runtime)
             smoothCommuteMotion(player,dt)
             if player._snapshotAge then
                 player._snapshotAge=player._snapshotAge+dt
-                if player._snapshotAge>.3 then player._rideMotion=nil end
+                if player._snapshotAge>.3 then player._rideMotion=nil;player._truckMotion=nil end
             end
+            TruckMotion.update(player,dt)
         end
         local function lead(player)
             if not player or not player._snapshotAge then return 0,0 end
@@ -131,6 +133,7 @@ function Component.install(Runtime)
             localPlayer.resting=self.localTarget.resting==true
             local own=self.players[self.localId]
             localPlayer._rideMotion=own and own._rideMotion
+            localPlayer._visualTruckMotion=own and own._visualTruckMotion
             localPlayer._visualVelocityX=own and own._visualVelocityX
             localPlayer._visualVelocityY=own and own._visualVelocityY
             localPlayer._visualIntentX=own and own._visualIntentX
@@ -393,7 +396,7 @@ function Component.install(Runtime)
         return nil
     end
 
-    function Runtime.Session:requestInteraction(targetKind, desiredState,shotAim)
+    function Runtime.Session:requestInteraction(targetKind, desiredState,shotAim,signature)
         if not self:isClient() or self.terminal or not self.ready or not self.sessionId then
             return false, "This worker device is not ready to interact with the host shop."
         end
@@ -407,6 +410,7 @@ function Component.install(Runtime)
             targetKind = targetKind,
             desiredState = desiredState,
             shotAim = shotAim,
+            signature = signature,
         }
         local ok, errorMessage = self:_sendToServer("interaction_request", request)
         if not ok then return false, errorMessage end

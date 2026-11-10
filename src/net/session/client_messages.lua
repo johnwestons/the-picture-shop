@@ -114,6 +114,7 @@ function Component.install(Runtime)
                 player._targetX, player._targetY = record.x, record.y
                 player._targetRecord = record
                 player._rideMotion = payload.bike
+                player._truckMotion = payload.truck
                 if record.id == self.localId then
                     self.localTarget = record
                 elseif (player.x - record.x) ^ 2 + (player.y - record.y) ^ 2

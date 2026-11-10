@@ -23,7 +23,8 @@ function Ground.new(options)
         totalUploadedBytes=0,maxUploadBytes=0},Ground)
     for _,v in ipairs(arg or {}) do if v=='--flat-ground' then self.enabled=false end end
     local g=love.graphics
-    self.shader=g.newShader(love.filesystem.read('src/commute/perspective.glsl')..'\n'
+    self.borrowedShader=options.shader~=nil
+    self.shader=options.shader or g.newShader(love.filesystem.read('src/commute/perspective.glsl')..'\n'
         ..love.filesystem.read('src/commute/vendor/ground.glsl'))
     local fallback=love.image.newImageData(1,1)
     fallback:setPixel(0,0,.42,.42,.42,1)
@@ -70,6 +71,6 @@ function Ground:prepare()
 end
 function Ground:release()
     for _,image in pairs(self.images) do image:release() end
-    self.shader:release()
+    if not self.borrowedShader then self.shader:release()end
 end
 return Ground

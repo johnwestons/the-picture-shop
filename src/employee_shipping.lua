@@ -63,18 +63,18 @@ function Shipping.update(state,worker,dt,context)
     if not context.pickupTruck then return false,false end
     local truck=context.pickupTruck()
     if truck.mode~="pickup" then return unloadInbound(state,worker,dt,context,truck) end
-    local job
-    if truck.mode=="pickup" then
-        for _,candidate in ipairs(state.jobs.active) do if candidate.id==truck.jobId then job=candidate;break end end
-    end
+    local job,inventory=require('src.player_delivery_loading').manifest(state,truck)
     local own=Fleet.owned(state,worker.id)
-    local pallet
+    local pallet,jobId
     if job and job.status=="pickup_in_progress" then
-        for _,p in ipairs(job.pallets) do
+        for _,item in ipairs(inventory) do
+            local p=item.pallet
             if p.status=="wrapped" and p.wrapped and not reserved(state,worker,p.id)
                 and (p.location=="warehouse" or p.location=="cutter_output" or p.location=="press_output"
                     or p.location=="on_pallet_jack") then
-                if not pallet or p.id==worker._shippingPalletId or own and own.carriedPalletId==p.id then pallet=p end
+                if not pallet or p.id==worker._shippingPalletId or own and own.carriedPalletId==p.id then
+                    pallet=p;jobId=item.jobId or job.id
+                end
                 if own and own.carriedPalletId==p.id then break end
             end
         end
@@ -128,7 +128,7 @@ function Shipping.update(state,worker,dt,context)
         worker._jackTarget=goal and {key=key,goal=goal} or nil
     end
     if not goal then worker.activity="Clear the skid's route to its assigned truck";return true,false end
-    worker.activity=loaded and "Loading "..job.id.." onto its assigned truck" or "Collecting finished skid for "..job.id
+    worker.activity=loaded and "Loading "..jobId.." onto its assigned truck" or "Collecting finished skid for "..jobId
     local reached,blocked=Transport.move(state,worker,goal,dt,context)
     if blocked then worker._jackTarget=nil end
     if not reached then return true,false end

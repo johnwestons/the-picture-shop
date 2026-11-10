@@ -134,7 +134,7 @@ function Component.install(Runtime)
                     sourceJob.press and "cut-and-print" or "paper-cutting"),
                 sourceJobId = sourceJob.id,
                 promotionId = promoId,
-                readyAtHours = Runtime.BusinessCalendar.absoluteHours(state) + 12,
+                readyAtHours = require('src.business_hours').nextService(Runtime.BusinessCalendar.absoluteHours(state) + 12),
                 standardPrice = standardPrice,
                 discountAmount = discountAmount,
                 discountedTotal = offer.quote.totalPrice,

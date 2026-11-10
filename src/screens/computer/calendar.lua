@@ -41,7 +41,7 @@ local function hourLabel(hours,twelveHourTime)
 end
 
 local function shopHoursLabel(totalDay,twelveHourTime)
-    local opens,closes=BusinessHours.window(totalDay)
+    local opens,closes=BusinessHours.serviceWindow(totalDay)
     if opens==closes then return 'CLOSED' end
     if opens==0 and closes==24 then return 'OPEN ALL DAY' end
     return 'OPEN '..hourLabel(opens,twelveHourTime)..' – '..hourLabel(closes,twelveHourTime)
@@ -160,7 +160,8 @@ function Component.install(Runtime)
             146,207,650,'center')
         local season=CustomerDemand.seasonForMonth(month)
         love.graphics.setColor(.63,.75,.75,1)
-        love.graphics.printf(string.format('%s  •  Seasonal demand %d%%  •  Click a date for its day plan',
+        love.graphics.setFont(require('src.screens.typography').get(14))
+        love.graphics.printf(string.format('%s · Demand %d%% · Select a day',
             season.name,math.floor(season.demand*100+.5)),112,235,732,'center')
 
         local weekdayLabels={'MON','TUE','WED','THU','FRI','SAT','SUN'}

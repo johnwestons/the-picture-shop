@@ -59,6 +59,7 @@ function Test.run(_,check)
     local Config=require('src.config')
     local Speech=require('src.employee_speech')
     local cutterState=State.new()
+    cutterState.calendar.elapsed=require('src.business_calendar').secondsPerDay(cutterState)*10/24
     local machine=Fleet.installed(cutterState,'polar_115')
     local cutter=machine.maintenance.cutter
     cutter.weeklyTechnician=true;cutter.nextTechnicianDay=7;cutter.technicianSequence=0

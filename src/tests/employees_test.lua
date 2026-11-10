@@ -53,31 +53,32 @@ function Test.run(context,check)
     local legacy=Schema.newPayload(1,1);legacy.version=16;legacy.state.employment=nil
     local migrated=Schema.migrate(legacy)
     check("employees_v16_save_migrates_to_empty_staff",migrated and migrated.version==Schema.VERSION and #migrated.state.employment.staff==0)
-    local a=Employees.createApplicant(fresh,0)
-    Employees.requestResume(fresh,a.id,0)
+    hours(fresh,9)
+    local a=Employees.createApplicant(fresh,9)
+    Employees.requestResume(fresh,a.id,9)
     local revision=a.revision
-    Employees.requestResume(fresh,a.id,0)
-    check("employees_resume_request_is_idempotent",a.revision==revision and a.replyAtHours==.5)
-    hours(fresh,.5);Employees.advance(fresh,.5)
+    Employees.requestResume(fresh,a.id,9)
+    check("employees_resume_request_is_idempotent",a.revision==revision and a.replyAtHours==9.5)
+    hours(fresh,9.5);Employees.advance(fresh,9.5)
     local notice=fresh.clientEmails.inbox[1]
     check("employees_typed_resume_attachment_arrives",notice and notice.applicationId==a.id and notice.attachmentKind=="resume" and a.status=="resume_received")
-    local low={kind="offer_employee",applicationId=a.id,expectedRevision=a.revision,wageCents=1500,days=31,startHour=9,endHour=17}
-    check("employees_offer_goes_through_typed_office_intent",Intent.normalize(low)~=nil and Employees.command(fresh,low,.5))
-    hours(fresh,1.25);Employees.advance(fresh,1.25)
+    local low={kind="offer_employee",applicationId=a.id,expectedRevision=a.revision,wageCents=1500,days=31,startHour=12,endHour=20}
+    check("employees_offer_goes_through_typed_office_intent",Intent.normalize(low)~=nil and Employees.command(fresh,low,9.5))
+    hours(fresh,10.25);Employees.advance(fresh,10.25)
     check("employees_low_offer_produces_stable_counter",a.status=="resume_received" and a.counter.wageCents==2200 and a.counters==1)
     low.expectedRevision=a.revision
-    Employees.command(fresh,low,1.25)
+    Employees.command(fresh,low,10.25)
     check("employees_duplicate_terms_do_not_consume_round",a.counters==1 and a.status=="resume_received")
     low.expectedRevision=a.revision-1;low.wageCents=2200
-    check("employees_stale_offer_is_rejected",not Employees.command(fresh,low,1.25))
+    check("employees_stale_offer_is_rejected",not Employees.command(fresh,low,10.25))
     low.expectedRevision=a.revision
-    Employees.command(fresh,low,1.25)
-    hours(fresh,2);Employees.advance(fresh,2)
+    Employees.command(fresh,low,10.25)
+    hours(fresh,11);Employees.advance(fresh,11)
     check("employees_applicant_accepts_viable_offer",a.status=="offer_accepted" and a.offer.wageCents==2200)
     local sign={kind="hire_employee",applicationId=a.id,expectedRevision=a.revision}
-    check("employees_final_agreement_creates_cat_employee",Employees.command(fresh,sign,2)
+    check("employees_final_agreement_creates_cat_employee",Employees.command(fresh,sign,11)
         and fresh.employment.staff[1].id=="EMP-0001" and fresh.employment.staff[1].character=="cat-worker")
-    Employees.command(fresh,sign,2)
+    Employees.command(fresh,sign,11)
     check("employees_signing_is_idempotent",#fresh.employment.staff==1)
     local w=fresh.employment.staff[1]
     local scheduleStatusState=State.new();local scheduleStatusWorker=hire(scheduleStatusState)
@@ -92,7 +93,7 @@ function Test.run(context,check)
     check("employees_staff_panel_reports_empty_shared_schedule_accurately",
         emptyStatus=="No scheduled work" and emptyDetail:find("Add jobs",1,true)~=nil)
     check("employees_contract_has_next_upcoming_shift_and_pay_preview",w.contract.startDay==0
-        and Contracts.weeklyEstimate(w.contract)==797.5 and Contracts.onShift(w.contract,9) and not Contracts.onShift(w.contract,17))
+        and Contracts.weeklyEstimate(w.contract)==797.5 and Contracts.onShift(w.contract,12) and not Contracts.onShift(w.contract,20))
     local changeState=State.new();local changing=hire(changeState)
     changing.shiftPreference="flexible"
     local originalDays,originalEnd=changing.contract.days,changing.contract.endHour

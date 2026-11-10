@@ -55,11 +55,15 @@ end
 
 local function settle(R)
     local renderer=R._commute.renderer
-    for i=1,140 do
+    local deadline=love.timer.getTime()+60
+    local i=0
+    repeat
+        i=i+1
         R.App.update(1/60)
-        if i>=12 and renderer.vegetation:stats().pending==0 and
+        if i>=30 and renderer:terrainReady() and renderer.vegetation:stats().pending==0 and
             renderer.plantSprites:readyFor(renderer.visibleProps,renderer.calendar,renderer.clock) then break end
-    end
+        assert(love.timer.getTime()<deadline,'Infrastructure view did not finish streaming')
+    until false
 end
 
 local function inspect(R,meshes,target,role,name,check)
@@ -85,6 +89,24 @@ local function inspect(R,meshes,target,role,name,check)
         ('outside=%d firstPerson=%d'):format(outside.streetFurniture,first.streetFurniture))
 end
 
+local function overview(R,meshes,area,check)
+    local part=Commute.localPart(R);local bike=part.rider.bike
+    local world=Commute.world(R);local layout=require('src.commute.recreation_layout')
+    bike.x,bike.z=layout.point(area,0,area.radius*.2)
+    bike.heading,bike.speed=(area.heading or 0)+math.pi,0
+    Bike.resetHorizontal(bike);Bike.resetContact(bike,world)
+    Commute.syncPlayer(R.World.player,part)
+    local camera=R._commute.camera
+    camera:setFirstPerson(false,bike);camera:setOutsideMode('fixed',bike,true);camera:recenter()
+    camera.yaw=(-bike.heading*180/math.pi-90)%360;camera.fixedYaw=camera.yaw
+    camera.tilt=60;camera.zoom,camera.targetZoom=.55,.55
+    settle(R)
+    local shown=R.App.settings.hudVisible;R.App.settings.hudVisible=false
+    local rendered=frame(R,'infra-'..area.kind..'-overview',meshes)
+    R.App.settings.hudVisible=shown
+    check('infrastructure_runtime_expanded_'..area.kind..'_renders_in_generated_terrain',rendered.streetFurniture>0)
+end
+
 function Test.run(context,check)
     local R=assert(context.appRuntime)
     local oldProfile,oldMovement,oldDrive=R.App.settings.motorcycleControls,R.Input.movement,Bindings.drive
@@ -94,8 +116,8 @@ function Test.run(context,check)
         R.Save.delete(3)
         local town=assert(require('src.commute.town').generate(712345))
         assert(R.startGame(assert(R.Save.newGame(3,{apartmentId='garden',town=town})),'smoke'))
-        R.state.screen='world';R.state.calendar=Calendar.dateFromHours(44)
-        R.state.calendar.elapsed=44%24/24*Calendar.secondsPerDay(R.state)
+        R.state.screen='world';R.state.calendar=Calendar.dateFromHours(58)
+        R.state.calendar.elapsed=58%24/24*Calendar.secondsPerDay(R.state)
         local week=R.state.home.weekend
         week.phase='ready';week.closedAtHours=44;week.travelToken=98;week.readyMask=1
         local world=Commute.world(R)
@@ -139,6 +161,9 @@ function Test.run(context,check)
         R.App.keypressed('m');assert(not R._commute.mapOpen)
         inspect(R,meshes,assert(camp),'trail','infra-recreation',check)
         inspect(R,meshes,assert(picnic),'trail','infra-picnic-table',check)
+        for _,area in ipairs(town.recreation) do
+            if require('src.commute.recreation_layout').expanded(area) then overview(R,meshes,area,check) end
+        end
         local stopRole=mainRoads[assert(stop).roadId] and 'main' or 'local'
         inspect(R,meshes,stop,stopRole,'infra-stop-sign',check)
         if #plan.rails>0 then

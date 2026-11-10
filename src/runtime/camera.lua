@@ -11,6 +11,7 @@ function Component.install(Runtime)
 
     function Runtime.App.officeFitsScreen()
         return Runtime.state.screen == "computer"
+            or Runtime.state.screen == 'notifications'
             or Runtime.state.screen == "shop_rooms"
             or Runtime.state.screen == "home_travel"
             or Runtime.state.screen == "home_activity"

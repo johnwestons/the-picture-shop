@@ -267,6 +267,18 @@ local function fullCycle(context,check)
     local blocked=true
     world.configureEmployees({players=function() return {} end,canClaim=function() return false end,
         canLoadTruck=function() return not blocked end})
+    -- This fixture calls the warehouse directly, so also tick the exterior
+    -- traffic normally advanced by commute.runtime before scheduling a pickup.
+    local traffic=require('src.commute.delivery_traffic')
+    local epoch=os.time()
+    world.updateSimulation(.1,context.assets,s,.1)
+    check("room_shipping_customer_pickup_waits_for_exterior_truck",world.truck.state=="absent"
+        and not traffic.pickupArrived(j))
+    for step=1,6500 do
+        traffic.simulate(s,s.home.town,.1,epoch+step*.1)
+        if traffic.pickupArrived(j) then break end
+    end
+    check("room_shipping_customer_pickup_arrives_on_exterior_road",traffic.pickupArrived(j))
     for _=1,100 do
         Calendar.update(s,.1);world.updateSimulation(.1,context.assets,s,.1)
     end

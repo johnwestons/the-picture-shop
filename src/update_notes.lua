@@ -1,6 +1,20 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.105",
+        date = "Nov 10, 2026",
+        title = "Readable interfaces and connected delivery routes",
+        changes = {
+            "Courier Prime typewriter text, clearer HUD balances, larger mobile office pages, and scrollable job details improve readability.",
+            "Player and employee trucks carry multiple completed jobs, with delivery stops and navigation for mixed destinations.",
+            "Customer pickup trucks appear on town roads; stalled traffic can recover and resume its deliveries.",
+            "Improved town roads, recreation areas, GPS directions, and a loading-dock exterior connect warehouse work with travel.",
+            "Tutorial lessons and saved notices explain gameplay; the office browser and receipt archive keep information accessible.",
+            "Customer replies and receiving schedules respect business hours while owners can continue production.",
+            "PC 105 and Android 105 share multiplayer protocol 74. Update every participant before joining together.",
+        },
+    },
+    {
         version = "0.1.0-android.104",
         date = "Nov 9, 2026",
         title = "Gameplay and delivery reliability",

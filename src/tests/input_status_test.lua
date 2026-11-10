@@ -352,6 +352,7 @@ function Test.run(context, check)
         and routedActions[3] == "place_machine")
 
     local state = context.State.new()
+    state.calendar.elapsed=context.businessCalendar.secondsPerDay(state)*10/24
     local bought, order = context.procurement.buy(state, 1, 1)
     local rows = context.computerScreen.deliveryRows(state)
     local inventory = context.procurement.inventoryRows(state)

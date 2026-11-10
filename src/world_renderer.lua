@@ -553,13 +553,15 @@ local function drawPlayer(characterAssets,state)
     love.graphics.rectangle("fill", player.x - 13, player.y - 10, 26, 18)
 end
 
-function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers)
+function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, remotePlayers, exteriorContext)
     WarehouseRenderer.beginFrame()
     World = world
     palletPickup = state.screen == "world" and World.palletPickupSnapshot(state, mouseX, mouseY) or nil
     local Rooms=require("src.shop_rooms")
+    require('src.dock_renderer').selectScene(Rooms.scene(World.player),state)
     require("src.shop_room_renderer").selectScene(Rooms.scene(World.player))
     local physicalPallets=PalletLogistics.physicalPallets(state)
+    local exteriorPlayers=remotePlayers or {}
     local sameRoomPlayers={}
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
     remotePlayers=sameRoomPlayers
@@ -577,7 +579,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
                 if machine.modelId=="polar_115" then drawCutter(assets,state,machine.world)
                 elseif machine.modelId=="skid_wrapper" then drawWrapper(assets,state,machine.world)
                 elseif machine.modelId=="heidelberg_10x15" then drawWindmill(assets,state,machine.world) end
-            end,physicalPallets)
+            end,physicalPallets,exteriorPlayers,exteriorContext)
         WarehouseRenderer.endFrame()
         return
     end
@@ -588,12 +590,17 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     drawWallVentFan(assets)
     local clock=Config.interactables.shopClock
     ShopClock.drawFace(state,clock.wallX,clock.wallY,clock.clockRadius)
-    OutdoorWeather.drawExterior(state,World.bayDoor,Config,assets)
-    OutdoorWeather.draw(state,World.bayDoor,Config)
-    drawBayDoor(assets)
-    drawTruck(assets, state)
+    if Config.warehouse.roomScenes then
+        require('src.dock_renderer').draw(World,assets,characterAssets,state,exteriorPlayers,exteriorContext,
+            'warehouse',Config.truck.aperture,function()drawTruck(assets,state)end)
+    else
+        OutdoorWeather.drawExterior(state,World.bayDoor,Config,assets)
+        OutdoorWeather.draw(state,World.bayDoor,Config)
+        drawBayDoor(assets);drawTruck(assets,state)
+    end
     PlacementGrid.draw(World.placementGridSnapshot(state, assets))
     local visibleCharacters = {}
+    for character in pairs(require('src.dock_renderer').characters())do visibleCharacters[character]=true end
     visibleCharacters[World.player.character or Config.player.character] = true
     for _, remotePlayer in ipairs(remotePlayers or {}) do
         visibleCharacters[remotePlayer.character or Config.player.character] = true

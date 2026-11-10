@@ -22,11 +22,12 @@ local labels={solo="1   SOLO VS AI",versus="2   VERSUS PLAYER",join="3   JOIN PL
     left="LEFT",right="RIGHT",jump="JUMP",punch="PUNCH",kick="KICK",block="BLOCK"}
 local function inside(x,y,r) return x>=r[1] and x<=r[1]+r[3] and y>=r[2] and y<=r[2]+r[4] end
 local function font(size)
-    if not fonts[size] then fonts[size]=love.graphics.newFont("assets/fonts/VT323-Regular.ttf",size) end
+    if not fonts[size] then fonts[size]=require('src.screens.typography').get(size) end
     love.graphics.setFont(fonts[size])
 end
 local function text(value,x,y,width,size,color)
-    font(size);love.graphics.setColor(unpack(color or {1,.86,.55,1}))
+    love.graphics.setFont(require('src.screens.typography').fit(value,size,width-12,nil,nil,16))
+    love.graphics.setColor(unpack(color or {1,.86,.55,1}))
     love.graphics.printf(value,x,y,width,"center")
 end
 local function matchFor(runtime)

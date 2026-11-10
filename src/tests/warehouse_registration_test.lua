@@ -231,8 +231,8 @@ end
 local function applicant(context,check)
     local state=State.new();state.employment.recruiting=false
     local app=assert(Employees.createApplicant(state,0));local ctx=context.world.employeeContext(state,context.assets)
-    state.employment.recruiting=false;state.employment.lastAtHours=8;hours(state,8)
-    for tick=1,200 do hours(state,8+tick*.002);AI.update(state,.1,ctx);if app.actor.phase=="waiting" then break end end
+    state.employment.recruiting=false;state.employment.lastAtHours=9;hours(state,9)
+    for tick=1,200 do hours(state,9+tick*.002);AI.update(state,.1,ctx);if app.actor.phase=="waiting" then break end end
     check("warehouse_applicant_reaches_new_reception",app.actor.phase=="waiting"
         and app.actor.x==Map.reception.x and app.actor.y==Map.reception.y)
     local previousState=context.world._state

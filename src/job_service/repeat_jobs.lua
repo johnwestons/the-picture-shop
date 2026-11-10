@@ -26,8 +26,9 @@ function Component.install(Runtime)
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local clientReplyHours = Runtime.emailDelay(job, 1, 3)
         local settings = Runtime.App and Runtime.App.settings
-        return Runtime.BusinessCalendar.dateTimeTextAtHours(now + clientReplyHours
-            + (tonumber(service.delayHours) or 0),
+        local hours=require('src.business_hours')
+        return Runtime.BusinessCalendar.dateTimeTextAtHours(hours.nextService(hours.nextService(now + clientReplyHours)
+            + (tonumber(service.delayHours) or 0)),
             not (settings and settings.twelveHourTime==false))
     end
 
@@ -51,7 +52,7 @@ function Component.install(Runtime)
                 and "Please review the job details and send a production estimate. Include shop delivery as a separate option; we may arrange our own transportation if the fee does not work for us."
                 or "Please review the job details and send a production estimate. We will arrange our own transportation for the shipment.",
             sourceJobId = job.id,
-            readyAtHours = now + Runtime.emailDelay(job, 2, 5),
+            readyAtHours = require('src.business_hours').nextService(now + Runtime.emailDelay(job, 2, 5)),
             estimateRequest = true,
             followupCount = 0,
             followupLimit = followupLimit,
@@ -168,7 +169,7 @@ function Component.install(Runtime)
                 and "Please quote another cut-and-print job for us."
                 or "Please quote another paper-cutting job for us.",
             sourceJobId = completedJob.id,
-            readyAtHours = Runtime.BusinessCalendar.absoluteHours(state) + followupHours,
+            readyAtHours = require('src.business_hours').nextService(Runtime.BusinessCalendar.absoluteHours(state) + followupHours),
             job = offer,
         }
         if couponPrices then
@@ -184,10 +185,8 @@ function Component.install(Runtime)
 
     function Runtime.JobService.updateClientEmails(state)
         local emails = Runtime.ensureEmails(state)
-        -- Client communication is held during the Saturday/Sunday shutdown.
-        -- Leave due mail and estimate decisions queued so Monday's first update
-        -- delivers each response through the normal inbox flow.
-        if Runtime.BusinessCalendar.isWeekend(state) then return false end
+        -- Leave client replies and estimate decisions queued overnight/weekends.
+        if not Runtime.BusinessCalendar.isBusinessOpen(state) then return false end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local delivered = false
 
@@ -227,7 +226,7 @@ function Component.install(Runtime)
                 email.job.estimate = email.job.estimate or {}
                 email.job.estimate.followupCount = email.followupCount
                 email.nextFollowupAtHours = email.followupCount < limit
-                    and now + math.max(1, tonumber(email.followupIntervalHours) or 24) or nil
+                    and require('src.business_hours').nextService(now + math.max(1, tonumber(email.followupIntervalHours) or 24)) or nil
                 delivered = true
             end
         end
@@ -236,8 +235,8 @@ function Component.install(Runtime)
             if pending.estimateReply and pending.job then
                 local sentAtHours = tonumber(pending.job.estimate and pending.job.estimate.sentAtHours)
                 if sentAtHours then
-                    pending.readyAtHours = math.min(tonumber(pending.readyAtHours) or sentAtHours,
-                        sentAtHours + Runtime.emailDelay(pending.job, 1, 3))
+                    pending.readyAtHours = require('src.business_hours').nextService(math.min(tonumber(pending.readyAtHours) or sentAtHours,
+                        sentAtHours + Runtime.emailDelay(pending.job, 1, 3)))
                 end
             end
             if now + 0.000001 >= emails.pending[index].readyAtHours then

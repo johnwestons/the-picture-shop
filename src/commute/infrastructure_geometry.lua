@@ -126,8 +126,12 @@ local function trailSign(m)
     G.triangle(m,{.015,.091,1.12},{.14,.091,1.32},{.29,.091,1.12},{.78,.78,.62},{0,0,1})
 end
 local templates={}
+local recreation=require('src.commute.recreation_geometry')
 local constructors={stop=stop,lamp=lamp,mailbox=mailbox,table=tableModel,bench=bench,tent=tent,fireRing=fireRing,
-    trailSign=trailSign,curveR=function(m)curve(m,1)end,curveL=function(m)curve(m,-1)end}
+    trailSign=trailSign,curveR=function(m)curve(m,1)end,curveL=function(m)curve(m,-1)end,
+    pond=recreation.pond,stage=recreation.stage,logSeat=recreation.logSeat,
+    rangerHut=recreation.rangerHut,outhouse=recreation.outhouse,
+    parkSign=function(m)recreation.parkSign(m,'PARK')end,campSign=function(m)recreation.parkSign(m,'CAMP')end}
 local function model(kind)
     if not templates[kind] then
         local m=G.new()
@@ -145,6 +149,7 @@ local function put(piece,v)
 end
 local function fixture(piece,f)
     local kind=f.kind=='curve' and (f.turn>=0 and 'curveR' or 'curveL') or f.kind
+    if kind=='parkSign' and f.label=='CAMP' then kind='campSign' end
     for _,v in ipairs(model(kind)) do
         put(piece,{f.x+v[1]*f.fz+v[2]*f.fx,f.z-v[1]*f.fx+v[2]*f.fz,f.h+v[3],
             v[4]*f.fz+v[6]*f.fx,v[5],-v[4]*f.fx+v[6]*f.fz,0,0,v[9],v[10],v[11],1})
@@ -198,6 +203,14 @@ function Geo.build(plan)
     for _,w in ipairs(plan.walks) do walk(tile(w,'sidewalk'),w) end
     for _,r in ipairs(plan.rails) do rail(tile(r,'streetFurniture'),r) end
     for _,f in ipairs(plan.fixtures) do fixture(tile(f,'streetFurniture'),f) end
+    for _,surface in ipairs(plan.recreationSurfaces or {}) do
+        local mesh=G.new();local corners=surface.corners
+        for i=2,#corners-1 do
+            G.triangle(mesh,corners[1],corners[i],corners[i+1],surface.color,{0,1,0})
+        end
+        local piece=tile(surface,'streetFurniture')
+        for _,v in ipairs(mesh.vertices) do put(piece,v) end
+    end
     for _,p in ipairs(pieces) do
         local b=p.bounds
         p.x,p.z,p.h=(b.minX+b.maxX)*.5,(b.minZ+b.maxZ)*.5,b.minH

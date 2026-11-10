@@ -30,13 +30,11 @@ function Component.install(Runtime)
                 detail = string.format("%d stock sheets available", Runtime.Procurement.paperAvailable(state)),
             }
         end
-        if #options == 0 then
-            state.message = "No unfinished pallet is inside the cutter's expanded load radius."
-            return false
-        end
         Runtime.Screen.loadMenu = { options = options, selected = 1 }
         Runtime.Screen.gaugeFocused = false
-        state.message = "Choose which nearby pallet to load onto the cutter."
+        state.message = #options > 0
+            and "Choose which nearby pallet to load onto the cutter."
+            or "No eligible paper is inside the cutter's expanded load radius. Move a skid closer or add generic stock."
         return true
     end
 

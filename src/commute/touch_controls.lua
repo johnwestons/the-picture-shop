@@ -324,7 +324,7 @@ local function fontFor(self,size)
     self.fonts=self.fonts or {}
     size=math.max(8,math.floor(size+.5))
     if not self.fonts[size] then
-        self.fonts[size]=love.graphics.newFont(size)
+        self.fonts[size]=require('src.screens.typography').get(size)
         self.fonts[size]:setFilter('linear','linear')
     end
     return self.fonts[size]

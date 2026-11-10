@@ -16,11 +16,15 @@ local function create(dependencies)
     require("src.screens.computer.home").install(Runtime)
     require('src.screens.computer.player_wages').install(Runtime)
     require('src.screens.computer.financials').install(Runtime)
+    require('src.screens.computer.receipts').install(Runtime)
     require("src.screens.computer.home_shop").install(Runtime)
     require("src.screens.computer.email").install(Runtime)
     require("src.screens.computer.calendar").install(Runtime)
     require("src.screens.computer.reviews").install(Runtime)
     require("src.screens.computer.render").install(Runtime)
+    require("src.screens.computer.browser").install(Runtime)
+    require("src.screens.computer.browser_chrome").install(Runtime)
+    require('src.screens.computer.mobile_layout').install(Runtime)
     return Runtime.ComputerScreen
 end
 

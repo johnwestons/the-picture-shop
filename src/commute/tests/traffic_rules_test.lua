@@ -15,6 +15,7 @@ function Test.run(check)
     local segment={lanes=2,width=7.2}
     local bridgeSegment={lanes=3,width=12,bridge=true}
     local bridgeLaneOffset=Rules.laneOffset(bridgeSegment,'right',false)
+    local narrowBridgeOffset=Rules.laneOffset({lanes=2,width=5.8,bridge=true},'right',false)
     local first=Rules.limitForTraffic(vehicle,8,{nearFast,farStopped,farAway},segment)
     local reversed=Rules.limitForTraffic(vehicle,8,{farStopped,nearFast,farAway},segment)
     local indexed=Rules.limitForTraffic(vehicle,8,nil,segment,Index.new({farStopped,nearFast,farAway}))
@@ -92,7 +93,8 @@ function Test.run(check)
             and yieldSpeed==0 and indexedYieldSpeed==0)
     check('traffic_following_brakes_for_pedestrians_in_its_lane',
         pedestrianYieldSpeed<vehicle.speed and pedestrianYieldSpeed>0)
-    check('traffic_centering_keeps_vehicles_clear_of_bridge_rails',bridgeLaneOffset==0)
+    check('traffic_centering_keeps_vehicles_clear_of_bridge_rails',narrowBridgeOffset==0
+        and bridgeLaneOffset==4 and bridgeLaneOffset+1.08+.35<bridgeSegment.width*.5)
     check('traffic_following_reserves_relative_braking_distance',
         safeFollowingSpeed<8.6 and math.abs(safeFollowingSpeed-brakingEnvelope)<1e-8
             and math.abs(indexedSafeFollowingSpeed-safeFollowingSpeed)<1e-8)

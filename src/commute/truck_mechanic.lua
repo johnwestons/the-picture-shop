@@ -54,6 +54,7 @@ function Mechanic.purchase(state,player,trip,world,intent,kind)
         or (intent.model~='box' and intent.model~='kei') then return false,'That mechanic order has expired.' end
     local okay,message,resident,truck=Mechanic.canVisit(state,player,trip,world,intent.model)
     if not okay then return false,message end
+    local receiptBalance=state.home.balanceCents
     if kind=='repair' then
         if not integer(intent.expectedRevision,0,Mechanic.MAX_REVISION)
             or not integer(intent.expectedDamage,0,100) or type(intent.expectedFailure)~='boolean' then
@@ -106,6 +107,8 @@ function Mechanic.purchase(state,player,trip,world,intent,kind)
         message=quote.offer.name..' installed.'
     else return false,'That truck service is unavailable.' end
     TruckService.syncFleet(state.home,Trip.trucks(trip))
+    require('src.receipt_book').expense(state,'Truck '..kind,receiptBalance-state.home.balanceCents,
+        'Majic Blue','Household',message)
     resident.revision=resident.revision+1;state.home.revision=state.home.revision+1
     return true,message
 end

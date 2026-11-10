@@ -218,24 +218,26 @@ function Test.run(_,check)
 
     local previousLove=love
     local texts={}
-    love={timer={getTime=function() return 0 end},mouse={isDown=function() return false end},graphics={
-        setColor=function() end,rectangle=function() end,line=function() end,circle=function() end,
-        polygon=function() end,setLineWidth=function() end,draw=function() end,
-        getFont=function() return {getWidth=function(text) return #tostring(text)*8 end,getHeight=function() return 14 end} end,
-        print=function(text) texts[#texts+1]=text end,printf=function(text) texts[#texts+1]=text end,
-    }}
+    local graphics={};for key,value in pairs(previousLove.graphics) do graphics[key]=value end
+    graphics.print=function(text,...)texts[#texts+1]=text;return previousLove.graphics.print(text,...)end
+    graphics.printf=function(text,...)texts[#texts+1]=text;return previousLove.graphics.printf(text,...)end
+    previousLove.graphics.push('all')
+    love=setmetatable({timer={getTime=function() return 0 end},mouse={isDown=function() return false end},
+        graphics=graphics},{__index=previousLove})
     local drawState=shop()
     local drawScreen=Computer.new({warehouseEnabled=true,remoteCommand=function() end})
     drawScreen.tab="warehouse"
     local drawOkay,drawError=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
-    click(drawScreen,drawState,"front_left","storage")
-    local confirmOkay,confirmError=pcall(function() drawScreen.draw(drawState,nil,nil,nil) end)
+    local confirmOkay,confirmError=pcall(function()
+        click(drawScreen,drawState,"front_left","storage");drawScreen.draw(drawState,nil,nil,nil)
+    end)
     love=previousLove
+    love.graphics.pop()
     local allText=table.concat(texts,"\n")
     check("warehouse_office_page_and_confirmation_render_in_shared_chrome",drawOkay and confirmOkay
         and allText:find("CRITTERNET / WAREHOUSE",1,true)~=nil
-        and allText:find("one game day per stage",1,true)~=nil
-        and allText:find("separate room",1,true)~=nil
+        and allText:find("one game day each",1,true)~=nil
+        and allText:lower():find("separate room",1,true)~=nil
         and allText:find("I understand: the upper 5 shelves need a forklift",1,true)==nil,
         string.format("draw=%s (%s), confirm=%s (%s), text=%s",tostring(drawOkay),tostring(drawError),
             tostring(confirmOkay),tostring(confirmError),allText))

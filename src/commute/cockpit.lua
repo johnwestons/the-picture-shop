@@ -4,7 +4,14 @@ local M=require('src.commute.vendor.mathx')
 local Gauge=require('src.commute.fuel_gauge')
 local Service=require('src.commute.bike_service')
 local Status=require('src.screens.player_status')
-local HUD={MAX_MPH=80,CONDITION_BIKE_FRAME=5,CARD_X=18,CARD_Y=62,CARD_WIDTH=208,CARD_HEIGHT=76};HUD.__index=HUD
+local HUD={MAX_MPH=80,CONDITION_BIKE_FRAME=5,CARD_X=18,CARD_Y=72,CARD_WIDTH=242,CARD_HEIGHT=82};HUD.__index=HUD
+function HUD.syncLayout(R)
+    local _,bounds
+    if R.optionsAccessLayout then _,bounds=R.optionsAccessLayout() end
+    bounds=bounds or {left=0,right=R.Config and R.Config.baseWidth or require('src.config').baseWidth}
+    local rect=Status.layout(bounds)
+    HUD.CARD_Y=rect.y+rect.height+6
+end
 local outsideInstruments={cx=360,cy=83.5,r=42,gearX=429,gearY=65,gearW=69,gearScale=1,
     fuelX=267,fuelY=87,fuelR=20}
 function HUD.conditionLabel(bike)
@@ -26,7 +33,7 @@ function HUD.drawCondition(bike,x,y,bikeArt)
     local fuel,fraction,low,beam=Gauge.read(bike)
     local miles=bike.service and bike.service.miles or 0
     local width=HUD.CARD_WIDTH
-    g.push('all')
+    g.push('all');g.setFont(require('src.screens.typography').get(14))
     g.setColor(.025,.04,.035,.9);g.rectangle('fill',x,y,width,HUD.CARD_HEIGHT,6)
     g.setColor(.34,.40,.34,.9);g.setLineWidth(1);g.rectangle('line',x,y,width,HUD.CARD_HEIGHT,6)
     if bikeArt then
@@ -35,11 +42,11 @@ function HUD.drawCondition(bike,x,y,bikeArt)
         g.draw(image,quad,x-2,y-4,0,42/320,42/320)
     end
     local conditionText='CONDITION '..condition..'%'..(condition==0 and ' · 5 mph' or '')
-    g.setColor(.94,.93,.82);Status.printLine(conditionText,x+34,y+5,100)
-    g.setColor(.73,.82,.76);Status.printLine(('%.1f mi'):format(miles),x+141,y+5,59)
-    g.setColor(.19,.22,.19);g.rectangle('fill',x+34,y+23,166,5,2)
+    g.setColor(.94,.93,.82);Status.printLine(conditionText,x+34,y+5,128)
+    g.setColor(.83,.9,.84);Status.printLine(('%.1f mi'):format(miles),x+170,y+5,66)
+    g.setColor(.19,.22,.19);g.rectangle('fill',x+34,y+23,width-42,5,2)
     g.setColor(damage>.7 and .92 or .65,damage>.7 and .45 or .77,.45)
-    g.rectangle('fill',x+34,y+23,166*(1-damage),5,2)
+    g.rectangle('fill',x+34,y+23,(width-42)*(1-damage),5,2)
     g.setColor(.92,.91,.80);g.print('FUEL',x+8,y+33)
     g.printf(('%.1f / %.1f L'):format(fuel,Service.tank),x+62,y+33,width-70,'right')
     g.setColor(.19,.22,.19);g.rectangle('fill',x+8,y+50,width-16,5,2)
@@ -64,7 +71,7 @@ function HUD.new()
     local self=setmetatable({image=love.graphics.newImage('assets/commute/cockpit/handlebars-fuel-v2.png'),fonts={}},HUD)
     self.image:setFilter('linear','linear')
     for _,size in ipairs({10,14,16,24}) do
-        self.fonts[size]=love.graphics.newFont(size);self.fonts[size]:setFilter('linear','linear')
+        self.fonts[size]=require('src.screens.typography').get(size);self.fonts[size]:setFilter('linear','linear')
     end
     return self
 end
@@ -186,6 +193,8 @@ function HUD:draw(bike,engine,width,height,visual,camera,bindings)
 end
 function HUD:release()
     if self.firstPersonBike then self.firstPersonBike:release() end
-    self.image:release();for _,font in pairs(self.fonts) do font:release() end
+    self.image:release()
+    -- Cached typography is shared with menus and survives this riding view.
+    self.fonts={}
 end
 return HUD

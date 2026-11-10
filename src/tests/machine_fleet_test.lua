@@ -101,6 +101,7 @@ function Test.run(context, check)
         and plan.tasks[1].sceneId:find(usedCutter.modelId, 1, true) == 1)
 
     local cutterServiceState = context.State.new()
+    cutterServiceState.calendar.elapsed=context.businessCalendar.secondsPerDay(cutterServiceState)*10/24
     cutterServiceState.screen = "machine"
     cutterServiceState.machineType = "cutter"
     cutterServiceState.inventory.stock.maintenance_kit = 1
@@ -220,6 +221,7 @@ function Test.run(context, check)
         and #fleet.serviceInbox(cutterServiceState) == 1
         and context.jobService.emailInbox(cutterServiceState)[1].serviceNotice == true)
     local missedVisitState = context.State.new()
+    missedVisitState.calendar.elapsed=context.businessCalendar.secondsPerDay(missedVisitState)*10/24
     context.machineMaintenance.prepareBladeForTechnician(missedVisitState)
     local visitRequested = context.machineMaintenance.requestTechnician(missedVisitState)
     -- Choose a deterministic sequence that lands inside the current 2% call-out band.
@@ -319,6 +321,7 @@ function Test.run(context, check)
         and kitConsumed and physicalKitState.inventory.stock.maintenance_kit == 0)
 
     local websiteState = context.State.new()
+    websiteState.calendar.elapsed=context.businessCalendar.secondsPerDay(websiteState)*10/24
     websiteState.money = 20000
     context.computerScreen.enter(websiteState)
     local dropdownX, dropdownY = context.computerScreen.dropdownCenter()

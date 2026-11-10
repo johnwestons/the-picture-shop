@@ -209,6 +209,9 @@ function Finance.settle(state,closeHours)
     -- accounts, the source checkpoint and the settlement receipt together.
     state.money=state.money-row.paidCents/100
     state.home.balanceCents=state.home.balanceCents+row.paidCents
+    if row.paidCents>0 then require('src.receipt_book').add(state,{source='owner-payout:'..row.closeHours,kind='payout',
+        title='Owner profit payout',party='Picture Shop',account='Shop to household',amountCents=row.paidCents,
+        atHours=row.closeHours,details='Owner profit distribution transferred from shop cash to the household account.'}) end
     f.lossCarryCents=math.min(0,row.netCents+f.lossCarryCents)
     f.checkpoint=copy(f.totals);f.lastSettledClose=closeHours
     f.history[#f.history+1]=row;if #f.history>52 then table.remove(f.history,1) end

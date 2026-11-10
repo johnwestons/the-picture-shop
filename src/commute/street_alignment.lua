@@ -70,7 +70,7 @@ local function aim(arms)
     end
 end
 
-function Alignment.prepare(nodes,edges,plan,hub)
+function Alignment.prepare(nodes,edges,plan,hub,realistic)
     local branches={}
     for i=1,#nodes do branches[i]={} end
     for _,e in ipairs(edges) do
@@ -79,7 +79,9 @@ function Alignment.prepare(nodes,edges,plan,hub)
         e.length=M.length(dx,dz)
         e.nx,e.nz=-dz/e.length,dx/e.length
         e.startSlope,e.endSlope=0,0
+        e.realistic=realistic==true
         e.half=e.main and ((e.a==hub or e.b==hub) and 4.9 or 3.8) or e.oneWay and 2.1 or 2.9
+        if realistic then e.half=e.main and 4.9 or 3.8 end
         local steps=math.ceil(e.length/1.5)
         for i=0,steps do
             if wet(plan,a[1]+dx*i/steps,a[2]+dz*i/steps,e.nx,e.nz,e.half) then e.crossing=true;break end
@@ -130,13 +132,18 @@ end
 
 function Alignment.street(e,nodes,plan,random)
     local a,b=nodes[e.a],nodes[e.b]
-    local reverse=not e.main and random()<.45
+    local reverse=not e.realistic and not e.main and random()<.45
     local magnitude=e.length*(e.main and random(.026,.044) or random(.060,.086))
+    if e.realistic then magnitude=e.length*(e.main and .025 or .04) end
     local best,bestFlags,bestCost
     if not e.crossing then
-        for _,sign in ipairs({1,-1}) do
+        for _,sign in ipairs(e.realistic and {0,1,-1} or {1,-1}) do
             local points=alignment(e,a,b,magnitude*sign,reverse)
             local flags,cost,water=survey(points,e,plan)
+            -- A straight corridor wins on flat terrain. Bend only when it
+            -- avoids water or meaningfully reduces earthworks; don't add a
+            -- decorative S-bend to every neighborhood block.
+            if e.realistic then cost=cost+math.abs(magnitude*sign)*.6 end
             if not water and (not bestCost or cost<bestCost) then best,bestFlags,bestCost=points,flags,cost end
         end
     end

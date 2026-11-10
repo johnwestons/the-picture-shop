@@ -101,7 +101,13 @@ local function run(context,check)
     -- Exercise the older warehouse-truck pickup path used by existing saves.
     readyJob.pickup.driverMode=nil
     R.App.update(.1)
-    check("weekend_runtime_schedules_pickup_while_closing",R.World.truck.mode=="pickup"
+    check('weekend_runtime_new_pickup_waits_until_monday',R.World.truck.state=='absent'
+        and readyJob.pickup.dispatchAtHours>=105 and readyJob.status=='ready_for_pickup')
+    -- Restore an already-scheduled warehouse pickup, as a pre-closing save
+    -- would. Existing dock work must still finish after new dispatches close.
+    assert(R.World.truck:schedule(readyJob.id,'pickup'))
+    assert(R.JobService.schedulePickup(readyJob,os.time()))
+    check("weekend_runtime_resumes_existing_pickup_while_closing",R.World.truck.mode=="pickup"
         and readyJob.status=="pickup_in_progress",R.World.truck.state)
     check("weekend_runtime_docked_truck_blocks_departure",not Weekend.command(R,host,"request")
         and state.home.weekend.phase=="closing")

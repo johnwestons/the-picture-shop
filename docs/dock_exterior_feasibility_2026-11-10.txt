@@ -1,0 +1,157 @@
+WAREHOUSE DOCK VISUALS - IMPLEMENTATION AND FEASIBILITY
+November 10, 2026
+
+Implemented
+The main warehouse dock and purchased room docks now use a procedural sectional
+steel shutter and a restricted view of the real warehouse loading apron.
+
+- src/dock_shutter.lua keeps the existing warehouse sprite's worn steel material
+  and adds independently moving ribs, seams, hinges, fasteners, scoring, a bottom
+  seal and pull handle. Fixed tracks, mounting bolts and a header stay on the
+  registered wall plane. Door progress and simulation authority are unchanged.
+- src/dock_exterior.lua owns a 256 x 256 reusable buffer and a 16-metre-deep,
+  18-metre-wide local patch. It reads actual terrain height, hardscape, road paint,
+  nearby buildings, street fixtures and seasonal plants. GPU bounds clipping
+  prevents long road markings or nearby meshes from extending the ground patch.
+- The view reads physical supplier trucks, outdoor players, their parked bikes
+  and available player trucks, plus physical AI motorcycles. Remote players use
+  the existing realtime walking/bike/truck presentation. It does not start another
+  traffic simulation. Detailed dock cargo sprites remain in use; their matching
+  terrain truck is suppressed so a shipment does not appear twice.
+- Purchased room doors currently share the main physical loading apron. They do
+  not have separate outdoor building anchors. Their shutter geometry follows each
+  room's painted aperture, but they are not views of different physical lots.
+
+Performance behavior
+- Closed, offscreen or departed scenes do no exterior preparation, actor queries
+  or exterior renders. Pending owned image requests are canceled. Previously
+  prepared buffers remain cached for reopening. No exterior canvas is allocated
+  before first opening; shader programs compile in the existing startup load.
+- Reuse the commute/traffic world's CPU metadata if available. A genuinely cold
+  observer builds the saved world's metadata cooperatively across frames, with
+  terrain and street-infrastructure yield points. No full terrain renderer,
+  grass-field renderer, town-wide GPU terrain or town-wide building meshes start.
+- Prepare one local terrain strip (of twelve) or one scenery object per step.
+  Retain the prior exterior picture until the local ground patch is ready, then
+  crossfade for 0.25 seconds. Admit new actors/props gradually. Door animation
+  remains at display refresh, independently of the capped 24 Hz outside view.
+- Vehicle art is streamed through the existing worker decoder/staged uploader,
+  reduced to small 512-square directional pages and limited to an 8 MiB resident
+  cache. Global loader staging, character textures, plant pages, depth buffers
+  and CPU world metadata add to this figure; it is not a total-memory claim.
+
+Validation
+- Native LOVE checks pass on Windows in desktop and forced-mobile layouts.
+  Coverage includes partial-open pixel occlusion, closed/offscreen inactivity,
+  cached reopening, outdoor/indoor player filtering, realtime walker headings,
+  ordinary/geared character art, truck deduplication, asynchronous vehicle art,
+  night/rain, rotated/scaled warehouse placements, crossing road paint, room bays,
+  full runtime draw, terrain budgets, road/infrastructure regressions and LuaJIT
+  compiler limits. Runs use fresh isolated disposable test-save identities.
+- Legacy layout and generated seed 712345 were exercised. On this PC the tested
+  generated-town cold metadata hitch fell from approximately 158 ms to below
+  9 ms per preparation step; peak exterior render submission was approximately
+  5 ms in the fixture. These are local timings, not Android FPS measurements.
+- Reports and screenshots: output/dock-view-final-desktop-20261110-040700 and
+  output/dock-view-final-mobile-20261110-040731. Final verification after preserving
+  the shared apron paint material: output/dock-view-verified-20261110-040920
+  (1,160 checks passed; peak preparation 7.75 ms, peak render submission 5.01 ms
+  on this PC with mobile layout and generated seed 712345).
+  ADB showed no connected phone,
+  so physical Android and live two-device multiplayer profiling remain unverified.
+- A broader independent-scenes delivery-completion check failed separately when
+  run without the dock test: independent_delivery_completes_in_shared_shop,
+  src/tests/independent_scenes_test.lua:200. Reproduction evidence is in
+  output/dock-independent-baseline-20261110-040532. Delivery scheduling/logic was
+  left to the other agent, as requested. The dock focus retains rendering,
+  weather, terrain, road/infrastructure and compilation checks.
+
+Original feasibility review (historical)
+
+Conclusion
+Feasible with the existing isometric warehouse and terrain systems. Build a
+restricted exterior view and a procedural sectional shutter. The performance
+budget and perspective match still need a native prototype and phone profiling.
+This review does not change door behavior, transport scheduling or networking.
+
+Current implementation
+- src/bay_door.lua already owns continuous progress from zero to one, open/close
+  states, completion events and replicated snapshots. Keep this authority.
+- src/outdoor_weather.lua draws a static loadingBayExterior image inside the
+  main doorway, with clock-based daylight, night tint and rain.
+- src/shop_room_renderer.lua:drawDock lifts a textured polygon sampled from the
+  warehouse background. This moves painted shutter content rather than separate
+  mechanical sections. The legacy path uses a five-frame sprite strip.
+- src/room_loading_bay_renderer.lua provides a second, mirrored room-dock view
+  using the same static exterior picture and a separate truck transform.
+- src/world_renderer.lua:drawTruck projects the warehouse truck through the
+  aperture. Terrain traffic is a different representation of related job state.
+- The terrain warehouse has a loading door on its local east wall in
+  src/commute/structure_geometry.lua. Sites expose toWorld/toLocal transforms;
+  src/commute/sites.lua registers the dock parking and reversing approach.
+- src/commute/delivery_traffic.lua:actors exposes outdoor vehicles and NPCs.
+  Commute participants expose pedestrians, bikes and player-controlled trucks.
+  Player motion snapshots are broadcast to joined clients across scenes.
+
+Recommended rendering
+1. Register each dock's world origin, outward direction, width and height,
+   alongside its existing painted aperture. Use the actual loading door, not
+   the pedestrian entrance or the truck's center, as the camera anchor.
+2. Calibrate a fixed exterior camera to the painted threshold and door frame.
+   Render a narrow view approximately 9-15 metres (30-50 feet) outward. Cull by
+   the visible region and object bounds so partly visible trucks are retained.
+   Isometric artwork has no exact physical camera, so check the alignment with
+   visible ground markings and a truck crossing the threshold.
+3. Cache the local terrain/road/prop geometry and reuse existing texture assets.
+   Use the generated town's real surfaces, positions, season and weather. Draw
+   only nearby participants, parked vehicles and traffic that can be seen through
+   this particular door. Preserve depth occlusion between props and actors.
+4. Render into a small reusable canvas, initially 256 x 256, clipped to the
+   aperture. The current main opening spans roughly 93 x 126 base-canvas pixels;
+   choose resolution from its actual projected size when zoomed. Reuse buffers.
+5. Build the shutter from narrow textured sections, with stationary side rails,
+   header and sill. Raise sections using door.progress, with restrained easing
+   and a visible bottom seal/shadow. Keep the shutter above all exterior actors
+   and mask the outside view to the exposed gap throughout opening and closing.
+   Animate the door every display frame, independently of exterior refreshes.
+
+Performance approach
+- Skip exterior render work when the door is fully closed or its scene is not
+  visible. Prepare the small view incrementally as opening begins; retain the
+  existing exterior as a temporary loading fallback to avoid a first-open stall.
+- Cache geometry rather than rebuilding terrain or scenery every refresh.
+  Begin with a capped 20-30 Hz small-view refresh and profile it. Interpolate
+  authoritative actor poses and keep warehouse rendering independent.
+- Restrict geometry and actor queries before drawing. A scissor or stencil over
+  the full outdoor renderer would reduce pixels without bounding its CPU work.
+- Do not instantiate src/commute/renderer.lua unchanged for this purpose. Its
+  constructor prepares town-wide roads, terrain tiles, structures, vegetation,
+  grass and vehicle renderers. Extract/reuse the necessary drawing primitives
+  in a restricted view and share already available world data and asset caches.
+- A 256 x 256 RGBA8 color buffer contains 0.25 MiB of pixels. Depth/stencil,
+  buffering and resident sprite textures add to that figure. Measure total
+  residency and frame time on the phone; this is not a measured FPS guarantee.
+
+State and integration details
+- Treat this as a viewer of existing state. Do not advance traffic, door logic,
+  delivery timers or character movement a second time while drawing the portal.
+- Match the warehouse truck and terrain truck by stable shipment/job identity.
+  Draw one representation. Preserve the cargo-door and loading view at the dock,
+  and align its transition to the terrain truck's backing/parked pose.
+- Use existing multiplayer actor state and interpolation. Verify that nearby AI
+  traffic continues to receive timely pose updates for an indoor observer. If
+  additional updates are necessary, send nearby poses, not images or map data.
+- Purchased room docks need their own physical exterior anchors. Their current
+  painted apertures and mirrored visual transforms do not define distinct
+  outdoor viewing positions. Establish those before claiming accurate views.
+
+Suggested first prototype and acceptance
+Prototype the main warehouse door, a small terrain patch and one moving truck
+first. Check the door frame, ground plane, truck scale and rear cargo alignment
+before extending the view to other players and purchased room docks.
+Validate partial-open occlusion; approach/backing/loading/departure continuity;
+multiple nearby trucks without duplicates; geared and ordinary pedestrians;
+host-inside/guest-outside and the reverse; reconnect; night and rain; seeded
+town orientation; repeated opening; and closed-door render inactivity.
+Profile first-open stalls, steady frame time and retained texture memory on the
+phone with the usual warehouse machinery and multiplayer traffic active.

@@ -616,8 +616,13 @@ function Trip.update(state,player,input,dt,world)
             end
             if not returnX then state.message='Waiting for a clear lane on the return bridge.';return false end
             local delivered=0
+            local receivingClosed=false
             while run.stops[run.stopIndex] and run.stops[run.stopIndex].kind=='city' do
                 local stop=run.stops[run.stopIndex]
+                local now=require('src.business_calendar').absoluteHours(state)
+                if require('src.commute.delivery_run').nextStopOpen(state,stop,now)>now+1e-7 then
+                    receivingClosed=true;break
+                end
                 local okay,message=require('src.commute.delivery_run').completeStop(state,stop)
                 if not okay then state.message=message;return false end
                 delivered=delivered+stop.palletCount
@@ -637,6 +642,9 @@ function Trip.update(state,player,input,dt,world)
             part.rider.ped.x,part.rider.ped.z,part.rider.ped.heading=truck.x,truck.z,truck.heading
             state.message=('Millhaven delivery complete: %d pallets delivered. '):format(delivered)
                 ..require('src.commute.delivery_run').nextMessage(run)
+            if receivingClosed then
+                state.message='Millhaven receiving closed during the trip. Your remaining pallets are still on the truck; return during weekday business hours.'
+            end
             if run.stopIndex>#run.stops then require('src.commute.delivery_run').releaseTrip(state,t) end
             state.home.revision=state.home.revision+1
             return true
@@ -671,6 +679,17 @@ function Trip.update(state,player,input,dt,world)
                 local across=math.abs((truck.x-gate.x)*(-dz)+(truck.z-gate.z)*dx)
                 local facing=math.cos(truck.heading)*dx+math.sin(truck.heading)*dz
                 if along>=-16 and along<=3 and across<=8 and facing>.45 then
+                    local now=require('src.business_calendar').absoluteHours(state)
+                    local duration=5*24/require('src.business_calendar').secondsPerDay(state)
+                    local opens=require('src.business_hours').nextService(now,duration)
+                    if opens>now+1e-7 then
+                        truck.x,truck.z=gate.x-dx*16,gate.z-dz*16
+                        truck.speed=0;truck.h=world:supportHeight(truck.x,truck.z)
+                        part.rider.ped.x,part.rider.ped.z=truck.x,truck.z
+                        state.message='Millhaven receiving is closed or closing. Return '..require('src.business_calendar').dateTimeTextAtHours(opens)..'.'
+                        state.home.revision=state.home.revision+1
+                        return true
+                    end
                     run.status='offmap';run.cutsceneStartedAtEpoch=os.time()
                     run.cutsceneEndsAtEpoch=run.cutsceneStartedAtEpoch+5
                     truck.x,truck.z=gate.x-dx*8,gate.z-dz*8

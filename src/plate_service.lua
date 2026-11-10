@@ -50,6 +50,7 @@ function Plates.ensureJob(job)
 end
 
 function Plates.update(state)
+    if not BusinessCalendar.isBusinessOpen(state) then return false end
     local changed, now = false, BusinessCalendar.absoluteHours(state)
     for _, job in ipairs(state.jobs and state.jobs.active or {}) do
         for _, plate in ipairs(Plates.ensureJob(job)) do
@@ -70,10 +71,11 @@ function Plates.order(state, job, colorIndex)
     local cost = math.max(1, math.ceil(((budget and budget.plateCost) or 38.5) / colors * 100) / 100)
     if (state.money or 0) < cost then return false, "Not enough cash to outsource this plate." end
     state.money = state.money - cost
+    require('src.receipt_book').expense(state,'Plate service',cost*100,'Plate service','Shop','Printing plate service')
     require("src.household_finances").record(state,"services",cost*100)
     plate.status, plate.source = "ordered", "outsourced"
     plate.orderedAtHours = BusinessCalendar.absoluteHours(state)
-    plate.readyAtHours = plate.orderedAtHours + 24
+    plate.readyAtHours = require('src.business_hours').nextService(plate.orderedAtHours + 24)
     plate.actualCost = cost
     job.press.actual.plateCost = (job.press.actual.plateCost or 0) + cost
     job.press.actual.supplyCost = job.press.actual.supplyCost + cost

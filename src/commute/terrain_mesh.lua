@@ -61,6 +61,15 @@ function Mesh.visualHeight(world,x,z,h,spacing)
     local roads=world.roads
     if not roads then return h end
     local guard=(spacing or 1)*math.sqrt(2)
+    local infrastructure=world.infrastructure
+    local bins=infrastructure and infrastructure.recreationGroundBins
+    if bins then
+        for _,cover in ipairs(bins[math.floor(x/16)..':'..math.floor(z/16)] or {}) do
+            if x>=cover.x0-guard and x<=cover.x1+guard and z>=cover.z0-guard and z<=cover.z1+guard then
+                h=math.min(h,cover.h)
+            end
+        end
+    end
     if roads.bins then
         local binSize=roads.binSize or 16
         local segments=roads.bins[math.floor(x/binSize)..':'..math.floor(z/binSize)] or {}

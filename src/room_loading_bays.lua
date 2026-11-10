@@ -56,6 +56,7 @@ function Bays.purchase(state,id,requestId)
     warehouse.garageDoors=warehouse.garageDoors or {}
     warehouse.garageDoors[id]=receipt
     state.money=state.money-Bays.PRICE
+    require('src.receipt_book').expense(state,'Loading bay purchase',Bays.PRICE*100,'Warehouse contractor','Shop',id,'loading-bay:'..id)
     return true,receipt,"purchased"
 end
 function Bays.pickupScene(state,job)

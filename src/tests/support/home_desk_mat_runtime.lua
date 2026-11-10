@@ -26,7 +26,7 @@ function Test.run(context,check)
     for _=1,5 do click("previous") end;for _=1,4 do click("next") end
     capture("home-desk-mat-catalog","computer")
     for i=1,2 do click("buy",i);click("confirm");click("cancel") end
-    check("home_desk_mat_runtime_checkout",s.home.balanceCents==15250,s.message)
+    check("home_desk_mat_runtime_checkout",s.home.balanceCents==14475,s.message)
     s.screen="world";R.App.update(Calendar.secondsPerDay(s)/12)
     p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")

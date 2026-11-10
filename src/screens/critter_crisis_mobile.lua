@@ -11,7 +11,7 @@ local controls={
 local extra={{'WEAPON',Bits.WEAPON},{'FIRE MODE',Bits.MODE},{'SUPPLIES',Bits.SUPPLY},{'NEXT WAVE',Bits.CONTINUE}}
 local function inside(x,y,r)return x>=r[1] and x<=r[1]+r[3] and y>=r[2] and y<=r[2]+r[4]end
 local function text(value,x,y,w,size,color)
-    if not fonts[size] then fonts[size]=love.graphics.newFont('assets/fonts/VT323-Regular.ttf',size) end
+    if not fonts[size] then fonts[size]=require('src.screens.typography').get(size) end
     love.graphics.setFont(fonts[size]);love.graphics.setColor(unpack(color or {1,.9,.7,1}))
     love.graphics.printf(value,x,y,w,'center')
 end

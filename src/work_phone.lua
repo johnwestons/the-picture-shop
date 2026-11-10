@@ -155,13 +155,13 @@ function WorkPhone.ensure(state)
         phone.incoming.direction = "incoming"
     end
     if phone.incoming and phone.incoming.direction ~= "outgoing"
-        and not phone.incoming.answered and BusinessCalendar.isWeekend(state)
+        and not phone.incoming.answered and not BusinessCalendar.isBusinessOpen(state)
     then
         local caller = phone.incoming.caller
         deferIncoming(phone, phone.incoming)
         phone.incoming = nil
         if state.message == caller .. " is calling the work phone." then
-            state.message = "The work phone is quiet for the weekend."
+            state.message = "The work phone is quiet outside weekday business hours (09:00-20:00)."
         end
     end
     return phone
@@ -283,7 +283,7 @@ function WorkPhone.queueCall(state, spec, nowHours)
         receivedAtHours = nowHours or BusinessCalendar.absoluteHours(state),
         answered = false,
     }
-    if BusinessCalendar.isWeekend(state) then
+    if not BusinessCalendar.isBusinessOpen(state) then
         deferIncoming(phone, call)
         return true, call
     end
@@ -297,6 +297,9 @@ function WorkPhone.placeCall(state, contactId)
     if phone.incoming then return false, "The line is busy. Hang up before dialing another contact." end
     local contact = WorkPhone.contact(contactId)
     if not contact then return false, "Choose a contact from the phone directory." end
+    if contact.kind~='outgoing_power' and not BusinessCalendar.isBusinessOpen(state) then
+        return false,'Supplier offices are open Monday-Friday, 09:00-20:00. Call during business hours.'
+    end
     local number = phone.nextCallId
     phone.nextCallId = number + 1
     local power = contact.kind == "outgoing_power"
@@ -335,7 +338,7 @@ function WorkPhone.update(state, dt)
             connectedNow = true
         end
     end
-    if phone.incoming or BusinessCalendar.isWeekend(state) then return connectedNow end
+    if phone.incoming or not BusinessCalendar.isBusinessOpen(state) then return connectedNow end
     local now = BusinessCalendar.absoluteHours(state)
     if #phone.deferredCalls > 0 then
         local deferred = table.remove(phone.deferredCalls, 1)

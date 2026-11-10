@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.keypressed(key)
+        if require('src.screens.notifications_screen').keypressed(Runtime,key) then return true end
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading()
             and key~="escape" and key~="back" then return end
         if Runtime.spriteLabActive then Runtime.SpriteMotionLab.keypressed(key, Runtime.CharacterAssets); return end
@@ -31,6 +32,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.textinput(text)
+        if Runtime.state.screen=='notifications' then return true end
         if Runtime.state.screen == "title" then
             local result = Runtime.TitleScreen.textinput(text)
             Runtime.syncMobileKeyboard()
@@ -52,6 +54,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousepressed(x, y, button, isTouch)
+        if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading() then return end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then
@@ -67,6 +70,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousereleased(x, y, button, isTouch)
+        if isTouch and Runtime.state.screen=='delivery_signature' then return true end
+        if Runtime.state.screen=='notifications' then return true end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
         if not isTouch and require('src.commute.runtime').cameraPointerReleased(Runtime,button) then return true end
         if button==1 then require('src.commute.runtime').pointerReleased(Runtime,'mouse') end
@@ -74,6 +79,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousemoved(x, y, dx, dy, isTouch)
+        if isTouch and Runtime.state.screen=='delivery_signature' then return true end
+        if Runtime.state.screen=='notifications' then return true end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
         if not isTouch then
             local px,py=Runtime.toPointerCoordinates(x,y)
@@ -84,8 +91,14 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.wheelmoved(x, y)
+        if Runtime.state.screen=='notifications' then
+            require('src.screens.notifications_screen').scroll(Runtime,-y*54);return true
+        end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.wheelmoved(x,y) then return true end
         if Runtime.state.screen=='world' and Runtime.World.player.sceneId=='commute' then
+            local mx,my=love.mouse.getPosition()
+            local px,py=Runtime.toPointerCoordinates(mx,my)
+            if require('src.commute.runtime').mapWheel(Runtime,px,py,y) then return true end
             if y~=0 then require('src.commute.runtime').deviceInput(Runtime,'mouse',y>0 and 'wheelup' or 'wheeldown') end
             return true
         end
@@ -100,6 +113,9 @@ function Component.install(Runtime)
     function Runtime.App.touchpressed(id, x, y)
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading() then return end
         local px,py=Runtime.toPointerCoordinates(x,y)
+        if Runtime.state.screen=='delivery_signature' then
+            return Runtime.Input.signaturePointerPressed(id,px,py,Runtime.inputContext)
+        end
         if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,1) then return true end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousepressed(px,py,1) end
         if require('src.commute.runtime').touchPressed(Runtime,id,px,py) then return true end
@@ -114,6 +130,16 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
+        if Runtime.state.screen=='delivery_signature' then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            return Runtime.inputContext.deliverySignatureScreen.pointermoved(id,px,py)
+        end
+        if Runtime.state.screen=='notifications' then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            local _,previousY=Runtime.toPointerCoordinates(x,y-(dy or 0))
+            if px>=360 then require('src.screens.notifications_screen').scroll(Runtime,previousY-py) end
+            return true
+        end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousemoved(px,py) end
         if require('src.commute.runtime').touchMoved(Runtime,id,px,py) then return true end
@@ -128,6 +154,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchreleased(id, x, y)
+        if Runtime.state.screen=='delivery_signature' then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            return Runtime.inputContext.deliverySignatureScreen.pointerreleased(id,px,py)
+        end
+        if Runtime.state.screen=='notifications' then return true end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousereleased(px,py,1) end
         if require('src.commute.runtime').touchReleased(Runtime,id) then return true end
@@ -143,6 +174,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadpressed(joystick, button)
+        if Runtime.state.screen=='notifications' then
+            local keys={b='escape',back='escape',dpup='up',dpdown='down',dpleft='left',dpright='right',leftshoulder='pageup',rightshoulder='pagedown'}
+            if keys[button] then return require('src.screens.notifications_screen').keypressed(Runtime,keys[button]) end
+            return true
+        end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.gamepadpressed(joystick,button) then return true end
         if Runtime.state.screen=='world' and require('src.commute.runtime').active(Runtime) then
             if button=='start' then return require('src.commute.runtime').keypressed(Runtime,'f10') end

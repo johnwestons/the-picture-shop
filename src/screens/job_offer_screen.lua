@@ -3,6 +3,7 @@ local JobService = require("src.job_service")
 local Schedule = require("src.employee_schedule")
 local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
+local Text = require('src.screens.typography')
 local JobOfferScreen = { activeJobId = nil }
 
 local PANEL = { x = 100, y = 32, width = 760, height = 610 }
@@ -18,10 +19,11 @@ local function sizeText(size)
 end
 
 local function line(label, value, x, y)
+    love.graphics.setFont(Text.get(14))
     love.graphics.setColor(0.28, 0.30, 0.31)
     love.graphics.print(label, x, y)
     love.graphics.setColor(0.08, 0.09, 0.10)
-    love.graphics.print(value, x + 122, y)
+    love.graphics.print(Text.ellipsize(value,y<246 and 420 or 540), x + 148, y)
 end
 
 local function button(action, label, pointerX, pointerY)
@@ -81,6 +83,7 @@ function JobOfferScreen.buttonCenter(action)
 end
 
 function JobOfferScreen.draw(state, pointerX, pointerY, assets)
+    love.graphics.setFont(Text.get(14))
     local job = state.currentOffer
     if job and JobOfferScreen.activeJobId ~= job.id then JobOfferScreen.enter(job) end
     love.graphics.setColor(0.01, 0.02, 0.03, 0.72)
@@ -129,11 +132,10 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     -- Keep the artwork in its own narrow column. Long artwork names can wrap
     -- beneath it without covering the job fields.
     drawArtworkPreview(assets, job, 738, 122, 76)
-    local packaging = job.packaging == "boxed" and "Boxes on pallet, stretch-wrapped"
-        or "Flat on pallet, stretch-wrapped"
+    local packaging = job.packaging == "boxed" and "Boxed, wrapped" or "Flat, wrapped"
     local transport = job.outboundDelivery and job.outboundDelivery.requested
         and "Delivery quote requested" or "Client pickup"
-    line("Packaging / transport", packaging .. " · " .. transport, 136, 246)
+    line("Packaging", packaging .. " · " .. transport, 136, 246)
     line("Stock arrival", job.remoteDelivery or JobService.deliverySummary(job), 136, 270)
 
     local tableX, tableY = 136, 294
@@ -153,9 +155,10 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
     end
 
     for index, pallet in ipairs(job.quote.pallets) do
-        local rowY = tableY + 24 + (index - 1) * 24
+        if index>5 then break end
+        local rowY = tableY + 24 + (index - 1) * 22
         love.graphics.setColor(index % 2 == 0 and 0.88 or 0.91, 0.89, 0.82)
-        love.graphics.rectangle("fill", tableX, rowY, 688, 24)
+        love.graphics.rectangle("fill", tableX, rowY, 688, 22)
         love.graphics.setColor(0.10, 0.11, 0.12)
         love.graphics.print(tostring(pallet.number), tableX + 35, rowY + 5)
         if job.press then
@@ -179,19 +182,19 @@ function JobOfferScreen.draw(state, pointerX, pointerY, assets)
             commaNumber(job.quote.totalSheets), job.quote.totalLifts)
     love.graphics.print(totalText, 136, 450)
     love.graphics.setColor(0.10, 0.39, 0.24)
-    love.graphics.printf("PRICE AFTER WRITTEN DETAILS", 540, 450, 284, "right")
+    if #job.quote.pallets>5 then
+        love.graphics.printf('First 5 pallets shown; full list in written details.',136,431,688,'left')
+    end
 
     line("Grain/handling", details.grainDirection or "Follow customer labels", 136, 474)
     line("Due", details.dueDate or "Standard turnaround", 136, 498)
     love.graphics.setColor(0.28, 0.30, 0.31)
-    love.graphics.print("Notes", 136, 510)
+    love.graphics.print("Notes", 136, 522)
     love.graphics.setColor(0.08, 0.09, 0.10)
-    love.graphics.printf(details.notes or "", 258, 510, 260, "left")
+    love.graphics.print(Text.ellipsize(details.notes or '',540),284,522)
 
     love.graphics.setColor(0.28, 0.30, 0.31)
-    love.graphics.printf(string.format("%s client: %s The client will email the complete specifications. Build and send the estimate from the office computer after that message arrives.",
-        string.upper(job.clientTemperament or "standard"), job.clientTemperamentNote or ""),
-        136, 558, 360, "left")
+    love.graphics.printf(string.upper(job.clientTemperament or 'standard')..' client. Request written specifications, then send your estimate from the office.',136,558,360,'left')
     button("accept", "REQUEST EMAIL DETAILS", pointerX, pointerY)
     love.graphics.setColor(0.32, 0.34, 0.34)
     love.graphics.printf("No price or award is decided at the counter", PANEL.x, 628, PANEL.width, "center")

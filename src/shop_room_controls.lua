@@ -3,7 +3,7 @@ local Controls={page=1,selected=1}
 local fonts
 local function setFont(size)
     fonts=fonts or {}
-    fonts[size]=fonts[size] or love.graphics.newFont(size)
+    fonts[size]=fonts[size] or require('src.screens.typography').get(size)
     love.graphics.setFont(fonts[size])
 end
 local function fitted(text,width)
@@ -179,7 +179,7 @@ function Controls.draw(Runtime)
     love.graphics.setColor(.95,.97,.94,1);love.graphics.printf("BACK",760,152,85,"center")
     love.graphics.setColor(.79,.87,.88,1)
     love.graphics.printf(Controls.mode=="stock" and "Bring supplies to the warehouse entrance with a pallet jack. Park it and use this room's stock desk. Retrieved stock returns to the entrance."
-        or "Enter a room once construction begins to watch the raccoon engineer work. Room services open when construction is complete. Each player can enter and leave independently.",115,194,730)
+        or "Enter to watch construction. Services open when the room is finished. Each player can visit independently.",115,194,730)
     local entries=rows(Runtime)
     Controls.page=math.max(1,math.min(Controls.page,math.ceil(#entries/6)))
     Controls.selected=math.max(1,math.min(Controls.selected,#entries))

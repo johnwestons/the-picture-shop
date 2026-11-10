@@ -2,6 +2,7 @@
 -- dirt trails have no traffic paint and junction throats remain clear.
 local Paint={}
 local Bays=require('src.commute.parking_bays')
+local BridgeArt=require('src.commute.bridge_art')
 local white={.89,.87,.73};local yellow={.88,.70,.25}
 local function vertex(out,x,z,h,color)
     out[#out+1]={x,z,h,0,1,0,x/4,z/4,x/4,z/4,0,0,
@@ -30,7 +31,7 @@ local function arrow(out,world,x,z,dx,dz,bend)
     end
 end
 function Paint.build(world)
-    local out={};local stats={arrows=0,turnArrows=0,stopBars=0,segments=0,parkingStalls=0}
+    local out={};local stats={arrows=0,turnArrows=0,stopBars=0,segments=0,parkingStalls=0,bridgeSegments=0}
     local roads=world.roads;local modern=world.town and world.town.generatorVersion>=3
     local junctions={};local seen={}
     -- Only shared coordinates create a junction. Decorative paint must not
@@ -48,23 +49,28 @@ function Paint.build(world)
     end
     local lastArrow={}
     for _,s in ipairs(roads.segments)do
-        if s.surface~='dirt' and not s.bridge and not s.truckOnly then
+        if s.surface~='dirt' and not s.truckOnly then
             local x,z=(s.a.x+s.b.x)/2,(s.a.z+s.b.z)/2
             if not throat(x,z)then
                 stats.segments=stats.segments+1
+                if s.bridge then stats.bridgeSegments=stats.bridgeSegments+1 end
                 local dash=math.floor(s.distance/4)%2==0
                 if modern and s.role~='drive' then
-                    strip(out,s,s.width*.5-.22,.09,white);strip(out,s,-s.width*.5+.22,.09,white)
+                    -- Keep edge paint inside the parapet's inward overhang.
+                    local inset=.22+(s.bridge and BridgeArt.CAP_WIDTH_METERS*(1-BridgeArt.CAP_OUTER_FRACTION) or 0)
+                    strip(out,s,s.width*.5-inset,.09,white);strip(out,s,-s.width*.5+inset,.09,white)
                 end
                 if s.turnLane and (s.lanes or 2)>=3 then
                     for _,side in ipairs({-1,1})do
                         strip(out,s,side*1.63,.09,yellow)
                         if dash then strip(out,s,side*1.47,.09,yellow)end
                     end
-                elseif (s.lanes or (s.width>5.5 and 2 or 1))>=2 and dash then
-                    strip(out,s,0,.10,s.oneWay and white or yellow)
+                elseif (s.lanes or (s.width>5.5 and 2 or 1))>=2 then
+                    if s.bridge and not s.oneWay then
+                        strip(out,s,-.13,.10,yellow);strip(out,s,.13,.10,yellow)
+                    elseif dash then strip(out,s,0,.10,s.oneWay and white or yellow) end
                 end
-                if modern and (s.role=='main' or s.oneWay) and s.distance-(lastArrow[s.id] or -20)>=28
+                if modern and not s.bridge and (s.role=='main' or s.oneWay) and s.distance-(lastArrow[s.id] or -20)>=28
                     and not throat(x+s.dx/s.len*4,z+s.dz/s.len*4)then
                     lastArrow[s.id]=s.distance
                     local dx,dz=s.dx/s.len,s.dz/s.len

@@ -160,7 +160,8 @@ local function player(view,R)
     local p=view.pose;local assets=R.CharacterAssets
     local trip=R.state.home and R.state.home.commute
     local part=trip and trip.participants and trip.participants[require('src.home_residents').key(R.World.player)]
-    if assets and require('src.commute.presentation').indoor(p,R.state,assets,part and part.rider.gear)then return end
+    local presentation=require('src.commute.presentation')
+    if assets and presentation.indoor(p,R.state,assets,part and part.rider.gear,presentation.STORE_RIDER_SCALE)then return end
     if not assets then return end
     local character=p.character or Config.player.character
     local action,mirror

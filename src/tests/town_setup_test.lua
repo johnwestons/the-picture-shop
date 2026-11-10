@@ -28,6 +28,15 @@ local function renderPreview(context,check)
         data=canvas:newImageData();encoded=data:encode('png')
         file=assert(io.open(destination..'/town-layout-only.png','wb'));file:write(encoded:getString());file:close()
         encoded:release();data:release()
+        local function capture(name,screen)
+            love.graphics.push('all');love.graphics.setCanvas(canvas);love.graphics.clear()
+            Setup.draw(screen,options,1,context.assets);love.graphics.pop()
+            local image=canvas:newImageData();local png=image:encode('png')
+            local f=assert(io.open(destination..'/'..name..'.png','wb'));f:write(png:getString());f:close()
+            png:release();image:release()
+        end
+        preview.confirming=true;capture('town-confirmation',preview)
+        capture('town-generate-guidance',Setup.new({townSeed=712345}))
     end
     canvas:release();assert(context.assets.activatePack(previousPack));loader.setEnabled(enabled)
     if preview.terrainImage then preview.terrainImage:release() end
@@ -105,7 +114,17 @@ function Test.run(context,check)
         preview.items=items;preview.selected=1
         x,y=Setup.buttonCenter('load');Setup.mousepressed(preview,x,y,options)
         x,y=Setup.buttonCenter('start')
+        local beforeConfirm=writes
+        check('town_create_prompts_before_using_frozen_preview',Setup.mousepressed(preview,x,y,options)=='changed'
+            and preview.confirming and preview.tutorialEnabled and writes==beforeConfirm)
+        Setup.keypressed(preview,'escape',options)
+        check('town_confirmation_back_retains_exact_preview',not preview.confirming
+            and Town.fingerprint(preview.town)==fingerprint and Setup.nextAction(preview)=='start')
+        Setup.mousepressed(preview,x,y,options)
+        local tx,ty=Setup.buttonCenter('tutorial');Setup.mousepressed(preview,tx,ty,options)
+        x,y=Setup.buttonCenter('confirmCreate')
         check('town_create_uses_loaded_preview_without_regeneration',Setup.mousepressed(preview,x,y,options)=='start'
+            and options.tutorialEnabled==false
             and Town.fingerprint(options.town)==fingerprint)
         rejectWrite=true
         local rejected,message=Presets.upsert(items,{name='Disk full',town=town})
@@ -126,6 +145,7 @@ function Test.run(context,check)
         files[Presets.FILE]=nil
         Town.generate=originalGenerate
         preview=Setup.new({townSeed=712345})
+        check('town_generate_preview_is_first_guided_action',Setup.nextAction(preview)=='generate')
         x,y=Setup.buttonCenter('seed');Setup.mousepressed(preview,x,y,options)
         Setup.textinput(preview,'0');x,y=Setup.buttonCenter('start')
         check('town_seed_edit_requires_valid_new_preview',Setup.mousepressed(preview,x,y,options)~='start'

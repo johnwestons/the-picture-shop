@@ -9,6 +9,7 @@ local Test={}
 local function fixture(day)
     local state=State.new()
     state.calendar=Calendar.dateFromTotalDay(day)
+    state.calendar.elapsed=Calendar.secondsPerDay(state)*10/24
     assert(Maintenance.prepareBladeForTechnician(state))
     local _,cutter=Maintenance.cutterStatus(state)
     cutter.nextTechnicianDay,cutter.appointmentType=day,"requested"
@@ -24,6 +25,7 @@ local function distribution(check)
     while samples<1000 do
         day=day+1
         state.calendar=Calendar.dateFromTotalDay(day)
+        state.calendar.elapsed=Calendar.secondsPerDay(state)*10/24
         if not Calendar.isWeekend(state) then
             samples=samples+1
             state.technicianVisit=nil
@@ -80,6 +82,7 @@ local function rescheduled(context,check)
         context.save.delete(3)
         local _,savedCutter=Maintenance.cutterStatus(resumed)
         resumed.calendar=Calendar.dateFromTotalDay(savedCutter.nextTechnicianDay)
+        resumed.calendar.elapsed=Calendar.secondsPerDay(resumed)*10/24
         check("service_reliability_"..case.name.."_replacement_date_survives_reload_without_another_delay",
             savedCutter.technicianRescheduled and Maintenance.updateTechnician(resumed)
             and resumed.technicianVisit and resumed.technicianVisit.kind=="cutter"

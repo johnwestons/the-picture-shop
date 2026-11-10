@@ -157,24 +157,27 @@ function Component.install(Runtime)
         end
     end
 
-    function Runtime.drawLoadMenu()
+    function Runtime.drawLoadMenu(assets, pointerX, pointerY)
         local menu = Runtime.Screen.loadMenu
         if not menu then return end
+        local layout = Runtime.loadMenuLayout(menu)
         love.graphics.setColor(0, 0, 0, 0.72)
         love.graphics.rectangle("fill", 0, 0, Runtime.Config.baseWidth, Runtime.Config.baseHeight)
-        local pageStart = math.floor((menu.selected - 1) / Runtime.loadMenuPageSize) * Runtime.loadMenuPageSize + 1
-        local pageEnd = math.min(#menu.options, pageStart + Runtime.loadMenuPageSize - 1)
-        local visibleCount = pageEnd - pageStart + 1
-        local height = 86 + visibleCount * Runtime.loadMenuRect.rowHeight
-        Runtime.box(Runtime.loadMenuRect.x, Runtime.loadMenuRect.y, Runtime.loadMenuRect.width, height,
+        Runtime.box(layout.x, layout.y, layout.width, layout.height,
             { 0.035, 0.07, 0.095, 0.99 }, { 0.48, 0.76, 0.83, 1 }, 5)
         love.graphics.setColor(0.96, 0.82, 0.26)
-        love.graphics.print("SELECT A PALLET FOR THE CUTTER", Runtime.loadMenuRect.x + 20, Runtime.loadMenuRect.y + 16)
+        love.graphics.print("SELECT A PALLET FOR THE CUTTER", layout.x + 20, layout.y + 16)
         love.graphics.setColor(0.70, 0.80, 0.82)
-        love.graphics.print("Click a row or press 1-7. Up/Down pages; Esc cancels.", Runtime.loadMenuRect.x + 20, Runtime.loadMenuRect.y + 40)
-        for index = pageStart, pageEnd do
+        love.graphics.print("Choose a row or press 1-7. Up/Down moves; Esc or BACK returns.",
+            layout.x + 20, layout.y + 40)
+        if layout.visibleCount == 0 then
+            love.graphics.setColor(0.78, 0.84, 0.85)
+            love.graphics.printf("No eligible paper is inside the cutter's load radius.\nMove a skid closer or add generic shop stock.",
+                layout.x + 24, layout.y + 82, layout.width - 48, "center")
+        end
+        for index = layout.pageStart, layout.pageEnd do
             local option = menu.options[index]
-            local displayIndex = index - pageStart + 1
+            local displayIndex = index - layout.pageStart + 1
             local y = Runtime.loadMenuRect.y + 68 + (displayIndex - 1) * Runtime.loadMenuRect.rowHeight
             local selected = menu.selected == index
             Runtime.box(Runtime.loadMenuRect.x + 16, y, Runtime.loadMenuRect.width - 32, Runtime.loadMenuRect.rowHeight - 6,
@@ -185,6 +188,7 @@ function Component.install(Runtime)
             love.graphics.setColor(0.67, 0.78, 0.80)
             love.graphics.print(option.detail, Runtime.loadMenuRect.x + 48, y + 27)
         end
+        Runtime.BackButton.draw(assets, layout.back, "BACK", pointerX, pointerY, false)
     end
 
     function Runtime.Screen.draw(state, assets, pointerX, pointerY)
@@ -208,7 +212,7 @@ function Component.install(Runtime)
         if state.machineType == "skid_wrapper" then
             Runtime.box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
             love.graphics.setColor(0.96, 0.82, 0.26)
-            love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
+            love.graphics.print("SKID WRAPPER / PACKAGING", 38, 30)
             Runtime.drawCondition(state, "skid_wrapper", 366, 28, 280)
             Runtime.BackButton.draw(assets, Runtime.exitButton, "EXIT", pointerX, pointerY, false)
             local nearbyPallets = Runtime.Wrapper.nearbyPallets(state)
@@ -311,7 +315,7 @@ function Component.install(Runtime)
         love.graphics.print("STATUS: " .. Runtime.Machine.step:upper(), 50, 411)
         love.graphics.print("BARRIER: " .. (Runtime.Machine.barrierClear and "CLEAR" or "BLOCKED"), 260, 411)
         love.graphics.print("CLAMP: " .. (Runtime.Machine.clamp and "DOWN" or "UP"), 460, 411)
-        love.graphics.print(Runtime.Machine.paperTooltip(), 50, 435)
+        love.graphics.print(require('src.screens.typography').ellipsize(Runtime.Machine.paperTooltip(),862), 50, 435)
         for _, button in ipairs(Runtime.buttons) do
             if button.y >= 400 and button.action ~= "cut_left" and button.action ~= "cut_right" and button.action ~= "estop" then Runtime.drawButton(button, assets, pointerX, pointerY) end
         end
@@ -321,16 +325,18 @@ function Component.install(Runtime)
             elseif button.action == "estop" then Runtime.drawSpriteButton(assets, button, true, Runtime.Machine.emergencyStopped) end
         end
         love.graphics.setColor(0.75, 0.82, 0.83)
-        love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate CCW | SPACE clamp | "
+        love.graphics.push('all');love.graphics.setFont(require('src.screens.typography').get(12))
+        love.graphics.print("Enter: gauge · L: load · G: auto · P: position · Q: rotate · Space: clamp · "
             .. (Runtime.Machine.multiplayerSingleControl and "J or K cut" or "J+K cut")
-            .. " | T repeat | U unload", 48, 535)
+            .. " · T: repeat · U: unload", 48, 535)
+        love.graphics.pop()
         local memory = Runtime.Machine.savedMeasurements(state, Runtime.Machine.programIndex)
         local formattedMemory = {}
         for index, value in ipairs(memory) do formattedMemory[index] = string.format("%.2f", value) end
         local memoryText = #formattedMemory > 0 and table.concat(formattedMemory, " / ") or "NONE"
         love.graphics.print(string.format("P%d SAVED: %s", Runtime.Machine.programIndex, memoryText), 50, 563)
         love.graphics.print(state.message or "", 48, 635)
-        Runtime.drawLoadMenu()
+        Runtime.drawLoadMenu(assets, pointerX, pointerY)
     end
 end
 

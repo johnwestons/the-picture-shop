@@ -48,6 +48,7 @@ function Tires.purchase(state,player,trip,world,intent)
         return false,'Not enough household money for these tires.'
     end
     state.home.balanceCents=state.home.balanceCents-price
+    require('src.receipt_book').expense(state,'Motorcycle tires',price,'Majic Blue','Household',label)
     service.tire=intent.tireId;service.tread=0;service.revision=service.revision+1
     resident.ridingService=Service.copy(service)
     resident.revision=resident.revision+1;state.home.revision=state.home.revision+1

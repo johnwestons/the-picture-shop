@@ -49,6 +49,13 @@ function Test.run(check)
         end
         allRecreation=allRecreation and #town.recreation>=2 and #town.recreation<=3
         for _,area in ipairs(town.recreation) do
+            if area.kind=='park' or area.kind=='camp' then
+                check('town_recreation_reserves_full_'..area.kind..'_clearing_'..seed,area.radius>=20)
+                local x,z=require('src.commute.recreation_layout').point(area,0,area.radius+2)
+                local d,segment=world.roads:nearest(x,z)
+                check('town_recreation_'..area.kind..'_entrance_joins_trail_at_matching_height_'..seed,
+                    segment and segment.id==area.trailId and d<.03 and math.abs(world:height(x,z)-area.h)<.03)
+            end
             local d=math.huge
             for _,s in ipairs(world.roads.segments) do if s.id==area.trailId then
                 local t=math.max(0,math.min(1,((area.x-s.a.x)*s.dx+(area.z-s.a.z)*s.dz)/s.length2))

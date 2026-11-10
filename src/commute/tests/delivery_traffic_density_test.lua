@@ -9,7 +9,7 @@ local TrafficActorIndex=require('src.commute.traffic_actor_index')
 local BikeTraffic=require('src.commute.ai_motorcycle_traffic')
 local Test={}
 
-local RETURN_TRUCKS=14
+local RETURN_TRUCKS=Network.MAX_ACTIVE_TRUCKS
 local SIMULATION_STEPS=80
 
 local function seedTestMotorcycles(commute,world,routes)

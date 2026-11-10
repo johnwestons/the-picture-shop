@@ -7,6 +7,7 @@ function Shop.buyPaper(state)
     end
     require("src.household_finances").purchase(state,"abstract_paper",25,2500)
     state.money = state.money - 25
+    require('src.receipt_book').expense(state,'Paper purchase',2500,'Shop supplies','Shop','25 sheets of paper')
     state.inventory.paper = state.inventory.paper + 25
     state.message = "Bought 25 sheets of paper."
     return true
@@ -19,6 +20,7 @@ function Shop.sellPrint(state)
     end
     state.inventory.prints = state.inventory.prints - 1
     state.money = state.money + 12
+    require('src.receipt_book').add(state,{kind='job',title='Finished print sale',party='Retail customer',amountCents=1200,details='One finished print.'})
     require("src.household_finances").record(state,"revenue",1200)
     state.message = "Sold a finished print for $12."
     return true

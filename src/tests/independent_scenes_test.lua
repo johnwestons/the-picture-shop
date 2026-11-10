@@ -9,6 +9,7 @@ function Test.run(context,check)
     local C=require('src.commute.runtime')
     local Schema=require('src.save_schema')
     local state=context.State.new()
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     state.home.town=assert(require('src.commute.town').generate(712345))
     state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
     local now=0

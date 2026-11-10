@@ -28,7 +28,7 @@ function Component.install(Runtime)
         love.graphics.setColor(0.96, 0.82, 0.26)
         love.graphics.print("POLAR 115 LUBRICATION PROCEDURE", 42, 34)
         love.graphics.setColor(0.70, 0.80, 0.81)
-        love.graphics.print("Lock out power, prepare the grease gun, clean each fitting, couple, then pump 2-3 strokes.", 42, 62)
+        love.graphics.print("Lock out power. Prepare gun. Clean, couple and pump each fitting 2–3 times.", 42, 62)
         love.graphics.setColor(0.10, 0.14, 0.14)
         love.graphics.rectangle("fill", 42, 88, 860, 10, 3, 3)
         love.graphics.setColor(0.30, 0.82, 0.48)
@@ -58,7 +58,7 @@ function Component.install(Runtime)
             for index, view in ipairs(Runtime.lubricationViews) do
                 local rect = { x = 42 + (index - 1) * 113, y = 112, width = 105, height = 34 }
                 local disabled = view == "central" and not session.centralInstalled
-                Runtime.drawSmallAction(rect, disabled and "CENTRAL N/A" or view:upper(),
+                Runtime.drawSmallAction(rect, disabled and "N/A" or view:upper(),
                     session.activeView == view, false, pointerX, pointerY)
             end
             Runtime.box(42, 158, 570, 386, { 0.06, 0.075, 0.08, 1 }, { 0.25, 0.39, 0.40, 1 }, 4)

@@ -91,6 +91,9 @@ function Component.install(Runtime)
             end
         end
         state.money = (state.money or 0) + value
+        require('src.receipt_book').add(state,{source='machine-sale:'..item.id,kind='payout',title='Machinery sale',
+            party=channel=='dealer' and 'Machine dealer' or 'Online buyer',amountCents=value*100,
+            details=Runtime.definition(item.modelId).name..'\nMachine: '..item.id})
         return true, { machine = item, price = value, channel = channel == "dealer" and "dealer" or "online" }
     end
 

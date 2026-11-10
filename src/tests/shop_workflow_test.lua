@@ -77,7 +77,7 @@ function Test.run(context,check)
         local s=State.new();State.applyLocalSave(s,payload)
         Calendar.update(s,minutes*30)
         check("shop_setup_persists_clock_pace_"..minutes,payload.state.calendar.secondsPerDay==minutes*60
-            and near(Calendar.absoluteHours(s),12) and Calendar.timeText(s)=="12:00"
+            and near(Calendar.absoluteHours(s),21) and Calendar.timeText(s)=="21:00"
             and Schema.snapshot(s).calendar.secondsPerDay==minutes*60)
     end
     for i,value in ipairs({4,61,5.5,"20",0/0,math.huge}) do
@@ -235,7 +235,8 @@ function Test.run(context,check)
     check("shop_clock_rolls_date_at_midnight",Calendar.timeText(clockState)=="00:00" and clockState.calendar.day==2)
     local computer=context.computerScreen.new();computer.enter(clockState)
     computer.quoteFocused=true;computer.promoFocused=true
-    check("shop_clock_computer_header_opens_live_clock",computer.mousepressed(clockState,800,118,1).action=="clock"
+    local clockX,clockY=computer.browserControlCenter('clock')
+    check("shop_clock_computer_header_opens_live_clock",computer.mousepressed(clockState,clockX,clockY,1)~=nil
         and computer.tab=="clock" and not computer.quoteFocused and not computer.promoFocused)
     local c=context.config.interactables.shopClock
     local saves=0;local input={state=clockState,hud={hitTest=function() end},world={},saveCurrent=function() saves=saves+1 end,

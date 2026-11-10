@@ -29,7 +29,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeInteractionRequest(payload)
         local valid, shapeError = Runtime.shape(payload, "interaction_request payload",
-            { "sessionId", "requestId", "targetKind", "desiredState" },{"shotAim"})
+            { "sessionId", "requestId", "targetKind", "desiredState" },{"shotAim","signature"})
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "interaction_request.sessionId")
@@ -88,6 +88,13 @@ function Component.install(Runtime)
         then
             return nil, "interaction_request.desiredState is invalid"
         end
+        if payload.signature~=nil then
+            if targetKind~='deliverySignature' then return nil,'Signature ink is only allowed on delivery receipts' end
+            local okay,err=Runtime.shape(payload.signature,'interaction_request.signature',{'deliveryId','ink'})
+            if not okay then return nil,err end
+            if not Runtime.token(payload.signature.deliveryId,64,'signature.deliveryId')
+                or not require('src.receipt_signature').valid(payload.signature.ink) then return nil,'Invalid delivery signature' end
+        end
         if payload.shotAim~=nil then
             if targetKind~="roomGame" or payload.desiredState~="basketball:shot_release" then
                 return nil,"shotAim is only allowed on a basketball release"
@@ -108,6 +115,7 @@ function Component.install(Runtime)
             targetKind = targetKind,
             desiredState = payload.desiredState,
             shotAim = payload.shotAim,
+            signature = payload.signature,
         }
     end
 

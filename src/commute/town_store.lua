@@ -7,6 +7,7 @@ local GroceryInventory=require('src.commute.grocery_inventory')
 local TownCharacters=require('src.commute.town_characters')
 local Calendar=require('src.business_calendar')
 local GroceryUiArt=require('src.commute.grocery_ui_art')
+local Fonts=require('src.screens.title_fonts')
 local Store={}
 local stores={
     grocery={name='TOWN GROCERY',subtitle='Fresh staples and pantry food',group='groceries',items={
@@ -195,6 +196,8 @@ function Store.purchase(state,player,rider,world,storeId,intent)
         if not consumed then return false,'That item just sold out. Review the grocery shelf again.' end
     end
     state.home.balanceCents=state.home.balanceCents-quote.totalCents
+    require('src.receipt_book').expense(state,'Store purchase',quote.totalCents,storeId,'Household',
+        tostring(intent.quantity)..' x '..quote.product.name)
     bikeInventory.items[intent.productId]=(bikeInventory.items[intent.productId] or 0)+intent.quantity
     bikeInventory.revision=bikeInventory.revision+1;resident.revision=resident.revision+1
     state.home.revision=state.home.revision+1
@@ -248,6 +251,10 @@ function Store.purchaseCart(state,player,rider,world,intent)
         bikeInventory.items[id]=(bikeInventory.items[id] or 0)+quantity
     end
     state.home.balanceCents=state.home.balanceCents-totalCents
+    local receiptLines={}
+    for id,quantity in pairs(intent.cart) do receiptLines[#receiptLines+1]=quantity..' x '..Catalog.PRODUCTS[id].name end
+    table.sort(receiptLines)
+    require('src.receipt_book').expense(state,'Grocery checkout',totalCents,'Grocery store','Household',table.concat(receiptLines,'\n'))
     bikeInventory.revision=bikeInventory.revision+1;resident.revision=resident.revision+1
     state.home.revision=state.home.revision+1
     return true,('Checkout complete: %d grocery bag(s) for $%.2f, loaded onto your bike (%d/%d bags).')
@@ -365,7 +372,7 @@ function Store.key(v,key,revision,buy,close,buyCart)
     return true
 end
 local layout={close={x=65,y=566,w=180,h=58},cart={x=274,y=566,w=218,h=58},buy={x=682,y=566,w=212,h=58},
-    minus={x=700,y=122,w=42,h=38},plus={x=846,y=122,w=42,h=38},
+    minus={x=700,y=330,w=42,h=38},plus={x=846,y=330,w=42,h=38},
     groceryMinus={x=606,y=414,w=40,h=34},groceryPlus={x=854,y=414,w=40,h=34}}
 local function contains(b,x,y) return x>=b.x and y>=b.y and x<=b.x+b.w and y<=b.y+b.h end
 function Store.pointer(v,x,y,revision,buy,close,buyCart)
@@ -428,7 +435,7 @@ local function drawButton(g,b,text,enabled,primary)
     g.setColor(fill[1],fill[2],fill[3],1);g.rectangle('fill',b.x,b.y,b.w,b.h-3,8)
     g.setColor(edge[1],edge[2],edge[3],1);g.rectangle('line',b.x,b.y,b.w,b.h-3,8)
     g.setColor(enabled and 1 or .48,enabled and .94 or .53,enabled and .75 or .48,1)
-    g.setFont(Fonts.get('metal',11));g.printf(text,b.x+8,b.y+14,b.w-16,'center')
+    require('src.screens.typography').label(text,{x=b.x,y=b.y,width=b.w,height=b.h-3},{size=18,minimum=16})
 end
 local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
     v.bikeInventoryRevision=bikeInventory and bikeInventory.revision or 0
@@ -455,9 +462,9 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         or groceryCategories[v.categoryId] and groceryCategories[v.categoryId].label or 'GROCERY AISLE'
     g.setColor(1,.88,.61,1);g.setFont(Fonts.get('metal',21));g.print('TOWN GROCERY',140,61)
     g.setColor(.99,.96,.85,1);g.setFont(Fonts.get('metal',14));g.print(title,140,92)
-    g.setColor(.70,.83,.68,1);g.setFont(Fonts.get('metal',10))
-    g.print(v.categoryId=='checkout' and 'A friendly checkout, staffed by our store cat'
-        or 'Fresh finds for your neighborhood kitchen',140,119)
+    g.setColor(.78,.86,.75,1);g.setFont(Fonts.get('metal',14))
+    g.print(v.categoryId=='checkout' and 'Review your basket before paying'
+        or 'Fresh finds for your kitchen',140,119)
     local used=BikeCargo.used(bikeInventory)
     local chips={
         {x=492,w=126,caption='HOUSEHOLD',value=('$%.2f'):format(balanceCents/100),color={.99,.86,.57,1}},
@@ -468,14 +475,14 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         g.setColor(.045,.12,.078,1);g.rectangle('fill',chip.x,63,chip.w,53,7)
         g.setColor(.27,.40,.28,1);g.rectangle('line',chip.x,63,chip.w,53,7)
         g.setColor(.64,.77,.64,1);g.setFont(Fonts.get('metal',8));g.printf(chip.caption,chip.x+8,71,chip.w-16,'left')
-        g.setColor(unpack(chip.color));g.setFont(Fonts.get('metal',13));g.printf(chip.value,chip.x+8,88,chip.w-16,'left')
+        g.setColor(unpack(chip.color));g.setFont(Fonts.get('metal',16));g.printf(chip.value,chip.x+8,88,chip.w-16,'left')
     end
     local daysToDelivery=math.max(0,(v.storeStock and v.storeStock.nextDeliveryDay or 0)-(v.calendarDay or 0))
     local deliveryText=daysToDelivery==0 and ((v.calendarWeekday or 1)>=6 and 'next weekday' or 'due today')
         or ('in '..daysToDelivery..' day(s)')
     g.setColor(.88,.84,.66,1);g.rectangle('fill',46,153,868,27,6)
     g.setColor(.36,.51,.36,1);g.circle('fill',61,166,5)
-    g.setColor(.13,.25,.17,1);g.setFont(Fonts.get('metal',9))
+    g.setColor(.13,.25,.17,1);g.setFont(Fonts.get('metal',14))
     g.print(v.categoryId=='checkout' and 'REGISTER OPEN  ·  Review your basket before paying'
         or ('FRESH STOCK DELIVERY  ·  '..deliveryText),75,160)
     g.setColor(.085,.14,.096,1);g.rectangle('fill',46,188,522,326,9)
@@ -494,17 +501,16 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         end
         g.setColor(.87,.82,.66,1);g.rectangle('fill',59,y+3,35,35,7)
         GroceryUiArt.drawProduct(offer.id,76.5,y+20,35)
-        g.setColor(.98,.95,.82,1);g.setFont(Fonts.get('metal',11))
-        g.print(product.name,103,y+4)
+        g.setColor(.98,.95,.82,1);g.setFont(Fonts.get('metal',16))
+        g.print(require('src.screens.typography').ellipsize(product.name,338),103,y+2)
         local stored=bikeInventory and bikeInventory.items[offer.id] or 0
         local inStock=Store.stockCount(v,offer.id)
-        local detail=v.categoryId=='checkout' and ('In cart: %d  /  on bike: %d'):format(quantity,stored)
-            or ('Stock: %d  /  %d serving(s)/item  /  on bike: %d'):format(inStock,product.servings,stored)
-        if v.categoryId=='checkout' then detail=detail..('  /  store: %d'):format(inStock) end
-        if inStock==0 then detail='OUT OF STOCK  /  '..detail end
+        local detail=v.categoryId=='checkout' and ('Cart %d / Bike %d / Stock %d'):format(quantity,stored,inStock)
+            or ('Stock %d / %d servings / Bike %d'):format(inStock,product.servings,stored)
+        if inStock==0 then detail='Sold out / '..detail end
         g.setColor(inStock==0 and 1 or .69,inStock==0 and .52 or .77,inStock==0 and .42 or .69,1)
         g.setFont(Fonts.get('metal',8));g.print(detail,103,y+22)
-        g.setColor(.98,.87,.60,1);g.setFont(Fonts.get('metal',10))
+        g.setColor(.98,.87,.60,1);g.setFont(Fonts.get('metal',16))
         g.printf(('$%.2f'):format(offer.priceCents/100),450,y+13,101,'right')
     end
     g.setColor(.18,.30,.20,1);g.setFont(Fonts.get('metal',9))
@@ -515,29 +521,24 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         g.setColor(.98,.93,.80,1);g.rectangle('fill',681,205,130,112,10)
         g.setColor(.82,.73,.53,1);g.rectangle('line',681,205,130,112,10)
         GroceryUiArt.drawProduct(offer.id,746,261,104)
-        g.setColor(.14,.25,.17,1);g.setFont(Fonts.get('metal',15))
+        g.setColor(.14,.25,.17,1);g.setFont(require('src.screens.typography').fit(product.name,18,304,24,'bold',14))
         g.printf(product.name,594,326,304,'center')
-        g.setColor(.30,.39,.28,1);g.setFont(Fonts.get('metal',9))
-        local descriptor=product.description or ('A lovely grocery pick with %d serving(s) per item.'):format(product.servings)
+        g.setColor(.22,.31,.20,1);g.setFont(Fonts.get('paper',14))
+        local descriptor=product.description or ('%d servings per item.'):format(product.servings)
         g.printf(descriptor,602,349,288,'center')
-        g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',9))
+        g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',14))
         local inStock=Store.stockCount(v,offer.id)
         local stored=bikeInventory and bikeInventory.items[offer.id] or 0
         g.printf(('IN STORE  %d   ·   ON BIKE  %d'):format(inStock,stored),594,391,304,'center')
         if v.categoryId=='checkout' then
-            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',10))
-            g.printf(('QUANTITY IN CART  %d'):format(selected.quantity),594,414,304,'center')
-            g.setColor(.38,.46,.32,1);g.setFont(Fonts.get('metal',8))
-            g.printf('Left: remove one  ·  Right: add one',594,433,304,'center')
+            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',16))
+            g.printf(('IN CART: %d'):format(selected.quantity),650,423,200,'center')
             local canPay,shortId,available,requested=Store.cartAvailability(v,v.cart)
             if not canPay then
                 local shortName=Catalog.PRODUCTS[shortId].name
-                g.setColor(.68,.24,.16,1);g.setFont(Fonts.get('metal',8))
+                g.setColor(.60,.18,.10,1);g.setFont(Fonts.get('metal',14))
                 g.printf(available>0 and ('Only %d %s left; cart needs %d.'):format(available,shortName,requested)
                     or (shortName..' is out of stock. Remove it to check out.'),596,449,300,'center')
-            elseif v.storeStock and v.storeStock.lastDeliveryNote then
-                g.setColor(.30,.43,.29,1);g.setFont(Fonts.get('metal',8))
-                g.printf(v.storeStock.lastDeliveryNote,596,449,300,'center')
             end
             g.setColor(.22,.33,.26,1)
             g.rectangle('fill',layout.groceryMinus.x,layout.groceryMinus.y,layout.groceryMinus.w,layout.groceryMinus.h,6)
@@ -547,15 +548,15 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
             g.printf('+',layout.groceryPlus.x,layout.groceryPlus.y+7,layout.groceryPlus.w,'center')
         else
             local quote=Store.quote('grocery',offer.id,v.quantity or 1)
-            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',10))
-            g.printf(('QUANTITY  %d'):format(v.quantity or 1),594,414,304,'center')
+            g.setColor(.20,.33,.22,1);g.setFont(Fonts.get('metal',16))
+            g.printf(('QUANTITY: %d'):format(v.quantity or 1),650,423,200,'center')
             g.setColor(.22,.33,.26,1)
             g.rectangle('fill',layout.groceryMinus.x,layout.groceryMinus.y,layout.groceryMinus.w,layout.groceryMinus.h,6)
             g.rectangle('fill',layout.groceryPlus.x,layout.groceryPlus.y,layout.groceryPlus.w,layout.groceryPlus.h,6)
             g.setColor(1,.92,.72,1);g.setFont(Fonts.get('metal',14))
             g.printf('−',layout.groceryMinus.x,layout.groceryMinus.y+7,layout.groceryMinus.w,'center')
             g.printf('+',layout.groceryPlus.x,layout.groceryPlus.y+7,layout.groceryPlus.w,'center')
-            g.setColor(.66,.25,.16,1);g.setFont(Fonts.get('metal',11))
+            g.setColor(.60,.18,.10,1);g.setFont(Fonts.get('metal',16))
             g.printf(('ITEM TOTAL  $%.2f'):format(quote.totalCents/100),594,448,304,'center')
         end
     elseif v.categoryId=='checkout' then
@@ -568,11 +569,11 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
         g.printf('Choose a fresh find from the shelf.',602,393,288,'center')
     end
     g.setColor(.055,.12,.08,1);g.rectangle('fill',46,520,868,32,6)
-    g.setColor(.89,.82,.63,1);g.setFont(Fonts.get('metal',9))
+    g.setColor(.94,.88,.71,1);g.setFont(Fonts.get('metal',14))
     local hint=v.pending and 'Waiting for the host to confirm checkout…' or v.notice
-        or v.categoryId=='checkout' and 'Select a cart line to change its quantity. Press Enter or Pay Now to finish.'
-        or 'Choose an item, set quantity, then press Enter or Add to Cart.'
-    g.printf(hint,62,529,836)
+        or v.categoryId=='checkout' and 'Select an item. Use −/+ to adjust. Pay Now completes checkout.'
+        or 'Choose an item, set quantity, then Add to Cart.'
+    g.printf(hint,62,524,836)
     drawButton(g,layout.close,'Back to floor',not v.pending,false)
     local canOpenCheckout=v.interiorKind~='grocery' or v.cartPushed and v.atGroceryRegister
     drawButton(g,layout.cart,v.categoryId=='checkout' and 'Continue shopping' or ('View cart ('..count..')'),
@@ -596,9 +597,9 @@ function Store.draw(v,balanceCents,bikeInventory,revision,width,height,closeLabe
     local subtitle=v.storeId=='grocery' and 'INSIDE CHECKOUT' or 'WALK-UP MARKET'
     g.setColor(.96,.9,.7);g.print(Store.title(v.storeId)..'  /  '..subtitle,70,65,0,1.4)
     g.setColor(.79,.84,.76);g.print(stores[v.storeId].subtitle,70,105)
-    g.print(('Household $%.2f'):format(balanceCents/100),620,105)
+    g.print(('Home $%.2f'):format(balanceCents/100),70,137)
     local used=BikeCargo.used(bikeInventory)
-    g.print(('Bike cargo %d / %d bags'):format(used,BikeCargo.CAPACITY),775,105)
+    g.print(('Bike cargo %d / %d bags'):format(used,BikeCargo.CAPACITY),610,137)
     for i,offer in ipairs(products) do
         local product=Catalog.PRODUCTS[offer.id];local y=174+(i-1)*48
         local stored=bikeInventory and bikeInventory.items[offer.id] or 0
@@ -615,7 +616,7 @@ function Store.draw(v,balanceCents,bikeInventory,revision,width,height,closeLabe
         local product=quote.product
         g.setColor(.94,.9,.77,1)
         g.printf(product.name..'\n'..product.servings..' serving(s)/item\nNo delivery fee at the store.\nHome computer orders include delivery; takeout has its own menu and fee.',610,174,280)
-        g.print(('QUANTITY  %d'):format(v.quantity),610,335)
+        g.printf(('QTY %d'):format(v.quantity),746,341,96,'center')
         g.setColor(.22,.33,.26,1);g.rectangle('fill',layout.minus.x,layout.minus.y,layout.minus.w,layout.minus.h,4);g.rectangle('fill',layout.plus.x,layout.plus.y,layout.plus.w,layout.plus.h,4)
         g.setColor(1,.92,.72,1);g.printf('−',layout.minus.x,layout.minus.y+8,layout.minus.w,'center');g.printf('+',layout.plus.x,layout.plus.y+8,layout.plus.w,'center')
         g.print(('TOTAL  $%.2f'):format(quote.totalCents/100),610,384)

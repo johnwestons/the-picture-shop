@@ -196,6 +196,7 @@ function Component.install(Runtime)
         love.graphics.setColor(0.26, 0.92, 0.48, 1)
         love.graphics.circle("fill", 876, 655, 2.5)
         love.graphics.setColor(0.24, 0.23, 0.20, 1)
+        love.graphics.setFont(require('src.screens.typography').get(12))
         love.graphics.print("CRITTERWORKS CRT-17", 374, 649)
         local displayDate = Runtime.BusinessCalendar.shortDate(state):gsub("%s+W%d+$", "")
         love.graphics.printf(displayDate, 646, 649, 132, "right")
@@ -204,10 +205,12 @@ function Component.install(Runtime)
         love.graphics.setColor(0.35, 0.49, 0.41, 1)
         love.graphics.rectangle("line", 785, 646, 76, 20, 3, 3)
         love.graphics.setColor(0.52, 0.98, 0.65, 1)
-        love.graphics.printf(Runtime.BusinessCalendar.timeText(state,twelveHourTime), 788, 648, 70, "center")
+        Runtime.printCenteredFit(Runtime.BusinessCalendar.timeText(state,twelveHourTime), 788, 648, 70)
     end
 
     function Runtime.drawTabSelector(state, pointerX, pointerY)
+        love.graphics.setFont(require('src.screens.typography').get(14))
+        if not Runtime.compactHeader then
         love.graphics.setColor(0.72, 0.72, 0.68, 1)
         love.graphics.rectangle("fill", Runtime.TAB_ADDRESS.x, Runtime.TAB_ADDRESS.y,
             Runtime.TAB_ADDRESS.width, Runtime.TAB_ADDRESS.height)
@@ -223,9 +226,16 @@ function Component.install(Runtime)
         love.graphics.rectangle("fill", Runtime.TAB_ADDRESS.x + 7, Runtime.TAB_ADDRESS.y + 8,
             Runtime.TAB_ADDRESS.width - 14, Runtime.TAB_ADDRESS.height - 15)
         love.graphics.setColor(0.76, 0.94, 0.90, 1)
-        love.graphics.print(Runtime.ComputerScreen.activeUrl(), Runtime.TAB_ADDRESS.x + 15, Runtime.TAB_ADDRESS.y + 14)
+        love.graphics.print(require('src.screens.typography').ellipsize(Runtime.ComputerScreen.activeUrl(),
+            Runtime.TAB_ADDRESS.width-30), Runtime.TAB_ADDRESS.x + 15, Runtime.TAB_ADDRESS.y + 14)
 
-        local hovered = pointerX and Runtime.contains(Runtime.TAB_DROPDOWN_ARROW, pointerX, pointerY)
+        local hovered = pointerX and (Runtime.contains(Runtime.TAB_ADDRESS, pointerX, pointerY)
+            or Runtime.contains(Runtime.TAB_DROPDOWN_ARROW, pointerX, pointerY))
+        if hovered or Runtime.ComputerScreen.tabDropdownOpen then
+            love.graphics.setColor(0.53, 0.98, 0.84, hovered and 0.9 or 0.6)
+            love.graphics.rectangle("line", Runtime.TAB_ADDRESS.x+2, Runtime.TAB_ADDRESS.y+2,
+                Runtime.TAB_ADDRESS.width-4, Runtime.TAB_ADDRESS.height-4)
+        end
         Runtime.drawComputerButton(Runtime.TAB_DROPDOWN_ARROW, nil,
             Runtime.ComputerScreen.tabDropdownOpen and "primary" or hovered and "hover" or "secondary")
         love.graphics.setColor(Runtime.ComputerScreen.tabDropdownOpen
@@ -242,6 +252,7 @@ function Component.install(Runtime)
                 Runtime.TAB_DROPDOWN_ARROW.y + 8, 5)
         end
 
+        end
         if not Runtime.ComputerScreen.tabDropdownOpen then return end
         local groups,dropdownHeight=Runtime.tabDropdownGroups()
         Runtime.panel({x=Runtime.TAB_DROPDOWN.x,y=Runtime.TAB_DROPDOWN.y,

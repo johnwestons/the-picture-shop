@@ -5,6 +5,9 @@ function Test.run(context,check)
     local previousPlayer=R.World.snapshot();local oldSpeed=R.App.gameClockSpeed
     assert(R.startGame(R.Save.newGame(3,{furnishingPreset="modest"}),"smoke"))
     local state,p=R.state,R.World.player;local Layout=require("src.home_layouts");local Calendar=require("src.business_calendar")
+    -- This shared fixture buys a chair, appliances, food and three tables.
+    -- Fund the complete catalog journey; insufficient-funds behavior is tested separately.
+    state.home.balanceCents=100000
     local Controls=require("src.home_furniture_controls");local Furniture=require("src.home_furniture");local Shopping=require("src.home_shopping")
     state.home.weekend.phase="home";state.home.weekend.closedAtHours=44
     state.calendar=Calendar.dateFromHours(44);state.calendar.elapsed=20/24*state.calendar.secondsPerDay
@@ -53,7 +56,7 @@ function Test.run(context,check)
     x,y=screen.homeShopControlCenter("buy",2);screen.mousepressed(state,x,y,1)
     capture("home-furniture-checkout",screen)
     local balance=state.home.balanceCents;x,y=screen.homeShopControlCenter("confirm");screen.mousepressed(state,x,y,1)
-    check("home_furniture_runtime_pays_household",state.home.balanceCents==balance-3000,state.message)
+    check("home_furniture_runtime_pays_household",state.home.balanceCents==balance-2875,state.message)
     R.App.update(Calendar.secondsPerDay(state)/12)
     state.screen="world";local parcel=assert(Shopping.target(p,state));p.x,p.y=Layout.spawn(state,1)
     R.World.updateNetworkPlayer(0,0,0,R.Assets,state,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")

@@ -149,6 +149,8 @@ function Games.purchase(state, bayId, fixtureId, requestId, players)
     current.receipts[#current.receipts+1] = {
         requestId=requestId, bayId=bayId, fixtureId=fixtureId, pricePaid=price }
     state.breakroomGames = current
+    require('src.receipt_book').expense(state,'Break room purchase',price*100,'CritterNet','Shop',
+        Games.CATALOG[fixtureId].name..' - '..bayId,'breakroom:'..requestId)
     return true, Games.CATALOG[fixtureId].name .. " installed in the break room.", "purchased"
 end
 return Games

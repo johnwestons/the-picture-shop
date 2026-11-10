@@ -187,6 +187,8 @@ function Routes:findFromPoint(x,z,to)
             points[#points+1]={x=p.x,z=p.z,h=p.h}
         end
     end
-    return {from='current-position',to=to,length=distance[finish],points=points,crossesBridge=bridge}
+    local joinDistance=start and math.sqrt((x-start.x)^2+(z-start.z)^2) or 0
+    return {from='current-position',to=to,length=distance[finish],points=points,crossesBridge=bridge,
+        joinDistance=joinDistance}
 end
 return Routes

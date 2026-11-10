@@ -21,6 +21,7 @@ function Test.run(context,check)
     local C=require('src.commute.runtime')
     local Town=require('src.commute.town')
     local state=State.new()
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
     state.home.town=assert(Town.generate(712345))
     state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
     local world=Town.world(state.home.town)
@@ -44,13 +45,14 @@ function Test.run(context,check)
     local localJob=job('PLAYER-LOCAL','Town Grocery',{500,500},'grocery')
     local cityOne=job('PLAYER-CITY-1','Blue Ridge Packaging',{500})
     local cityTwo=job('PLAYER-CITY-2','Northstar Bindery',{500})
+    local secondLocal=job('PLAYER-LOCAL-2','Town Diner',{500},'diner')
     localJob.outboundDelivery={transport='customer'}
     check('player_delivery_cannot_claim_customer_arranged_transport',not Run.build(state,{localJob.id},world,'player'))
     localJob.outboundDelivery=nil
-    local run=assert(Run.build(state,{cityOne.id,localJob.id,cityTwo.id},world,'player'))
+    local run=assert(Run.build(state,{cityOne.id,localJob.id,cityTwo.id,secondLocal.id},world,'player'))
     check('player_delivery_local_address_survives_quote_and_orders_before_city',
         localJob.customerDestination=='grocery' and run.stops[1].kind=='town'
-        and run.stops[2].kind=='city' and run.palletCount==4)
+        and run.stops[2].id=='diner' and run.stops[3].kind=='city' and run.palletCount==5)
     local player={id=1,homeResidentId='owner',sceneId='warehouse',character='rabbit-worker'}
     local entered,t=Free.enter(state,player,world,run,{player});assert(entered,t)
     local beforeUnloaded=state.money
@@ -114,11 +116,13 @@ function Test.run(context,check)
     pallet=localJob.pallets[2]
     jack.operating=true;jack.operatorPlayerId=1;jack.carriedPalletId=pallet.id
     pallet.location='on_pallet_jack';pallet.world.x,pallet.world.y=jack.x,jack.y
-    local jackRow=require('src.truck_authority').view(state,warehouse,1).items[2]
+    local jackRow=require('src.truck_authority').view(state,warehouse,1).items[3]
     capture('loading-manifest',function()
         require('src.screens.truck_inventory_screen').draw(state,warehouse,context.assets,0,0)
     end)
-    local clicked=require('src.screens.truck_inventory_screen').mousepressed(state,warehouse,800,250,1)
+    local manifestScreen=require('src.screens.truck_inventory_screen')
+    local clickX,clickY=manifestScreen.unloadButtonCenter(3)
+    local clicked=manifestScreen.mousepressed(state,warehouse,clickX,clickY,1)
     check('player_delivery_player_jack_load_is_available_on_desktop_touch_and_remote_manifest',
         jackRow.available and clicked and clicked.action=='loaded' and pallet.location=='outbound_truck')
     tick(.1)
@@ -144,6 +148,7 @@ function Test.run(context,check)
     check('player_delivery_road_migration_retains_the_indoor_drivers_truck_reservation',
         Trip.valid(migrated,state.home) and migrated.truck.owner=='owner' and migrated.deliveryDriver=='owner')
     assert(warehouse.loadPickupPallet(state,cityTwo.pallets[1].id))
+    assert(warehouse.loadPickupPallet(state,secondLocal.pallets[1].id))
     local money=state.money
     tick(3)
     check('player_delivery_ready_only_after_all_pallets_and_cargo_secured',run.status=='driving'
@@ -161,31 +166,57 @@ function Test.run(context,check)
     part.rider.ped.x,part.rider.ped.z,part.rider.ped.speed=store.door.x,store.door.z,0
     local delivered,message=Trip.command(state,player,t.token,'deliver_stop',world)
     check('player_delivery_local_stop_completes_and_updates_gps',delivered and #state.jobs.completed==1
-        and C.activeWaypoint(R)=='mainland_exit' and message:find('Delivered 2',1,true)~=nil)
+        and C.activeWaypoint(R)=='diner' and message:find('Delivered 2',1,true)~=nil)
     local paid=state.money
     assert(Run.completeStop(state,run.stops[1]))
     check('player_delivery_retry_cannot_pay_for_same_job_twice',state.money==paid)
     part.rider.ped.x,part.rider.ped.z=truck.x,truck.z
     assert(Trip.command(state,player,t.token,'truck',world))
+    store=world.sites.byId.diner
+    truck.x,truck.z=store.parking.x,store.parking.z;truck.speed=0
+    assert(Trip.command(state,player,t.token,'truck',world))
+    part.rider.ped.x,part.rider.ped.z,part.rider.ped.speed=store.door.x,store.door.z,0
+    check('player_delivery_second_town_stop_advances_navigation_to_city',
+        Trip.command(state,player,t.token,'deliver_stop',world) and #state.jobs.completed==2
+        and C.activeWaypoint(R)=='mainland_exit')
+    part.rider.ped.x,part.rider.ped.z=truck.x,truck.z
+    assert(Trip.command(state,player,t.token,'truck',world))
     local gate=world.mainlandExit;local dx,dz=math.cos(gate.heading),math.sin(gate.heading)
+    truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*20/24
+    Trip.update(state,player,{drive=-1,steer=0},.1,world)
+    check('player_delivery_closed_city_gate_keeps_player_in_town_with_cargo',run.status=='driving'
+        and #state.jobs.completed==2 and truck.speed==0)
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
     truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
     Trip.update(state,player,{drive=-1,steer=0},.1,world)
     check('player_delivery_bridge_starts_city_montage',run.status=='offmap' and run.cutsceneEndsAtEpoch>os.time())
-    capture('city-delivery-montage',function()require('src.commute.city_delivery_scene').draw(960,678,run)end)
+    capture('city-delivery-montage',function()
+        require('src.commute.city_delivery_scene').draw(960,678,run,truck,nil,.9)
+    end)
     local bridgeSave=assert(Schema.snapshot(state))
     local bridgeTrip=assert(Trip.restore(bridgeSave.home.commute,world))
     check('player_delivery_bridge_montage_saves_and_restores_with_truck_control',
         Schema.validState(bridgeSave) and Trip.valid(bridgeTrip,state.home)
         and bridgeTrip.participants.owner.rider.truck==bridgeTrip.truck)
+    local beforeClosed=state.money
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*20/24
+    run.cutsceneEndsAtEpoch=os.time()-1
+    Trip.update(state,player,{},.1,world)
+    check('player_delivery_closing_during_trip_returns_undelivered_pallets_without_softlock',run.status=='driving'
+        and run.stopIndex==3 and #state.jobs.completed==2 and state.money==beforeClosed)
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
+    truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
+    Trip.update(state,player,{drive=-1,steer=0},.1,world)
     local originalObstacles=world.vehicleObstacles
     world.vehicleObstacles=function()return true end
     run.cutsceneEndsAtEpoch=os.time()-1
     Trip.update(state,player,{},.1,world)
-    check('player_delivery_city_return_waits_for_a_clear_lane',run.status=='offmap' and #state.jobs.completed==1)
+    check('player_delivery_city_return_waits_for_a_clear_lane',run.status=='offmap' and #state.jobs.completed==2)
     world.vehicleObstacles=originalObstacles
     run.cutsceneEndsAtEpoch=os.time()-1
     Trip.update(state,player,{},.1,world)
-    check('player_delivery_single_city_trip_delivers_remaining_manifest',#state.jobs.completed==3
+    check('player_delivery_single_city_trip_delivers_remaining_manifest',#state.jobs.completed==4
         and not t.deliveryRun and not t.deliveryDriver and state.message:find('2 pallets delivered',1,true)~=nil)
     check('player_delivery_returns_on_bridge_facing_town',math.cos(truck.heading-gate.heading)<-.99
         and math.sqrt((truck.x-gate.x)^2+(truck.z-gate.z)^2)>=8-.01)
@@ -205,6 +236,8 @@ function Test.run(context,check)
     state=State.new();state.home.town=assert(Town.generate(712345))
     state.home.townCharacters=require('src.commute.town_characters').defaultState(state.home.town)
     local employeeJob=job('PLAYER-EMPLOYEE-LOAD','Town Grocery',{500},'grocery')
+    local employeeJobTwo=job('PLAYER-EMPLOYEE-LOAD-2','Northstar Bindery',{500})
+    employeeJobTwo.pallets[1].world.x=560
     local Employees=require('src.employees')
     local applicant=assert(Employees.createApplicant(state,0));applicant.shiftPreference='flexible'
     Employees.requestResume(state,applicant.id,0);Employees.advance(state,.5)
@@ -219,7 +252,7 @@ function Test.run(context,check)
     state.calendar.elapsed=Calendar.secondsPerDay(state)*9.5/24
     state.employment.lastAtHours=Calendar.absoluteHours(state)
     player.sceneId='warehouse'
-    run=assert(Run.build(state,{employeeJob.id},world,'player'))
+    run=assert(Run.build(state,{employeeJob.id,employeeJobTwo.id},world,'player'))
     assert(Free.enter(state,player,world,run,{player}));player.sceneId='commute'
     t=state.home.commute
     local employeePart=t.participants.owner
@@ -242,7 +275,8 @@ function Test.run(context,check)
         if run.status=='driving' then break end
     end
     check('player_delivery_employee_ai_collects_and_loads_the_docked_truck',droveJack and run.status=='driving'
-        and employeeJob.pallets[1].location=='outbound_truck' and #state.jobs.completed==0,
+        and employeeJob.pallets[1].location=='outbound_truck'
+        and employeeJobTwo.pallets[1].location=='outbound_truck' and #state.jobs.completed==0,
         worker.activity..' / '..warehouse.truck.state..' / '..employeeJob.pallets[1].location)
     warehouse.configureEmployees({})
     warehouse.load()

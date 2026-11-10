@@ -203,6 +203,7 @@ $packageOutputRoot = Join-Path $windowsRoot 'package'
 if (-not $PackagePath) {
     & $python (Join-Path $projectRoot 'tools\build_mobile_package.py') `
         --windows-route-provider $routeProvider `
+        --runtime-version-name $displayVersion `
         --output-dir $packageOutputRoot
     if ($LASTEXITCODE -ne 0) { throw 'Shared game package build failed.' }
     $PackagePath = (Get-Content -Raw -LiteralPath (

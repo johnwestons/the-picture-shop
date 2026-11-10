@@ -113,7 +113,7 @@ function Commuters.actors(state,town,hours,activeWorld)
                 if trip and trip.bike then
                     local pose=trip.bike
                     local bike=Bike.new(pose.x,pose.z,pose.heading)
-                    bike.paintId=profile.paintId;bike.speed=pose.parked and 0 or 7.2
+                    bike.paintId=profile.paintId;bike.speed=pose.speed or 0
                     bike.distance=(route.length or 0)*(pose.progress or 0)
                     bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                     bike.trafficId='employee-'..worker.id
@@ -204,7 +204,7 @@ function Commuters.actors(state,town,hours,activeWorld)
                     if trip and trip.bike then
                         local pose=trip.bike
                         local bike=Bike.new(pose.x,pose.z,pose.heading)
-                        bike.paintId=profile.paintId;bike.speed=pose.parked and 0 or 7.2
+                        bike.paintId=profile.paintId;bike.speed=pose.speed or 0
                         bike.distance=(route.length or 0)*(pose.progress or 0)
                         bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                         bike.trafficId='applicant-'..application.id

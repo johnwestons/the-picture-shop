@@ -140,9 +140,48 @@
       "mobile": true,
       "timeoutSeconds": 600,
       "minChecks": 20
+    },
+    {
+      "id": "ui-desktop", "focus": "ui-regression", "mobile": false,
+      "timeoutSeconds": 600, "minChecks": 600
+    },
+    {
+      "id": "ui-mobile", "focus": "ui-regression", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 600
+    },
+    {
+      "id": "recreation-desktop", "focus": "town-recreation", "mobile": false,
+      "timeoutSeconds": 600, "minChecks": 20
+    },
+    {
+      "id": "recreation-mobile", "focus": "town-recreation", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 20
+    },
+    {
+      "id": "trucks-network-desktop", "focus": "truck-multiplayer", "mobile": false,
+      "timeoutSeconds": 600, "minChecks": 100
+    },
+    {
+      "id": "trucks-network-mobile", "focus": "truck-multiplayer", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 100
     }
   ],
   "features": [
+    {
+      "id": "readable-ui", "label": "Shared typography and office controls",
+      "stages": ["ui-desktop", "ui-mobile"],
+      "checks": ["ui_typewriter_has_navigation_symbol_fallbacks", "ui_large_balances_keep_both_accounts_visible"]
+    },
+    {
+      "id": "town-recreation", "label": "Park and campground geometry, paths and collision",
+      "stages": ["recreation-desktop", "recreation-mobile"],
+      "checks": ["recreation_park_and_camp_have_full_facilities", "recreation_pond_buildings_and_furniture_have_physical_collision"]
+    },
+    {
+      "id": "truck-network", "label": "Truck snapshots and multiplayer recovery",
+      "stages": ["trucks-network-desktop", "trucks-network-mobile"],
+      "checks": ["truck_motion_roundtrip_retains_model_reverse_and_road_pose", "multiplayer_impairment_client_send_failure_disconnect_and_rejoin_are_isolated"]
+    },
     {
       "id": "menus",
       "label": "Title, menus, options and input",

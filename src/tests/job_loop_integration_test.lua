@@ -3,6 +3,7 @@ local Test = {}
 function Test.run(context, check, jobs)
     local function verifyFullJobLoop()
     local fullLoopState = context.State.new()
+    fullLoopState.calendar.elapsed = 10 / 24 * context.config.businessCalendar.secondsPerDay
     fullLoopState.screen = "world"
     local fullLoopOffer = jobs.createOffer({
         id = "JOB-FULL-LOOP",
@@ -109,6 +110,21 @@ function Test.run(context, check, jobs)
     -- Continue through the legacy warehouse pickup path to verify that older
     -- saved jobs without a driver selection can still be loaded and paid.
     fullLoopOffer.pickup.driverMode=nil
+
+    -- Customer trucks now travel through town before the warehouse bay opens.
+    local traffic = require('src.commute.delivery_traffic')
+    local calendar = context.businessCalendar
+    calendar.update(fullLoopState, (fullLoopOffer.pickup.dispatchAtHours
+        - calendar.absoluteHours(fullLoopState)) / 24 * calendar.secondsPerDay(fullLoopState))
+    local town = fullLoopState.home.town
+    local roadWorld = require('src.commute.town').world(town)
+    local roadEpoch = os.time() - 700
+    traffic.update(fullLoopState, town, calendar.absoluteHours(fullLoopState), roadEpoch, roadWorld)
+    for step = 1, 6500 do
+        traffic.simulate(fullLoopState, town, .1, roadEpoch + step * .1, roadWorld)
+        if traffic.pickupArrived(fullLoopOffer) then break end
+    end
+    check('full_loop_customer_truck_reaches_warehouse', traffic.pickupArrived(fullLoopOffer))
 
     context.world.load()
     fullLoopState.screen = "world"

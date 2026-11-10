@@ -25,7 +25,9 @@ function Test.run(context,check)
     local function capture(scene,width,height,twelveHour)
         R.Config.baseWidth,R.Config.baseHeight=width,height
         R.App.settings.twelveHourTime=twelveHour
-        local date,money=Status.text(R.state,twelveHour)
+        local _,statusBounds=R.optionsAccessLayout()
+        local statusRect=Status.layout(statusBounds)
+        local date,money=Status.displayText(R.state,twelveHour,Status.statsWidth(statusRect,R.World.player.sceneId=='commute'))
         local shown,labels,positions={},{},{};local print,printf=g.print,g.printf
         g.print=function(text,x,y,rotation,sx,sy,...)
             labels[text]=true
@@ -73,11 +75,16 @@ function Test.run(context,check)
             if Visibility.isVisible(R) and not R._commute.mapOpen then
                 local cam=R._commute.camera
                 local mode=require('src.commute.camera_menu').currentLabel(cam)
-                local label=positions['CAMERA  ·  '..mode] or positions[mode]
+                local label=positions['CAM  ·  '..mode] or positions[mode]
+                if not label then for text,position in pairs(positions) do
+                    if type(text)=='string' and (text:find('^CAM  ·') or text:sub(1,4)==mode:sub(1,4)) then label=position;break end
+                end end
                 local hud=require('src.commute.cockpit')
                 local goal=positions[C.world(R).roads.destinations[R.state.home.commute.destination].label]
                 check('ride_objective_inside_balance_panel_'..scene..width,goal and goal.y>=rect.y and goal.y<rect.y+rect.height
-                    and goal.x>shown[money].x+shown[money].width and goal.x+goal.width<=rect.x+rect.width)
+                    and (rect.width<520 and goal.y>shown[money].y+shown[money].height
+                        or rect.width>=520 and goal.x>shown[money].x+shown[money].width)
+                    and goal.x+goal.width<=rect.x+rect.width)
                 check('ride_camera_label_fits_beside_hud_toolbar_'..scene..width,label and label.y>=rect.y+rect.height
                     and label.x+label.width<buttons[1].x and label.x>=hud.CARD_X+hud.CARD_WIDTH+8)
                 local bike=C.localPart(R).rider.bike
@@ -109,7 +116,8 @@ function Test.run(context,check)
             end
             check('scene_hud_'..scene..'_'..width..'_camera_actions_clear_condition_and_minimap',clear)
         end
-        records[#records+1]=scene..' '..width..' '..date..' | '..money
+        local calendarText=Status.text(R.state,twelveHour)
+        records[#records+1]=scene..' '..width..' '..calendarText..' | '..money
         save(canvas,output..('/%s-%d.png'):format(scene,width));canvas:release()
     end
     local okay,reason=xpcall(function()

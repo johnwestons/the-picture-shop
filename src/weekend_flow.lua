@@ -77,13 +77,21 @@ end
 function Flow.update(state,shutdownSafe)
     local week=Flow.ensure(state);local now=Calendar.absoluteHours(state)
     local didChange=false
+    -- Staying to finish jobs is optional; it must not strand the shop in last
+    -- Friday's closing phase when business opens again on Monday.
+    if (week.phase=='working' or week.phase=='closing') and now>=week.opensAtHours then
+        require('src.household_finances').settle(state,week.closesAtHours)
+        local nextWeek=Flow.new(now);nextWeek.transition=week.transition+1
+        state.home.weekend=nextWeek;week=nextWeek
+        didChange=changed(state,'Business hours have resumed. Customers and delivery trucks can return.')
+    end
     if week.phase=="working" and now>=week.closesAtHours-2 and not week.warningSent then
         week.warningSent=true
         didChange=changed(state,"The shop closes Friday at 20:00. Finish up and prepare to go home for the weekend.")
     end
     if week.phase=="working" and now+1e-7>=week.closesAtHours then
         week.phase="closing"
-        didChange=changed(state,"Closing for the weekend. Finish the shutdown checklist, then use the front entrance.")
+        didChange=changed(state,"Business is closed for the weekend. Keep working on pallets, or finish shutdown and use the front entrance to head home.")
     end
     if week.phase=="closing" and shutdownSafe==true then
         require("src.household_finances").settle(state,week.closesAtHours)

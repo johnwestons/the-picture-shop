@@ -29,6 +29,8 @@ function Component.install(Runtime)
         end
         if Runtime.Screen.loadMenu then
             if key == "escape" then Runtime.Screen.loadMenu = nil; return true end
+            local optionCount = #Runtime.Screen.loadMenu.options
+            if optionCount == 0 then return true end
             if key == "up" then
                 Runtime.Screen.loadMenu.selected = math.max(1, Runtime.Screen.loadMenu.selected - 1); return true
             elseif key == "down" then

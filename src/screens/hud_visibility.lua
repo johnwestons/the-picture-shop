@@ -62,7 +62,7 @@ function Visibility.keypressed(R,key)
     return false
 end
 function Visibility.draw(R)
-    local g=love.graphics;font=font or g.newFont(12)
+    local g=love.graphics;font=font or require('src.screens.typography').get(12)
     g.push('all');g.setShader();g.setFont(font)
     for _,b in ipairs(Visibility.buttons(R)) do
         local locked=b.id=='lock' and Visibility.cameraLocked(R)

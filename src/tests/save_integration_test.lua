@@ -82,7 +82,7 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.jobs.completed[1].id == "JOB-0098"
         and loaded.state.jobs.declined[1].id == "JOB-0097")
     check("save_repeat_email_round_trip", loaded
-        and #loaded.state.clientEmails.pending == 1
+        and #loaded.state.clientEmails.pending == #economy.clientEmails.pending
         and loaded.state.clientEmails.pending[1].sender == "Completed Save Co."
         and loaded.state.clientEmails.pending[1].job.requestChannel == "email")
     check("save_finance_round_trip", loaded
@@ -132,7 +132,7 @@ function Test.run(context, check, economy, jobs)
         and loaded.state.machines.deliveries[1].id == machineDelivery.id
         and loaded.state.machines.deliveries[1].machineId == "MCH-0003"
         and loaded.state.machines.deliveries[1].item.id == "MCH-0003"
-        and context.machineFleet.nextInbound(loaded.state).id == machineDelivery.id)
+        and context.machineFleet.nextInbound(loaded.state) == nil)
     check("save_procurement_round_trip", loaded
         and loaded.state.vendorCategory == 4
         and loaded.state.procurement.nextOrderId == 2
@@ -148,7 +148,15 @@ function Test.run(context, check, economy, jobs)
         and appliedRoundTrip.palletJack.carriedPalletId == "JOB-0099-P01"
         and appliedRoundTrip.jobs.active[1].pallets[1].location == "on_pallet_jack")
     check("save_state_apply_restores_pending_machine_delivery",
-        context.machineFleet.nextInbound(appliedRoundTrip).machineId == "MCH-0003")
+        context.machineFleet.nextInbound(appliedRoundTrip) == nil
+        and appliedRoundTrip.machines.deliveries[1].machineId == "MCH-0003")
+    local now = context.businessCalendar.absoluteHours(appliedRoundTrip)
+    local arrival = appliedRoundTrip.machines.deliveries[1].delivery.expectedAtHours
+    context.businessCalendar.update(appliedRoundTrip,
+        (arrival - now) / 24 * context.businessCalendar.secondsPerDay(appliedRoundTrip))
+    local dueMachine = context.machineFleet.nextInbound(appliedRoundTrip)
+    check('save_pending_machine_delivery_becomes_available_when_due',
+        dueMachine and dueMachine.machineId == 'MCH-0003')
     context.save.delete(1)
 
     context.save.delete(2)

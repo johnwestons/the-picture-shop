@@ -32,13 +32,12 @@ function Component.install(Runtime)
             love.graphics.setColor(0.96, 0.84, 0.30)
             love.graphics.print("NEW RETURNING-CLIENT PROMOTION", 434, 212)
             love.graphics.setColor(0.76, 0.83, 0.84)
-            love.graphics.print("TO: " .. tostring(source and source.company or "--"), 434, 246)
-            love.graphics.printf(source and source.press
-                and "We'd like to offer you 10% off your next custom printing job."
-                or "We'd like to offer you 10% off your next paper-cutting job.",
-                434, 278, 392, "left")
+            love.graphics.print("TO: " .. tostring(source and source.company or "--"), 434, 240)
+            love.graphics.print(source and source.press
+                and "10% off your next custom printing job."
+                or "10% off your next paper-cutting job.", 434, 264)
             love.graphics.setColor(0.58, 0.67, 0.68)
-            love.graphics.print("ADD A PERSONAL NOTE — OPTIONAL", 434, 320)
+            love.graphics.print("ADD A PERSONAL NOTE — OPTIONAL", 434, 288)
             Runtime.panel(Runtime.PROMO_INPUT, { 0.045, 0.085, 0.10, 1 },
                 Runtime.ComputerScreen.promoFocused and { 0.32, 0.78, 0.73, 1 }
                     or { 0.20, 0.34, 0.39, 1 }, 3, 1)
@@ -55,15 +54,15 @@ function Component.install(Runtime)
             local textX, textY = input.x + 10, input.y + 10
             local previousScissorX, previousScissorY, previousScissorWidth, previousScissorHeight = love.graphics.getScissor()
             love.graphics.setScissor(input.x + 1, input.y + 1, input.width - 2, input.height - 2)
+            local displayedLines = {}
             if firstLine > 1 then
-                love.graphics.print("…", textX, textY)
-                textY = textY + lineHeight
+                displayedLines[#displayedLines + 1] = "…"
                 firstLine = math.max(1, #lines - visibleLines + 2)
             end
             for index = firstLine, #lines do
-                love.graphics.print(lines[index], textX, textY)
-                textY = textY + lineHeight
+                displayedLines[#displayedLines + 1] = lines[index]
             end
+            love.graphics.printf(table.concat(displayedLines, "\n"), textX, textY, input.width - 20, "left")
             if previousScissorX then
                 love.graphics.setScissor(previousScissorX, previousScissorY,
                     previousScissorWidth, previousScissorHeight)
@@ -71,16 +70,16 @@ function Component.install(Runtime)
                 love.graphics.setScissor()
             end
             love.graphics.setColor(0.58, 0.67, 0.68)
-            love.graphics.print("Your note is included in the offer.",434,468)
+            love.graphics.print("Your note is included in the offer.",434,410)
             love.graphics.printf(string.format("%d/600",#Runtime.ComputerScreen.promoText),
-                766,468,60,"right")
+                766,410,60,"right")
             local function promoButton(rect, label, green)
                 local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
                 Runtime.drawComputerButton(rect, label, green
                     and (hovered and "primaryHover" or "primary")
                     or (hovered and "dangerHover" or "danger"))
             end
-            promoButton(Runtime.EMAIL_DECLINE, "CANCEL", false)
+            promoButton(Runtime.PROMO_CANCEL, "CANCEL", false)
             promoButton(Runtime.PROMO, "SEND 10% OFFER", true)
             return
         end
@@ -289,6 +288,11 @@ function Component.install(Runtime)
         local job = selected.job
         love.graphics.setColor(0.86, 0.89, 0.88)
         love.graphics.print("PROPOSED JOB  " .. job.id, 434, 350)
+        if selected.discountedTotal then
+            love.graphics.setColor(0.58, 0.78, 0.72)
+            love.graphics.printf("COUPON APPLIED", 650, 350, 176, "right")
+        end
+        love.graphics.setColor(0.86, 0.89, 0.88)
         love.graphics.print(string.format("Sheets: %g × %g in → %g × %g in",
             job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 372)
         local stockSource = job.press and job.stockSpec and job.stockSpec.suppliedBy == "house"
@@ -308,7 +312,7 @@ function Component.install(Runtime)
         else
             love.graphics.print(string.format("%d pallet%s · %s sheets · %s, wrapped",
                 job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
-                Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 434, 414)
+                Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 434, 412)
         end
         local terms = Runtime.JobService.quoteTerms(state, job, tonumber(Runtime.ComputerScreen.quoteText))
         local deliveryRequested = job.outboundDelivery and job.outboundDelivery.requested == true
@@ -317,7 +321,7 @@ function Component.install(Runtime)
                 tonumber(Runtime.ComputerScreen.deliveryQuoteText)) or nil
         if terms and terms.employeeBudget and not job.press then
             love.graphics.setColor(.67,.78,.69,1)
-            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,426,392,"left")
+            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,430,392,"left")
         end
         if deliveryRequested then
             local included = Runtime.ComputerScreen.includeDeliveryQuote == true
@@ -331,18 +335,17 @@ function Component.install(Runtime)
                 Runtime.EMAIL_DELIVERY_TOGGLE.x + 9, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3)
             love.graphics.setColor(0.68, 0.76, 0.76)
             love.graphics.printf(included and "Client can accept or decline this fee separately"
-                or "No delivery fee will be quoted", 620, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3, 198, "right")
+                or "No delivery fee will be quoted", 434, 474, 392, "center")
         else
             love.graphics.setColor(0.68, 0.76, 0.76)
-            love.graphics.print("CLIENT ARRANGES TRANSPORT", 434, 446)
+            love.graphics.print("CLIENT ARRANGES TRANSPORT", 434, 455)
         end
 
         love.graphics.setColor(0.58, 0.78, 0.72)
-        love.graphics.print(selected.discountedTotal and "PRODUCTION · COUPON" or "PRODUCTION",
-            Runtime.EMAIL_QUOTE_INPUT.x, 464)
+        love.graphics.print("PRODUCTION", Runtime.EMAIL_QUOTE_INPUT.x, 492)
         love.graphics.setColor(0.58, 0.67, 0.68)
         love.graphics.printf("Rec. " .. Runtime.money(terms and terms.recommendedPrice or job.quote.totalPrice),
-            Runtime.EMAIL_QUOTE_INPUT.x + 90, 464, Runtime.EMAIL_QUOTE_INPUT.width - 90, "right")
+            Runtime.EMAIL_QUOTE_INPUT.x + 90, 492, Runtime.EMAIL_QUOTE_INPUT.width - 90, "right")
         Runtime.panel(Runtime.EMAIL_QUOTE_INPUT, { 0.045, 0.085, 0.10, 1 },
             Runtime.ComputerScreen.quoteFocused and { 0.32, 0.78, 0.73, 1 }
                 or { 0.20, 0.34, 0.39, 1 }, 3, 1)
@@ -354,10 +357,10 @@ function Component.install(Runtime)
 
         if deliveryRequested then
             love.graphics.setColor(0.58, 0.78, 0.72)
-            love.graphics.print("DELIVERY", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x, 464)
+            love.graphics.print("DELIVERY", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x, 492)
             love.graphics.setColor(0.58, 0.67, 0.68)
             love.graphics.printf("Rec. " .. Runtime.money(deliveryTerms and deliveryTerms.recommendedPrice or 0),
-                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 90, 464,
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 90, 492,
                 Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 90, "right")
             Runtime.panel(Runtime.EMAIL_DELIVERY_QUOTE_INPUT,
                 Runtime.ComputerScreen.includeDeliveryQuote and { 0.045, 0.085, 0.10, 1 }
@@ -379,7 +382,7 @@ function Component.install(Runtime)
             and ("Quoted total if both accepted: " .. Runtime.money(terms.amount + deliveryTerms.amount))
             or deliveryRequested and "Client will arrange its own transportation"
             or "This client arranges its own transportation"
-        love.graphics.printf(deliverySummary, 434, 521, 392, "center")
+        love.graphics.printf(deliverySummary, 434, 552, 392, "center")
 
         local function responseButton(rect, label, green)
             local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
@@ -391,10 +394,10 @@ function Component.install(Runtime)
         responseButton(Runtime.EMAIL_ESTIMATE_SEND, "SEND ESTIMATE", true)
         if terms and terms.employeeBudget and terms.amount<terms.recommendedPrice then
             love.graphics.setColor(.98,.71,.35,1)
-            love.graphics.printf("Below staff cost target",434,592,190,"left")
+            love.graphics.printf("Below staff cost target",434,616,190,"left")
         end
         love.graphics.setColor(0.58, 0.67, 0.68)
-        love.graphics.printf("The client replies within 3 days.", 630, 592, 196, "center")
+        love.graphics.printf("The client replies within 3 days.", 630, 616, 196, "center")
     end
 end
 

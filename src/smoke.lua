@@ -143,10 +143,41 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='softlock-campaign' then
+        if focus=='receipts' then
+            local receipts=require('src.tests.receipt_book_test').run(context,check)
+            require('src.tests.receipt_archive_ui_test').run(context,check,receipts)
+            require('src.tests.delivery_signature_test').run(check)
+            require('src.commute.tests.gas_station_test').run(check)
+            require('src.tests.household_finances_test').run(context,check)
+            require('src.tests.home_shopping_test').run(context,check)
+            require('src.tests.credit_finance_test').run(context,check)
+            require('src.tests.multi_job_delivery_test').run(context,check)
+        elseif focus=='computer-browser' then
+            require('src.tests.computer_browser_test').run(context,check)
+            require('src.tests.computer_viewport_test').run(context,check)
+            require('src.tests.computer_calendar_test').run(context,check)
+        elseif focus=='dock-view' then
+            require('src.tests.dock_view_test').run(context,check)
+            require('src.tests.outdoor_weather_test').run(context,check)
+            require('src.commute.tests.terrain_renderer_test').run(check)
+            require('src.commute.tests.road_markings_test').run(check)
+            require('src.commute.tests.infrastructure_test').run(check)
+            require('src.tests.lua_limits_test').run(context,check)
+        elseif focus=='store-regression' then
+            require('src.tests.store_regression_test').run(context,check)
+            require('src.commute.tests.rider_scale_test').run(check)
+            require('src.tests.home_shopping_test').run(context,check)
+            require('src.tests.recent_feature_regression_test').run(context,check)
+        elseif focus=='softlock-campaign' then
             require('src.tests.softlock_campaign_test').run(context,check)
         elseif focus=='gameplay-recovery' then
             for _,name in ipairs({'gameplay_journey_audit','recent_feature_regression'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
+        elseif focus=='production-regression' then
+            runChecks(context)
+            for _,name in ipairs({'gameplay_quality','shop_workflow','press_economics','windmill_integration',
+                'multiplayer_world_layers','gameplay_journey_audit','recent_feature_regression'}) do
                 require('src.tests.'..name..'_test').run(context,check)
             end
         elseif focus=='save-reliability' then
@@ -155,6 +186,16 @@ function Smoke.start(context)
             require('src.tests.independent_scenes_test').run(context,check)
             require('src.tests.independent_scenes_runtime_test').run(context,check)
             require('src.tests.sound_test').run(context,check)
+        elseif focus=='ui-readability' then
+            require('src.tests.ui_readability_test').run(context,check)
+        elseif focus=='ui-regression' then
+            require('src.commute.tests.route_map_test').run(check)
+            for _,name in ipairs({'ui_typography','ui_integration','shared_gui','options','recent_updates',
+                'computer_viewport','computer_browser','computer_calendar','player_feedback','notifications',
+                'keyboard_mobile','mobile_controls_platform','arcade_mobile_ui','pallet_rack_screen',
+                'store_regression','employee_speech'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
         elseif focus=='scene-hud' then
             require('src.tests.scene_hud_runtime_test').run(context,check)
         elseif focus=='player-wages' then
@@ -171,11 +212,17 @@ function Smoke.start(context)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
         elseif focus=='player-delivery' then
+            require('src.commute.tests.city_delivery_scene_test').run(check)
             require('src.tests.player_delivery_test').run(context,check)
+            require('src.tests.multi_job_delivery_test').run(context,check)
+        elseif focus=='city-delivery-scene' then
+            require('src.commute.tests.city_delivery_scene_test').run(check)
         elseif focus=='guest-job-journey' then
             require('src.tests.guest_job_journey_test').run(context,check)
         elseif focus=='delivery-manifest' then
             require('src.tests.delivery_manifest_test').run(context,check)
+            require('src.tests.truck_authority_test').run(context,check)
+            require('src.tests.truck_session_test').run(context,check)
         elseif focus=='ai-watchdog' then
             require('src.tests.ai_watchdog_test').run(context,check)
         elseif focus=='home-guide' then
@@ -226,6 +273,12 @@ function Smoke.start(context)
         elseif focus=='route-map' then
             require('src.commute.tests.route_map_test').run(check)
             require('src.commute.tests.route_map_runtime_test').run(context,check)
+        elseif focus=='town-recreation' then
+            require('src.commute.tests.terrain_mesh_test').run(check)
+            require('src.commute.tests.terrain_cache_test').run(check)
+            require('src.commute.tests.town_trails_test').run(check)
+            require('src.commute.tests.recreation_test').run(check)
+            require('src.commute.tests.infrastructure_runtime_test').run(context,check)
         elseif focus=='town-infrastructure' then
             for _,name in ipairs({'town_center','town_trails','infrastructure','road_markings'})do
                 require('src.commute.tests.'..name..'_test').run(check)
@@ -237,6 +290,20 @@ function Smoke.start(context)
             require('src.commute.tests.mechanic_runtime_test').run(context,check)
         elseif focus=='apartment-journey' then
             require('src.commute.tests.apartment_journey_test').run(context,check)
+        elseif focus=='road-generation' then
+            require('src.commute.tests.road_generation_test').run(check)
+            require('src.commute.tests.road_markings_test').run(check)
+            require('src.commute.tests.town_center_test').run(check)
+        elseif focus=='business-hours' then
+            require('src.tests.business_hours_test').run(context,check)
+            require('src.tests.notifications_test').run(context,check)
+            require('src.tests.weekend_flow_test').run(context,check)
+            require('src.tests.work_phone_test').run(context,check)
+            require('src.tests.business_deadlines_test').run(context,check)
+        elseif focus=='tutorial' then
+            require('src.tests.notifications_test').run(context,check)
+            require('src.tests.player_feedback_test').run(context,check)
+            require('src.tests.town_setup_test').run(context,check)
         elseif focus=='town' then
             require('src.tests.town_setup_test').run(context,check)
             require('src.tests.lua_limits_test').run(context,check)
@@ -246,12 +313,22 @@ function Smoke.start(context)
             end
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.tests.save_contract_test').run(context,check)
+        elseif focus=='truck-multiplayer' then
+            require('src.commute.tests.truck_multiplayer_test').run(context,check)
+            for _,name in ipairs({'network_protocol','multiplayer_session','multiplayer_impairment'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
         elseif focus=='truck-rendering' then
             for _,name in ipairs({'delivery_traffic','first_person','truck_cab','cab_viewport',
                 'mobile_vehicle','camera','follow_camera','direction'}) do
                 require('src.commute.tests.'..name..'_test').run(check)
             end
             require('src.commute.tests.truck_render_runtime_test').run(context,check)
+        elseif focus=='pickup-traffic' then
+            require('src.commute.tests.pickup_and_deadlock_test').run(check)
+        elseif focus=='receiving' then
+            require('src.tests.delivery_signature_test').run(check)
+            require('src.commute.tests.warehouse_queue_test').run(check)
         elseif focus=='delivery-docking' then
             require('src.commute.tests.delivery_docking_test').run(check)
         elseif focus=='delivery-traffic' then
@@ -289,6 +366,7 @@ function Smoke.start(context)
             require('src.commute.tests.delivery_traffic_test').run(check)
             require('src.tests.late_game_load_test').run(context,check)
         elseif focus=='commute' then
+            require('src.commute.tests.truck_multiplayer_test').run(context,check)
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
             for _,name in ipairs({'lua_limits','weekend_flow','home_travel_session','network_protocol','save_contract'}) do

@@ -4,10 +4,17 @@ $projectRoot=(Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $mode=if($Mobile){'mobile'}else{'desktop'}
 $reviewOutput=Join-Path $projectRoot ('output\scene-hud-review\'+$mode)
 New-Item -ItemType Directory -Force -Path $reviewOutput | Out-Null
-$reviewEnv=@{PICTURE_SHOP_SMOKE='1';PICTURE_SHOP_SMOKE_FOCUS='scene-hud';
+$reviewAppData=Join-Path $reviewOutput 'appdata'
+$reviewIdentity='the-picture-shop-test-hud-'+$mode
+$reviewSave=[IO.Path]::GetFullPath((Join-Path $reviewAppData ('LOVE/'+$reviewIdentity)))
+$reviewSaveRoot=[IO.Path]::GetFullPath((Join-Path $reviewAppData 'LOVE')).TrimEnd('\')+'\'
+if(-not $reviewSave.StartsWith($reviewSaveRoot,[StringComparison]::OrdinalIgnoreCase)){throw 'Invalid HUD test save path'}
+New-Item -ItemType Directory -Force -Path $reviewAppData | Out-Null
+if(Test-Path -LiteralPath $reviewSave){Remove-Item -LiteralPath $reviewSave -Recurse -Force}
+$reviewEnv=@{APPDATA=$reviewAppData;PICTURE_SHOP_SMOKE='1';PICTURE_SHOP_SMOKE_FOCUS='scene-hud';
     PICTURE_SHOP_HUD_OUTPUT=$reviewOutput;PICTURE_SHOP_MOBILE=$(if($Mobile){'1'}else{''});
     PICTURE_SHOP_SMOKE_REPORT=(Join-Path $reviewOutput 'smoke.rpt');
-    PICTURE_SHOP_TEST_IDENTITY=('the-picture-shop-test-hud-'+$mode+'-'+[guid]::NewGuid().ToString('N').Substring(0,8))}
+    PICTURE_SHOP_TEST_IDENTITY=$reviewIdentity}
 $previousEnv=@{}
 try {
     foreach($key in $reviewEnv.Keys){

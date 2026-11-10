@@ -154,6 +154,7 @@ local function liveSimulation(context,test)
     world.vendor=require("src.customer").new(Config.vendor)
     world.load({id=1,x=500,y=380,sceneId="front_right",character="rabbit-worker"})
     local state=fixture();state.screen="world";state.calendar.weekday=4;state.employment.recruiting=false
+    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*10/24
     world.customer.timer,world.vendor.timer=0,1000
     assert(world.truck:schedule("room-simulation-truck","delivery"))
     for _=1,160 do world.update(.1,0,0,context.assets,state,nil,nil,.1) end

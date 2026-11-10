@@ -22,7 +22,7 @@ function Test.run(R,check)
     capture("home-tables-catalog",true)
     local before=s.home.balanceCents;local count=#s.home.furniture.items
     for index=2,4 do click("buy",index);click("confirm");click("cancel") end
-    check("home_tables_runtime_buys_three_from_catalog",s.home.balanceCents==before-10000,s.message)
+    check("home_tables_runtime_buys_three_from_catalog",s.home.balanceCents==before-9775,s.message)
     s.screen="world";R.App.update(require("src.business_calendar").secondsPerDay(s)/12)
     p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")

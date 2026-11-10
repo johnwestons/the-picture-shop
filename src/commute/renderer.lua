@@ -243,24 +243,8 @@ function Renderer:buildRoadMeshes()
                 siteRect(site,rect,.34,.02,layers.shoulder,{.41,.39,.30})
                 siteRect(site,rect,0,.04,layers.asphalt,{.23,.25,.24})
             end
-            local area=site.localTruckParkingArea;local inset=.16
-            local z0,z1=area.minZ+inset,area.maxZ-inset
-            local x0,x1=area.minX+inset,area.maxX-inset
-            local mark={.95,.70,.24}
-            siteLine(site,{x0,z0},{x1,z0},.075,.065,layers.approach,mark)
-            siteLine(site,{x0,z1},{x1,z1},.075,.065,layers.approach,mark)
-            siteLine(site,{x0,z0},{x0,z1},.11,.065,layers.approach,mark)
-            siteLine(site,{x1,z0},{x1,z1},.075,.065,layers.approach,mark)
-            for _,anchor in ipairs(site.truckQueueAnchors or {}) do
-                local separator=anchor.z+3.1
-                siteLine(site,{anchor.x-1.8,separator},{anchor.x+1.8,separator},.085,.07,layers.approach,mark)
-            end
-            for _,stall in pairs(site.localTruckHomeStalls or {}) do
-                local x0,x1,z0,z1=stall.minX,stall.maxX,stall.minZ,stall.maxZ
-                siteLine(site,{x0,z0},{x1,z0},.10,.075,layers.approach,mark)
-                siteLine(site,{x1,z0},{x1,z1},.10,.075,layers.approach,mark)
-                siteLine(site,{x1,z1},{x0,z1},.10,.075,layers.approach,mark)
-                siteLine(site,{x0,z1},{x0,z0},.10,.075,layers.approach,mark)
+            for _,v in ipairs(require('src.commute.dock_apron_geometry').build(site))do
+                layers.approach[#layers.approach+1]=v
             end
         end
         if self.world.roads.destinations[id] then

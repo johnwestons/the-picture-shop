@@ -1,5 +1,6 @@
 -- North-up navigation shared by the real trip and the ride preview. Terrain,
 -- roads and footprints are cached once; only navigation markers change per frame.
+local Gps=require('src.commute.gps')
 local Map={RESOLUTION=96};Map.__index=Map
 local function clamp(n,a,b)return math.max(a,math.min(b,n))end
 local function finite(n,fallback)return type(n)=='number' and n==n and math.abs(n)<math.huge and n or fallback end
@@ -74,7 +75,7 @@ local compass={'E','SE','S','SW','W','NW','N','NE'}
 function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/(math.pi/4))%8+1]end
 function Map.new(world)
     local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
-        mapBounds=bounds(world),miniLevel=2,miniFollow=true,numbersVisible=true,
+        mapBounds=bounds(world),miniLevel=4,miniFollow=true,miniAuto=true,numbersVisible=true,
         desktopPlacesOpen=true,mobilePlacesOpen=false,placesPage=1},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
@@ -133,7 +134,7 @@ function Map:snapshot(rect,actor,options)
         end
         local keyRect
         if layout.key and column and row then
-            local keyY=layout.key.y+(layout.mobile and layout.keyHeaderHeight or 0)
+            local keyY=layout.key.y+layout.keyHeaderHeight
             keyRect={x=layout.key.x+column*layout.columnWidth+3,
                 y=keyY+row*layout.rowHeight+2,width=layout.columnWidth-6,height=layout.rowHeight-4}
         end
@@ -154,24 +155,43 @@ end
 function Map:label(id)
     for _,entry in ipairs(self.entries) do if entry.id==id then return entry.label end end
 end
-local miniScales={1,1.5,2,2.5}
-
-local function miniButtonSize(rect)
-    return math.max(1,math.min(38,(rect.height-32)/3))
+-- Visible width in metres, from a town overview to an individual junction.
+local miniRanges={math.huge,800,400,240,140,80,45}
+Map.MINI_LEVELS=#miniRanges
+local function miniLayout(rect)
+    if rect.height<200 then
+        local height=math.max(50,rect.height-46)
+        local size=math.min(38,(height-4)/2)
+        return {x=rect.x+8,y=rect.y+38,width=rect.width-size*2-28,height=height,compact=true},size
+    end
+    local header=rect.height>=200 and 48 or 38
+    local height=math.max(30,rect.height-header-30)
+    local size=math.min(42,(height-8)/3)
+    return {x=rect.x+8,y=rect.y+header,width=math.max(20,rect.width-size-24),height=height},size
 end
 function Map.miniZoomButton(rect,direction)
-    local size=miniButtonSize(rect)
-    return {x=rect.x+rect.width-size-5,y=rect.y+24+(direction<0 and (size+4)*2 or 0),width=size,height=size}
+    local area,size=miniLayout(rect)
+    if area.compact then
+        return {x=rect.x+rect.width-size*2-11+(direction<0 and size+4 or 0),y=area.y,width=size,height=size}
+    end
+    return {x=rect.x+rect.width-size-7,y=area.y+(direction<0 and (size+4)*2 or 0),width=size,height=size}
 end
 function Map.miniFollowButton(rect)
-    local size=miniButtonSize(rect)
-    return {x=rect.x+rect.width-size-5,y=rect.y+24+size+4,width=size,height=size}
+    local area,size=miniLayout(rect)
+    if area.compact then
+        return {x=rect.x+rect.width-size*2-11,y=area.y+size+4,width=size*2+4,height=size}
+    end
+    return {x=rect.x+rect.width-size-7,y=area.y+size+4,width=size,height=size}
+end
+function Map:zoomMini(direction)
+    self.miniLevel=clamp(self.miniLevel+direction,1,#miniRanges)
+    self.miniAuto=false;self.miniDisplayRange=nil
 end
 function Map:pressMiniZoom(rect,x,y)
     for direction=-1,1,2 do
         local b=Map.miniZoomButton(rect,direction)
         if x>=b.x and x<=b.x+b.width and y>=b.y and y<=b.y+b.height then
-            self.miniLevel=clamp(self.miniLevel+direction,1,#miniScales)
+            self:zoomMini(direction)
             return true
         end
     end
@@ -180,13 +200,7 @@ end
 function Map:pressMiniFollow(rect,x,y,actor)
     local b=Map.miniFollowButton(rect)
     if x<b.x or x>b.x+b.width or y<b.y or y>b.y+b.height then return false end
-    actor=actor or {}
-    if self.miniFollow==false then
-        self.miniFollow=true;self.miniCenter=nil
-    else
-        self.miniFollow=false
-        self.miniCenter={x=finite(actor.x,0),z=finite(actor.z,0)}
-    end
+    self.miniAuto=true;self.miniFollow=true;self.miniCenter=nil;self.miniLevel=4;self.miniDisplayRange=nil
     return true
 end
 local function miniPoint(snapshot,x,z)
@@ -194,20 +208,43 @@ local function miniPoint(snapshot,x,z)
     local dx,dz=x-t.centerX,z-t.centerZ
     return t.x+t.scale*(t.cos*dx-t.sin*dz),t.y+t.scale*(t.sin*dx+t.cos*dz)
 end
-function Map:miniSnapshot(rect,actor,options)
+function Map:miniSnapshot(rect,actor,options,smoothDt)
     options=options or {};actor=actor or {}
-    local button=Map.miniZoomButton(rect,1)
-    local area={x=rect.x+6,y=rect.y+24,width=math.max(1,button.x-rect.x-10),height=math.max(1,rect.height-30)}
+    local area=miniLayout(rect)
     local b=self.mapBounds
-    local scale=miniScales[self.miniLevel]*math.min(area.width/(b.x1-b.x0),area.height/(b.z1-b.z0))
+    if self.gpsRoute~=options.route or not self.gpsPath then
+        self.gpsRoute=options.route;self.gpsPath=Gps.prepare(options.route)
+    end
+    local guidance=Gps.guidance(self.gpsPath,{x=finite(actor.x,0),z=finite(actor.z,0),heading=finite(actor.heading,0)})
+    local range=miniRanges[self.miniLevel]
+    if self.miniAuto then
+        range=clamp(120+math.abs(actor.speed or 0)*7,120,360)
+        if guidance.turn and guidance.distance<60 then range=math.min(range,140) end
+        local best=math.huge
+        for i=2,#miniRanges do
+            local d=math.abs(math.log(range/miniRanges[i]))
+            if d<best then best=d;self.miniLevel=i end
+        end
+        if smoothDt then
+            self.miniDisplayRange=(self.miniDisplayRange or range)+(range-(self.miniDisplayRange or range))*(1-math.exp(-smoothDt*6))
+            range=self.miniDisplayRange
+        end
+    end
+    local scale=range==math.huge and math.min(area.width/(b.x1-b.x0),area.height/(b.z1-b.z0))
+        or area.width/range
     local heading=finite(actor.heading,0)
+    if smoothDt then
+        local old=self.miniHeading or heading
+        local difference=math.atan2(math.sin(heading-old),math.cos(heading-old))
+        self.miniHeading=old+difference*(1-math.exp(-smoothDt*12));heading=self.miniHeading
+    end
     if self.miniFollow~=false then self.miniCenter={x=finite(actor.x,0),z=finite(actor.z,0)} end
     self.miniCenter=self.miniCenter or {x=finite(actor.x,0),z=finite(actor.z,0)}
     local angle=-heading-math.pi/2
-    local centerX,centerY=area.x+area.width*.5,area.y+area.height*.5
+    local centerX,centerY=area.x+area.width*.5,area.y+area.height*(area.compact and .62 or .70)
     local transform={x=centerX,y=centerY,scale=scale,rotation=angle,
         cos=math.cos(angle),sin=math.sin(angle),centerX=self.miniCenter.x,centerZ=self.miniCenter.z}
-    local result={area=area,transform=transform,center=self.miniCenter,heading=heading,
+    local result={area=area,transform=transform,center=self.miniCenter,heading=heading,guidance=guidance,range=range,
         viewport={x=area.x,y=area.y,width=area.width,height=area.height,scale=scale,bounds=b},
         marker={x=centerX,y=centerY,dx=0,dz=-1,heading=heading,label=Map.headingLabel(heading)}}
     if self.miniFollow==false then
@@ -259,7 +296,7 @@ function Map:hitMini(rect,x,y,actor,options)
         local bx,by=miniPoint(s,site.x or site.origin.x,site.z or site.origin.z)
         local distance=(x-bx)^2+(y-by)^2
         if bx>=area.x and by>=area.y and bx<=area.x+area.width and by<=area.y+area.height
-            and distance<=9^2 and (not best or distance<best) then nearest,best=entry.id,distance end
+            and distance<=18^2 and (not best or distance<best) then nearest,best=entry.id,distance end
     end
     return nearest
 end
@@ -296,7 +333,7 @@ function Map:prepare()
         local points={};for _,p in ipairs(footprint.corners)do local x,y=at(p.x,p.z);points[#points+1]=x;points[#points+1]=y end
         if #points>=6 then g.polygon('fill',points)end
     end end
-    g.pop();terrain:release();self.backgroundBuilds=self.backgroundBuilds+1
+    g.pop();self.miniTerrain=terrain;self.backgroundBuilds=self.backgroundBuilds+1
 end
 local function badge(g,x,y,index,color,font,radius)
     radius=radius or 11
@@ -305,7 +342,7 @@ local function badge(g,x,y,index,color,font,radius)
     g.setFont(font);g.printf(tostring(index),x-radius,y-font:getHeight()/2,radius*2,'center')
 end
 function Map:font(size)
-    if not self.fonts[size]then self.fonts[size]=love.graphics.newFont(size)end
+    if not self.fonts[size]then self.fonts[size]=require('src.screens.typography').get(size)end
     return self.fonts[size]
 end
 local function contains(rect,x,y)
@@ -357,6 +394,37 @@ function Map:pressControl(rect,x,y,mobile,headerRight)
     end
     return false
 end
+function Map.trafficMarkers(snapshot,entries,mini)
+    local result={}
+    local area=mini and snapshot.area or snapshot.viewport
+    for _,entry in ipairs(entries or {}) do
+        local actor=entry.actor
+        if actor and not entry.npcCharacter and entry.phase~='offmap'
+            and finite(actor.x) and finite(actor.z) then
+            local x,y
+            if mini then x,y=miniPoint(snapshot,actor.x,actor.z)
+            else
+                local v=snapshot.viewport
+                x=v.x+(actor.x-v.bounds.x0)*v.scale;y=v.y+(actor.z-v.bounds.z0)*v.scale
+            end
+            if x>=area.x+4 and x<=area.x+area.width-4 and y>=area.y+4 and y<=area.y+area.height-4 then
+                result[#result+1]={id=entry.id,x=x,y=y,truck=entry.truck==true,
+                    heading=(actor.heading or 0)+(mini and snapshot.transform.rotation or 0)}
+            end
+        end
+    end
+    return result
+end
+local function drawTraffic(g,snapshot,entries,mini)
+    for _,marker in ipairs(Map.trafficMarkers(snapshot,entries,mini)) do
+        g.push();g.translate(marker.x,marker.y);g.rotate(marker.heading)
+        g.setColor(.03,.05,.055,1);g.rectangle('fill',-4,-3,8,6,1)
+        g.setColor(marker.truck and {.95,.72,.33,1} or {.70,.81,.83,1})
+        g.rectangle('fill',-3,-2,6,4,1)
+        g.setColor(.08,.16,.18,1);g.rectangle('fill',1,-1.5,1,3)
+        g.pop()
+    end
+end
 function Map:draw(rect,actor,options)
     if self.released then return end
     options=options or {};self:prepare()
@@ -393,6 +461,7 @@ function Map:draw(rect,actor,options)
         end
         if #points>=4 then g.setColor(.98,.65,.20,.9);g.setLineWidth(3);g.line(points)end
     end
+    drawTraffic(g,s,options.traffic,false)
     if s.layout.key then
         g.setColor(.035,.065,.06,.98);g.rectangle('fill',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
         g.setColor(.37,.52,.46,1);g.setLineWidth(1);g.rectangle('line',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
@@ -431,9 +500,9 @@ function Map:draw(rect,actor,options)
         if s.layout.pageCount>1 then
             g.print(('DESTINATIONS  ·  %d / %d'):format(s.layout.page,s.layout.pageCount),s.layout.key.x+12,s.layout.key.y+8)
         elseif mobile then
-            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+8)
+            g.print('DESTINATIONS',s.layout.key.x+12,s.layout.key.y+8)
         else
-            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+9)
+            g.print('DESTINATIONS',s.layout.key.x+12,s.layout.key.y+9)
         end
     end
     for _,area in ipairs(s.recreation)do
@@ -470,15 +539,44 @@ end
 function Map:drawMini(rect,actor,options)
     if self.released then return end
     options=options or {};self:prepare()
-    local s=self:miniSnapshot(rect,actor,options);local g=love.graphics;local v,area=s.viewport,s.area
+    local now=love.timer.getTime();local dt=math.min(.1,math.max(0,now-(self.miniDrawTime or now)))
+    self.miniDrawTime=now
+    local s=self:miniSnapshot(rect,actor,options,dt);local g=love.graphics;local v,area=s.viewport,s.area
     g.push('all');g.setShader();g.setColor(.025,.05,.047,.96)
     g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,7)
     g.setColor(.43,.57,.51,.96);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,7)
-    g.setFont(self:font(13));g.setColor(.98,.87,.52,1)
-    local title='NAV  ·  '..(self:label(options.destination) or 'Town map')
-    if options.route and options.route.length then title=title..('  ·  %dm'):format(math.floor(options.route.length+.5)) end
-    local titleScale=math.min(1,(rect.width-16)/math.max(1,g.getFont():getWidth(title)))
-    g.print(title,rect.x+8,rect.y+7,0,titleScale,titleScale)
+    local guidance=s.guidance
+    local ix,iy=rect.x+23,rect.y+22
+    g.setColor(.38,1,.87,1);g.setLineWidth(4);g.setLineJoin('bevel')
+    if guidance.kind=='left' or guidance.kind=='right' then
+        local d=guidance.kind=='left' and -1 or 1
+        g.line(ix,iy+10,ix,iy-5,ix+d*12,iy-5)
+        g.polygon('fill',ix+d*15,iy-5,ix+d*6,iy-12,ix+d*6,iy+2)
+    elseif guidance.kind=='arrive' then
+        g.circle('line',ix,iy,10);g.line(ix-5,iy,ix-1,iy+4,ix+6,iy-5)
+    elseif guidance.kind=='uturn' then
+        g.line(ix-8,iy+10,ix-8,iy-8,ix+7,iy-8,ix+7,iy+7)
+        g.polygon('fill',ix+7,iy+12,ix,iy+3,ix+14,iy+3)
+    else
+        g.line(ix,iy+11,ix,iy-8);g.polygon('fill',ix,iy-14,ix-8,iy-4,ix+8,iy-4)
+    end
+    local font=self:font(rect.height>=200 and 17 or 14)
+    g.setFont(font);g.setColor(.96,.99,.97,1)
+    g.print(guidance.text,rect.x+46,rect.y+5)
+    g.setFont(self:font(12));g.setColor(.68,.83,.82,1)
+    local instruction=guidance.kind=='unavailable' and 'Open MAP to choose a destination'
+        or guidance.kind=='arrive' and 'Look for the entrance'
+        or (guidance.distance>0 and Gps.distance(guidance.distance)..'  ·  ' or '')..Gps.distance(guidance.remaining)..' remaining'
+    g.print(instruction,rect.x+46,rect.y+(rect.height>=200 and 28 or 22))
+    local destinationFont=self:font(13);g.setFont(destinationFont);g.setColor(1,.82,.43,1)
+    local title=self:label(options.destination) or 'Choose a destination in MAP'
+    local available=area.compact and area.width-12 or rect.width-20
+    if destinationFont:getWidth(title)>available then
+        while #title>0 and destinationFont:getWidth(title..'…')>available do
+            local offset=require('utf8').offset(title,-1);title=title:sub(1,(offset or 1)-1)
+        end
+        title=title..'…'
+    end
 
     g.push('all')
     local sx,sy=g.transformPoint(area.x,area.y)
@@ -487,7 +585,14 @@ function Map:drawMini(rect,actor,options)
     local b=v.bounds;local t=s.transform
     g.push()
     g.translate(t.x,t.y);g.rotate(t.rotation);g.scale(t.scale,t.scale);g.translate(-t.centerX,-t.centerZ)
-    g.setColor(1,1,1);g.draw(self.background,b.x0,b.z0,0,(b.x1-b.x0)/512,(b.z1-b.z0)/512)
+    if s.range<=800 then
+        g.setColor(.60,.68,.66,1)
+        g.draw(self.miniTerrain,b.x0,b.z0,0,(b.x1-b.x0)/Map.RESOLUTION,(b.z1-b.z0)/Map.RESOLUTION)
+        if not self.miniDetail then self.miniDetail=require('src.commute.gps_map_detail').new(self.world) end
+        self.miniDetail:draw(t,area)
+    else
+        g.setColor(1,1,1);g.draw(self.background,b.x0,b.z0,0,(b.x1-b.x0)/512,(b.z1-b.z0)/512)
+    end
     if options.route and options.route.points then
         local points={}
         for _,p in ipairs(options.route.points) do
@@ -495,20 +600,25 @@ function Map:drawMini(rect,actor,options)
             points[#points+1]=p.z
         end
         if #points>=4 then
-            g.setColor(.02,.05,.04,.95);g.setLineWidth(4/t.scale);g.line(points)
-            g.setColor(1,.66,.18,1);g.setLineWidth(2.4/t.scale);g.line(points)
+            g.setColor(.015,.04,.12,1);g.setLineWidth(8/t.scale);g.line(points)
+            g.setColor(.12,.72,1,1);g.setLineWidth(4.5/t.scale);g.line(points)
         end
     end
     g.pop()
+    drawTraffic(g,s,options.traffic,true)
+    if guidance.turn then
+        local tx,ty=miniPoint(s,guidance.turn.x,guidance.turn.z)
+        g.setColor(.95,1,1,1);g.setLineWidth(2);g.circle('line',tx,ty,7)
+    end
     local m=s.marker
-    local playerX=clamp(m.x,area.x+6,area.x+area.width-6)
-    local playerY=clamp(m.y,area.y+6,area.y+area.height-6)
+    local playerX=clamp(m.x,area.x+12,area.x+area.width-12)
+    local playerY=clamp(m.y,area.y+12,area.y+area.height-12)
     local function edgePoint(x,y)
         local dx,dy=x-playerX,y-playerY;local f=1
-        if dx>0 then f=math.min(f,(area.x+area.width-6-playerX)/dx)
-        elseif dx<0 then f=math.min(f,(area.x+6-playerX)/dx) end
-        if dy>0 then f=math.min(f,(area.y+area.height-6-playerY)/dy)
-        elseif dy<0 then f=math.min(f,(area.y+6-playerY)/dy) end
+        if dx>0 then f=math.min(f,(area.x+area.width-12-playerX)/dx)
+        elseif dx<0 then f=math.min(f,(area.x+12-playerX)/dx) end
+        if dy>0 then f=math.min(f,(area.y+area.height-12-playerY)/dy)
+        elseif dy<0 then f=math.min(f,(area.y+12-playerY)/dy) end
         f=math.max(0,math.min(1,f))
         return playerX+dx*f,playerY+dy*f,f<.999,dx,dy
     end
@@ -523,13 +633,14 @@ function Map:drawMini(rect,actor,options)
         g.setColor(.02,.06,.04,.96);g.rectangle('fill',labelX,y-7,31,13,3)
         g.setColor(.65,1,.69,1);g.setFont(self:font(9));g.print(edge and 'HOME  ›' or 'HOME',labelX+2,y-6)
     end
-    if s.home then drawHome(s.home.screenX,s.home.screenY) end
+    if s.home and options.home~=options.destination then drawHome(s.home.screenX,s.home.screenY) end
     if s.goal then
         local x,y=edgePoint(s.goal.screenX,s.goal.screenY)
         local dx,dy=x-playerX,y-playerY;local len=math.max(1,math.sqrt(dx*dx+dy*dy));dx,dy=dx/len,dy/len
-        g.setColor(1,.73,.27,1)
-        g.polygon('fill',x+dx*5,y+dy*5,x-dy*4-dx*3,y+dx*4-dy*3,
-            x+dy*4-dx*3,y-dx*4-dy*3)
+        g.setColor(.08,.05,.01,1);g.circle('fill',x,y,10)
+        g.setColor(1,.77,.25,1)
+        g.polygon('fill',x+dx*9,y+dy*9,x-dy*7-dx*5,y+dx*7-dy*5,
+            x+dy*7-dx*5,y-dx*7-dy*5)
     end
     g.setFont(self:font(9))
     for _,player in ipairs(s.players) do
@@ -551,21 +662,34 @@ function Map:drawMini(rect,actor,options)
         g.setColor(.015,.04,.045,.92);g.rectangle('fill',labelX,labelY,labelWidth,13,3)
         g.setColor(.94,.88,1,1);g.print(label,labelX+3,labelY+1)
     end
-    g.setColor(.02,.06,.06,1);g.circle('fill',playerX,playerY,7)
-    g.setColor(.24,1,.94,1);g.circle('line',playerX,playerY,7)
-    g.polygon('fill',playerX,playerY-7,playerX-5,playerY+5,playerX,playerY+3,playerX+5,playerY+5)
+    g.setColor(.02,.06,.06,1);g.circle('fill',playerX,playerY,12)
+    g.setColor(.55,1,.90,1);g.setLineWidth(2);g.circle('line',playerX,playerY,12)
+    g.polygon('fill',playerX,playerY-11,playerX-8,playerY+7,playerX,playerY+3,playerX+8,playerY+7)
     local northX,northY=math.sin(t.rotation),-math.cos(t.rotation)
     local nx,ny=area.x+16,area.y+17
     g.setColor(.02,.06,.06,.88);g.circle('fill',nx,ny,10)
     g.setColor(.93,.94,.84,1);g.setLineWidth(1.6);g.line(nx,ny,nx+northX*8,ny+northY*8)
     g.polygon('fill',nx+northX*9,ny+northY*9,nx+northX*3-northY*3,ny+northY*3+northX*3,
         nx+northX*3+northY*3,ny+northY*3-northX*3)
-    g.setFont(self:font(8));g.print('N',nx-3,ny+9)
+    g.setFont(self:font(10));g.print('N',nx-4,ny+9)
+    local metres=10^math.floor(math.log(60/t.scale)/math.log(10))
+    if metres*5*t.scale<=65 then metres=metres*5 elseif metres*2*t.scale<=65 then metres=metres*2 end
+    local barX,barY=area.x+8,area.y+area.height-8
+    if area.compact then barX,barY=area.x+area.width-73,area.y+23 end
+    g.setColor(.02,.05,.06,.9);g.rectangle('fill',barX-4,barY-19,metres*t.scale+12,25,3)
+    g.setColor(.94,.97,.94,1);g.setLineWidth(2);g.line(barX,barY-3,barX,barY,barX+metres*t.scale,barY,barX+metres*t.scale,barY-3)
+    g.setFont(self:font(10));g.print(Gps.distance(metres),barX,barY-17)
     g.pop() -- Restore the viewport clip before drawing the map controls.
+    local titleX,titleY=rect.x+10,rect.y+rect.height-22
+    if area.compact then
+        titleX,titleY=area.x+4,area.y+area.height-18
+        g.setColor(.02,.05,.05,.94);g.rectangle('fill',area.x,titleY-2,area.width,20,3)
+    end
+    g.setFont(destinationFont);g.setColor(1,.82,.43,1);g.print(title,titleX,titleY)
 
     for direction=-1,1,2 do
         local b=Map.miniZoomButton(rect,direction)
-        local enabled=direction>0 and self.miniLevel<#miniScales or direction<0 and self.miniLevel>1
+        local enabled=direction>0 and self.miniLevel<#miniRanges or direction<0 and self.miniLevel>1
         local x,y=b.x+b.width*.5,b.y+b.height*.5
         g.setColor(.12,.18,.16);g.rectangle('fill',b.x,b.y,b.width,b.height,4)
         g.setColor(.48,.62,.56,1);g.setLineWidth(1.2);g.rectangle('line',b.x,b.y,b.width,b.height,4)
@@ -576,20 +700,19 @@ function Map:drawMini(rect,actor,options)
     end
     local follow=Map.miniFollowButton(rect)
     local fx,fy=follow.x+follow.width*.5,follow.y+follow.height*.5
-    g.setColor(self.miniFollow==false and {.12,.18,.16,1} or {.20,.34,.25,1})
+    g.setColor(self.miniAuto and {.12,.35,.30,1} or {.12,.18,.16,1})
     g.rectangle('fill',follow.x,follow.y,follow.width,follow.height,4)
     g.setColor(.48,.62,.56,1);g.setLineWidth(1.2);g.rectangle('line',follow.x,follow.y,follow.width,follow.height,4)
-    g.setColor(self.miniFollow==false and {.72,.79,.70,1} or {.65,1,.69,1})
-    local radius,arm=math.min(7,follow.width*.2),math.min(13,follow.width*.32)
-    g.setLineWidth(2.2);g.circle('line',fx,fy,radius);g.circle('fill',fx,fy,2)
-    g.line(fx-arm,fy,fx-radius,fy);g.line(fx+radius,fy,fx+arm,fy)
-    g.line(fx,fy-arm,fx,fy-radius);g.line(fx,fy+radius,fx,fy+arm)
+    g.setColor(self.miniAuto and {.65,1,.85,1} or {.78,.83,.80,1})
+    g.setFont(self:font(follow.width>=36 and 11 or 9));g.printf('AUTO',follow.x,fy-6,follow.width,'center')
     g.pop()
     return s
 end
 function Map:release()
     if self.background then self.background:release();self.background=nil end
-    for _,font in pairs(self.fonts)do font:release()end
-    self.fonts={};self.released=true
+    if self.miniTerrain then self.miniTerrain:release();self.miniTerrain=nil end
+    -- Typography owns these shared fonts; closing the map must not invalidate
+    -- the title screen and other UI that use the same cached sizes.
+    self.fonts={};self.miniDetail=nil;self.gpsPath=nil;self.gpsRoute=nil;self.released=true
 end
 return Map

@@ -1,0 +1,39 @@
+THE PICTURE SHOP - PC AND ANDROID 105 PLAYTEST UPDATE
+
+Windows: 0.1.0-test.105
+Android: 0.1.0-android.105 (version code 105)
+Shared multiplayer protocol: 74
+
+Install the matching build on every multiplayer participant. Builds using an
+older protocol, including the previous 104 release, cannot join this version.
+The Windows source workspace has the same version and gameplay changes.
+
+WHAT CHANGED
+
+- Courier Prime typewriter UI, clearer balances and notifications, larger mobile
+  office pages, scrollable job tickets, and paged Home Guide instructions.
+- Multiple completed jobs can share a delivery truck. Player and employee
+  deliveries follow the appropriate town/city stops for their loaded pallets.
+- Customer pickup trucks travel visibly through town. Traffic recovery can
+  clear prolonged stalls without completing or paying for undelivered cargo.
+- Revised roads and bridge lanes, sharper GPS guidance, park/campground details,
+  and the loading-dock exterior connect the warehouse with the town.
+- Saved notices and tutorial guidance, office browser navigation, and an archive
+  of receipts and delivery signatures make information easier to find.
+- Customer calls, replies, freight and services follow business hours. Existing
+  dock work and production can finish after closing. Home delivery charges use
+  a 15% fee with a $2 minimum, shown at checkout.
+- Existing iOS touch-control support remains in the shared source.
+
+VALIDATION AND DOWNLOADS
+
+The release includes separate Windows and Android installers, SHA256SUMS.txt,
+and release-verification.json. The verification file records the exact shared
+source commit, package hashes, protocol, test results, signing comparison, and
+whether a physical phone was tested. Automated mobile layouts and simulated
+multiplayer do not certify physical-device or public-Internet behavior.
+
+This is the project's development playtest release. The Android APK uses the
+project's development signing identity; the Windows installer is unsigned.
+Download the APK on Android and open it to install/update. Start a fresh test
+shop to exercise the new town generation; existing towns keep their geometry.

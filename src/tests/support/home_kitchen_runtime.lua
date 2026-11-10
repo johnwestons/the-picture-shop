@@ -26,10 +26,10 @@ function Test.run(R,check)
     local balance=state.home.balanceCents
     click("buy",3);click("confirm");click("cancel")
     click("buy",4);click("confirm");click("cancel")
-    check("home_kitchen_runtime_orders_raw_groceries",state.home.balanceCents==balance-1200)
+    check("home_kitchen_runtime_orders_raw_groceries",state.home.balanceCents==balance-1400)
     tab("furniture");click("next");click("next");capture("home-kitchen-appliances","computer")
     click("buy",2);click("confirm");click("cancel")
-    check("home_kitchen_runtime_buys_stove_with_household_funds",state.home.balanceCents==balance-16200)
+    check("home_kitchen_runtime_buys_stove_with_household_funds",state.home.balanceCents==balance-17500)
     state.screen="world";advance(120);p.x,p.y=Layout.spawn(state,1)
     local parcel=assert(Shopping.target(p,state));R.World.updateNetworkPlayer(0,0,0,R.Assets,state,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
     local stove,index

@@ -104,8 +104,10 @@ local function beginExit(actor)
     actor.returnSeconds=0
 end
 
-local function acceptSignature(state,value,signer)
+local function acceptSignature(state,value,signer,ink)
     if value.status~="waiting" then return false end
+    local receipt=Driver.receipt(state,value.deliveryId)
+    if receipt then require('src.receipt_book').delivery(state,receipt,signer or 'Employee',ink) end
     value.status="signed"
     value.signedBy=signer or "Employee"
     value.signedAtHours=require("src.business_calendar").absoluteHours(state)
@@ -118,11 +120,15 @@ local function acceptSignature(state,value,signer)
     return true
 end
 
-function Driver.sign(state,player)
+function Driver.sign(state,player,signature)
     local value=visit(state)
     local actor=actorFor(state)
     if not value or value.status~="waiting" or not actor then
         return false,"The driver is not waiting for a signature."
+    end
+    if signature and (signature.deliveryId~=value.deliveryId
+        or signature.ink~=nil and not require('src.receipt_signature').valid(signature.ink)) then
+        return false,'This receipt no longer matches the waiting delivery.'
     end
     if type(player)~="table" or (player.sceneId or "warehouse")~="warehouse" then
         return false,"Come into the warehouse to sign for the delivery."
@@ -132,7 +138,7 @@ function Driver.sign(state,player)
         return false,"Move closer to the driver to sign for the delivery."
     end
     direction(actor,-dx,-dy)
-    return acceptSignature(state,value,"You")
+    return acceptSignature(state,value,player.name or player.displayName or 'You',signature and signature.ink)
 end
 
 function Driver.interaction(state)
@@ -189,11 +195,36 @@ function Driver.receipt(state,deliveryId)
     local StatusLabels=require("src.status_labels")
     local status=manifest.status or record.status
     local delivery=manifest.delivery or record.delivery or {}
+    local supplier=manifest.company or record.company
+    if not supplier and manifest.orderIds then
+        local only,mixed
+        for _,id in ipairs(manifest.orderIds) do
+            local purchase=require('src.procurement').orderById(state,id)
+            local company=purchase and (purchase.company or purchase.vendor)
+            if company then
+                if only and only~=company then mixed=true end
+                only=only or company
+            end
+        end
+        supplier=mixed and 'Millhaven Freight' or only
+    end
+    supplier=supplier or (delivery.route and delivery.route.originCompany) or 'Picture Shop delivery'
+    local previews={}
+    if value.mode=='machine_delivery' then
+        previews[1]={image='machineFlatbedLoaded'}
+    else
+        for i=1,math.min(3,#items) do
+            local item=items[i];local cargo=item.pallet or item
+            local image,quad=require('src.world_renderer').palletVisual({pallet=cargo,vendor=item.vendorProduct==true})
+            previews[#previews+1]={image=image,quad=quad}
+        end
+    end
+    local artwork=manifest.artwork or record.artwork or {}
     return {
         deliveryId=tostring(value.deliveryId),
         document=value.mode=="machine_delivery" and "MACHINERY RECEIPT"
             or value.mode=="vendor_delivery" and "PURCHASE RECEIPT" or "CLIENT DELIVERY RECEIPT",
-        supplier=manifest.company or record.company or "Picture Shop delivery",
+        supplier=supplier,
         orderState=status and StatusLabels.get(status) or "In transit",
         deliveryState="Driver waiting for signature",
         shipment=product,
@@ -209,6 +240,9 @@ function Driver.receipt(state,deliveryId)
         palletCount=count,
         location="Warehouse loading bay",
         deliveryStatus=delivery.status,
+        previews=previews,
+        artworkKey=artwork.key or manifest.artworkKey or record.artworkKey,
+        artworkName=artwork.displayName or artwork.fileName,
     }
 end
 
@@ -348,7 +382,8 @@ local function retryDelivery(state,value)
     local record=deliveryRecord(state,value)
     local delivery=record and record.delivery
     if not delivery then return false end
-    local retryAt=require("src.business_calendar").absoluteHours(state)+Driver.RETRY_DELAY_HOURS
+    local retryAt=require('src.business_hours').nextService(
+        require("src.business_calendar").absoluteHours(state)+Driver.RETRY_DELAY_HOURS)
     delivery.status=value.mode=="machine_delivery" and "awaiting_delivery"
         or value.mode=="vendor_delivery" and "awaiting_schedule" or "pending_arrival"
     delivery.expectedAtHours=retryAt

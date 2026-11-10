@@ -323,6 +323,8 @@ function Furniture.command(state,player,command,players)
         Objects.emptyForSale(state,item)
         Surface.packChildren(state,item.id)
         state.home.balanceCents=state.home.balanceCents+price
+        require('src.receipt_book').add(state,{kind='payout',title='Furniture sale',party='Furniture resale',account='Household',
+            amountCents=price,details='Sold furniture: '..tostring(item.productId or item.id)})
         for i,row in ipairs(data.items) do if row==item then table.remove(data.items,i);break end end
     else return false,"Choose a furniture action." end
     item.editor=nil;item.editToken=nil;item.editExpiresAt=nil;item.revision=item.revision+1;changed(state)

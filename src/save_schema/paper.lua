@@ -237,7 +237,9 @@ function Component.install(Runtime)
             and phases[value.phase]==true
             and (value.pathKind==nil or kinds[value.pathKind])
             and (value.pathTarget==nil or targets[value.pathTarget])
-            and (value.pathIndex==nil or Runtime.integer(value.pathIndex) and value.pathIndex>=1 and value.pathIndex<=512)
+            -- Dense town routes can exceed 512 samples; match the bounded
+            -- route cursor already supported by autonomous motorcycles.
+            and (value.pathIndex==nil or Runtime.integer(value.pathIndex) and value.pathIndex>=1 and value.pathIndex<=4096)
             and (value.simRemainder==nil or Runtime.number(value.simRemainder) and value.simRemainder>=0 and value.simRemainder<=1)
             and Runtime.optionalBoolean(value.noticeSent)
             and Runtime.optionalBoolean(value.localManeuver)
@@ -266,6 +268,7 @@ function Component.install(Runtime)
     function Runtime.delivery(value)
         return value == nil or (type(value) == "table"
             and Runtime.text(value.status)
+            and Runtime.optionalBoolean(value.customerPickup)
             and (value.kind == nil or value.kind == "replacement")
             and (value.palletIds == nil or Runtime.array(value.palletIds, Runtime.text))
             and Runtime.optionalNumber(value.receivedAt)
@@ -281,6 +284,7 @@ function Component.install(Runtime)
     function Runtime.pickup(value)
         return value == nil or (type(value) == "table"
             and Runtime.text(value.status)
+            and Runtime.delivery(value.roadDelivery)
             and Runtime.optionalNumber(value.requestedAt)
             and Runtime.optionalNumber(value.scheduledAt)
             and Runtime.optionalNumber(value.arrivedAt)

@@ -38,7 +38,7 @@ local function slotRect(index) return { x = 148, y = 344 + (index - 1) * 58, wid
 local function ensureFonts()
     sectionFont = sectionFont or Fonts.get("metal", 16)
     bodyFont = bodyFont or Fonts.get("paper", 13)
-    footerFont = footerFont or love.graphics.newFont(10)
+    footerFont = footerFont or require('src.screens.typography').get(10)
 end
 
 local function runningVersion()
@@ -510,11 +510,11 @@ function TitleScreen.draw(assets, mouseX, mouseY)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
             or (TitleScreen.onDirect
-                and "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
-                or "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | Q Quit"),
-        12, 652, Config.baseWidth - 24, "center")
+                and "Arrows: Select  |  Enter: Open  |  L: Local  |  I: Direct"
+                or "Arrows: Select  |  Enter: Open  |  L: Local Play"),
+        12, 649, Config.baseWidth - 24, "center")
     love.graphics.setColor(0.94, 0.82, 0.50, 0.95)
-    love.graphics.printf(TitleScreen.versionText(), 0, 663, Config.baseWidth, "center")
+    love.graphics.printf(TitleScreen.versionText(), 0, 664, Config.baseWidth, "center")
     love.graphics.pop()
 end
 

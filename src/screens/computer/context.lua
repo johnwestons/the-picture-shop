@@ -107,6 +107,7 @@ function Component.install(Runtime)
         { id = "reviews", label = "REVIEWS", group = "customers", url = "www.thecritternet.com/job-desk/reviews" },
         { id = "clock", label = "SHOP CLOCK", group = "shop", url = "www.thecritternet.com/shop/clock" },
         { id = "financials", label = "FINANCIALS", group = "shop", url = "www.thecritternet.com/shop/financials" },
+        { id = "receipts", label = "RECEIPTS", group = "shop", url = "www.thecritternet.com/shop/receipts" },
         { id = "inventory", label = "INVENTORY", group = "shop", url = "www.thecritternet.com/job-desk/inventory" },
         { id = "hiring", label = "HIRING", group = "shop", url = "www.thecritternet.com/shop/hiring" },
         { id = "schedule", label = "SCHEDULE", group = "shop", url = "www.thecritternet.com/shop/schedule" },
@@ -154,11 +155,11 @@ function Component.install(Runtime)
     Runtime.CART_NEXT = { x = 514, y = 552, width = 42, height = 32 }
     Runtime.CART_PAGE_SIZE = 7
     Runtime.PAY_BILLS = { x = 612, y = 522, width = 196, height = 46 }
-    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 484, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 484, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 444, width = 392, height = 20 }
-    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 540, width = 186, height = 44 }
-    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 540, width = 186, height = 44 }
+    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 512, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 512, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 452, width = 392, height = 20 }
+    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 570, width = 186, height = 44 }
+    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 570, width = 186, height = 44 }
     Runtime.EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
     Runtime.EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
     Runtime.EMAIL_DELETE = { x = 640, y = 526, width = 186, height = 44 }
@@ -167,9 +168,10 @@ function Component.install(Runtime)
     Runtime.EMAIL_PREVIOUS = { x = 94, y = 562, width = 82, height = 28 }
     Runtime.EMAIL_NEXT = { x = 292, y = 562, width = 82, height = 28 }
     Runtime.EMAIL_PAGE_SIZE = 6
-    Runtime.PROMO = { x = 640, y = 526, width = 186, height = 44 }
+    Runtime.PROMO_CANCEL = { x = 434, y = 442, width = 186, height = 44 }
+    Runtime.PROMO = { x = 640, y = 442, width = 186, height = 44 }
     Runtime.JOB_PROMO = { x = 640, y = 590, width = 186, height = 44 }
-    Runtime.PROMO_INPUT = { x = 434, y = 338, width = 392, height = 122 }
+    Runtime.PROMO_INPUT = { x = 434, y = 306, width = 392, height = 96 }
     Runtime.CAL_PANEL = { x = 82, y = 190, width = 792, height = 408 }
     Runtime.CAL_PREVIOUS = { x = 96, y = 202, width = 42, height = 30 }
     Runtime.CAL_NEXT = { x = 818, y = 202, width = 42, height = 30 }

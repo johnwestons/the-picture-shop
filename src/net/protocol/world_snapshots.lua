@@ -89,7 +89,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeSnapshot(payload)
         local valid, shapeError = Runtime.shape(payload, "snapshot payload",
-            { "sessionId", "serverTick", "players" }, { "games", "balls", "bike" })
+            { "sessionId", "serverTick", "players" }, { "games", "balls", "bike", "truck" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(payload.sessionId, Runtime.MAX_TOKEN_BYTES, "snapshot.sessionId")
         if not sessionId then return nil, fieldError end
@@ -114,6 +114,24 @@ function Component.install(Runtime)
                 or not Runtime.numberInRange(bike.steer,-1,1,"bike.steer")
                 or not Runtime.numberInRange(bike.brake,0,1,"bike.brake") then
                 return nil,"snapshot.bike is invalid"
+            end
+        end
+        local truck=payload.truck
+        if truck~=nil then
+            if bike or not players[1] or players[1].sceneId~='commute'
+                or not Runtime.shape(truck,'snapshot.truck',
+                    {'token','model','heading','speed','steer','brake','throttle','reverse','h','pitch'})
+                or not Runtime.integerInRange(truck.token,1,1e12,'truck.token')
+                or (truck.model~='box' and truck.model~='kei')
+                or type(truck.reverse)~='boolean'
+                or not Runtime.numberInRange(truck.heading,-2*math.pi,2*math.pi,'truck.heading')
+                or not Runtime.numberInRange(truck.speed,0,100,'truck.speed')
+                or not Runtime.numberInRange(truck.steer,-1,1,'truck.steer')
+                or not Runtime.numberInRange(truck.brake,0,1,'truck.brake')
+                or not Runtime.numberInRange(truck.throttle,0,1,'truck.throttle')
+                or not Runtime.numberInRange(truck.h,-2,100,'truck.h')
+                or not Runtime.numberInRange(truck.pitch,-1.6,1.6,'truck.pitch') then
+                return nil,'snapshot.truck is invalid'
             end
         end
         local games
@@ -220,7 +238,7 @@ function Component.install(Runtime)
                 balls[index]=entry
             end
         end
-        return { sessionId = sessionId, serverTick = serverTick, players = players, bike = bike,
+        return { sessionId = sessionId, serverTick = serverTick, players = players, bike = bike, truck = truck,
             games = games and Runtime.Codec.array(games) or nil,
             balls = balls and Runtime.Codec.array(balls) or nil }
     end

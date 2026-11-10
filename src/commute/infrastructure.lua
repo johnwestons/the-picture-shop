@@ -1,6 +1,7 @@
 -- Derive street furniture from the frozen road network. Distances are metres.
 -- The same geometry records feed the renderer and spatially indexed collisions.
 local M = require('src.commute.vendor.mathx')
+local Recreation=require('src.commute.recreation_layout')
 local Infrastructure = {}
 Infrastructure.__index = Infrastructure
 local CELL = 12
@@ -127,7 +128,8 @@ local function refineWalks(plan)
             refined[#refined+1]={kind=w.kind,roadId=w.roadId,side=w.side,corners=p,x=x,z=z}
         end
     end
-    for _,w in ipairs(plan.walks) do
+    for index,w in ipairs(plan.walks) do
+        if plan.prepareYield and index%8==0 then plan.prepareYield()end
         local p=w.corners
         for _,pair in ipairs({{1,4},{2,3}}) do
             local a,b=p[pair[1]],p[pair[2]]
@@ -158,7 +160,10 @@ local function smoothWalkStations(plan)
                 support=math.max(a[4],b[4],plan.world:height(centerX,centerZ))+.105}
         end
         add(walks[first],true)
-        for i=first,last do add(walks[i],false) end
+        for i=first,last do
+            add(walks[i],false)
+            if plan.prepareYield and i%8==0 then plan.prepareYield()end
+        end
         local profile={}
         for i,station in ipairs(stations) do
             local before=stations[math.max(1,i-1)].raw
@@ -182,10 +187,12 @@ local function smoothWalkStations(plan)
             p[2][3],p[3][3]=endHeight,endHeight
         end
         first=last+1
+        if plan.prepareYield then plan.prepareYield()end
     end
 end
 local function indexWalks(plan)
     for i,walk in ipairs(plan.walks) do
+        if plan.prepareYield and i%8==0 then plan.prepareYield()end
         local p=walk.corners
         local prev,nextWalk=plan.walks[i-1],plan.walks[i+1]
         -- Taper each discontinuous run down to a driveway or intersection.
@@ -345,6 +352,7 @@ local function walksAndRails(plan,path)
     local count=math.max(1,math.ceil(path.length/3))
     for _,side in ipairs({1,-1}) do
         for i=1,count do
+            if plan.prepareYield and i%4==0 then plan.prepareYield()end
             local start,finish=(i-1)*path.length/count,i*path.length/count
             local mid=(start+finish)*.5
             local cx,cz,edge=offset(path,mid,side,curb+width*.5)
@@ -400,6 +408,7 @@ local function addLamps(plan,path,seed,turnClearancePoints)
     for _,side in ipairs({1,-1}) do
         local start=7+(seed+#path.id*5+(side==1 and 11 or 0))%math.floor(spacing*.55)
         for d=start,path.length-5,spacing do
+            if plan.prepareYield then plan.prepareYield()end
             local x,z,e=offset(path,d,side,path.width*.5+1.4)
             local clearOfTurns=d>=11 and path.length-d>=11
             for index=2,#path.edges do
@@ -423,6 +432,7 @@ local function addLamps(plan,path,seed,turnClearancePoints)
 end
 local function mailboxes(plan,paths,town)
     for _,p in ipairs(town.placements or {}) do
+        if plan.prepareYield then plan.prepareYield()end
         local frontage=paths[p.frontageRoadId]
         local drive=paths[p.id..'-drive']
         if frontage and drive and p.district=='residential' then
@@ -467,6 +477,7 @@ local function approachSign(plan,path,atStart,kind,turn,junctionX,junctionZ)
 end
 local function signs(plan,junctions)
     for _,node in ipairs(junctions) do
+        if plan.prepareYield then plan.prepareYield()end
         local branches=node.branches
         local mainCount=0
         for _,b in ipairs(branches) do if b.path.role=='main' then mainCount=mainCount+1 end end
@@ -490,6 +501,10 @@ local function signs(plan,junctions)
 end
 local function recreation(plan,town)
     for _,area in ipairs(town.recreation or {}) do
+        if plan.prepareYield then plan.prepareYield()end
+        if Recreation.expanded(area) then
+            Recreation.install(plan,area,addCollider)
+        else
         local fx,fz=math.cos(area.heading or 0),math.sin(area.heading or 0)
         local function place(kind,side,forward)
             local x=area.x+fz*side+fx*forward
@@ -504,14 +519,19 @@ local function recreation(plan,town)
         elseif area.kind=='picnic' then place('table',0,0);place('bench',1,2.8)
         else place('bench',-1.8,0);place('table',1.7,1) end
         place('trailSign',0,-area.radius+.85)
+        end
     end
 end
 function Infrastructure.new(world,options)
     local plan=setmetatable({world=world,fixtures={},walks={},rails={},solids={},bins={},walkBins={},counts={}},Infrastructure)
+    plan.prepareYield=options and options.progress
     local town=world.town
-    if not town or (town.generatorVersion or 0)<3 and not (options and options.enabled) then return plan end
+    if not town or (town.generatorVersion or 0)<3 and not (options and options.enabled) then
+        plan.prepareYield=nil;return plan
+    end
     local lookup,streets,junctions,byNode={},{},{},{}
     for _,road in ipairs(town.roads) do
+        if plan.prepareYield then plan.prepareYield()end
         local path=measure(road)
         lookup[path.id]=path
         if #path.edges>0 and (path.role=='main' or path.role=='local') then
@@ -526,7 +546,10 @@ function Infrastructure.new(world,options)
             end
         end
     end
-    for _,path in ipairs(streets) do walksAndRails(plan,path) end
+    for _,path in ipairs(streets) do
+        walksAndRails(plan,path)
+        if plan.prepareYield then plan.prepareYield()end
+    end
     refineWalks(plan)
     smoothWalkStations(plan)
     indexWalks(plan)
@@ -562,12 +585,13 @@ function Infrastructure.new(world,options)
     recreation(plan,town)
     plan.counts.sidewalk=#plan.walks
     plan.counts.guardrail=#plan.rails
+    plan.prepareYield=nil
     return plan
 end
-function Infrastructure.ensure(world)
+function Infrastructure.ensure(world,options)
     if not world.town or (world.town.generatorVersion or 0)<3 then return Infrastructure.new(world) end
     if not world.infrastructure then
-        world.infrastructure=Infrastructure.new(world)
+        world.infrastructure=Infrastructure.new(world,options)
         world.roads.infrastructure=world.infrastructure
     end
     return world.infrastructure

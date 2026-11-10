@@ -57,14 +57,24 @@ function Component.install(Runtime)
         else
             driverMode = driverMode == "player" and "player" or "employee"
         end
+        local dispatchAtHours=Runtime.BusinessCalendar.absoluteHours(state)+(clientArrangesTransport and .5 or .25)
+        if clientArrangesTransport then
+            for _,other in ipairs(state.jobs.active) do
+                local pickup=other.pickup
+                if pickup and not pickup.driverMode and pickup.status=='awaiting_schedule' then
+                    dispatchAtHours=math.max(dispatchAtHours,(pickup.dispatchAtHours or dispatchAtHours)+.5)
+                end
+            end
+        end
         job.status = "ready_for_pickup"
+        dispatchAtHours=require('src.business_hours').nextService(dispatchAtHours)
         job.pickup = {
             status = "awaiting_schedule",
             requestedAt = timestamp,
             driverMode = driverMode,
             -- Give the owner time to change the delivery choice in the active
             -- job ticket before an employee reserves and loads the truck.
-            dispatchAtHours = Runtime.BusinessCalendar.absoluteHours(state) + .25,
+            dispatchAtHours = dispatchAtHours,
         }
         job.pickupRequestedAtHours = Runtime.BusinessCalendar.absoluteHours(state)
         Feedback.record(job, "ready_to_ship", job.pickupRequestedAtHours, "Quality inspection passed")
@@ -84,7 +94,7 @@ function Component.install(Runtime)
             return false, "Delivery choice can only be changed before a driver loads the job."
         end
         job.pickup.driverMode = driverMode
-        job.pickup.dispatchAtHours = Runtime.BusinessCalendar.absoluteHours(state) + .25
+        job.pickup.dispatchAtHours = require('src.business_hours').nextService(Runtime.BusinessCalendar.absoluteHours(state) + .25)
         return true, job
     end
 
@@ -152,7 +162,7 @@ function Component.install(Runtime)
         return true, job.customerCase
     end
 
-    function Runtime.JobService.nextPickup(state)
+    function Runtime.JobService.nextPickup(state, canSchedule)
         Runtime.prepareCollections(state)
         for _, job in ipairs(state.jobs.active) do
             local pickupStatus = job.pickup and job.pickup.status
@@ -162,7 +172,7 @@ function Component.install(Runtime)
                     and pickupStatus ~= "player_delivery"
                     and not (job.pickup and job.pickup.driverMode))
             then
-                return job
+                if not canSchedule or canSchedule(job) then return job end
             end
         end
     end
@@ -290,6 +300,7 @@ function Component.install(Runtime)
         state.accountsReceivable = math.max(0, (state.accountsReceivable or 0) - payment)
         state.money = math.max(0, state.money or 0) + payment
         require("src.household_finances").record(state,"revenue",payment*100)
+        require('src.receipt_book').job(state,job)
         local reputationGain, reputationScore = Runtime.Reputation.completeJob(state, job)
         local completedHours = Runtime.BusinessCalendar.absoluteHours(state)
         Feedback.record(job, "closed", completedHours, "Customer pickup completed; payment received")
