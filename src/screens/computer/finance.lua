@@ -294,7 +294,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawBills(state, pointerX, pointerY)
-        local charges, monthlyTotal = Runtime.BusinessCalendar.monthlyCharges()
+        local charges, monthlyTotal = Runtime.BusinessCalendar.monthlyCharges(state)
         local balance,operatingDue,wages = Runtime.BusinessCalendar.amountDue(state)
         local accrued=(state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true) or 0)
             /100+require('src.guest_payroll').totalOwed(state)/100

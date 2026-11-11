@@ -29,6 +29,13 @@ function Component.install(Runtime)
             Runtime.Smoke.drawn()
             return
         end
+        if require('src.story_grand_opening').active(Runtime) then
+            require('src.story_grand_opening').draw(Runtime)
+            Runtime.CharacterAssets.endFrame()
+            Runtime.Viewport.endDraw()
+            Runtime.Smoke.drawn()
+            return
+        end
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
             Runtime.CharacterAssets.endFrame()

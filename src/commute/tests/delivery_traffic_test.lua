@@ -41,6 +41,13 @@ function Test.run(check)
             and TruckArt.frame(firstPerson,.73+step,'box')==index+1
     end
     check('box_truck_retains_uniform_64_view_calibration',aligned)
+    local shoulder={firstPerson=true,viewHeading=0,shoulderPerspective=true}
+    local shoulderCoverage=true
+    for index=0,63 do
+        shoulderCoverage=shoulderCoverage
+            and TruckArt.frame(shoulder,index*math.pi/32,'box','chase')==index+1
+    end
+    check('box_truck_shoulder_uses_each_existing_chase_angle',shoulderCoverage)
     for _,kind in ipairs({'isometric','chase'}) do
         local expected=kind=='isometric' and {1,14,33,43} or {1,15,33,43}
         for index=0,3 do

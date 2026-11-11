@@ -91,12 +91,19 @@ function Arrival.begin(R,state)
     local part=Commute.localPart(R)
     if not part then return false,'The Story rider is missing.' end
     local rider=part.rider
-    rider.gear.outfit='geared';rider.gear.mounted=true;rider.gear.engine=true
+    rider.gear.outfit='normal';rider.gear.mounted=false;rider.gear.engine=false
     rider.gear.transition=nil;rider.gear.revision=rider.gear.revision+1
-    rider.bike.distance=0;rider.bike.speed=0
-    state.arrival={plan=plan,phase='ride',distance=0,elapsed=0,walkIndex=1,stalled=0}
+    rider.ped.speed=0;rider.ped.vx=0;rider.ped.vz=0
+    rider.bike.distance=0;rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0
+    rider.bike.throttle=0;rider.bike.brake=0
+    state.arrival={plan=plan,phase='equip',distance=0,elapsed=0,walkIndex=1,stalled=0}
     placeRide(R,state.arrival,0,0)
     Bike.resetContact(rider.bike,Commute.world(R))
+    local footX,footZ=Rider.footing(rider,Commute.world(R))
+    if footX then rider.ped.x,rider.ped.z=footX,footZ end
+    local okay,equipReason=Rider.command(rider,'equip',Commute.world(R))
+    if not okay then state.arrival=nil;return false,equipReason end
+    sync(R,part)
     return true
 end
 local function updateRider(rider,world,input,dt)
@@ -124,8 +131,9 @@ function Arrival.update(R,state,dt)
         Commute.update(R,dt,0,0,false,true)
         return false
     end
-    if arrival.phase=='ride' then
-        local lookAhead=math.min(arrival.plan.length,arrival.distance+13)
+    if arrival.phase=='equip' or arrival.phase=='mount' or arrival.phase=='ride' then
+        local lookAhead=arrival.phase=='ride' and math.min(arrival.plan.length,arrival.distance+13)
+            or arrival.distance
         local x,z=sample(arrival.plan,lookAhead)
         if not view.renderer:terrainCoverage(x,z) then
             Commute.update(R,dt,0,0,false,true)
@@ -133,7 +141,20 @@ function Arrival.update(R,state,dt)
         end
     end
     arrival.elapsed=arrival.elapsed+dt
-    if arrival.phase=='ride' then
+    if arrival.phase=='equip' or arrival.phase=='mount' then
+        updateRider(rider,world,{},dt)
+        if not rider.gear.transition then
+            if arrival.phase=='equip' then
+                local okay,reason=Rider.command(rider,'mount',world)
+                if not okay then return nil,reason or 'The rider could not mount the motorcycle.' end
+                arrival.phase='mount'
+            else
+                rider.gear.engine=true;rider.gear.revision=rider.gear.revision+1
+                arrival.phase='ride';arrival.elapsed=0
+            end
+        end
+        sync(R,part)
+    elseif arrival.phase=='ride' then
         local remaining=arrival.plan.length-arrival.distance
         local speed=math.min(16,math.sqrt(math.max(0,remaining)*8))
             *math.min(1,(arrival.elapsed+.4)/2)
@@ -180,7 +201,9 @@ end
 function Arrival.progress(state)
     local arrival=state.arrival
     if not arrival then return 0 end
-    if arrival.phase=='ride' then return .85*arrival.distance/arrival.plan.length end
+    if arrival.phase=='equip' then return 0 end
+    if arrival.phase=='mount' then return .05 end
+    if arrival.phase=='ride' then return .05+.80*arrival.distance/arrival.plan.length end
     if arrival.phase=='dismount' then return .86 end
     if arrival.phase=='remove' then return .89 end
     return .9+.1*(arrival.walkIndex-1)/#arrival.plan.walk

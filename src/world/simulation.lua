@@ -5,6 +5,7 @@ local CustomerDemand = require("src.customer_demand")
 local JobFeedback = require("src.job_feedback")
 local Background = require("src.background_warehouse")
 local DeliveryDriver=require("src.warehouse_delivery_driver")
+local VisitorCommute=require("src.commute.visitor_commute")
 
 function Component.install(Runtime)
     local background=Background.new()
@@ -26,8 +27,9 @@ function Component.install(Runtime)
         Runtime.World.bayDoor:reset()
         for _,door in pairs(Runtime.World.roomDoors) do door:reset() end
         Runtime.World.truck:reset()
-        Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state))
-        Runtime.World.vendor:reset(true)
+        local visitorTravelSeconds=VisitorCommute.travelSeconds(Runtime.state)
+        Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state),visitorTravelSeconds)
+        Runtime.World.vendor:reset(true,nil,visitorTravelSeconds)
         Runtime.World.selectedInteraction = nil
         Runtime.World.placementSelection = nil
     end
@@ -246,6 +248,8 @@ function Component.install(Runtime)
         elseif customerEvent == "route_blocked" and state then
             state.message = "The client cannot reach the lounge and is heading back to the entrance. Clear the aisle."
         elseif customerEvent == "exited" and state then
+            VisitorCommute.depart(state,"customer",Runtime.World.customer.character,
+                Runtime.BusinessCalendar.absoluteHours(state))
             state.message = Runtime.World.customer.routeBlocked
                 and "The client left because the lounge was inaccessible."
                 or Runtime.World.customer.decision == "timed_out"
@@ -255,7 +259,8 @@ function Component.install(Runtime)
                     or "The customer left after you declined the job.")
             -- Bring the next business client into the arrival queue after this
             -- visit so the configured roster is experienced during one session.
-            Runtime.World.customer:reset(false, CustomerDemand.delayMultiplier(state))
+            Runtime.World.customer:reset(false, CustomerDemand.delayMultiplier(state),
+                VisitorCommute.travelSeconds(state))
         end
         local category = Runtime.Procurement.category(state and state.vendorCategory)
         Runtime.World.vendor.character = category.character
@@ -266,8 +271,10 @@ function Component.install(Runtime)
         elseif vendorEvent == "route_blocked" and state then
             state.message = "The supplier cannot reach reception and is heading back to the entrance. Clear the aisle."
         elseif vendorEvent == "exited" and state then
+            VisitorCommute.depart(state,"vendor",Runtime.World.vendor.character,
+                Runtime.BusinessCalendar.absoluteHours(state))
             state.vendorCategory = state.vendorCategory % #Runtime.Procurement.categories + 1
-            Runtime.World.vendor:reset(false)
+            Runtime.World.vendor:reset(false,nil,VisitorCommute.travelSeconds(state))
             state.message = "The salesman left. Another supplier representative will visit later."
         end
         if Runtime.Technician.update(dt, state,

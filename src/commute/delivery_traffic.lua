@@ -8,6 +8,7 @@ local TrafficRules=require('src.commute.traffic_rules')
 local AIMotorcycleTraffic=require('src.commute.ai_motorcycle_traffic')
 local TownCharacters=require('src.commute.town_characters')
 local EmployeeCommuters=require('src.commute.employee_commute')
+local VisitorCommuters=require('src.commute.visitor_commute')
 local DrivingPath=require('src.commute.driving_path')
 local TrafficActorIndex=require('src.commute.traffic_actor_index')
 local AIWatchdog=require('src.ai_watchdog')
@@ -630,7 +631,7 @@ local function dockBlocked(state,world,subject)
     return occupied
 end
 
-local function gatherDynamicActors(state,town,activeWorld)
+local function gatherDynamicActors(state,town,activeWorld,visitors)
     local vehicles,pedestrians,motorcycles,trafficActors={},{},{},{}
     local commute=state and state.home and state.home.commute
     if commute then
@@ -680,6 +681,9 @@ local function gatherDynamicActors(state,town,activeWorld)
         scheduled[#scheduled+1]=entry
     end
     for _,entry in ipairs(EmployeeCommuters.actors(state,town,now,activeWorld)) do
+        scheduled[#scheduled+1]=entry
+    end
+    for _,entry in ipairs(VisitorCommuters.actors(visitors,state,town,now,activeWorld)) do
         scheduled[#scheduled+1]=entry
     end
     for _,entry in ipairs(scheduled) do
@@ -1874,7 +1878,7 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
     return changed
 end
 
-function Network.simulate(state,town,dt,epoch,activeWorld)
+function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
     if type(state)~='table' then return false,false end
     local started=love.timer.getTime()
     epoch=finite(epoch) and epoch or os.time()
@@ -1909,7 +1913,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
         -- Rebuild the shared actor index for each substep so every driver sees
         -- road users at their latest pose, including vehicles created during
         -- the preceding substep.
-        local vehicles,_,_,trafficActors=gatherDynamicActors(state,town,world)
+        local vehicles,_,_,trafficActors=gatherDynamicActors(state,town,world,visitors)
         world.trafficActors=trafficActors
         world.trafficActorIndex=TrafficActorIndex.shouldUse(#trafficActors)
             and TrafficActorIndex.new(trafficActors) or nil
@@ -1954,10 +1958,10 @@ function Network.simulate(state,town,dt,epoch,activeWorld)
     return changed,moving
 end
 
-function Network.installVehicleObstacles(state,world)
+function Network.installVehicleObstacles(state,world,visitors)
     if not world then return end
     local vehicles,pedestrians,motorcycles,trafficActors=gatherDynamicActors(state,
-        state and state.home and state.home.town,world)
+        state and state.home and state.home.town,world,visitors)
     installVehicleCollision(world,trafficActors)
 end
 
@@ -2033,7 +2037,7 @@ function Network.physicalActors(state)
     end
     return result
 end
-function Network.actors(state,town,now,epoch,activeWorld)
+function Network.actors(state,town,now,epoch,activeWorld,visitors)
     local route=townWorld(town,activeWorld)
     if not route then return {} end
     now=finite(now) and now or Calendar.absoluteHours(state)
@@ -2093,6 +2097,9 @@ function Network.actors(state,town,now,epoch,activeWorld)
         result[#result+1]=entry
     end
     for _,entry in ipairs(EmployeeCommuters.actors(state,town,now,activeWorld)) do
+        result[#result+1]=entry
+    end
+    for _,entry in ipairs(VisitorCommuters.actors(visitors,state,town,now,activeWorld)) do
         result[#result+1]=entry
     end
     for _,entry in ipairs(require('src.company_delivery_driver').actors(state,route.world,epoch)) do

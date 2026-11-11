@@ -47,6 +47,7 @@ function Office.command(options)
             end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
                 or intent.kind == "buy_breakroom_fixture" or intent.kind == "buy_garage_door"
+            local vehiclePurchase=intent.kind=="buy_vehicle"
             local stagingAction = intent.kind == "staging_area_add" or intent.kind == "staging_area_remove"
                 or intent.kind == "staging_area_change"
             if warehousePurchase or stagingAction then
@@ -99,6 +100,8 @@ function Office.command(options)
                 ok, result, domainCode = Upgrades.purchase(staged, intent.bayId, intent.optionId, intent.requestId)
             elseif intent.kind == "buy_forklift" then
                 ok, result, domainCode = Upgrades.purchaseForklift(staged, intent.requestId)
+            elseif vehiclePurchase then
+                ok,result,domainCode=require('src.vehicle_dealer').purchase(staged,intent.listingId,intent.requestId)
             elseif intent.kind == "buy_garage_door" then
                 ok, result, domainCode = require("src.room_loading_bays").purchase(staged,intent.bayId,intent.requestId)
             elseif intent.kind == "buy_breakroom_fixture" then
@@ -131,6 +134,9 @@ function Office.command(options)
             if warehousePurchase and domainCode == "replayed" then
                 return true, "replayed", "This purchase was already confirmed; no second charge was made.", {}
             end
+            if vehiclePurchase and domainCode=="replayed" then
+                return true,"replayed","This vehicle purchase was already confirmed; no second charge was made.",{}
+            end
             if intent.kind == "finance_machine" and domainCode == "replayed" then
                 return true, "replayed", "This financing agreement was already signed; no second loan was created.", {}
             end
@@ -144,6 +150,11 @@ function Office.command(options)
             end
             if Home.isIntent(intent.kind) or wageAction then
                 return true,domainCode or "completed",tostring(result),{}
+            end
+            if vehiclePurchase then
+                local listing=require('src.vehicle_dealer').listing(intent.listingId)
+                return true,domainCode or "purchased",(listing and listing.name or "Vehicle")
+                    .." purchased. It is ready at the warehouse.",{}
             end
             return true, "completed", "Office action completed and saved by the host.", {}
         end,

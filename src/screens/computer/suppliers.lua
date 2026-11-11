@@ -1,8 +1,82 @@
 -- Shopping cart, inventory, and supplier presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local VehicleDealer=require('src.vehicle_dealer')
 
 function Component.install(Runtime)
+    function Runtime.vehicleListingRect(index)
+        local column=(index-1)%2
+        local row=math.floor((index-1)/2)
+        return {x=116+column*366,y=286+row*130,width=354,height=120}
+    end
+    function Runtime.vehicleListingBuyRect(index)
+        local card=Runtime.vehicleListingRect(index)
+        return {x=card.x+224,y=card.y+78,width=118,height=32}
+    end
+
+    function Runtime.ComputerScreen.resolveVehicle(accepted,message)
+        Runtime.ComputerScreen.vehiclePending=false
+        if accepted then Runtime.ComputerScreen.vehicleConfirmation=nil end
+        Runtime.ComputerScreen.vehicleMessage=message or
+            (accepted and 'Vehicle purchase confirmed.' or 'The vehicle purchase was not completed.')
+    end
+
+    function Runtime.vehicleDealerMousepressed(state,x,y)
+        local screen=Runtime.ComputerScreen
+        if screen.vehiclePending then return {action='blocked',reason='waiting'} end
+        local choice=screen.vehicleConfirmation
+        if choice then
+            if Runtime.contains({x=208,y=504,width=180,height=42},x,y) then
+                screen.vehicleConfirmation=nil;screen.vehicleMessage=nil
+                return {action='vehicle_purchase_cancelled'}
+            end
+            if not Runtime.contains({x=572,y=504,width=194,height=42},x,y) then return nil end
+            local listing=VehicleDealer.listing(choice.listingId)
+            if not listing or VehicleDealer.owns(state,listing.model) then
+                Runtime.ComputerScreen.resolveVehicle(false,'That vehicle listing is no longer available.')
+                return {action='blocked',reason='product_changed'}
+            end
+            if (state.money or 0)<listing.price then
+                screen.vehicleMessage='Not enough money for this vehicle.'
+                return {action='blocked',reason='insufficient_funds'}
+            end
+            local intent,errorMessage=Runtime.OfficeIntent.normalize({kind='buy_vehicle',
+                listingId=listing.id,requestId=choice.requestId})
+            if not intent then screen.vehicleMessage=errorMessage;return {action='blocked'} end
+            local command=Runtime.dependencies.remoteCommand or Runtime.dependencies.warehouseCommand
+            if type(command)~='function' then
+                screen.vehicleMessage='CritterNet vehicle purchasing is not connected to the shop.'
+                return {action='blocked',reason='vehicle_dealer_unwired'}
+            end
+            local called,accepted,code,message=pcall(command,intent)
+            if not called or accepted==false then
+                Runtime.ComputerScreen.resolveVehicle(false,called and (message or code)
+                    or 'The vehicle purchase could not be sent.')
+                return {action='blocked'}
+            end
+            if Runtime.dependencies.remoteCommand then
+                screen.vehiclePending=true
+                screen.vehicleMessage='Waiting for the shop to confirm this purchase.'
+                return {action='remote_pending'}
+            end
+            Runtime.ComputerScreen.resolveVehicle(true,message or 'Vehicle purchased. It is ready at the warehouse.')
+            state.message=message or (listing.name..' purchased and delivered to the warehouse.')
+            return {action='vehicle_purchased',hostSaved=true}
+        end
+        for index,listingId in ipairs(VehicleDealer.ORDER) do
+            local listing=VehicleDealer.listing(listingId)
+            if Runtime.contains(Runtime.vehicleListingBuyRect(index),x,y)
+                and listing and not VehicleDealer.owns(state,listing.model) then
+                screen.vehicleRequestNumber=(screen.vehicleRequestNumber or 0)+1
+                local requestId=Runtime.nextFinanceRequestId(screen.vehicleRequestNumber)
+                screen.vehicleConfirmation={listingId=listingId,requestId=requestId}
+                screen.vehicleMessage=nil
+                return {action='vehicle_purchase_review',listingId=listingId}
+            end
+        end
+        return nil
+    end
+
     function Runtime.drawCartButton(pointerX, pointerY)
         local total, count = Runtime.cartTotal()
         local hovered = pointerX and Runtime.contains(Runtime.CART_BUTTON, pointerX, pointerY)
@@ -192,6 +266,70 @@ function Component.install(Runtime)
         if featuredSale then
             love.graphics.setColor(0.50, 0.94, 0.56, 1)
             love.graphics.printf(string.format("SALE %d%% OFF", featuredSale.percent), 492, 206, 194, "right")
+        end
+        if site.kind=='vehicles' then
+            love.graphics.setColor(0.68,0.83,0.84)
+            love.graphics.print('NEW AND USED WORK TRUCKS',116,274)
+            for index,listingId in ipairs(VehicleDealer.ORDER) do
+                local listing=VehicleDealer.listing(listingId)
+                local card,buy=Runtime.vehicleListingRect(index),Runtime.vehicleListingBuyRect(index)
+                local owned=VehicleDealer.owns(state,listing.model)
+                local affordable=(state.money or 0)>=listing.price
+                Runtime.panel(card,{0.06,0.09,0.12,1},{0.24,0.40,0.46,1})
+                love.graphics.setColor(0.92,0.95,0.93)
+                love.graphics.print(listing.name,card.x+12,card.y+8)
+                love.graphics.setColor(0.93,0.78,0.36)
+                love.graphics.print(Runtime.money(listing.price),card.x+12,card.y+31)
+                love.graphics.setColor(0.62,0.73,0.75)
+                love.graphics.printf(listing.description,card.x+12,card.y+53,210,'left')
+                if listing.condition=='used' then
+                    love.graphics.setColor(0.94,0.61,0.35)
+                    love.graphics.print('Used • poor condition • service due',card.x+12,card.y+98)
+                else
+                    love.graphics.setColor(0.57,0.83,0.65)
+                    love.graphics.print('New • inspected before delivery',card.x+12,card.y+98)
+                end
+                local hovered=pointerX and Runtime.contains(buy,pointerX,pointerY)
+                Runtime.drawComputerButton(buy,owned and 'OWNED' or affordable and 'REVIEW'
+                    or 'NOT ENOUGH',(owned or not affordable) and 'disabled'
+                    or hovered and 'primaryHover' or 'primary')
+            end
+            local confirmation=Runtime.ComputerScreen.vehicleConfirmation
+            if confirmation then
+                local listing=VehicleDealer.listing(confirmation.listingId)
+                if listing then
+                    love.graphics.setColor(0,0,0,0.84)
+                    love.graphics.rectangle('fill',116,270,722,298)
+                    Runtime.panel({x=152,y=314,width=650,height=224},
+                        {0.035,0.065,0.085,1},{0.56,0.74,0.69,1},4,2)
+                    love.graphics.setColor(0.97,0.84,0.35,1)
+                    love.graphics.printf('CONFIRM VEHICLE PURCHASE',174,332,606,'center')
+                    love.graphics.setColor(0.92,0.95,0.93,1)
+                    love.graphics.printf(listing.name..'  /  '..Runtime.money(listing.price),180,366,594,'center')
+                    love.graphics.setColor(0.70,0.82,0.82,1)
+                    love.graphics.printf(listing.condition=='used'
+                        and 'This used truck arrives in poor condition, with body damage and every service interval overdue. Visit a town mechanic for repair and maintenance.'
+                        or 'This new truck arrives with a clean maintenance record at the warehouse.',190,398,574,'center')
+                    local message=Runtime.ComputerScreen.vehicleMessage
+                    if message then
+                        love.graphics.setColor(0.96,0.72,0.41,1)
+                        love.graphics.printf(message,188,456,578,'center')
+                    end
+                    Runtime.drawComputerButton({x=208,y=504,width=180,height=42},'CANCEL',
+                        pointerX and Runtime.contains({x=208,y=504,width=180,height=42},pointerX,pointerY)
+                            and 'hover' or 'secondary')
+                    Runtime.drawComputerButton({x=572,y=504,width=194,height=42},
+                        Runtime.ComputerScreen.vehiclePending and 'WAITING…' or 'BUY '..Runtime.money(listing.price),
+                        Runtime.ComputerScreen.vehiclePending and 'disabled'
+                            or pointerX and Runtime.contains({x=572,y=504,width=194,height=42},pointerX,pointerY)
+                                and 'primaryHover' or 'primary')
+                end
+            end
+            if not confirmation and Runtime.ComputerScreen.vehicleMessage then
+                love.graphics.setColor(0.57,0.83,0.65,1)
+                love.graphics.printf(Runtime.ComputerScreen.vehicleMessage,116,550,722,'center')
+            end
+            return
         end
         if site.kind ~= "machines" then
             local category = Runtime.Procurement.category(site.categoryIndex)

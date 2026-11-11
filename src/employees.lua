@@ -9,6 +9,7 @@ local WorkerCatalog=require("src.worker_catalog")
 local Speech=require("src.employee_speech")
 local CompanyTruck=require("src.company_delivery_driver")
 local EmployeeCommuters=require("src.commute.employee_commute")
+local WarehouseCondition=require("src.warehouse_condition")
 local Employees={}
 Employees.MAX_STAFF=#WorkerCatalog.profiles
 local trainingSkills={
@@ -406,6 +407,7 @@ local function actor()
     return {visible=false,phase="hidden",x=entrance.x,y=entrance.y,intentX=0,intentY=1,distance=0,idleClock=0}
 end
 function Employees.createApplicant(state,now,beginCommute)
+    if not WarehouseCondition.openForBusiness(state) then return nil end
     local e=Employees.ensure(state)
     local active=0
     for _,a in ipairs(e.applications) do if a.status~="hired" and a.status~="declined" and a.status~="expired" and a.status~="withdrawn" then active=active+1 end end
@@ -451,7 +453,7 @@ end
 function Employees.advance(state,now)
     local e=Employees.ensure(state)
     local changed=false
-    if e.recruiting and now>=e.nextApplicantAtHours then
+    if e.recruiting and WarehouseCondition.openForBusiness(state) and now>=e.nextApplicantAtHours then
         if Calendar.isWeekend(state) then
             e.nextApplicantAtHours=now+24;changed=true
         else
@@ -496,6 +498,9 @@ function Employees.command(state,intent,now)
     if intent.kind=="recruit_workers" then
         e.recruiting=intent.enabled
         if intent.enabled then e.nextApplicantAtHours=now;Employees.advance(state,now) end
+        if intent.enabled and not WarehouseCondition.openForBusiness(state) then
+            return true,"Recruitment is ready. Applicants can visit after the grand opening."
+        end
         return true,intent.enabled and "Recruitment open. An applicant will visit reception." or "Recruitment paused."
     elseif intent.kind=="request_resume" then return Employees.requestResume(state,intent.applicationId,now)
     elseif intent.kind=="pay_wages" then return Payroll.pay(state,now,false)

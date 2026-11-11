@@ -21,6 +21,10 @@ local Technician = require("src.technician")
 local WorkPhone = require("src.work_phone")
 local WarehouseRenderer = require("src.warehouse_renderer")
 local WarehouseScene = require("src.warehouse_scene")
+local SpeechBubble = require("src.speech_bubble")
+local VisitorDialogue = require("src.visitor_dialogue")
+local DialoguePresentation = require("src.dialogue_presentation")
+local visitorBubbleFont
 
 local Renderer = {}
 local World
@@ -148,6 +152,24 @@ local function drawPalletJack(assets, state)
         end
         drawPrintedArtwork(assets, carried, pose.x + pose.loadX, pose.y + pose.loadY, true)
     end
+end
+
+local function drawVisitorBubble(visitor, characterAssets, message)
+    if not visitor.visible or visitor.state ~= "waiting" then return end
+    local shown, full = DialoguePresentation.present(visitor, visitor.character, message, "neutral")
+    if not shown then return end
+
+    local pose = visitor:renderPose(characterAssets)
+    local top
+    if characterAssets.getVisibleBounds then
+        local _, visibleTop = characterAssets.getVisibleBounds(
+            visitor.character, pose.action, pose.frame)
+        top = visibleTop
+    end
+    local headY = top and pose.y - (pose.anchorY - top) * pose.scale
+        or pose.y - Config.characterRendering.referenceHeight * visitor.drawScale
+    visitorBubbleFont = visitorBubbleFont or love.graphics.newFont(11)
+    SpeechBubble.draw(shown, visitorBubbleFont, pose.x, headY, Config.baseWidth, full)
 end
 Renderer.drawPalletJack=drawPalletJack
 
@@ -822,6 +844,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     require("src.warehouse_condition_renderer").drawAmbient(state)
     -- Captions are an overlay so foreground machines cannot hide them.
     for _,employee in ipairs(employeeEntries) do EmployeeRenderer.drawBubble(employee,characterAssets,state) end
+    drawVisitorBubble(World.customer, characterAssets, VisitorDialogue.customer(state))
+    drawVisitorBubble(World.vendor, characterAssets, VisitorDialogue.vendor(state))
     InteractionBeacon.drawOverlay(World.getInteraction(), World.player.interactionClock, {
         player = World.player,
     })

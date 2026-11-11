@@ -16,7 +16,21 @@ function Free.enter(state,player,world,run,players)
     local t=state.home.commute
     if t and not t.independent then return false,'Finish the existing household trip first.' end
     if t and t.participants[id] then return false,'You are already outside.' end
-    if run and t and (t.deliveryRun or t.truck.owner or t.keiTruck and t.keiTruck.owner) then
+    local deliveryModel
+    if run then
+        deliveryModel=run.vehicleModel
+        if deliveryModel==nil then
+            deliveryModel=Trip.ownsModel(state,'box') and 'box'
+                or Trip.ownsModel(state,'kei') and run.palletCount<=4 and 'kei' or nil
+        end
+        if deliveryModel~='box' and deliveryModel~='kei'
+            or not Trip.ownsModel(state,deliveryModel)
+            or deliveryModel=='kei' and run.palletCount>4 then
+            return false,'Purchase a suitable delivery truck on CritterNet before dispatching this route.'
+        end
+        run.vehicleModel=deliveryModel
+    end
+    if run and t and (t.deliveryRun or t.truck and t.truck.owner or t.keiTruck and t.keiTruck.owner) then
         return false,'The truck is already in use.'
     end
     local slot=tonumber(player.id) or 1
@@ -37,13 +51,20 @@ function Free.enter(state,player,world,run,players)
     bike.damage=resident.ridingDamage or 0
     Rider.update(rider,{},0,world)
     if not t then
-        local truck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state))
-        if not truck then return false,'No safe loading area is available.' end
-        local keiTruck=Trip.truckParking(world,require('src.company_delivery_driver').ensure(state),'kei',truck)
-        if not keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
-        keiTruck.fuel=truck.fuel
-        TruckService.applyFleet(truck,state.home.truckFleet)
-        TruckService.applyFleet(keiTruck,state.home.truckFleet)
+        local companyTruck=require('src.company_delivery_driver').ensure(state)
+        local truck,keiTruck
+        if Trip.ownsModel(state,'box') then
+            truck=Trip.truckParking(world,companyTruck)
+            if not truck then return false,'No safe loading area is available.' end
+            TruckService.applyFleet(truck,state.home.truckFleet)
+        end
+        if Trip.ownsModel(state,'kei') then
+            keiTruck=Trip.truckParking(world,companyTruck,'kei',truck)
+            if not keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
+            keiTruck.fuel=truck and truck.fuel or companyTruck.fuelLiters
+            TruckService.applyFleet(keiTruck,state.home.truckFleet)
+        end
+        if truck and keiTruck then keiTruck.fuel=truck.fuel end
         t={version=Trip.VERSION,mapVersion=require('src.commute.roads').VERSION,mapId=world.townId,
             token=state.home.revision+1,independent=true,purpose='outing',origin='warehouse',
             destination=state.home.apartmentId,participants={},truck=truck,keiTruck=keiTruck}
@@ -53,10 +74,12 @@ function Free.enter(state,player,world,run,players)
         end
     end
     if run then
+        local vehicle=deliveryModel=='kei' and t.keiTruck or t.truck
+        if not vehicle then return false,'The shop does not own the vehicle selected for this delivery.' end
         local reserved,reason=require('src.commute.delivery_run').reserve(state,run)
         if not reserved then return false,reason end
-        t.deliveryRun=run;t.deliveryDriver=id;t.deliveryVehicleModel='box'
-        t.truck.owner=id
+        t.deliveryRun=run;t.deliveryDriver=id;t.deliveryVehicleModel=deliveryModel
+        vehicle.owner=id
     end
     local resuming=t.deliveryRun and t.deliveryDriver==id
     t.participants[id]={slot=slot,arrived=false,rider=rider,origin=origin,

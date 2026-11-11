@@ -19,6 +19,11 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.tabDropdownOpen = false
             return { action = "close" }
         end
+        if Runtime.ComputerScreen.tab == "www" and Runtime.ComputerScreen.vehicleConfirmation then
+            -- Keep CritterNet's vehicle purchase review modal in front of the
+            -- browser controls until the player cancels or confirms it.
+            return Runtime.vehicleDealerMousepressed(state,x,y)
+        end
         if Runtime.contains(Runtime.TAB_DROPDOWN_ARROW, x, y) then
             Runtime.ComputerScreen.tabDropdownOpen = not Runtime.ComputerScreen.tabDropdownOpen
             return { action = Runtime.ComputerScreen.tabDropdownOpen
@@ -138,6 +143,7 @@ function Component.install(Runtime)
                 end
             end
             local site = Runtime.WWW_SITES[Runtime.ComputerScreen.wwwSite] or Runtime.WWW_SITES[1]
+            if site.kind=='vehicles' then return Runtime.vehicleDealerMousepressed(state,x,y) end
             if site.kind ~= "machines" then
                 local category = Runtime.Procurement.category(site.categoryIndex)
                 for index, item in ipairs(category.items) do

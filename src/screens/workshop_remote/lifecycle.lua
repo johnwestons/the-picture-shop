@@ -144,6 +144,9 @@ function Component.install(Runtime)
                 or Runtime.Screen.officePending == "staging_area_change" then
                 Runtime.Screen.sharedComputer.resolveWarehouse(result.accepted == true, Runtime.Screen.status)
             end
+            if Runtime.Screen.officePending=="buy_vehicle" then
+                Runtime.Screen.sharedComputer.resolveVehicle(result.accepted==true,Runtime.Screen.status)
+            end
             if result.accepted then
                 local computer = Runtime.Screen.sharedComputer
                 if Runtime.Screen.officePending == "checkout" then computer.cart, computer.cartOpen = {}, false

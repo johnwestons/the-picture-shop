@@ -149,6 +149,7 @@ function State.applySave(state, payload)
         jack.operatorPlayerId,jack.operatorEmployeeId=nil,nil
     end
     state.warehouse, state.stagingAreas, state.storage, state.forklift = warehouse, stagingAreas, storage, forklift
+    require("src.warehouse_condition").ensureGrandpaAllowance(state)
     state.breakroomGames = breakroomGames
     state.constructionWorker = constructionWorker
     Forklift.forceRelease(state, Config.forklift)

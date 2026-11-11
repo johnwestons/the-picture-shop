@@ -81,6 +81,13 @@ function Screen.pointer(R,x,y,button)
         local layout=Clipboard.layout(R)
         for name,rect in pairs(layout.rects) do if Ui.contains(rect,x,y) then
             if name=='close' then return Screen.close(R)
+            elseif name=='night' then
+                R.App=R.App or {};R.App.settings=R.App.settings or {}
+                local settings=R.App.settings
+                settings.notificationClipboardDarkMode=not (settings.notificationClipboardDarkMode==true)
+                if not require('src.settings').save(settings) then
+                    R.state.message='Clipboard display preference could not be saved.'
+                end
             elseif name=='all' or name=='tutorial' then
                 if name=='tutorial' and Tutorial.addReferences(R.state) then changed(R) end
                 R.state.notificationFilter=name;R.state.notificationPage=1;Screen.pageTurn=nil;page(R,0)

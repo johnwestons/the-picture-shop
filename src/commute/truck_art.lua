@@ -6,7 +6,6 @@ local Truck=require('src.commute.delivery_truck')
 local MODEL_ART_SCALE={kei=.67}
 local ISO_ART_PITCH=32
 local MIN_PITCH_SCALE=.78
-local SHOULDER_DIRECTION_STEP=math.pi/8
 local Art={}
 Art.__index=Art
 
@@ -39,20 +38,11 @@ function Art.wheelContactPoints(actor,world)
     return result
 end
 
-local function shoulderView(camera)
-    local eye=camera and (camera.projectionCamera or camera) or {}
-    return eye.shoulderPerspective==true or eye.outsideMode=='shoulder' or eye.shoulderView==true
-end
-
 function Art.frame(camera,heading,model,kind)
+    -- Choose art from the continuous chassis heading; frame spacing never
+    -- changes the heading used for steering, travel, or camera follow.
     local angle=relativeAngle(camera,heading)
     kind=kind or Art.viewKind(camera)
-    if model~='kei' and kind=='chase' and shoulderView(camera) then
-        -- Keep short steering taps from swapping chase sprites. The 64-view
-        -- turntable still supplies the angle; shoulder view advances in
-        -- broader 22.5-degree steps so a stronger turn is needed first.
-        angle=math.floor(angle/SHOULDER_DIRECTION_STEP+.5)*SHOULDER_DIRECTION_STEP
-    end
     -- Each vehicle owns its view calibration so a frame-order adjustment to
     -- the kei sheets cannot silently leave them using the box atlas indexer.
     if model=='kei' then return KeiPages.frame(angle,kind) end

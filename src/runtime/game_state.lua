@@ -49,6 +49,7 @@ function Component.install(Runtime)
 
     function Runtime.startGame(payload, mode)
         Runtime._storyOpening=nil
+        Runtime._grandOpening=nil
         -- Pending coalesced requests still refer to the current live shop.
         -- Finish them before reusing that state table for another save slot.
         if Runtime.Save.flush and not Runtime.Save.flush() then

@@ -1,6 +1,6 @@
 -- Saved visual and utility condition of the original warehouse. Quick Start and
 -- migrated shops use the clean state; the story opening explicitly selects closed.
-local Condition={VERSION=1,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500}
+local Condition={VERSION=1,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
 Condition.ACTIONS={call_power=true,call_water=true,repair_breaker=true,
     clean_west=true,clean_center=true,clean_east=true,repaint=true,lights_on=true,lights_off=true,
     grand_opening=true}
@@ -11,6 +11,7 @@ function Condition.new(mode,seed)
     return {version=Condition.VERSION,mode=closed and "story" or "quick",seed=integer(seed) and seed or 314159,
         powerConnected=not closed,waterConnected=not closed,breakerRepaired=not closed,
         repainted=not closed,lightsOn=true,grandOpened=not closed,
+        grandpaAllowanceGranted=not closed,
         grandpaMet=not closed,openingSeen=not closed,
         visitedApartment=not closed,visitedShop=not closed,
         cleaned={west=not closed,center=not closed,east=not closed}}
@@ -21,6 +22,7 @@ function Condition.valid(c)
     local fields={version=true,mode=true,seed=true,powerConnected=true,waterConnected=true,
         breakerRepaired=true,repainted=true,lightsOn=true,grandOpened=true,grandpaMet=true,openingSeen=true,
         visitedApartment=true,visitedShop=true,firstDestination=true,cleaned=true}
+    fields.grandpaAllowanceGranted=true
     for key in pairs(c) do if not fields[key] then return false end end
     for _,key in ipairs({"powerConnected","waterConnected","breakerRepaired","repainted","lightsOn","grandOpened"}) do
         if type(c[key])~="boolean" then return false end
@@ -30,6 +32,7 @@ function Condition.valid(c)
     if c.visitedApartment~=nil and type(c.visitedApartment)~="boolean" then return false end
     if c.visitedShop~=nil and type(c.visitedShop)~="boolean" then return false end
     if c.firstDestination~=nil and c.firstDestination~="home" and c.firstDestination~="warehouse" then return false end
+    if c.grandpaAllowanceGranted~=nil and type(c.grandpaAllowanceGranted)~="boolean" then return false end
     local count=0
     for key,value in pairs(c.cleaned) do
         if key~="west" and key~="center" and key~="east" or type(value)~="boolean" then return false end
@@ -48,6 +51,15 @@ function Condition.valid(c)
 end
 function Condition.of(state)
     return state and state.warehouse and state.warehouse.condition
+end
+
+function Condition.ensureGrandpaAllowance(state)
+    local c=Condition.of(state)
+    if not c or c.mode~="story" or c.grandpaAllowanceGranted then return false end
+    -- Covers utility reconnection and two purchased service kits before jobs open.
+    state.money=(state.money or 0)+Condition.GRANDPA_ALLOWANCE
+    c.grandpaAllowanceGranted=true
+    return true
 end
 function Condition.powered(state)
     local c=Condition.of(state)

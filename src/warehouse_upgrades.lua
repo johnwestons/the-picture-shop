@@ -2,6 +2,7 @@
 -- invokes mutations; this module performs no I/O, rendering, or phone side effects.
 local Calendar = require("src.business_calendar")
 local Condition = require("src.warehouse_condition")
+local VehicleDealer = require("src.vehicle_dealer")
 local Upgrades = { LAYOUT_VERSION = 2, STAGE_HOURS = 24, ARRIVAL_LEAD_HOURS = 2 }
 
 local BAY_IDS = { "front_left", "front_right" }
@@ -67,7 +68,8 @@ end
 function Upgrades.defaultState()
     return { layoutVersion = Upgrades.LAYOUT_VERSION, nextProjectId = 1,
         bays = { front_left = { status = "locked" }, front_right = { status = "locked" } },
-        projects = {}, receipts = {}, forkliftOwned = false,condition=Condition.new("quick") }
+        projects = {}, receipts = {}, forkliftOwned = false,boxTruckOwned=true,keiTruckOwned=true,
+        condition=Condition.new("quick") }
 end
 
 function Upgrades.catalog(optionId)
@@ -79,12 +81,15 @@ function Upgrades.stageInfo(stage) return copy(STAGES[stage]) end
 
 function Upgrades.validate(value)
     if not exact(value, { layoutVersion=true, nextProjectId=true, bays=true, projects=true,
-        receipts=true, forkliftOwned=true, activeProjectId=true, garageDoors=true,condition=true })
+        receipts=true, forkliftOwned=true, boxTruckOwned=true,keiTruckOwned=true,
+        activeProjectId=true, garageDoors=true,condition=true })
         or value.layoutVersion ~= Upgrades.LAYOUT_VERSION
         or not integer(value.nextProjectId) or value.nextProjectId < 1 or value.nextProjectId > 3
         or type(value.forkliftOwned) ~= "boolean"
+        or value.boxTruckOwned~=nil and type(value.boxTruckOwned)~="boolean"
+        or value.keiTruckOwned~=nil and type(value.keiTruckOwned)~="boolean"
         or (value.condition~=nil and not Condition.valid(value.condition))
-        or not exact(value.bays, BAYS) or not array(value.projects, 2) or not array(value.receipts, 3)
+        or not exact(value.bays, BAYS) or not array(value.projects, 2) or not array(value.receipts, 5)
         or value.nextProjectId ~= #value.projects + 1
         or (value.activeProjectId ~= nil and not token(value.activeProjectId)) then
         return false, "Invalid warehouse state."
@@ -164,7 +169,7 @@ function Upgrades.validate(value)
             end
         end
     end
-    local requests, paidProjects, forkliftReceipt = {}, {}, false
+    local requests, paidProjects, forkliftReceipt, vehicleReceipts = {}, {}, false, {}
     for _, receipt in ipairs(value.receipts) do
         if not exact(receipt, { requestId=true, kind=true, bayId=true, optionId=true, targetId=true,
             pricePaid=true, purchasedAtHours=true }) or not token(receipt.requestId)
@@ -184,6 +189,14 @@ function Upgrades.validate(value)
                 return false, "Invalid forklift purchase receipt."
             end
             forkliftReceipt = true
+        elseif receipt.kind=="vehicle" then
+            local listing=VehicleDealer.listing(receipt.optionId)
+            if not listing or receipt.bayId~=nil or receipt.targetId~=listing.model
+                or receipt.pricePaid~=listing.price or vehicleReceipts[listing.model]
+                or value[VehicleDealer.ownershipField(listing.model)]~=true then
+                return false,"Invalid vehicle purchase receipt."
+            end
+            vehicleReceipts[listing.model]=true
         else return false, "Unknown warehouse purchase kind." end
     end
     for id in pairs(ids) do if not paidProjects[id] then return false, "Construction has no purchase receipt." end end
@@ -196,9 +209,13 @@ end
 -- silently reset: doing so could lose purchased upgrades or allow a second debit.
 function Upgrades.normalize(value)
     if value == nil then return Upgrades.defaultState() end
-    local valid, reason = Upgrades.validate(value)
-    if not valid then return nil, reason end
     local normalized=copy(value)
+    -- Older shops already had both parked trucks. Preserve them when migrating
+    -- saves that predate explicit vehicle ownership.
+    if normalized.boxTruckOwned==nil then normalized.boxTruckOwned=true end
+    if normalized.keiTruckOwned==nil then normalized.keiTruckOwned=true end
+    local valid, reason = Upgrades.validate(normalized)
+    if not valid then return nil, reason end
     normalized.condition=normalized.condition or Condition.new("quick")
     return normalized
 end
@@ -207,6 +224,8 @@ function Upgrades.ensure(state)
     if type(state) ~= "table" then return nil, "A shop state is required." end
     if state.warehouse == nil then state.warehouse = Upgrades.defaultState() end
     if state.warehouse.condition==nil then state.warehouse.condition=Condition.new("quick") end
+    if state.warehouse.boxTruckOwned==nil then state.warehouse.boxTruckOwned=true end
+    if state.warehouse.keiTruckOwned==nil then state.warehouse.keiTruckOwned=true end
     local valid, reason = Upgrades.validate(state.warehouse)
     return valid and state.warehouse or nil, reason
 end

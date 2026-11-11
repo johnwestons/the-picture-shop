@@ -35,6 +35,9 @@ function Trip.trucks(t)
     if t and t.keiTruck then result[#result+1]=t.keiTruck end
     return result
 end
+function Trip.ownsModel(state,model)
+    return require('src.vehicle_dealer').owns(state,model)
+end
 local function hasTruckOwner(t,id)
     for _,truck in ipairs(Trip.trucks(t)) do if truck.owner==id then return true end end
     return false
@@ -269,13 +272,18 @@ function Trip.start(state,players,token,world)
         token=token,purpose=outing and 'outing' or 'weekend',origin=origin,destination=destination,
         participants={},aiMotorcycles={}}
     local companyTruck=require('src.company_delivery_driver').ensure(state)
-    t.truck=Trip.truckParking(world,companyTruck)
-    if not t.truck then return false,'No safe loading area is available for the delivery truck.' end
-    t.keiTruck=Trip.truckParking(world,companyTruck,'kei',t.truck)
-    if not t.keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
-    t.keiTruck.fuel=t.truck.fuel
-    TruckService.applyFleet(t.truck,state.home.truckFleet)
-    TruckService.applyFleet(t.keiTruck,state.home.truckFleet)
+    if Trip.ownsModel(state,'box') then
+        t.truck=Trip.truckParking(world,companyTruck)
+        if not t.truck then return false,'No safe loading area is available for the delivery truck.' end
+        TruckService.applyFleet(t.truck,state.home.truckFleet)
+    end
+    if Trip.ownsModel(state,'kei') then
+        t.keiTruck=Trip.truckParking(world,companyTruck,'kei',t.truck)
+        if not t.keiTruck then return false,'No safe parking space is available for the kei delivery truck.' end
+        t.keiTruck.fuel=t.truck and t.truck.fuel or companyTruck.fuelLiters
+        TruckService.applyFleet(t.keiTruck,state.home.truckFleet)
+    end
+    if t.truck and t.keiTruck then t.keiTruck.fuel=t.truck.fuel end
     for _,player in ipairs(players) do
         local id=Residents.key(player);local resident=Residents.get(state,player)
         if not resident or t.participants[id] then return false,'Each traveler needs a distinct household resident.' end
@@ -314,8 +322,14 @@ function Trip.snapshot(t)
         deliveryVehicleModel=t.deliveryVehicleModel,
         aiMotorcycles=AIMotorcycleTraffic.snapshot(t.aiMotorcycles),
         keiTruck=t.keiTruck and Truck.snapshot(t.keiTruck) or nil}
-    if result.truck then result.truck.owner=t.truck.owner;result.truck.driver=t.truck.driver end
-    if result.keiTruck then result.keiTruck.owner=t.keiTruck.owner;result.keiTruck.driver=t.keiTruck.driver end
+    if result.truck then
+        result.truck.owner=t.truck and t.truck.owner or nil
+        result.truck.driver=t.truck and t.truck.driver or nil
+    end
+    if result.keiTruck then
+        result.keiTruck.owner=t.keiTruck and t.keiTruck.owner or nil
+        result.keiTruck.driver=t.keiTruck and t.keiTruck.driver or nil
+    end
     for id,p in pairs(t.participants) do
         local pose,progress=Rider.pose(p.rider);local actor=Rider.actor(p.rider)
         local bike=p.rider.bike
@@ -343,21 +357,30 @@ function Trip.snapshot(t)
     end
     return result
 end
-function Trip.restore(t,world,companyTruck,truckFleet)
+function Trip.restore(t,world,companyTruck,truckFleet,ownership)
     if not t then return nil end
     if not Trip.valid(t) then return nil,'Invalid saved commute.' end
     if t.mapId and world.townId and t.mapId~=world.townId then return nil,'The saved trip belongs to another town.' end
     local result=Trip.snapshot(t)
     if t.mapVersion~=Roads.VERSION then result.aiMotorcycles={} end
-    local replaceTruck=not result.truck or t.mapVersion~=Roads.VERSION
-    local replaceKei=not result.keiTruck or t.mapVersion~=Roads.VERSION
-    if replaceTruck then result.truck=Trip.truckParking(world,companyTruck) end
-    if replaceKei then
+    ownership=ownership or {}
+    local ownsBox=ownership.boxTruckOwned~=false
+    local ownsKei=ownership.keiTruckOwned~=false
+    if not ownsBox and result.truck then return nil,'The saved commute uses a box truck the shop does not own.' end
+    if not ownsKei and result.keiTruck then return nil,'The saved commute uses a kei truck the shop does not own.' end
+    local replaceTruck=ownsBox and (not result.truck or t.mapVersion~=Roads.VERSION)
+    local replaceKei=ownsKei and (not result.keiTruck or t.mapVersion~=Roads.VERSION)
+    if not ownsBox then result.truck=nil
+    elseif replaceTruck then result.truck=Trip.truckParking(world,companyTruck) end
+    if not ownsKei then result.keiTruck=nil
+    elseif replaceKei then
         result.keiTruck=Trip.truckParking(world,companyTruck,'kei',result.truck)
         if result.keiTruck and result.truck then result.keiTruck.fuel=result.truck.fuel end
     end
+    if ownsBox and not result.truck then return nil,'No safe loading area exists for the delivery truck.' end
+    if ownsKei and not result.keiTruck then return nil,'No safe parking space exists for the kei delivery truck.' end
     local site=world.sites and world.sites.byId.warehouse
-    for _,vehicle in ipairs({result.truck,result.keiTruck}) do
+    for _,vehicle in ipairs(Trip.trucks(result)) do
         local anchor=site and site.truckHomeParking[vehicle.model or 'box']
         if anchor then
             local x,z=site:toLocal(vehicle.x,vehicle.z)
@@ -391,13 +414,13 @@ function Trip.restore(t,world,companyTruck,truckFleet)
         result.deliveryRun.status='driving'
         result.deliveryRun.cutsceneStartedAtEpoch=nil;result.deliveryRun.cutsceneEndsAtEpoch=nil
     end
-    if not result.truck then return nil,'No safe loading area exists for the delivery truck.' end
-    if not result.keiTruck then return nil,'No safe parking space exists for the kei delivery truck.' end
     if t.mapVersion~=Roads.VERSION then
-        result.truck.owner=nil;result.truck.driver=nil
-        result.keiTruck.owner=nil;result.keiTruck.driver=nil
+        if result.truck then result.truck.owner=nil;result.truck.driver=nil end
+        if result.keiTruck then result.keiTruck.owner=nil;result.keiTruck.driver=nil end
         if result.independent and result.deliveryRun and result.deliveryDriver then
-            vehicleForModel(result,result.deliveryVehicleModel or 'box').owner=result.deliveryDriver
+            local deliveryVehicle=vehicleForModel(result,result.deliveryVehicleModel or 'box')
+            if not deliveryVehicle then return nil,'The saved delivery vehicle is no longer owned.' end
+            deliveryVehicle.owner=result.deliveryDriver
         end
     end
     for _,p in pairs(result.participants) do
@@ -414,15 +437,15 @@ function Trip.restore(t,world,companyTruck,truckFleet)
         p.presentation=nil
         if t.mapVersion~=Roads.VERSION then p.arrived=false end
     end
-    if companyTruck and result.truck then
+    if companyTruck and (result.truck or result.keiTruck) then
         local activeTruck=vehicleForModel(result,t.deliveryVehicleModel or 'box')
         if t.mapVersion==Roads.VERSION and activeTruck and activeTruck.fuel~=nil then
             companyTruck.fuelLiters=activeTruck.fuel
-        else
+        elseif result.truck then
             require('src.company_delivery_driver').apply(companyTruck,result.truck)
         end
-        result.truck.fuel=companyTruck.fuelLiters
-        result.keiTruck.fuel=companyTruck.fuelLiters
+        if result.truck then result.truck.fuel=companyTruck.fuelLiters end
+        if result.keiTruck then result.keiTruck.fuel=companyTruck.fuelLiters end
     end
     result.mapVersion=Roads.VERSION;result.mapId=world.townId;return result
 end
@@ -542,6 +565,7 @@ function Trip.command(state,player,token,action,world)
                     if other~=truck and other.owner==Residents.key(player) and not other.driver then other.owner=nil end
                 end
                 baseTrip.deliveryVehicleModel=truck.model or 'box'
+                if baseTrip.deliveryRun then baseTrip.deliveryRun.vehicleModel=baseTrip.deliveryVehicleModel end
             end
             truck.owner=Residents.key(player);truck.driver=Residents.key(player)
             rider.vehicle='truck';rider.transport='truck';rider.truck=truck

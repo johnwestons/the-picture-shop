@@ -97,6 +97,13 @@ function Component.install(Runtime)
             require('src.story_opening').update(Runtime,dt)
             return
         end
+        local grandOpening=require('src.story_grand_opening')
+        local grandOpeningActive=grandOpening.active(Runtime)
+        if grandOpeningActive then
+            grandOpening.update(Runtime,dt)
+            -- Keep the network transport alive during the host's local sequence.
+            if not Runtime.multiplayer:isActive() then return end
+        end
         if not headlessServer then
             Runtime.Assets.pruneCache()
             Runtime.CharacterAssets.pruneCache()
@@ -142,6 +149,7 @@ function Component.install(Runtime)
             and simulationScreen ~= "asset_error"
         local gameDt = dt
         local shopMotionDt = dt
+        if grandOpeningActive then gameDt,shopMotionDt=0,0 end
         if not Runtime.multiplayer:isClient() and simulationActive then
             gameDt = dt * (Runtime.App.gameClockSpeed or 1)
         end
@@ -249,7 +257,7 @@ function Component.install(Runtime)
                 networkInputX,networkInputY,networkInputBoost=commuteInputX,commuteInputY,commuteInputBoost
             else
             local directionX, directionY = 0, 0
-            if not headlessServer then directionX, directionY = Runtime.Input.movement() end
+            if not headlessServer and not grandOpeningActive then directionX, directionY = Runtime.Input.movement() end
             if Runtime.basketballCharge or require("src.basketball").isChargingFor(Runtime.state,
                 tonumber(Runtime.World.player.id) or 1) then
                 directionX,directionY=0,0

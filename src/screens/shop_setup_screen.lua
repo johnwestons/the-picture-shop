@@ -3,6 +3,7 @@ local Ui=require("src.screens.ui")
 local Skin=require("src.screens.title_skin")
 local Fonts=require("src.screens.title_fonts")
 local Catalog=require("src.home_catalog")
+local Condition=require("src.warehouse_condition")
 local Setup={}
 local buttons={
     previous={x=60,y=353,width=70,height=44},random={x=140,y=353,width=210,height=44},
@@ -92,7 +93,13 @@ function Setup.draw(options,slot,assets,mouseX,mouseY)
     Skin.slider(assets,slider,(options.dayLengthMinutes-5)/55)
     text("8-hour shift: "..string.format("%.1f",options.dayLengthMinutes/3).." real minutes",500,353,390,17,nil,"center")
     text("HOUSEHOLD START",500,402,390,20,{1,.86,.36,1})
-    text("Living allowance: $"..(Catalog.ALLOWANCE_CENTS/100).."\nBusiness balance: $180 (separate)\nFirst apartment rent: February 1\nNo furniture surcharge or deposit.",500,435,390,18)
+    local story=options.startMode=="story"
+    local businessBalance=180+(story and Condition.GRANDPA_ALLOWANCE or 0)
+    local balanceDetail=story and "Grandpa's repair help is included."
+        or "No furniture surcharge or deposit."
+    text("Living allowance: $"..(Catalog.ALLOWANCE_CENTS/100)
+        .."\nBusiness balance: $"..businessBalance.." (separate)\nFirst apartment rent: February 1\n"
+        ..balanceDetail,500,435,390,18)
     text("A / D apartment   R random   F furnishings\nArrow keys adjust day length. Enter chooses town.",60,590,420,14)
     local labels={previous="<",next=">",random="RANDOM APARTMENT",empty="EMPTY",modest="MODESTLY FURNISHED",
         minus="-",plus="+",fast="5 MIN",standard="20 MIN",slow="60 MIN",cancel="CANCEL",start="CHOOSE TOWN"}

@@ -197,10 +197,29 @@ function Rooms.targets(player,state)
             prompt="E: choose an expansion room"}}
         local condition=require("src.warehouse_condition").of(state)
         if condition then
-            local point=require("src.warehouse_condition").anchors.breaker
+            local anchors=require("src.warehouse_condition").anchors
+            local point=anchors.breaker
             targets.restoration={kind="restoration",x=point.x,y=point.y,radius=point.radius,
                 hoverX=point.hoverX,hoverY=point.hoverY,hoverRadius=25,
                 prompt=condition.mode=="story" and "E: inspect closed-shop restoration" or "E: warehouse light switch"}
+            if condition.mode=="story" and not condition.grandOpened then
+                local action,label
+                for _,region in ipairs({"west","center","east"}) do
+                    if not condition.cleaned[region] then
+                        action,label="clean_"..region,"clean "..region.." floor"
+                        point=anchors[region]
+                        break
+                    end
+                end
+                if not action and not condition.repainted then
+                    action,label="repaint","touch up paint"
+                    point=anchors.paint
+                end
+                if action then
+                    targets.restorationWork={kind="restoration",x=point.x,y=point.y,radius=point.radius,
+                        restorationAction=action,prompt="E: "..label}
+                end
+            end
         end
         ballTargets(targets,player,state)
         return targets

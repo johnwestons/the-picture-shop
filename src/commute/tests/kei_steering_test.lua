@@ -1,4 +1,5 @@
 local Truck=require('src.commute.delivery_truck')
+local Art=require('src.commute.truck_art')
 local Test={}
 
 local road={sample=function()return 0,{width=20} end,blocked=function()return false end}
@@ -14,6 +15,21 @@ local function drive(model,steer,seconds,speed)
 end
 
 function Test.run(check)
+    local camera={firstPerson=true,viewHeading=0,shoulderPerspective=true}
+    for _,model in ipairs({'box','kei'}) do
+        local fine=Truck.new(256,256,0,'plain',model)
+        fine.speed=6
+        local firstFrame=Art.frame(camera,fine.heading,model,'chase')
+        Truck.update(fine,{drive=-1,steer=.2},.05,world)
+        local correctedHeading=fine.heading
+        check(model..'_steers_between_sprite_angles',correctedHeading>0
+            and Art.frame(camera,correctedHeading,model,'chase')==firstFrame)
+        for _=1,40 do Truck.update(fine,{drive=-1,steer=0},.05,world) end
+        local settledHeading=fine.heading
+        for _=1,20 do Truck.update(fine,{drive=-1,steer=0},.05,world) end
+        check(model..'_holds_a_fine_road_heading_after_steering_centers',
+            settledHeading>correctedHeading and math.abs(fine.heading-settledHeading)<.0001)
+    end
     local quiet=drive('kei',.03,1,6)
     check('kei_small_steering_noise_keeps_a_straight_course',
         math.abs(quiet.heading)<1e-8 and math.abs(quiet.z-256)<1e-8)

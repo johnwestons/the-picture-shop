@@ -4,6 +4,10 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim,signature)
+        if require('src.story_grand_opening').active(Runtime)
+            and not (requestedKind=="restoration" and desiredState=="grand_opening") then
+            return false,"opening_in_progress","Please wait for the grand opening to finish.",requestedKind
+        end
         local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
         if not allowed then return false,'riding_gear',reason,requestedKind end
         if requestedKind=="roomGame" then
@@ -23,6 +27,12 @@ function Component.install(Runtime)
         end
         if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest"
             or requestedKind=="restoration" then
+            if requestedKind=="restoration" and desiredState=="grand_opening" then
+                Runtime.World._state=state or Runtime.World._state
+                local okay,code,message=require("src.story_grand_opening").begin(
+                    Runtime,player,Runtime.World._state)
+                return okay,code,message,requestedKind
+            end
             local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,
                 {assets=Runtime.World._assets,obstacles=Runtime.movementObstacles,players=function()
                     local result={Runtime.World.player}

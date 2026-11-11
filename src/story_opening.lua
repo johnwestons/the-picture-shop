@@ -13,6 +13,7 @@ local streetPath='assets/generated/story-intro/millhaven-street-v1.png'
 local bridgePath='assets/generated/story-intro/millhaven-bridge-v1.png'
 local farmRoadPath='assets/generated/story-intro/miller-farm-road-v1.png'
 local art
+local musicSource
 local W,H=960,678
 local function clamp(x,a,b) return math.max(a,math.min(b,x)) end
 local function ease(x) x=clamp(x,0,1);return x*x*(3-2*x) end
@@ -57,6 +58,38 @@ local function location(title,subtitle)
 end
 local function caption(text)
     Lettering.draw(text,36,549,888,.49,'center')
+end
+local function stopMusic()
+    local source=musicSource
+    musicSource=nil
+    if not source then return end
+    pcall(source.stop,source)
+    if source.release then pcall(source.release,source) end
+end
+local function startMusic(R)
+    stopMusic()
+    if not love or not love.audio or type(love.audio.newSource)~='function' then return false end
+    local path=require('src.soundscape').path('music-pixel_memory',
+        'assets/audio/music/vibes/pixel_memory.wav')
+    local okay,source=pcall(love.audio.newSource,path,'stream')
+    if not okay or not source then return false end
+    local sound=R.App and R.App.sound
+    local volume=.24*(sound and sound.masterVolume or 1)
+        *require('src.soundscape').gain('music-pixel_memory','music')
+    if sound and sound.muted then volume=0 end
+    local started=pcall(function()
+        source:setLooping(false)
+        source:setVolume(volume)
+        source:play()
+        if sound and sound.paused then source:pause() end
+    end)
+    if not started then
+        pcall(source.stop,source)
+        if source.release then pcall(source.release,source) end
+        return false
+    end
+    musicSource=source
+    return true
 end
 local function interior(t)
     local g=love.graphics
@@ -105,6 +138,7 @@ function Opening.begin(R)
     if c and c.mode=='story' and c.openingSeen==false and not c.grandpaMet
         and R.World.player.sceneId=='commute' then
         R._storyOpening={time=0}
+        startMusic(R)
         return true
     end
     return false
@@ -112,6 +146,7 @@ end
 function Opening.finish(R,skip)
     if not Opening.active(R) then return false end
     local opening=R._storyOpening
+    stopMusic()
     if skip then require('src.story_intro').parkAtFarm(R) end
     R._storyOpening=nil
     local camera=R._commute and R._commute.camera
@@ -138,6 +173,19 @@ function Opening.finish(R,skip)
             require('src.story_intro').open(R)
         end
     end
+    return true
+end
+function Opening.focus(R,focused)
+    if not Opening.active(R) or not musicSource then return false end
+    if not focused then
+        pcall(musicSource.pause,musicSource)
+        return true
+    end
+    local okay,position=pcall(musicSource.tell,musicSource)
+    local durationOk,duration=pcall(musicSource.getDuration,musicSource)
+    if okay and durationOk and type(position)=='number' and type(duration)=='number'
+        and position>=duration then return true end
+    pcall(musicSource.play,musicSource)
     return true
 end
 function Opening.update(R,dt)

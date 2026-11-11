@@ -155,6 +155,12 @@ function Component.install(Runtime)
                 for _, item in ipairs(Runtime.Procurement.category(site.categoryIndex).items) do
                     words = words .. " " .. item.name
                 end
+            elseif site.kind=="vehicles" then
+                local dealer=require('src.vehicle_dealer')
+                for _,listingId in ipairs(dealer.ORDER) do
+                    local listing=dealer.listing(listingId)
+                    words=words.." "..listing.name.." "..listing.description
+                end
             end
             add({tab="www", wwwSite=index, label=site.name, url=site.url}, words)
         end

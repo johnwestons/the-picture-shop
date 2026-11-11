@@ -73,6 +73,7 @@ function Component.install(Runtime)
             end
         end
         if Runtime.App.sound then Runtime.App.sound:setPaused(not focused) end
+        require('src.story_opening').focus(Runtime,focused)
     end
 
     function Runtime.App.quit()

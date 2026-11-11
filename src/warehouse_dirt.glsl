@@ -26,7 +26,7 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
                    stain(p,vec2(846.0,363.0),vec2(54.0,15.0),29.0));
     float mask=max(max(west*cleanRegions.x,center*cleanRegions.y),east*cleanRegions.z);
     float grain=grainNoise(p*.23+31.0)*.60+grainNoise(p*.075+71.0)*.40;
-    float dirtAlpha=mask*(.045+.085*grain);
+    float dirtAlpha=mask*(.18+.18*grain);
     float water=max(stain(p,vec2(758.0,493.0),vec2(85.0,23.0),37.0),
                     stain(p,vec2(813.0,505.0),vec2(43.0,15.0),41.0))*cleanRegions.z;
     float oil=grainNoise(p*.10+83.0)*.65+grainNoise(p*.31+101.0)*.35;
@@ -38,6 +38,6 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
         +rim*vec3(.06,.12,.14)+water*ripple*vec3(.04,.08,.10);
     float waterAlpha=water*(.43+.10*oil);
     float alpha=max(dirtAlpha,waterAlpha);
-    vec3 tint=mix(vec3(.24,.20,.14),waterColor,waterAlpha/(waterAlpha+dirtAlpha+.0001));
+    vec3 tint=mix(vec3(.12,.10,.07),waterColor,waterAlpha/(waterAlpha+dirtAlpha+.0001));
     return vec4(tint,alpha);
 }

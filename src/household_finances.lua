@@ -144,7 +144,7 @@ function Finance.accrue(state)
     local f=Finance.ensure(state);if not f then return end
     local at,now=f.lastAccruedHours,Calendar.absoluteHours(state)
     if now<=at then return end
-    local _,monthly=Calendar.monthlyCharges()
+    local _,monthly=Calendar.monthlyCharges(state)
     local amount=0
     while at<now do
         local date=Calendar.dateFromTotalDay(math.floor(at/24))
@@ -169,7 +169,7 @@ function Finance.reserves(state)
             result.payroll=result.payroll+cents(Contracts.weeklyEstimate(w.contract))
         end
     end
-    local _,monthly=Calendar.monthlyCharges()
+    local _,monthly=Calendar.monthlyCharges(state)
     local days=Calendar.daysInMonth(date.year,date.month)
     result.operating=math.ceil(monthly*100*math.min(1,(date.day-1+now%24/24+7)/days))
     for _,loan in ipairs(state.credit and state.credit.loans or {}) do

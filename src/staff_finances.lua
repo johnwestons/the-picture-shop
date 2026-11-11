@@ -75,7 +75,7 @@ function Finances.summary(state,proposed,skill)
     end
     local date=state.calendar or Calendar.defaultCalendar()
     local days=Calendar.daysInMonth(date.year,date.month)
-    local _,monthly=Calendar.monthlyCharges()
+    local _,monthly=Calendar.monthlyCharges(state)
     result.weeklyOperating=cents(monthly*7/days)
     local payments,loanDue=0,0
     for _,loan in ipairs(state.credit and state.credit.loans or {}) do

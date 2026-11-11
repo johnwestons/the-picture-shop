@@ -242,7 +242,23 @@ function save.newGame(slot,options)
     if not home then return nil,homeError end
     payload.state.home=home
     if options and options.startMode=="story" then
-        payload.state.warehouse.condition=require("src.warehouse_condition").new("story",home.town and home.town.seed)
+        local condition=require("src.warehouse_condition")
+        payload.state.warehouse.condition=condition.new("story",home.town and home.town.seed)
+        condition.ensureGrandpaAllowance(payload.state)
+        payload.state.warehouse.boxTruckOwned=false
+        payload.state.warehouse.keiTruckOwned=false
+        local Fleet=require('src.machine_fleet')
+        for _,machine in ipairs(payload.state.machines.items or {}) do
+            local base=machine.modelId=='polar_115' and 35
+                or machine.modelId=='skid_wrapper' and 38 or nil
+            if base then
+                for componentId in pairs(Fleet.definition(machine.modelId).components) do
+                    machine.variables[componentId]=base
+                end
+                if machine.modelId=='polar_115' then machine.variables.bladeSharpness=18 end
+                machine.condition=Fleet.condition(machine)
+            end
+        end
     end
     payload.state.tutorial=require('src.tutorial').new(options and options.tutorialEnabled)
     payload.state.calendar.secondsPerDay=minutes*60

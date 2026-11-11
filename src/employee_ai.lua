@@ -6,6 +6,7 @@ local WorkPresentation=require("src.employee_work_presentation")
 local Schedule=require("src.employee_schedule")
 local Fleet=require("src.machine_fleet")
 local Calendar=require("src.business_calendar")
+local WarehouseCondition=require("src.warehouse_condition")
 local PlayerController=require("src.player_controller")
 local Navigation=require("src.navigation")
 local Config=require("src.config")
@@ -123,8 +124,16 @@ end
 function AI.receptionOccupied(state) return visiting(Employees.ensure(state))~=nil end
 local function applications(state,dt,now,context)
     local e=Employees.ensure(state)
-    local present=visiting(e)
     local changed=false
+    local visitsOpen=WarehouseCondition.openForBusiness(state)
+    if not visitsOpen then
+        for _,a in ipairs(e.applications) do
+            if a.actor.visible then
+                a.actor.visible=false;a.actor.phase="hidden";stop(a);changed=true
+            end
+        end
+    end
+    local present=visiting(e)
     for _,a in ipairs(e.applications) do
         local actor=a.actor
         local commute=a.commuteState
@@ -135,7 +144,7 @@ local function applications(state,dt,now,context)
             a.commuteState={phase="home"}
             commute=a.commuteState;changed=true
         end
-        if a.status=="visiting" and not actor.visible and not present
+        if visitsOpen and a.status=="visiting" and not actor.visible and not present
             and (not commute or commute.phase=="at_work")
             and not context.receptionBusy() and Calendar.isBusinessOpen(state) then
             actor.visible=true;actor.phase="entering";actor.x,actor.y=entrance.x,entrance.y

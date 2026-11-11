@@ -2,25 +2,28 @@
 
 ## Current result
 
-The gameplay smoke plan has 41 stages and 48 feature groups. Every stage has a passing run on the current game code. The two full core stages passed 11,828 checks each. The 39 scenario stages passed except for the desktop and mobile scene-exit tests on their first run; those tests still tapped an obsolete Options button. Both passed after being updated to use the visible shared menu. That final edit changed test code only, so the stage reports have two source fingerprints. A single uninterrupted full-plan gate has not been run.
+The release 106 candidate passes the complete automated gameplay plan: 41 of 41 stages and all 48 feature groups passed, with 41,908 checks total. The desktop and mobile core stages each passed 11,853 checks. The report confirms the Lua source and smoke tooling stayed unchanged throughout the run.
 
-## HUD and GPS review
+- Full run: `output/release-validation/gameplay-20261111/summary.txt`
+- Machine-readable results: `output/release-validation/gameplay-20261111/summary.json`
+- Engine smoke: `.stabilization/smoke-report.rpt` — 2,483 checks, no failures.
+- Tooling regression suite: `output/release-validation/tooling-tests-localtmp.log` — 107 tests passed.
+- Asset audit: `output/release-validation/asset-audit-localtmp.json` — 593 checks, no failures.
+- Lua limits audit: `output/release-validation/lua-limits.json` — 1,124 Lua files and 14,403 compiled functions within the 180-slot/45-upvalue limits.
+- Audio source verification: 9 licensed sources verified.
+- `git diff --check` found no whitespace errors.
 
-The 640-wide motorcycle HUD now keeps notices clear of the bike condition card, reserves room for the calendar and clock, and uses a compact GPS panel with one destination hint. The 960-wide layout keeps the expanded notice banner and larger GPS arrangement from the approved reference. Desktop and mobile HUD checks pass at 640, 960, and 1280 widths; desktop and mobile GPS checks pass. The scene-exit touch test also confirms Options and Exit to Menu through the shared menu.
+## Release 106 changes covered
 
-- Final HUD and GPS checks: `output/gameplay-smoke/hud-final-20261111-a/summary.txt`
-- Rendered 640 capture: `output/gameplay-smoke/hud-final-20261111-a/hud-desktop/bike-third-person-640.png`
-- Rendered 960 capture: `output/gameplay-smoke/hud-final-20261111-a/hud-desktop/bike-third-person-960.png`
-- Final scene-exit checks: `output/gameplay-smoke/scene-exits-20261111-b/summary.txt`
+- Vehicles now retain continuous steering headings between available truck sprites. Fine steering corrections settle smoothly, and the kei truck resists small steering noise on straight roads.
+- Truck ownership, route travel, collision handling, delivery, and multiplayer snapshots have focused coverage.
+- Warehouse restoration includes generated dirt and oily water patches, cleaned floor regions, and distinct fading wet/dry footprints. The restoration gate covers utilities, the breaker, paint, and machine service.
+- Story mode grants Grandpa's one-time $420 allowance on top of the $180 starting balance. It grants money only; it does not grant service kits.
+- The skippable 12.8-second grand-opening sequence reveals the restored shop, raises the banner, flips the door sign, and unlocks customer and job channels only after the final OPEN card.
+- Campaign arrival, Grandpa's handoff, and free travel are covered on desktop and mobile layouts.
 
-## Gameplay and quality evidence
+## Distribution status
 
-- Full desktop core: `output/gameplay-smoke/core-verified-20261111-a/summary.txt` — 11,828 checks passed.
-- Full mobile core: `output/gameplay-smoke/core-mobile-20261111-a/summary.txt` — 11,828 checks passed.
-- Scenario sweep: `output/gameplay-smoke/scenarios-20261111-a/summary.txt` — 37 of 39 stages passed on the first sweep; the two scene-exit tests passed in the final rerun above. Story, restoration, receipts, office readability, park/campground, lighting, truck networking, six softlock seeds, and late-game performance stages passed.
-- Python tooling tests: `output/quality/20261111/tooling-tests.log` — 107 passed. Asset audit: `output/quality/20261111/asset-audit.json` — 593 checks, no failures. SFX license verification and Lua limits audit passed. `git diff --check` found no whitespace errors.
-- Performance probe: `output/performance/release-20261111/stdout.log` — crowded shop 74.7 fps, shop at 10× clock 72.0 fps, cutter 65.5 fps, furnished home 74.0 fps, populated office 48.6 fps. The office presentation rate remains a performance follow-up.
+This is a release candidate on `codex/release-106`, not a published update. Automated mobile-layout checks do not replace physical-device acceptance. ADB could not connect to an Android device for this run, and the required exact-APK three-phone acceptance report is absent. The repository release gate also requires a clean, synchronized `main` branch, a matching Windows build, and that physical acceptance evidence. Keep public APK distribution blocked until those requirements are completed; do not represent this candidate APK as accepted for device updates.
 
-## Before publishing the update
-
-The story outline still marks the synchronized multiplayer opening, host-new-shop lobby, grand-opening cinematic, and machine power gates as pending. The working tree has extensive existing edits and is on `codex/release-105`; the release gate requires a clean, synchronized main branch, so packaging and GitHub publication were not run. The HUD and tested mechanics are ready for review, while those planned story features and the clean release gate remain open.
+The Android package is development-signed. Remote users must install a matching version because multiplayer protocol 75 is incompatible with protocol 74/version 105.

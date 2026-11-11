@@ -69,6 +69,41 @@ function Test.run(context,check)
         check('story_free_roam_repair_persisted_'..label,
             assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.breakerRepaired)
     end
+    local function cleanShopFloors()
+        local c=R.state.warehouse.condition
+        Controls.open(R,'restoration')
+        Controls.selected=2;Controls.keypressed('return',R)
+        check('story_restoration_water_paid_in_shop',c.waterConnected and #R.state.receipts.entries==2)
+        Controls.keypressed('escape',R)
+        for index,region in ipairs({'west','center','east'}) do
+            local point=Condition.anchors[region]
+            R.World.player.x,R.World.player.y=point.x,point.y
+            local selected=R.World.interactionAt(point.x,point.y)
+            check('story_restoration_'..region..'_floor_prompt',selected and selected.kind=='restoration'
+                and selected.target.restorationAction=='clean_'..region)
+            assert(Controls.keypressed('e',R))
+            check('story_restoration_'..region..'_checklist_opens_on_action',
+                R.state.screen=='shop_rooms' and Controls.selected==index+3)
+            Controls.keypressed('return',R)
+            check('story_restoration_'..region..'_saved_after_cleanup',
+                c.cleaned[region] and Condition.stage(R.state)==index
+                    and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.cleaned[region])
+            Controls.keypressed('escape',R)
+        end
+        local paint=Condition.anchors.paint
+        R.World.player.x,R.World.player.y=paint.x,paint.y
+        local selected=R.World.interactionAt(paint.x,paint.y)
+        check('story_restoration_paint_prompt_after_cleanup',selected and selected.kind=='restoration'
+            and selected.target.restorationAction=='repaint')
+        assert(Controls.keypressed('e',R))
+        check('story_restoration_paint_checklist_opens_on_action',
+            R.state.screen=='shop_rooms' and Controls.selected==7 and Controls.page==2)
+        Controls.keypressed('return',R)
+        check('story_restoration_repaint_persists_without_opening_early',
+            c.repainted and Condition.complete(R.state) and not Condition.openForBusiness(R.state)
+                and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.repainted)
+        Controls.keypressed('escape',R)
+    end
 
     -- From the farm, either entrance works without selecting a route.
     start(1,712345)
@@ -87,6 +122,7 @@ function Test.run(context,check)
         and C.activeWaypoint(R)==nil and not Intro.dialogueOpen(R))
     enter('warehouse','shop_first')
     firstRepair('shop_first')
+    cleanShopFloors()
     explore('shop')
     enter(R.state.home.apartmentId,'apartment_second')
     check('story_free_roam_shop_first_visits_both',R.state.warehouse.condition.visitedShop

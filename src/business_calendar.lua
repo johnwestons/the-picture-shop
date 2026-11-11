@@ -121,15 +121,19 @@ function Calendar.valid(date, bills)
     return true
 end
 
-function Calendar.monthlyCharges()
+function Calendar.monthlyCharges(state)
     local configured = expenses()
     local charges = {
         { id = "rent", label = "Warehouse rent", amount = tonumber(configured.rent) or 3500 },
         { id = "power", label = "Power", amount = tonumber(configured.power) or 240 },
         { id = "water", label = "Water", amount = tonumber(configured.water) or 85 },
         { id = "internet", label = "Internet", amount = tonumber(configured.internet) or 125 },
-        { id = "truckInsurance", label = "Delivery truck insurance", amount = tonumber(configured.truckInsurance) or 185 },
     }
+    local dealer=require('src.vehicle_dealer')
+    if dealer.owns(state,'box') or dealer.owns(state,'kei') then
+        charges[#charges+1]={id="truckInsurance",label="Delivery truck insurance",
+            amount=tonumber(configured.truckInsurance) or 185}
+    end
     local total = 0
     for _, charge in ipairs(charges) do total = total + charge.amount end
     return charges, total
@@ -137,7 +141,7 @@ end
 
 local function createInvoice(state)
     local date, bills = Calendar.ensure(state)
-    local charges, total = Calendar.monthlyCharges()
+    local charges, total = Calendar.monthlyCharges(state)
     local condition=require("src.warehouse_condition").of(state)
     if condition and condition.mode=="story" then
         local active={}

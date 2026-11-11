@@ -147,6 +147,7 @@ function Component.install(Runtime)
             moveRemote = function(player, moveDt, moveX, moveY)
                 local trip=Runtime.state.home and Runtime.state.home.commute
                 if trip and trip.participants[require('src.home_residents').key(player)] then return end
+                if require('src.story_grand_opening').active(Runtime) then moveX,moveY=0,0 end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
             end,
@@ -281,6 +282,9 @@ function Component.install(Runtime)
                 end
             end,
             performInteraction = function(player, targetKind, desiredState, shotAim,signature)
+                if require('src.story_grand_opening').active(Runtime) then
+                    return false,'opening_in_progress','Please wait for the grand opening to finish.',targetKind
+                end
                 if targetKind=='commute' then return require('src.commute.runtime').command(Runtime,player,desiredState) end
                 if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
                 if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end

@@ -57,6 +57,9 @@ function Component.install(Runtime)
     function Runtime.Fleet.canOperate(state, modelId, machineId)
         local item = Runtime.Fleet.installed(state, modelId, machineId)
         if not item then return false, "This machine is not installed in the shop." end
+        if not require("src.warehouse_condition").powered(state) then
+            return false, "Reconnect power and repair the warehouse breaker before running machines."
+        end
         local pose = item.world or state[Runtime.definition(item.modelId).placementKey]
         if pose and pose.moving then return false, "Place the moving machine before operating it." end
         if modelId == "polar_115" and item.maintenance.cutter.bladeRemoved then

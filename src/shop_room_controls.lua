@@ -81,8 +81,8 @@ local function rows(Runtime)
         add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
             "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
         local ready,reason=Condition.readyForOpening(Runtime.state)
-        add("Hold grand opening",ready and "Announce that The Picture Shop is open for clients."
-            or reason,"grand_opening",c.grandOpened)
+        add("Hold grand opening",ready and "Start the celebration. Clients can call when it ends."
+            or reason,"grand_opening",c.grandOpened,not ready)
     else
         for _,id in ipairs({"front_left","front_right"}) do
             local bay=Runtime.state.warehouse.bays[id]
@@ -107,8 +107,17 @@ local function activate(Runtime,index)
         if okay and row.kind=="shopRoom" then Runtime.state.screen="world" end
     end
 end
-function Controls.open(Runtime,mode)
+function Controls.open(Runtime,mode,action)
     Controls.mode,Controls.page,Controls.selected=mode,1,1
+    if action then
+        for index,row in ipairs(rows(Runtime)) do
+            if row.command==action then
+                Controls.selected=index
+                Controls.page=math.floor((index-1)/6)+1
+                break
+            end
+        end
+    end
     Runtime.state.screen="shop_rooms"
     Runtime.state.message=mode=="stock" and "Stage delivered shop stock at the warehouse entrance. Store or retrieve it here."
         or mode=="utilities" and "Call the utility providers to reconnect the closed shop."
@@ -154,7 +163,8 @@ function Controls.keypressed(key,Runtime)
         if Rooms.scene(Runtime.World.player)=="warehouse" then Controls.open(Runtime,"rooms")
         else send(Runtime,"shopRoom","warehouse") end
     elseif selected.kind=="roomStock" then Controls.open(Runtime,"stock")
-    elseif selected.kind=="restoration" then Controls.open(Runtime,"restoration")
+    elseif selected.kind=="restoration" then
+        Controls.open(Runtime,"restoration",selected.target and selected.target.restorationAction)
     elseif selected.kind=="roomRest" then send(Runtime,"roomRest",Runtime.World.player.resting and "stand" or "rest")
     elseif selected.kind=="roomGame" then
         local fixtureId=selected.target and selected.target.fixtureId

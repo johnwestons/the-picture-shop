@@ -165,13 +165,47 @@ function C.miniMapButton(R)
     local camera=C.cameraButton(R)
     return camera and {x=camera.x-72,y=camera.y,width=68,height=camera.height} or nil
 end
-function C.miniMapRect(R)
+local function miniMapBaseSize(R)
     local narrow=R.Config.baseWidth<760
     local width=narrow and 250 or math.min(370,math.max(300,R.Config.baseWidth*.30))
     local height=narrow and 155 or math.min(260,math.max(110,R.Config.baseHeight*.55-138))
+    return width,height
+end
+local function miniMapScale(R)
+    local settings=R.App and R.App.settings or {}
+    local scale=tonumber(settings.gpsMiniMapScale) or 1
+    if scale~=scale then scale=1 end
+    return math.max(.62,math.min(1,scale))
+end
+function C.miniMapRect(R)
+    local width,height=miniMapBaseSize(R)
+    local scale=miniMapScale(R)
+    width,height=width*scale,height*scale
     local bounds=C.worldUiBounds(R)
+    local narrow=R.Config.baseWidth<760
     return {x=(bounds and bounds.right or R.Config.baseWidth)-width-18,
         y=narrow and 70 or 54,width=width,height=height}
+end
+function C.miniMapResizeHandle(rect)
+    local size=28
+    return {x=rect.x,y=rect.y+rect.height-size,width=size,height=size}
+end
+local function miniMapResizeHit(rect,x,y)
+    local handle=C.miniMapResizeHandle(rect)
+    return x>=handle.x and x<=handle.x+handle.width
+        and y>=handle.y and y<=handle.y+handle.height
+end
+function C.drawMiniMapResizeHandle(rect)
+    local handle=C.miniMapResizeHandle(rect)
+    local x,y,size=handle.x,handle.y,handle.width
+    local g=love.graphics
+    g.setColor(.02,.06,.06,.94)
+    g.polygon('fill',x,y,x,y+size,x+size,y+size)
+    g.setColor(.68,.82,.76,1);g.setLineWidth(1.5)
+    g.line(x,y,x,y+size,x+size,y+size)
+    g.setColor(.94,.97,.90,1);g.setLineWidth(2)
+    g.line(x+7,y+size-5,x+12,y+size-10)
+    g.line(x+13,y+size-5,x+19,y+size-11)
 end
 function C.mobileInputEnabled(R)
     return R.mobileControls and R.mobileControls.isEnabled and R.mobileControls:isEnabled() or false
@@ -557,10 +591,30 @@ function C.setWaypoint(R,id)
     R.state.message='Navigation set to '..(destination.label or id)..'.'
     return true
 end
-function C.mapPointer(R,x,y)
+function C.miniMapResizeMoved(R,x,y,source)
+    local view=R._commute;local drag=view and view.miniMapResize
+    if not drag or drag.source~=source then return false end
+    local settings=R.App and R.App.settings
+    if not settings then R.App=R.App or {};R.App.settings={};settings=R.App.settings end
+    local scale=drag.startScale+((drag.startX-x)/drag.baseWidth+(y-drag.startY)/drag.baseHeight)*.5
+    settings.gpsMiniMapScale=math.max(.62,math.min(1,scale))
+    return true
+end
+function C.finishMiniMapResize(R,source)
+    local view=R._commute;local drag=view and view.miniMapResize
+    if not drag or drag.source~=source then return false end
+    view.miniMapResize=nil
+    if not require('src.settings').save(R.App and R.App.settings or {}) then
+        R.state.message='GPS map size could not be saved.'
+    end
+    return true
+end
+function C.mapPointer(R,x,y,source)
     if not require('src.screens.hud_visibility').isVisible(R) then return false end
     local button=C.mapButton(R)
     if not button then return false end
+    local view=R._commute
+    if view.miniMapResize then return true end
     local navButton=C.miniMapButton(R)
     if navButton and x>=navButton.x and x<=navButton.x+navButton.width
         and y>=navButton.y and y<=navButton.y+navButton.height then
@@ -569,7 +623,7 @@ function C.mapPointer(R,x,y)
     if x>=button.x and x<=button.x+button.width and y>=button.y and y<=button.y+button.height then
         return C.toggleMap(R)
     end
-    local view=R._commute;local part=C.localPart(R)
+    local part=C.localPart(R)
     if view.mapOpen then
         if part and view.routeMap then
             local mobile=C.mobileInputEnabled(R)
@@ -585,6 +639,12 @@ function C.mapPointer(R,x,y)
     end
     if view.miniMapVisible~=false and part then
         local rect=C.miniMapRect(R)
+        if miniMapResizeHit(rect,x,y) and not view.miniMapResize then
+            local baseWidth,baseHeight=miniMapBaseSize(R)
+            view.miniMapResize={source=source or 'pointer',startX=x,startY=y,
+                startScale=miniMapScale(R),baseWidth=baseWidth,baseHeight=baseHeight}
+            return true
+        end
         if x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height then
             if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
             local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
@@ -616,7 +676,8 @@ function C.drawMap(R,part)
     local g=love.graphics;g.push('all')
     local view=R._commute
     local mapTraffic=view.mapOpen and require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
-        require('src.business_calendar').absoluteHours(R.state),os.time(),view.world) or view.mapTraffic
+        require('src.business_calendar').absoluteHours(R.state),os.time(),view.world,
+        {customer=R.World.customer,vendor=R.World.vendor}) or view.mapTraffic
     C.refreshNavigation(R,part,0,false)
     if view.mapOpen then
         if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
@@ -638,9 +699,11 @@ function C.drawMap(R,part)
                 otherPlayers[#otherPlayers+1]={id=player.id,name=player.name,x=player.x,z=player.y}
             end
         end
-        view.routeMap:drawMini(C.miniMapRect(R),Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
+        local miniRect=C.miniMapRect(R)
+        view.routeMap:drawMini(miniRect,Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
             destination=C.activeWaypoint(R),home=R.state.home.apartmentId,route=view.navigationRoute,
-            players=otherPlayers,traffic=mapTraffic})
+            players=otherPlayers,traffic=mapTraffic,resizeHandle=true})
+        C.drawMiniMapResizeHandle(miniRect)
     end
     require('src.screens.ui').panel(button,{.10,.15,.15,1},{.43,.53,.51,1},6,1)
     g.setColor(.94,.95,.89)
@@ -822,7 +885,7 @@ end
 function C.restore(R)
     if not C.hasWorld(R) then return end
     R.state.home.commute=assert(Trip.restore(R.state.home.commute,C.world(R),
-        require('src.company_delivery_driver').ensure(R.state),R.state.home.truckFleet))
+        require('src.company_delivery_driver').ensure(R.state),R.state.home.truckFleet,R.state.warehouse))
     local part=C.localPart(R);if part then C.syncPlayer(R.World.player,part) end
 end
 function C.bind(R,player,connected)
@@ -1223,7 +1286,8 @@ function C.update(R,dt,x,y,boost,cinematic)
             dirty=traffic.update(R.state,R.state.home and R.state.home.town,
                 require('src.business_calendar').absoluteHours(R.state),os.time(),commuteWorld) or dirty
         end
-        if commuteWorld then traffic.installVehicleObstacles(R.state,commuteWorld) end
+        if commuteWorld then traffic.installVehicleObstacles(R.state,commuteWorld,
+            {customer=R.World.customer,vendor=R.World.vendor}) end
         if C.hasWorld(R) then
             local world=commuteWorld
             local motionActive=false
@@ -1253,7 +1317,7 @@ function C.update(R,dt,x,y,boost,cinematic)
             if motionActive and R._commute.saveClock>=5 then R._commute.saveClock=0;dirty=true end
         end
         local trafficChanged,trafficMoving=traffic.simulate(R.state,R.state.home and R.state.home.town,
-            dt,os.time(),commuteWorld)
+            dt,os.time(),commuteWorld,{customer=R.World.customer,vendor=R.World.vendor})
         dirty=trafficChanged or dirty
         if trafficMoving then
             R._commute.trafficNetworkClock=(R._commute.trafficNetworkClock or 0)+dt
@@ -1496,7 +1560,8 @@ function C.draw(R,cinematic)
         actors[#actors+1]={actor=trip.keiTruck,truck=true,parkedTruck=true}
     end
     local traffic=require('src.commute.delivery_traffic').actors(R.state,R.state.home.town,
-        require('src.business_calendar').absoluteHours(R.state),os.time(),view.world)
+        require('src.business_calendar').absoluteHours(R.state),os.time(),view.world,
+        {customer=R.World.customer,vendor=R.World.vendor})
     view.mapTraffic=traffic
     if R.multiplayer:isClient() then
         view.trafficPresentation=view.trafficPresentation or {}
@@ -1933,7 +1998,7 @@ function C.touchPressed(R,id,x,y)
     end
     if not view or not view.renderer or view.loading then return true end
     if C.cameraPointer(R,x,y) then return true end
-    if C.mapPointer(R,x,y) then return true end
+    if C.mapPointer(R,x,y,id) then return true end
     local touch=C.touch(R)
     local part=C.localPart(R)
     local profile=C.touchProfile(R,part)
@@ -1947,6 +2012,7 @@ end
 function C.touchMoved(R,id,x,y)
     local view=R._commute
     if view and view.doorTransition then return true end
+    if C.miniMapResizeMoved(R,x,y,id) then return true end
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     local part=C.localPart(R)
     if view and view.touchControls and view.touchControls:move(id,x,y,R.Config.baseWidth,R.Config.baseHeight,
@@ -1956,6 +2022,7 @@ end
 function C.touchReleased(R,id)
     local view=R._commute
     if view and view.doorTransition then return true end
+    if C.finishMiniMapResize(R,id) then return true end
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     if view and view.touchControls and view.touchControls:release(id) then return true end
     return C.cameraTouchReleased(R,id)
@@ -1969,7 +2036,7 @@ function C.pointer(R,x,y,source)
     if R.World.player.sceneId=='commute' and C.localPart(R)
         and (not R._commute or not R._commute.renderer or R._commute.loading) then return true end
     if C.cameraPointer(R,x,y) then return true end
-    if C.mapPointer(R,x,y) then return true end
+    if C.mapPointer(R,x,y,source or 'pointer') then return true end
     local part=C.localPart(R)
     if not part then return false end
     local mobile=C.mobileInputEnabled(R)
@@ -1998,6 +2065,7 @@ function C.pointer(R,x,y,source)
     return key and C.keypressed(R,key,true) or false
 end
 function C.pointerReleased(R,source)
+    if C.finishMiniMapResize(R,source) then return true end
     local view=R._commute
     if view and view.pointerAction and (source==nil or source==view.pointerActionSource) then
         local action=view.pointerAction;local touch=view.touchControls
@@ -2032,6 +2100,7 @@ end
 function C.cancelCameraDrag(R)
     C.cancelCameraLook(R)
     local view=R._commute
+    if view and view.miniMapResize then C.finishMiniMapResize(R,view.miniMapResize.source) end
     if view and view.touchControls then view.touchControls:cancel() end
     if view then
         view.touchBoost=false;view.pointerAction=nil;view.pointerActionSource=nil

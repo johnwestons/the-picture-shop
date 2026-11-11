@@ -78,7 +78,7 @@ local function lines(R)
     return {greeting,
         'The Picture Shop has been closed for ten years. My health will not let me run it anymore, but I want you to have it.',
         'The building is sound. The power and water are disconnected, the breaker needs work, and the floors need a good cleaning.',
-        'The cutter blade is dull and the skid wrapper needs service. Take your time, repair the shop, then hold a grand opening. Clients can wait until then.',
+        'I set aside repair money. The cutter blade is dull and the wrapper needs service; buy kits for both. Then we can hold a grand opening.',
         'Your apartment and the shop are marked on the town map. Your motorcycle is here. I am proud of you, kid.'}
 end
 function Intro.open(R)

@@ -66,6 +66,10 @@ function Component.install(Runtime)
         warehousePending = false,
         warehouseMessage = nil,
         warehouseRequestNumber = 0,
+        vehicleConfirmation = nil,
+        vehiclePending = false,
+        vehicleMessage = nil,
+        vehicleRequestNumber = 0,
         warehouseGamesPage = false,
         warehouseStagingPage = false,
         warehouseSelectedStagingAreaId = "cutter-output",
@@ -140,7 +144,7 @@ function Component.install(Runtime)
     Runtime.PICKUP_EMPLOYEE = { x = 632, y = 598, width = 104, height = 36 }
     Runtime.PICKUP_PLAYER = { x = 742, y = 598, width = 108, height = 36 }
     Runtime.MONITOR = { x = 16, y = 8, width = 928, height = 660 }
-    Runtime.WWW_SITE = { x = 116, y = 238, width = 140, height = 42, gap = 8 }
+    Runtime.WWW_SITE = { x = 116, y = 238, width = 112, height = 42, gap = 8 }
     Runtime.WWW_PRODUCT = { x = 116, y = 296, width = 722, rowHeight = 52, gap = 6 }
     Runtime.WWW_SITES = {
         { name = "PAPER DEPOT", short = "PAPER", url = "www.thecritternet.com/paper-depot", categoryIndex = 1 },
@@ -148,6 +152,7 @@ function Component.install(Runtime)
         { name = "CARTON & WRAP", short = "PACKING", url = "www.thecritternet.com/cartons", categoryIndex = 3 },
         { name = "WRENCHWORKS", short = "TOOLS", url = "www.thecritternet.com/tools", categoryIndex = 4 },
         { name = "MACHINE MARKET", short = "MACHINES", url = "www.thecritternet.com/machines", kind = "machines" },
+        { name = "VEHICLE DEALER", short = "VEHICLES", url = "www.thecritternet.com/vehicles", kind = "vehicles" },
     }
     Runtime.CART_BUTTON = { x = 714, y = 194, width = 126, height = 36 }
     Runtime.CART_BACK = { x = 116, y = 540, width = 126, height = 40 }

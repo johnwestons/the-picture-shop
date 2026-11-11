@@ -16,6 +16,7 @@ local leg
 
 local function finite(n) return type(n)=='number' and n==n and math.abs(n)<1e12 end
 local function integer(n,lo,hi) return finite(n) and n%1==0 and n>=lo and n<=hi end
+local function ownsModel(state,model) return require('src.vehicle_dealer').owns(state,model) end
 local function copy(value)
     if type(value)~='table' then return value end
     local result={};for k,v in pairs(value) do result[k]=copy(v) end;return result
@@ -404,17 +405,19 @@ local function makeRun(state,worker,now)
             if run then
                 run.driverSkill=worker.drivingSkill or BASELINE_DRIVER_SKILL
                 run.driverEmployeeId=worker.id
-                run.vehicleModel=run.palletCount<=4 and 'kei' or 'box'
-                local fuel,hours,_,_,reason=routeMetrics(run,town,run.driverSkill,now)
-                if not fuel then routeError=reason end
-                local departureHours=30*24/Calendar.secondsPerDay(state)
-                local finishes=hours and now+hours+departureHours
-                local receivingOpen=finishes and require('src.business_hours').nextService(now,hours+departureHours)==now
-                for _,stop in ipairs(run.stops) do
-                    if finishes and Run.nextStopOpen(state,stop,finishes)>finishes then receivingOpen=false end
-                end
-                if fuel and hours and receivingOpen and fuel+1<=CompanyTruck.TANK_LITERS and finishes<=shiftEnd then
-                    ids=candidate;chosen=run;total=total+item.palletCount
+                run.vehicleModel=run.palletCount<=4 and ownsModel(state,'kei') and 'kei' or 'box'
+                if ownsModel(state,run.vehicleModel) then
+                    local fuel,hours,_,_,reason=routeMetrics(run,town,run.driverSkill,now)
+                    if not fuel then routeError=reason end
+                    local departureHours=30*24/Calendar.secondsPerDay(state)
+                    local finishes=hours and now+hours+departureHours
+                    local receivingOpen=finishes and require('src.business_hours').nextService(now,hours+departureHours)==now
+                    for _,stop in ipairs(run.stops) do
+                        if finishes and Run.nextStopOpen(state,stop,finishes)>finishes then receivingOpen=false end
+                    end
+                    if fuel and hours and receivingOpen and fuel+1<=CompanyTruck.TANK_LITERS and finishes<=shiftEnd then
+                        ids=candidate;chosen=run;total=total+item.palletCount
+                    end
                 end
             end
         end
@@ -497,6 +500,7 @@ end
 
 function CompanyTruck.reserveNextDriver(state,now)
     if not state or not state.employment then return false end
+    if not ownsModel(state,'box') and not ownsModel(state,'kei') then return false end
     if not require('src.business_hours').isOpen(now) then return false end
     local truck=CompanyTruck.ensure(state)
     local revision=truck.revision
@@ -527,6 +531,8 @@ end
 function CompanyTruck.update(state,now,activeRunOnly)
     if not state or not state.employment then return false end
     local truck=CompanyTruck.ensure(state)
+    if not ownsModel(state,'box') and not ownsModel(state,'kei')
+        and not truck.deliveryRun and not truck.departureStage then return false end
     local changed=false
     if truck.status=='refueling' then
         if now<(truck.nextActionAtHours or math.huge) then return false end

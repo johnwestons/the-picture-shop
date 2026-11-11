@@ -577,7 +577,8 @@ function Map:drawMini(rect,actor,options)
     end
     local destinationFont=self:font(13);g.setFont(destinationFont);g.setColor(1,.82,.43,1)
     local title=self:label(options.destination) or 'Choose a destination in MAP'
-    local available=area.compact and area.width-12 or rect.width-20
+    local available=area.compact and area.width-(options.resizeHandle and 40 or 12)
+        or rect.width-(options.resizeHandle and 50 or 20)
     if destinationFont:getWidth(title)>available then
         while #title>0 and destinationFont:getWidth(title..'…')>available do
             local offset=require('utf8').offset(title,-1);title=title:sub(1,(offset or 1)-1)
@@ -683,6 +684,7 @@ function Map:drawMini(rect,actor,options)
     if metres*5*t.scale<=65 then metres=metres*5 elseif metres*2*t.scale<=65 then metres=metres*2 end
     local barX,barY=area.x+8,area.y+area.height-8
     if area.compact then barX,barY=area.x+area.width-73,area.y+23 end
+    if options.resizeHandle and not area.compact then barX=math.max(barX,area.x+32) end
     g.setColor(.02,.05,.06,.9);g.rectangle('fill',barX-4,barY-19,metres*t.scale+12,25,3)
     g.setColor(.94,.97,.94,1);g.setLineWidth(2);g.line(barX,barY-3,barX,barY,barX+metres*t.scale,barY,barX+metres*t.scale,barY-3)
     g.setFont(self:font(10));g.print(Gps.distance(metres),barX,barY-17)
@@ -692,6 +694,7 @@ function Map:drawMini(rect,actor,options)
         titleX,titleY=area.x+4,area.y+area.height-18
         g.setColor(.02,.05,.05,.94);g.rectangle('fill',area.x,titleY-2,area.width,20,3)
     end
+    if options.resizeHandle then titleX=math.max(titleX,rect.x+32) end
     if not area.compact or options.destination then
         g.setFont(destinationFont);g.setColor(1,.82,.43,1);g.print(title,titleX,titleY)
     end
