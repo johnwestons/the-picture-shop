@@ -1,6 +1,16 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.107",
+        date = "Nov 11, 2026",
+        title = "Story mode startup fix",
+        changes = {
+            "Fixed the Android story opening crash by including its bike artwork in the game package.",
+            "Android package smoke tests now enter story mode and render its packing and travel scenes.",
+            "Android 107 keeps multiplayer protocol 75 and remains compatible with Android 106.",
+        },
+    },
+    {
         version = "0.1.0-android.106",
         date = "Nov 11, 2026",
         title = "Story opening and shop restoration playtest",

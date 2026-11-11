@@ -36,6 +36,10 @@ COMMUTE_AUDIO_FILES = (
 # staged review artwork are deliberately outside this closed set of patterns.
 COMMUTE_RUNTIME_GLOBS = (
     "assets/commute/bike/*-16.png",
+    # The story opening still draws these legacy bike sheets; include them in
+    # the runtime package until that cutscene is migrated to the new atlases.
+    "assets/commute/bike/mounted.png",
+    "assets/commute/bike/parked.png",
     "assets/commute/bike/mounted-upright-32.png",
     "assets/commute/bike/mounted-upright-64.png",
     "assets/commute/bike/mounted-upright-64-v2.png",

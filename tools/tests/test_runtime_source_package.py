@@ -54,6 +54,10 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         self.assertFalse(any("picture-shop" in name and "/turntables/" in name for name in names))
         self.assertIn("assets/commute/cockpit/first-person-bike-v2.png", names)
         self.assertIn("assets/commute/bike/mounted-upright-64-v2.png", names)
+        story_opening = (package.ROOT / "src/story_opening.lua").read_text(encoding="utf-8")
+        for asset in ("assets/commute/bike/mounted.png", "assets/commute/bike/parked.png"):
+            self.assertIn(asset, story_opening)
+            self.assertIn(asset, names, f"Story opening asset is absent from the mobile package: {asset}")
         self.assertIn("assets/commute/bike/wheel_regions.lua", names)
         self.assertIn("assets/commute/bike/actions-64/paint_regions.lua", names)
         poses = ("aero", "boost", "brake", "shift", "impact", "turnLeft", "turnRight")
@@ -197,6 +201,13 @@ class RuntimeSourcePackageTests(unittest.TestCase):
         script = (TOOLS / "build_windows_installer.ps1").read_text(encoding="utf-8")
         self.assertIn("tools\\build_mobile_package.py", script)
         self.assertIn("Add-FileToStream $destination $package", script)
+
+    def test_android_package_smoke_renders_story_opening_from_archive(self) -> None:
+        script = (package.ROOT / "BUILD_ANDROID.ps1").read_text(encoding="utf-8")
+        self.assertIn("$env:PICTURE_SHOP_SMOKE_FOCUS = 'story-intro'", script)
+        self.assertIn("mobile-story-package-smoke.rpt", script)
+        self.assertIn("story_opening_packing_scene_renders", script)
+        self.assertIn("story_opening_travel_montage_renders", script)
 
 
 if __name__ == "__main__":
