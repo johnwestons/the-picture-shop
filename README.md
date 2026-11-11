@@ -193,14 +193,15 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest test installers are [Android 106](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.106/ThePictureShop-0.1.0-android.106-Install.apk)
-and [Windows 106](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.106/ThePictureShop-Windows-Setup-0.1.0-test.106.exe).
-Both packages use the same clean source commit and multiplayer protocol **75**.
-This playtest adds the Millhaven-to-Grandpa story opening, five warehouse
+The latest published test installers are [Android 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-0.1.0-android.105-Install.apk)
+and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
+Those installers use multiplayer protocol **74**. The 106 source on `main` is a
+development candidate using protocol **75**; its installers have not been published.
+The candidate adds the Millhaven-to-Grandpa story opening, five warehouse
 restoration stages, a clearer ride HUD and GPS, new park and campground paths,
 terrain lighting, and updated office, receipt, and audio systems. The multiplayer
 new-shop lobby and synchronized story opening are still in development.
-Update every multiplayer participant together; older protocol builds cannot join.
+Update every multiplayer participant together; protocol 74 and 75 builds cannot join each other.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
@@ -218,8 +219,8 @@ is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Installing over the existing app keeps saves. Android requires the same
-signing identity for an in-place update; the Android 106 playtest package uses the
-project's current debug signing key and is intended for this private tester flow.
+signing identity for an in-place update. The locally built Android 106 candidate
+uses the project's current debug signing key.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
 
