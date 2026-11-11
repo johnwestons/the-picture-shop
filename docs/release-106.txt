@@ -1,8 +1,8 @@
-THE PICTURE SHOP - PC AND ANDROID 106 CANDIDATE
+THE PICTURE SHOP - ANDROID 106 TEST PRERELEASE
 
-Windows: 0.1.0-test.106
 Android: 0.1.0-android.106 (version code 106)
 Shared multiplayer protocol: 75
+Windows 106 is not included in this download.
 
 This candidate is for playtesting. Install the matching version on every
 multiplayer participant. Protocol 74 builds, including version 105, cannot
@@ -48,7 +48,8 @@ SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
 The builder verified its package ID, signature, and 16 KB alignment. It uses the
 development signing identity.
 
-The candidate has not completed physical Android acceptance and is not yet a
-public device download. ADB reports no attached devices. Automated mobile-layout
-coverage is not a substitute for installing the exact APK and completing the
-required three-phone acceptance checks.
+The APK is being published as a GitHub test prerelease at
+https://github.com/johnwestons/the-picture-shop/releases/tag/0.1.0-android.106.
+Automated validation passed; no physical-device installation or run was
+performed. ADB reported no attached devices during validation. The APK uses the
+development signing identity.

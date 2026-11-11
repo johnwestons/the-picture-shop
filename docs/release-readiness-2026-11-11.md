@@ -24,12 +24,12 @@ The release 106 candidate passes the complete automated gameplay plan: 41 of 41 
 
 ## Distribution status
 
-This is a release candidate on `codex/release-106`. Its game source was committed as `1ec759ce82f80fb41663fac814e2ac939e7144dd` and was clean when packaged; the later branch commit only records validation results. The candidate APK passed package ID, signature, and 16 KB alignment verification:
+The user authorized an Android test prerelease after automated validation. Its game source was committed as `1ec759ce82f80fb41663fac814e2ac939e7144dd` and was clean when packaged; the later branch commit only records validation results. The APK passed package ID, signature, and 16 KB alignment verification:
 
 - APK: `output/mobile/ThePictureShop-0.1.0-android.106-debug.apk` — 1,020,427,280 bytes.
 - SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
 - Build report: `output/mobile/apk-report.json`.
 
-The ADB server started, but no Android devices were attached. Automated mobile-layout checks do not replace physical-device acceptance, and the required exact-APK three-phone acceptance report is absent. The repository release gate also requires a clean, synchronized `main` branch and a matching Windows build. Keep public APK distribution blocked until those requirements are completed; do not represent this candidate APK as accepted for device updates.
+The Android 106 APK is being published as a GitHub test prerelease at https://github.com/johnwestons/the-picture-shop/releases/tag/0.1.0-android.106. The ADB server started, but no Android devices were attached, so no physical-device installation or run was performed. The prerelease is for testing and does not claim physical-device validation or production readiness. It contains the Android APK only; no Windows 106 build is included.
 
 The Android package is development-signed. Remote users must install a matching version because multiplayer protocol 75 is incompatible with protocol 74/version 105.
