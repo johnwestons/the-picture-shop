@@ -1,0 +1,32 @@
+THE PICTURE SHOP - ANDROID 107 TEST PRERELEASE
+
+Android: 0.1.0-android.107 (version code 107)
+Shared multiplayer protocol: 75
+Android 106 saves and multiplayer compatibility are retained.
+
+WHAT'S NEW
+
+- Fixed the Story Mode startup crash on Android. The mobile package now includes
+  the mounted and parked bike artwork used by the opening cutscene.
+- Android package checks now start Story Mode and render its packing, travel,
+  arrival, and skip scenes from the actual packaged game archive.
+
+AUTOMATED RESULTS
+
+- Tooling regression suite: 108 tests passed.
+- Full source smoke: 11,853 checks passed; no failures.
+- Android package smoke: 11,852 checks passed; no failures.
+- Packaged story-opening smoke: 101 checks passed; packing and travel scenes
+  rendered successfully.
+- The APK builder verified version 107, package ID, signature, and 16 KB native
+  library alignment. Its signing certificate matches Android 106.
+- No physical Android device test was run for this build.
+
+APK
+
+Artifact: `output/mobile/ThePictureShop-0.1.0-android.107-debug.apk`
+Size: 1,021,392,214 bytes
+SHA-256: `65f59206b93dbd2672652280f09fd892081d693e21147aad8f7b11e303ef1201`
+Game source commit: `40bd47283029db1f1190e6844b1a4a3c6f66424e`
+
+The APK is development-signed and intended for private testing.
