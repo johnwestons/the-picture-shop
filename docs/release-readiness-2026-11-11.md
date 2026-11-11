@@ -24,7 +24,7 @@ The release 106 candidate passes the complete automated gameplay plan: 41 of 41 
 
 ## Distribution status
 
-This is a release candidate on `codex/release-106`, pushed as commit `1ec759ce82f80fb41663fac814e2ac939e7144dd`. The candidate APK was built from that exact clean commit and passed package ID, signature, and 16 KB alignment verification:
+This is a release candidate on `codex/release-106`. Its game source was committed as `1ec759ce82f80fb41663fac814e2ac939e7144dd` and was clean when packaged; the later branch commit only records validation results. The candidate APK passed package ID, signature, and 16 KB alignment verification:
 
 - APK: `output/mobile/ThePictureShop-0.1.0-android.106-debug.apk` — 1,020,427,280 bytes.
 - SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
