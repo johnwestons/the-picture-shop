@@ -42,7 +42,13 @@ The full gameplay plan passed all 41 stages and 48 feature groups, with 41,908
 checks. Desktop and mobile core stages passed 11,853 checks each. Tooling tests
 passed (107); the asset audit passed (593); engine smoke passed (2,483).
 
+The candidate APK is built locally at
+`output/mobile/ThePictureShop-0.1.0-android.106-debug.apk` (1,020,427,280 bytes).
+SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
+The builder verified its package ID, signature, and 16 KB alignment. It uses the
+development signing identity.
+
 The candidate has not completed physical Android acceptance and is not yet a
-public device download. The APK uses the development signing identity. Automated
-mobile-layout coverage is not a substitute for installing the exact APK and
-completing the required three-phone acceptance checks.
+public device download. ADB reports no attached devices. Automated mobile-layout
+coverage is not a substitute for installing the exact APK and completing the
+required three-phone acceptance checks.
