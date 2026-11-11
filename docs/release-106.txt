@@ -48,7 +48,7 @@ SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
 The builder verified its package ID, signature, and 16 KB alignment. It uses the
 development signing identity.
 
-The APK is being published as a GitHub test prerelease at
+The APK is published as a GitHub test prerelease at
 https://github.com/johnwestons/the-picture-shop/releases/tag/0.1.0-android.106.
 Automated validation passed; no physical-device installation or run was
 performed. ADB reported no attached devices during validation. The APK uses the

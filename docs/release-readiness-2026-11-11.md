@@ -30,6 +30,6 @@ The user authorized an Android test prerelease after automated validation. Its g
 - SHA-256: `cea20a3fce1fbc2df7b3e9b9da1336b58b35966e2b1c5e9e2f4f99049b231979`.
 - Build report: `output/mobile/apk-report.json`.
 
-The Android 106 APK is being published as a GitHub test prerelease at https://github.com/johnwestons/the-picture-shop/releases/tag/0.1.0-android.106. The ADB server started, but no Android devices were attached, so no physical-device installation or run was performed. The prerelease is for testing and does not claim physical-device validation or production readiness. It contains the Android APK only; no Windows 106 build is included.
+The Android 106 APK is published as a GitHub test prerelease at https://github.com/johnwestons/the-picture-shop/releases/tag/0.1.0-android.106. The ADB server started, but no Android devices were attached, so no physical-device installation or run was performed. The prerelease is for testing and does not claim physical-device validation or production readiness. It contains the Android APK only; no Windows 106 build is included.
 
 The Android package is development-signed. Remote users must install a matching version because multiplayer protocol 75 is incompatible with protocol 74/version 105.
