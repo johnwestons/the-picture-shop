@@ -26,27 +26,22 @@ local function shortMoney(value)
     return string.format("%s$%.0f",sign,value)
 end
 function Component.install(Runtime)
-    local view,page,guidePage,guideBodyPage="overview",1,1,1
-    function Runtime.resetHomeView() view,page,guidePage,guideBodyPage="overview",1,1,1 end
+    local view,page,guidePage="overview",1,1
+    function Runtime.resetHomeView() view,page,guidePage="overview",1,1 end
     function Runtime.ComputerScreen.homeGuideControlCenter(name,index)
-        local rect=Guide.rect(name,index);return rect.x+rect.width/2,rect.y+rect.height/2
+        local rect=Guide.rect(name,index)
+        return Runtime.containedPageCoords(rect.x+rect.width/2,rect.y+rect.height/2,Runtime.HOME_PAGE_LAYOUT)
     end
     function Runtime.ComputerScreen.homeControlCenter(name)
         local rect=name=="slider" and slider or controls[name]
-        return rect.x+rect.width/2,rect.y+rect.height/2
+        return Runtime.containedPageCoords(rect.x+rect.width/2,rect.y+rect.height/2,Runtime.HOME_PAGE_LAYOUT)
     end
     local function readOnly() return Runtime.ComputerScreen.radioReadOnly() end
     function Runtime.homeMousepressed(state,x,y)
         local guideAction
         if view=="guide" then
-            local oldTopic=guidePage
             guidePage,guideAction=Guide.mousepressed(state,guidePage,x,y,Runtime.contains)
-            if oldTopic~=guidePage then guideBodyPage=1 end
-            if guideAction=='previous' or guideAction=='next' then
-                local _,_,_,pages=Guide.bodyLayout(state,guidePage,Runtime.twelveHourTime())
-                guideBodyPage=math.max(1,math.min(pages,guideBodyPage+(guideAction=='next' and 1 or -1)))
-                return {action='home_view'}
-            elseif guideAction=="back" then view="overview"
+            if guideAction=="back" then view="overview"
             elseif guideAction=="earnings" then view="earnings"
             elseif guideAction and guideAction~="sleep" then
                 return Runtime.activateTab(state,Runtime.tabById(guideAction))
@@ -103,7 +98,7 @@ function Component.install(Runtime)
             local hover=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
             Runtime.drawComputerButton(rect,title,enabled and (hover and "primaryHover" or "primary") or "disabled")
         end
-        if view=="guide" then Guide.draw(Runtime,state,guidePage,pointerX,pointerY,guideBodyPage);return
+        if view=="guide" then Guide.draw(Runtime,state,guidePage,pointerX,pointerY);return
         elseif view=="history" then
             label("PERSONAL PAY HISTORY  /  Friday shutdowns",104,208,710,{1,.86,.41,1})
             local history=home.finance and home.finance.history or {}
@@ -174,14 +169,16 @@ function Component.install(Runtime)
         label(string.format("Next rent: %s %d, %d",Runtime.BusinessCalendar.monthName(date.month),date.day,date.year),104,338,340)
         label(string.format("Rent outstanding: $%.2f",due/100),104,376,340,due>0 and {1,.78,.39,1} or nil)
         label("Personal pay target",478,338,350,{1,.86,.41,1})
-        label(home.payPercent.."% home / "..(100-home.payPercent).."% shop",478,373,350)
-        label("Paid from earnings after costs and reserves.",478,404,350)
+        label(home.payPercent.."% household  /  "..(100-home.payPercent).."% business",478,373,205)
+        label("From eligible earnings after business costs and reserves.",478,404,205)
         local covered=math.min(home.balanceCents,due)
         local rentPlan={
             {label="Rent covered",value=covered,color={.96,.77,.47,1},valueText=shortMoney(covered/100)},
             {label="Rent gap",value=math.max(0,due-home.balanceCents),color={1,.59,.50,1},valueText=shortMoney(math.max(0,due-home.balanceCents)/100)},
             {label="Funds left",value=math.max(0,home.balanceCents-due),color={.59,.89,.67,1},valueText=shortMoney(math.max(0,home.balanceCents-due)/100)},
         }
+        FinanceCharts.donut(772,307,42,rentPlan,"RENT PLAN",shortMoney(due/100))
+        FinanceCharts.legend(700,359,rentPlan,136,14,3)
         local budgetLines,budgetWarning=Budget.lines(state)
         label(table.concat(budgetLines,"\n"),104,422,350,budgetWarning and {1,.78,.39,1} or nil)
         button(controls.pay,due>0 and "PAY RENT FROM HOUSEHOLD" or "RENT UP TO DATE",not readOnly() and due>0 and home.balanceCents>=due)

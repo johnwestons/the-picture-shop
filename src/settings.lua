@@ -1,4 +1,6 @@
 local Settings = {}
+local Video=require('src.video_settings')
+local PlayerProfile = require('src.player_profile')
 local RabbitColorways = require("src.rabbit_colorways")
 local MotorcycleBindings = require('src.commute.bindings')
 local SilhouetteStyle = require('src.commute.silhouette_style')
@@ -13,6 +15,8 @@ local CONTROL_LAYOUT_KEYS = {
     "touch1", "touch2", "touch3", "touch4", "touch5", "touch6", "move", "use",
 }
 local DEFAULTS = {
+    dynamicShadows=true,vegetationShadows=false,shadowDistance='medium',renderDistance='medium',
+    playerName = PlayerProfile.DEFAULT_NAME,
     fullscreen = false,
     vsync = true,
     followPlayerCamera = false,
@@ -26,6 +30,8 @@ local DEFAULTS = {
     masterVolume = 100,
     sfxVolume = 85,
     ambientVolume = 42,
+    dialogueVolume = 100,
+    dialogueVoicesEnabled = true,
     mobileWalkSensitivity = 100,
     mobileDriveSensitivity = 100,
     mobileVehicleSteering = "radial",
@@ -120,6 +126,7 @@ end
 
 function Settings.normalize(value)
     value = type(value) == "table" and value or {}
+    local video=Video.normalize(value)
     local furColorway, overallsColorway = RabbitColorways.normalize(
         value.furColorway, value.overallsColorway)
     local occlusionHighlightColor,occlusionHighlightStyle=SilhouetteStyle.normalize(
@@ -135,7 +142,10 @@ function Settings.normalize(value)
         mobileVehicleSteering=value.mobileBikeSteering=="horizontal" and "bike-horizontal" or "radial"
     end
     return {
+        dynamicShadows=video.dynamicShadows,vegetationShadows=video.vegetationShadows,
+        shadowDistance=video.shadowDistance,renderDistance=video.renderDistance,
         fullscreen = value.fullscreen == true,
+        playerName = PlayerProfile.name(value),
         vsync = value.vsync ~= false,
         followPlayerCamera = value.followPlayerCamera == true,
         twelveHourTime = value.twelveHourTime ~= false,
@@ -148,6 +158,8 @@ function Settings.normalize(value)
         masterVolume = clampPercent(value.masterVolume, DEFAULTS.masterVolume),
         sfxVolume = clampPercent(value.sfxVolume, DEFAULTS.sfxVolume),
         ambientVolume = clampPercent(value.ambientVolume, DEFAULTS.ambientVolume),
+        dialogueVolume = clampPercent(value.dialogueVolume, DEFAULTS.dialogueVolume),
+        dialogueVoicesEnabled = value.dialogueVoicesEnabled ~= false,
         mobileWalkSensitivity = clampSensitivity(value.mobileWalkSensitivity),
         mobileDriveSensitivity = clampSensitivity(value.mobileDriveSensitivity),
         mobileVehicleSteering=mobileVehicleSteering,
@@ -174,12 +186,13 @@ end
 local function encode(value)
     value = Settings.normalize(value)
     local encoded = string.format(
-        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, hudVisible = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, mobileWalkSensitivity = %d, mobileDriveSensitivity = %d, mobileBikeSteering = %q, mobileVehicleSteering = %q, occlusionHighlightColor = %q, occlusionHighlightStyle = %q, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
+        "{ fullscreen = %s, vsync = %s, followPlayerCamera = %s, twelveHourTime = %s, hudVisible = %s, furColorway = %d, overallsColorway = %d, muted = %s, lanConnectionMode = %q, lanAutoJoin = %s, masterVolume = %d, sfxVolume = %d, ambientVolume = %d, dialogueVolume = %d, dialogueVoicesEnabled = %s, mobileWalkSensitivity = %d, mobileDriveSensitivity = %d, mobileBikeSteering = %q, mobileVehicleSteering = %q, occlusionHighlightColor = %q, occlusionHighlightStyle = %q, controlLayout = { joystick = { x = %.6f, y = %.6f }, primary = { x = %.6f, y = %.6f }, extra1 = { x = %.6f, y = %.6f }, extra2 = { x = %.6f, y = %.6f } } }",
         tostring(value.fullscreen), tostring(value.vsync), tostring(value.followPlayerCamera),
         tostring(value.twelveHourTime), tostring(value.hudVisible),
         value.furColorway, value.overallsColorway, tostring(value.muted),
         value.lanConnectionMode, tostring(value.lanAutoJoin),
         value.masterVolume, value.sfxVolume, value.ambientVolume,
+        value.dialogueVolume, tostring(value.dialogueVoicesEnabled),
         value.mobileWalkSensitivity, value.mobileDriveSensitivity,
         value.mobileBikeSteering,
         value.mobileVehicleSteering,
@@ -188,7 +201,10 @@ local function encode(value)
         value.controlLayout.primary.x, value.controlLayout.primary.y,
         value.controlLayout.extra1.x, value.controlLayout.extra1.y,
         value.controlLayout.extra2.x, value.controlLayout.extra2.y)
-    return encoded:sub(1,-2)..', controlLayoutProfiles = '..encodeLayoutProfiles(value.controlLayoutProfiles)
+    return encoded:sub(1,-2)..', playerName = '..string.format('%q',value.playerName)
+        ..string.format(', dynamicShadows = %s, vegetationShadows = %s, shadowDistance = %q, renderDistance = %q',
+            tostring(value.dynamicShadows),tostring(value.vegetationShadows),value.shadowDistance,value.renderDistance)
+        ..', controlLayoutProfiles = '..encodeLayoutProfiles(value.controlLayoutProfiles)
         ..', motorcycleControls = '..MotorcycleBindings.encode(value.motorcycleControls)..' }'
 end
 
@@ -338,12 +354,17 @@ end
 
 function Settings.applyDisplay(value)
     value = Settings.normalize(value)
+    Video.apply(value)
     if not love or not love.window then return false end
     local android = love.system and love.system.getOS and love.system.getOS() == "Android"
     if not android and love.window.setFullscreen then
-        pcall(love.window.setFullscreen, value.fullscreen, "desktop")
+        if not love.window.getFullscreen or love.window.getFullscreen()~=value.fullscreen then
+            pcall(love.window.setFullscreen, value.fullscreen, "desktop")
+        end
     end
-    if love.window.setVSync then pcall(love.window.setVSync, value.vsync and 1 or 0) end
+    if love.window.setVSync and (not love.window.getVSync or love.window.getVSync()~=(value.vsync and 1 or 0)) then
+        pcall(love.window.setVSync, value.vsync and 1 or 0)
+    end
     return true
 end
 

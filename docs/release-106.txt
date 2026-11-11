@@ -1,0 +1,39 @@
+THE PICTURE SHOP - PC AND ANDROID 106 PLAYTEST UPDATE
+
+Windows: 0.1.0-test.106
+Android: 0.1.0-android.106 (version code 106)
+Shared multiplayer protocol: 75
+
+Install the matching version on every multiplayer participant. Protocol 74
+builds, including version 105, cannot join this version.
+
+WHAT TO TEST
+
+- Choose STORY and follow the illustrated departure from Millhaven, the
+  motorcycle arrival at Grandpa's farm, his conversation, and free travel after
+  he hands over the shop keys.
+- Inspect the closed shop's restoration stages, floor dirt and water, breaker
+  and utility actions, and the tutorial notices leading toward grand opening.
+- Check the redesigned ride HUD and GPS at normal and narrow screen widths.
+  The bike condition card, notices, calendar, clock, map, and mobile controls
+  should remain readable and independently usable.
+- Review estimates, typed promotion comments, cutter skid selection on touch,
+  saved receipts and signatures, and mobile office pages.
+- Walk the larger park and campground paths, and check day/night lighting and
+  sound in the town.
+
+PLAYTEST SCOPE
+
+This is an in-progress story update for hands-on testing. The host-new-shop
+multiplayer lobby, synchronized multiplayer opening, grand-opening cinematic,
+and machine power gates remain planned. Start an existing shop or use the current
+new-shop flow to test the systems already present.
+
+Automated desktop and mobile core suites passed 11,828 checks each. Every
+planned scenario stage had a passing run; scene-exit checks were rerun after
+updating their touch path to the shared menu. The populated office measured
+about 49 fps in the local performance probe and remains a tuning target.
+Automated mobile checks do not substitute for a physical phone test. The Android
+APK uses the project's development signing identity; the Windows installer is
+unsigned. Test saves are disposable, and a fresh shop is recommended for the
+restoration opening and updated town generation.

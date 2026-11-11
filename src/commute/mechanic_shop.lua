@@ -733,13 +733,13 @@ local function drawPerformance(R,v,q)
     local compare=q.after or q.current
     local heading=q.status=='maxed' and 'FULLY UPGRADED' or q.offer.name
     text(v.page=='confirm' and 'CONFIRM COMPONENT UPGRADE' or heading,366,172,468,25,{1,.85,.47,1})
-    text(q.category.part..(' · %d → %d'):format(q.currentLevel,q.offer and q.offer.level or q.currentLevel),366,208,496,14,{.76,.85,.82,1})
-    if q.offer then text(q.offer.description,366,234,496,16) end
-    text('STAT',366,284,130,14,{.76,.85,.82,1})
-    text('NOW',499,284,72,14,{.76,.85,.82,1},'right')
-    text('WITH',579,284,72,14,{1,.85,.47,1},'right')
-    text('OUTPUT',660,284,92,14,{.76,.85,.82,1},'center')
-    text('CHANGE',762,284,94,14,{.76,.85,.82,1},'right')
+    text(q.category.part..('   /   Level %d -> %d'):format(q.currentLevel,q.offer and q.offer.level or q.currentLevel),366,208,468,16,{.66,.79,.76,1})
+    if q.offer then text(q.offer.description,366,230,468,17) end
+    text('STAT',366,258,88,12,{.68,.79,.72,1})
+    text('NOW',461,258,48,12,{.68,.79,.72,1},'center')
+    text('WITH',512,258,52,12,{1,.85,.47,1},'center')
+    text('RELATIVE OUTPUT',572,258,158,12,{.68,.79,.72,1},'center')
+    text('CHANGE',738,258,118,12,{.68,.79,.72,1},'right')
     local rows={
         {name='Power',a=q.current.powerHp,b=compare.powerHp,limit=25,format=function(x)return ('%.1f hp'):format(x)end},
         {name='Torque',a=q.current.torqueNm,b=compare.torqueNm,limit=30,format=function(x)return ('%.1f Nm'):format(x)end},
@@ -753,11 +753,11 @@ local function drawPerformance(R,v,q)
         {name='Durability',a=(1-q.current.damageMultiplier)*100,b=(1-compare.damageMultiplier)*100,limit=50,format=function(x)return ('%.0f%% less'):format(x)end},
     }
     for n,row in ipairs(rows) do
-        local y=304+(n-1)*23
-        text(row.name,366,y,130,14)
-        text(row.format(row.a),499,y,72,14,nil,'right')
-        text(row.format(row.b),579,y,72,14,{1,.88,.56,1},'right')
-        local x,width=660,92
+        local y=276+(n-1)*23
+        text(row.name,366,y,91,14)
+        text(row.format(row.a),457,y,53,13,nil,'right')
+        text(row.format(row.b),512,y,54,13,{1,.88,.56,1},'right')
+        local x,width=574,154
         g.setColor(.10,.16,.145,1);g.rectangle('fill',x,y+2,width,5,2);g.rectangle('fill',x,y+10,width,5,2)
         g.setColor(.28,.57,.48,1);g.rectangle('fill',x,y+2,width*math.min(1,row.a/row.limit),5,2)
         g.setColor(.94,.72,.32,1);g.rectangle('fill',x,y+10,width*math.min(1,row.b/row.limit),5,2)
@@ -771,7 +771,7 @@ local function drawPerformance(R,v,q)
         or q.status=='unaffordable' and 'Need '..money(q.shortfallCents)..' more in household funds.'
         or v.page=='confirm' and 'Pay '..money(q.offer.costCents)..' for parts and installation?'
         or 'Select a component to compare its current and upgraded performance.')
-    text(note,366,520,496,16,{1,.85,.47,1})
+    text(note,366,493,468,18,{1,.85,.47,1})
 
 end
 local function drawTires(R,v,q)

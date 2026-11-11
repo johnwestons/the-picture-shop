@@ -164,13 +164,117 @@
     {
       "id": "trucks-network-mobile", "focus": "truck-multiplayer", "mobile": true,
       "timeoutSeconds": 600, "minChecks": 100
+    },
+    {
+      "id": "story-desktop", "focus": "story-intro", "mobile": false,
+      "timeoutSeconds": 600, "minChecks": 70
+    },
+    {
+      "id": "story-mobile", "focus": "story-intro", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 70
+    },
+    {
+      "id": "restoration-desktop", "focus": "warehouse-condition", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 25
+    },
+    {
+      "id": "restoration-mobile", "focus": "warehouse-condition", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 25
+    },
+    {
+      "id": "navigation-desktop", "focus": "route-map", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 20
+    },
+    {
+      "id": "navigation-mobile", "focus": "route-map", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 20
+    },
+    {
+      "id": "receipts-desktop", "focus": "receipts", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 40
+    },
+    {
+      "id": "receipts-mobile", "focus": "receipts", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 40
+    },
+    {
+      "id": "office-desktop", "focus": "office-readability", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 40
+    },
+    {
+      "id": "office-mobile", "focus": "office-readability", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 40
+    },
+    {
+      "id": "hud-desktop", "focus": "scene-hud", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 25
+    },
+    {
+      "id": "hud-mobile", "focus": "scene-hud", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 25
+    },
+    {
+      "id": "lighting-desktop", "focus": "commute-day-night", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 8
+    },
+    {
+      "id": "lighting-mobile", "focus": "commute-day-night", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 8
+    },
+    {
+      "id": "performance-desktop", "focus": "late-game-performance", "mobile": false,
+      "timeoutSeconds": 600, "minChecks": 80
+    },
+    {
+      "id": "performance-mobile", "focus": "late-game-performance", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 80
     }
   ],
   "features": [
     {
-      "id": "readable-ui", "label": "Shared typography and office controls",
+      "id": "readable-ui", "label": "Restored UI baseline and office controls",
       "stages": ["ui-desktop", "ui-mobile"],
-      "checks": ["ui_typewriter_has_navigation_symbol_fallbacks", "ui_large_balances_keep_both_accounts_visible"]
+      "checks": ["ui_new_screens_use_baseline_font_metrics", "ui_text_truncation_preserves_utf8_and_bounds", "browser_phone_sprite_clock_opens", "warehouse_menu_icon_opens_dropdown", "terrain_shared_header_combines_balances_and_keeps_calendar_clear"]
+    },
+    {
+      "id": "story-opening", "label": "Story montage, Grandpa handoff, and free travel",
+      "stages": ["story-desktop", "story-mobile"],
+      "checks": ["story_arrival_motorcycle_moves_on_generated_route", "story_intro_handoff_opens_control_and_marks_met", "story_free_roam_continue_has_no_forced_route", "story_free_roam_shop_first_visits_both", "story_free_roam_apartment_first_visits_both", "story_free_roam_optional_gps_survives_continue"]
+    },
+    {
+      "id": "workshop-restoration", "label": "Closed shop, utilities, visual stages, and grand opening",
+      "stages": ["restoration-desktop", "restoration-mobile"],
+      "checks": ["warehouse_condition_closed_selects_crisp_stage_zero", "warehouse_condition_no_job_calls_before_opening", "warehouse_condition_power_reconnect_pays_once", "warehouse_condition_cleanup_has_fixed_order", "warehouse_condition_complete_after_all_work", "warehouse_condition_grand_opening_unlocks_jobs", "warehouse_condition_footprints_fade_quickly"]
+    },
+    {
+      "id": "gps-navigation", "label": "Readable map, zoom controls, and live route behavior",
+      "stages": ["navigation-desktop", "navigation-mobile"],
+      "checks": ["route_map_identifies_every_seeded_building", "route_map_north_up_marker_ignores_outside_camera_rotation", "mini_plus_touch_only_zooms_navigation", "gps_map_tap_changes_destination_without_opening_full_map", "route_map_escape_closes_map_before_opening_options"]
+    },
+    {
+      "id": "receipt-archive", "label": "Signed deliveries, invoices, purchases, and saved receipts",
+      "stages": ["receipts-desktop", "receipts-mobile"],
+      "checks": ["archive_signed_delivery_keeps_exact_submitted_ink_and_signer", "archive_job_payment_is_frozen_and_deduplicated", "archive_disk_reload_preserves_signature_amounts_and_receipt_ids", "archive_phone_filter_and_signature_selection_share_content_transform", "archive_employee_wages_remain_outside_receipts"]
+    },
+    {
+      "id": "office-composer", "label": "Estimate layout and mobile promotion text entry",
+      "stages": ["office-desktop", "office-mobile"],
+      "checks": ["job_review_three_pallet_ticket_fits_without_scroll", "job_review_scroll_reaches_final_pallet_without_covering_action", "promotion_comment_accepts_typed_text", "promotion_comment_is_in_sent_offer"]
+    },
+    {
+      "id": "scene-hud", "label": "Warehouse, apartment, and ride HUD layout",
+      "stages": ["hud-desktop", "hud-mobile"],
+      "checks": ["scene_hud_uses_game_weekday_date_and_twelve_hour_preference", "scene_hud_home_touch_restore_button_works"]
+    },
+    {
+      "id": "commute-lighting", "label": "Terrain day and night rendering",
+      "stages": ["lighting-desktop", "lighting-mobile"],
+      "checks": ["commute_sun_moves_from_east_to_west_with_calendar_hour", "commute_night_has_darker_sky_ground_and_structures", "commute_renderer_sends_live_sun_moon_fog_to_shaders"]
+    },
+    {
+      "id": "late-game-performance", "label": "Texture reuse, movement scaling, and save cadence",
+      "stages": ["performance-desktop", "performance-mobile"],
+      "checks": ["performance_repeated_driving_views_do_not_reload_textures", "performance_warehouse_cache_clears_without_active_scene", "scaling_background_changes_coalesce_at_five_seconds"]
     },
     {
       "id": "town-recreation", "label": "Park and campground geometry, paths and collision",
@@ -218,7 +322,9 @@
       "checks": [
         "full_loop_finishes_cutting",
         "guest_journey_reconnect_gets_fresh_lease_and_paper",
-        "guest_journey_disconnect_does_not_repeat_cut"
+        "guest_journey_disconnect_does_not_repeat_cut",
+        "cutter_empty_load_menu_has_touch_back",
+        "cutter_generic_load_menu_has_touch_back"
       ]
     },
     {
@@ -621,7 +727,8 @@
       ],
       "checks": [
         "player_can_send_personalized_ten_percent_promotion",
-        "completed_job_ten_percent_promotion_is_single_use"
+        "completed_job_ten_percent_promotion_is_single_use",
+        "promotion_comment_accepts_typed_text"
       ]
     },
     {

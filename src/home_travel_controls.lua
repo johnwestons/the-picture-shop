@@ -231,7 +231,7 @@ local function drawPlanner(R)
 end
 
 function Controls.draw(R)
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15);tiny=tiny or require('src.screens.typography').get(13)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15);tiny=tiny or love.graphics.newFont(13)
     if R._deliveryPlanner then return drawPlanner(R) end
     local g=love.graphics;drawPanel('TOWN / DELIVERIES',R)
     local week=R.state.home.weekend;local lines={

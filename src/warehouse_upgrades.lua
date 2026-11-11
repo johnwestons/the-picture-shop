@@ -1,6 +1,7 @@
 -- Durable warehouse construction rules. Only the authoritative shop caller
 -- invokes mutations; this module performs no I/O, rendering, or phone side effects.
 local Calendar = require("src.business_calendar")
+local Condition = require("src.warehouse_condition")
 local Upgrades = { LAYOUT_VERSION = 2, STAGE_HOURS = 24, ARRIVAL_LEAD_HOURS = 2 }
 
 local BAY_IDS = { "front_left", "front_right" }
@@ -66,7 +67,7 @@ end
 function Upgrades.defaultState()
     return { layoutVersion = Upgrades.LAYOUT_VERSION, nextProjectId = 1,
         bays = { front_left = { status = "locked" }, front_right = { status = "locked" } },
-        projects = {}, receipts = {}, forkliftOwned = false }
+        projects = {}, receipts = {}, forkliftOwned = false,condition=Condition.new("quick") }
 end
 
 function Upgrades.catalog(optionId)
@@ -78,10 +79,11 @@ function Upgrades.stageInfo(stage) return copy(STAGES[stage]) end
 
 function Upgrades.validate(value)
     if not exact(value, { layoutVersion=true, nextProjectId=true, bays=true, projects=true,
-        receipts=true, forkliftOwned=true, activeProjectId=true, garageDoors=true })
+        receipts=true, forkliftOwned=true, activeProjectId=true, garageDoors=true,condition=true })
         or value.layoutVersion ~= Upgrades.LAYOUT_VERSION
         or not integer(value.nextProjectId) or value.nextProjectId < 1 or value.nextProjectId > 3
         or type(value.forkliftOwned) ~= "boolean"
+        or (value.condition~=nil and not Condition.valid(value.condition))
         or not exact(value.bays, BAYS) or not array(value.projects, 2) or not array(value.receipts, 3)
         or value.nextProjectId ~= #value.projects + 1
         or (value.activeProjectId ~= nil and not token(value.activeProjectId)) then
@@ -196,12 +198,15 @@ function Upgrades.normalize(value)
     if value == nil then return Upgrades.defaultState() end
     local valid, reason = Upgrades.validate(value)
     if not valid then return nil, reason end
-    return copy(value)
+    local normalized=copy(value)
+    normalized.condition=normalized.condition or Condition.new("quick")
+    return normalized
 end
 
 function Upgrades.ensure(state)
     if type(state) ~= "table" then return nil, "A shop state is required." end
     if state.warehouse == nil then state.warehouse = Upgrades.defaultState() end
+    if state.warehouse.condition==nil then state.warehouse.condition=Condition.new("quick") end
     local valid, reason = Upgrades.validate(state.warehouse)
     return valid and state.warehouse or nil, reason
 end

@@ -72,8 +72,12 @@ function Component.install(Runtime)
         Runtime.state.screen = "lan"
         Runtime.startLanSearch()
         if scheduled then
+            Runtime.multiplayer:connectionNote('LAN reconnect','RECOVERING','Connection lost or initial join timed out',
+                'Retry the same LAN host with bounded backoff')
             Runtime.LanScreen.showReconnect(Runtime.lanReconnect:snapshot())
         else
+            Runtime.multiplayer:connectionNote('LAN reconnect exhausted','STALLED','Automatic reconnect attempts ended',
+                'Choose a discovered shop or check the host address')
             Runtime.lanReconnectArmed = false
             Runtime.LanScreen.showError(scheduleError or
                 "Automatic reconnect ended. Choose a found shop or enter its address.")
@@ -103,6 +107,9 @@ function Component.install(Runtime)
         end
         if not connected then
             local scheduled, exhaustedMessage = Runtime.lanReconnect:failed(connectError)
+            Runtime.multiplayer:connectionNote('LAN reconnect',scheduled and 'RECOVERING' or 'STALLED',
+                scheduled and 'LAN retry could not start' or 'Automatic reconnect attempts ended',
+                scheduled and 'Wait for the next bounded retry' or 'Choose a discovered shop or check the host address')
             Runtime.startLanSearch()
             if not scheduled then
                 Runtime.lanReconnectArmed = false

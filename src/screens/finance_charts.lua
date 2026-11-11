@@ -6,7 +6,7 @@ local muted={.65,.76,.75,1}
 local panel={.055,.09,.10,1}
 
 local function font(size)
-    fonts[size]=fonts[size] or require('src.screens.typography').get(size)
+    fonts[size]=fonts[size] or love.graphics.newFont(size)
     return fonts[size]
 end
 local function setColor(color,alpha)
@@ -63,19 +63,17 @@ function Charts.donut(cx,cy,radius,segments,title,value)
     end
     g.setColor(panel);g.circle('fill',cx,cy,radius*.54)
     g.setFont(font(math.floor(math.max(8,math.min(11,radius*.19)))));setColor(muted)
-    g.printf(title or (total>0 and 'TOTAL' or 'NO DATA'),cx-radius,cy-radius-19,radius*2,'center')
+    g.printf(title or (total>0 and 'TOTAL' or 'NO DATA'),cx-radius*.53,cy-radius*.35,radius*1.06,'center')
     if value then
         g.setFont(font(math.floor(math.max(9,math.min(16,radius*.28)))));setColor(ink)
-        local Text=require('src.screens.typography')
-        g.setFont(Text.fit(value,14,radius*1.06,nil,'bold',12))
-        g.printf(Text.ellipsize(value,radius*1.06),cx-radius*.53,cy-g.getFont():getHeight()/2,radius*1.06,'center')
+        g.printf(value,cx-radius*.53,cy-radius*.02,radius*1.06,'center')
     end
     g.pop()
     return total
 end
 
 function Charts.legend(x,y,items,width,rowHeight,limit)
-    local g=love.graphics;rowHeight=math.max(20,rowHeight or 20)
+    local g=love.graphics;rowHeight=rowHeight or 17
     for i,item in ipairs(items or {})do
         if limit and i>limit then break end
         local yy=y+(i-1)*rowHeight
@@ -83,7 +81,7 @@ function Charts.legend(x,y,items,width,rowHeight,limit)
         g.setFont(font(10));setColor(muted)
         local display=item.displayValue or item.valueText
         local valueWidth=display and math.min(76,width*.38) or 0
-        g.printf(require('src.screens.typography').ellipsize(item.label or '',width-17-valueWidth),x+13,yy,width-17-valueWidth,'left')
+        g.printf(item.label or '',x+13,yy,width-17-valueWidth,'left')
         if display then setColor(item.valueColor or ink);g.printf(tostring(display),x+width-valueWidth,yy,valueWidth,'right')end
     end
 end

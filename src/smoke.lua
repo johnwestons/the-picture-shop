@@ -143,7 +143,16 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='receipts' then
+        if focus=='warehouse-condition' then
+            require('src.tests.warehouse_condition_test').run(context,check)
+        elseif focus=='story-intro' then
+            require('src.tests.story_intro_test').run(context,check)
+            require('src.tests.story_departure_test').run(context,check)
+        elseif focus=='commute-day-night' then
+            require('src.commute.tests.day_night_test').run(check)
+            require('src.commute.tests.terrain_renderer_test').run(check)
+            require('src.commute.tests.first_person_test').run(check)
+        elseif focus=='receipts' then
             local receipts=require('src.tests.receipt_book_test').run(context,check)
             require('src.tests.receipt_archive_ui_test').run(context,check,receipts)
             require('src.tests.delivery_signature_test').run(check)
@@ -156,6 +165,9 @@ function Smoke.start(context)
             require('src.tests.computer_browser_test').run(context,check)
             require('src.tests.computer_viewport_test').run(context,check)
             require('src.tests.computer_calendar_test').run(context,check)
+        elseif focus=='office-readability' then
+            require('src.tests.computer_job_review_test').run(context,check)
+            require('src.tests.input_status_test').run(context,check)
         elseif focus=='dock-view' then
             require('src.tests.dock_view_test').run(context,check)
             require('src.tests.outdoor_weather_test').run(context,check)
@@ -192,7 +204,7 @@ function Smoke.start(context)
             require('src.commute.tests.route_map_test').run(check)
             for _,name in ipairs({'ui_typography','ui_integration','shared_gui','options','recent_updates',
                 'computer_viewport','computer_browser','computer_calendar','player_feedback','notifications',
-                'keyboard_mobile','mobile_controls_platform','arcade_mobile_ui','pallet_rack_screen',
+                'warehouse_hud','keyboard_mobile','mobile_controls_platform','arcade_mobile_ui','pallet_rack_screen',
                 'store_regression','employee_speech'}) do
                 require('src.tests.'..name..'_test').run(context,check)
             end
@@ -223,8 +235,14 @@ function Smoke.start(context)
             require('src.tests.delivery_manifest_test').run(context,check)
             require('src.tests.truck_authority_test').run(context,check)
             require('src.tests.truck_session_test').run(context,check)
+        elseif focus=='connection-watchdog' then
+            for _,name in ipairs({'connection_watchdog','transport_enet','multiplayer_session','lan_reconnect','lan_reconnect_session',
+                'direct_session','direct_composite_session_integration'}) do
+                require('src.tests.'..name..'_test').run(context,check)
+            end
         elseif focus=='ai-watchdog' then
             require('src.tests.ai_watchdog_test').run(context,check)
+            require('src.tests.connection_watchdog_test').run(context,check)
         elseif focus=='home-guide' then
             require('src.tests.home_guide_test').run(context,check)
         elseif focus=='network-protocol' then
@@ -307,6 +325,8 @@ function Smoke.start(context)
         elseif focus=='town' then
             require('src.tests.town_setup_test').run(context,check)
             require('src.tests.lua_limits_test').run(context,check)
+        elseif focus=='town-snapshot' then
+            require('src.commute.tests.town_test').run(check)
         elseif focus=='parking' then
             for _,name in ipairs({'road_markings','trip','town_generation','first_person'}) do
                 require('src.commute.tests.'..name..'_test').run(check)
@@ -351,6 +371,9 @@ function Smoke.start(context)
         elseif focus=='vehicle-controls' then
             require('src.commute.tests.bindings_test').run(check)
             require('src.commute.tests.delivery_traffic_test').run(check)
+        elseif focus=='commute-touch-layout' then
+            require('src.commute.tests.touch_journey_test').run(check)
+            require('src.commute.tests.free_touch_test').run(check)
         elseif focus=='silhouette-outline' then
             require('src.commute.tests.silhouette_style_test').run(check)
         elseif focus=='calendar-redesign' then

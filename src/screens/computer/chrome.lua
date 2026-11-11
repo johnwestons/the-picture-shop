@@ -196,21 +196,33 @@ function Component.install(Runtime)
         love.graphics.setColor(0.26, 0.92, 0.48, 1)
         love.graphics.circle("fill", 876, 655, 2.5)
         love.graphics.setColor(0.24, 0.23, 0.20, 1)
-        love.graphics.setFont(require('src.screens.typography').get(12))
         love.graphics.print("CRITTERWORKS CRT-17", 374, 649)
-        local displayDate = Runtime.BusinessCalendar.shortDate(state):gsub("%s+W%d+$", "")
-        love.graphics.printf(displayDate, 646, 649, 132, "right")
+        local clockRect = Runtime.BEZEL_CLOCK
+        local calendar = Runtime.BusinessCalendar.ensure(state)
+        local displayDate = string.upper(string.format('%s, %s %d, %d',
+            Runtime.BusinessCalendar.weekdayName(calendar.weekday),
+            Runtime.BusinessCalendar.monthName(calendar.month), calendar.day, calendar.year))
+        local displayTime = Runtime.BusinessCalendar.timeText(state,twelveHourTime)
         love.graphics.setColor(0.025, 0.055, 0.045, 1)
-        love.graphics.rectangle("fill", 785, 646, 76, 20, 3, 3)
+        love.graphics.rectangle("fill", clockRect.x, clockRect.y, clockRect.width, clockRect.height, 3, 3)
         love.graphics.setColor(0.35, 0.49, 0.41, 1)
-        love.graphics.rectangle("line", 785, 646, 76, 20, 3, 3)
+        love.graphics.rectangle("line", clockRect.x, clockRect.y, clockRect.width, clockRect.height, 3, 3)
+        local previousFont = love.graphics.getFont()
+        local Fonts = require('src.screens.computer.fonts')
+        local font
+        for size = 19, 15, -1 do
+            font = Fonts.get('clock', size)
+            if font:getWidth(displayDate) + font:getWidth(displayTime) + 18 <= clockRect.width then break end
+        end
+        love.graphics.setFont(font)
         love.graphics.setColor(0.52, 0.98, 0.65, 1)
-        Runtime.printCenteredFit(Runtime.BusinessCalendar.timeText(state,twelveHourTime), 788, 648, 70)
+        love.graphics.print(displayDate, clockRect.x + 7, clockRect.y + (clockRect.height-font:getHeight())/2)
+        love.graphics.print(displayTime, clockRect.x + clockRect.width - 7 - font:getWidth(displayTime),
+            clockRect.y + (clockRect.height-font:getHeight())/2)
+        love.graphics.setFont(previousFont)
     end
 
     function Runtime.drawTabSelector(state, pointerX, pointerY)
-        love.graphics.setFont(require('src.screens.typography').get(14))
-        if not Runtime.compactHeader then
         love.graphics.setColor(0.72, 0.72, 0.68, 1)
         love.graphics.rectangle("fill", Runtime.TAB_ADDRESS.x, Runtime.TAB_ADDRESS.y,
             Runtime.TAB_ADDRESS.width, Runtime.TAB_ADDRESS.height)
@@ -226,8 +238,7 @@ function Component.install(Runtime)
         love.graphics.rectangle("fill", Runtime.TAB_ADDRESS.x + 7, Runtime.TAB_ADDRESS.y + 8,
             Runtime.TAB_ADDRESS.width - 14, Runtime.TAB_ADDRESS.height - 15)
         love.graphics.setColor(0.76, 0.94, 0.90, 1)
-        love.graphics.print(require('src.screens.typography').ellipsize(Runtime.ComputerScreen.activeUrl(),
-            Runtime.TAB_ADDRESS.width-30), Runtime.TAB_ADDRESS.x + 15, Runtime.TAB_ADDRESS.y + 14)
+        love.graphics.print(Runtime.ComputerScreen.activeUrl(), Runtime.TAB_ADDRESS.x + 15, Runtime.TAB_ADDRESS.y + 14)
 
         local hovered = pointerX and (Runtime.contains(Runtime.TAB_ADDRESS, pointerX, pointerY)
             or Runtime.contains(Runtime.TAB_DROPDOWN_ARROW, pointerX, pointerY))
@@ -252,7 +263,6 @@ function Component.install(Runtime)
                 Runtime.TAB_DROPDOWN_ARROW.y + 8, 5)
         end
 
-        end
         if not Runtime.ComputerScreen.tabDropdownOpen then return end
         local groups,dropdownHeight=Runtime.tabDropdownGroups()
         Runtime.panel({x=Runtime.TAB_DROPDOWN.x,y=Runtime.TAB_DROPDOWN.y,

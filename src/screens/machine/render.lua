@@ -212,7 +212,7 @@ function Component.install(Runtime)
         if state.machineType == "skid_wrapper" then
             Runtime.box(18, 18, 924, 642, { 0.045, 0.055, 0.07, 0.99 }, { 0.38, 0.56, 0.62, 1 }, 5)
             love.graphics.setColor(0.96, 0.82, 0.26)
-            love.graphics.print("SKID WRAPPER / PACKAGING", 38, 30)
+            love.graphics.print("SKID WRAPPER / PALLET PACKAGING CONSOLE", 38, 30)
             Runtime.drawCondition(state, "skid_wrapper", 366, 28, 280)
             Runtime.BackButton.draw(assets, Runtime.exitButton, "EXIT", pointerX, pointerY, false)
             local nearbyPallets = Runtime.Wrapper.nearbyPallets(state)
@@ -315,7 +315,7 @@ function Component.install(Runtime)
         love.graphics.print("STATUS: " .. Runtime.Machine.step:upper(), 50, 411)
         love.graphics.print("BARRIER: " .. (Runtime.Machine.barrierClear and "CLEAR" or "BLOCKED"), 260, 411)
         love.graphics.print("CLAMP: " .. (Runtime.Machine.clamp and "DOWN" or "UP"), 460, 411)
-        love.graphics.print(require('src.screens.typography').ellipsize(Runtime.Machine.paperTooltip(),862), 50, 435)
+        love.graphics.print(Runtime.Machine.paperTooltip(), 50, 435)
         for _, button in ipairs(Runtime.buttons) do
             if button.y >= 400 and button.action ~= "cut_left" and button.action ~= "cut_right" and button.action ~= "estop" then Runtime.drawButton(button, assets, pointerX, pointerY) end
         end
@@ -325,11 +325,9 @@ function Component.install(Runtime)
             elseif button.action == "estop" then Runtime.drawSpriteButton(assets, button, true, Runtime.Machine.emergencyStopped) end
         end
         love.graphics.setColor(0.75, 0.82, 0.83)
-        love.graphics.push('all');love.graphics.setFont(require('src.screens.typography').get(12))
-        love.graphics.print("Enter: gauge · L: load · G: auto · P: position · Q: rotate · Space: clamp · "
+        love.graphics.print("Gauge + ENTER | L load | G auto | P position | Q rotate CCW | SPACE clamp | "
             .. (Runtime.Machine.multiplayerSingleControl and "J or K cut" or "J+K cut")
-            .. " · T: repeat · U: unload", 48, 535)
-        love.graphics.pop()
+            .. " | T repeat | U unload", 48, 535)
         local memory = Runtime.Machine.savedMeasurements(state, Runtime.Machine.programIndex)
         local formattedMemory = {}
         for index, value in ipairs(memory) do formattedMemory[index] = string.format("%.2f", value) end

@@ -9,6 +9,16 @@ local RESPONSE_POWER=1.65
 local DEFAULT_TOUCH={accelerate='touch1',brake='touch2',boost='touch3',interact='touch4',worldAction='touch6'}
 
 local function clamp(value,lo,hi) return math.max(lo,math.min(hi,value)) end
+local function horizontalExtent(width,bounds)
+    if bounds and bounds.left and bounds.right then
+        return bounds.left,bounds.right,bounds.right-bounds.left
+    end
+    return 0,width,width
+end
+local function horizontalPoint(point,width,bounds)
+    local left,_,span=horizontalExtent(width,bounds)
+    return left+point.x*span
+end
 local function shape(x,y,deadzone,power,sensitivity)
     local length=math.sqrt(x*x+y*y)
     if length<=deadzone then return 0,0 end
@@ -17,13 +27,13 @@ local function shape(x,y,deadzone,power,sensitivity)
     local magnitude=math.min(1,(length-deadzone)/(1-deadzone))^power
     return x/length*magnitude,y/length*magnitude
 end
-local function touchPoint(p,id,width,height,left,right)
+local function touchPoint(p,id,width,height,left,right,bounds)
     local token=p.touch and p.touch[id]
     if not token or token=='' then token=DEFAULT_TOUCH[id] end
     local point=token and p.layout[token]
     if not point and DEFAULT_TOUCH[id] then point=p.layout[DEFAULT_TOUCH[id]] end
-    if not point then return width*.90,height*.70 end
-    local x=point.x*width
+    if not point then return horizontalPoint({x=.90},width,bounds),height*.70 end
+    local x=horizontalPoint(point,width,bounds)
     if left and math.abs(point.x-B.TOUCH_LEFT)<1e-7 then x=left
     elseif right and math.abs(point.x-B.TOUCH_RIGHT)<1e-7 then x=right end
     return x,point.y*height
@@ -47,7 +57,7 @@ local function driveUtilityFits(buttons,x,y,r,gx,gy,scale)
     return true
 end
 
-local function addGearButtons(buttons,items,width,height,radius,left,right)
+local function addGearButtons(buttons,items,width,height,radius,left,right,screenLeft,screenRight)
     local manual=#items>2
     if manual then radius=clamp(math.min(width,height)*.028,13,22) end
     local hit=radius*1.32
@@ -63,7 +73,8 @@ local function addGearButtons(buttons,items,width,height,radius,left,right)
             local found=false
             for row=0,2 do
                 local candidateY=y-row*spacing
-                for _,candidateX in ipairs({right,left,width*.77,width*.67}) do
+                for _,candidateX in ipairs({right,left,screenLeft+(screenRight-screenLeft)*.77,
+                    screenLeft+(screenRight-screenLeft)*.67}) do
                     if driveUtilityFits(buttons,candidateX,candidateY,hit,gx,gy,scale) then
                         x,y,found=candidateX,candidateY,true;break
                     end
@@ -89,6 +100,8 @@ end
 function Touch.actionButtons(width,height,p,context,options)
     context=context or {};options=options or {}
     local mobile=options.mobile==true
+    local bounds=mobile and options.bounds or nil
+    local screenLeft,screenRight,screenWidth=horizontalExtent(width,bounds)
     local mounted=context.mounted~=false
     local rideLayout=mounted or mobile
     local minDim=math.min(width,height)
@@ -102,28 +115,28 @@ function Touch.actionButtons(width,height,p,context,options)
     if mounted then
         -- Fit both round targets inside the screen and leave a gutter between
         -- GO and GET OFF even on narrow phones.
-        right=math.min(width*B.TOUCH_RIGHT,width-mainRadius-pad-3)
-        left=math.min(width*B.TOUCH_LEFT,right-gasRadius-actionRadius-2*pad-4)
+        right=math.min(screenLeft+screenWidth*B.TOUCH_RIGHT,screenRight-mainRadius-pad-3)
+        left=math.min(screenLeft+screenWidth*B.TOUCH_LEFT,right-gasRadius-actionRadius-2*pad-4)
     end
     local buttons={}
 
     if mounted then
-        local x,y=touchPoint(p,'accelerate',width,height,left,right)
+        local x,y=touchPoint(p,'accelerate',width,height,left,right,bounds)
         local margin=gasRadius+pad+1
-        x,y=clamp(x,margin,width-margin),clamp(y,margin,height-margin)
+        x,y=clamp(x,screenLeft+margin,screenRight-margin),clamp(y,margin,height-margin)
         addButton(buttons,'accelerate','GO','throttle',x,y,gasRadius,false,true,gasRadius+pad)
-        x,y=touchPoint(p,'brake',width,height,left,right)
+        x,y=touchPoint(p,'brake',width,height,left,right,bounds)
         addButton(buttons,'brake','BRAKE','brake',x,y,mainRadius,false,true,mainRadius+pad)
-        x,y=touchPoint(p,'interact',width,height,left,right)
+        x,y=touchPoint(p,'interact',width,height,left,right,bounds)
         addButton(buttons,'interact',context.vehicle=='truck' and 'EXIT' or 'GET OFF','dismount',
             x,y,actionRadius,false,not context.gearTransition,actionRadius+pad)
         if context.worldActionLabel then
-            x,y=touchPoint(p,'worldAction',width,height)
+            x,y=touchPoint(p,'worldAction',width,height,nil,nil,bounds)
             addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)
         end
         if context.vehicle~='truck' then
-            x,y=touchPoint(p,'boost',width,height,left,right)
+            x,y=touchPoint(p,'boost',width,height,left,right,bounds)
             local hit=actionRadius+pad
             local gas=buttons[1]
             local gap=gas.hitRadius+hit+pad
@@ -134,7 +147,7 @@ function Touch.actionButtons(width,height,p,context,options)
                 for _,offset in ipairs({{0,-1},{-1,0},{0,1},{1,0},{-1,-1},{-1,1},{1,-1},{1,1}}) do
                     local px,py=gas.x+offset[1]*gap,gas.y+offset[2]*gap
                     local distance=(px-x)^2+(py-y)^2
-                    if distance<best and px>=hit and px<=width-hit and py>=hit and py<=height-hit
+                    if distance<best and px>=screenLeft+hit and px<=screenRight-hit and py>=hit and py<=height-hit
                         and driveUtilityFits(buttons,px,py,hit,gx,gy,scale) then
                         bx,by,best=px,py,distance
                     end
@@ -164,7 +177,7 @@ function Touch.actionButtons(width,height,p,context,options)
             end
         end
     else
-        local x,y=touchPoint(p,'interact',width,height)
+        local x,y=touchPoint(p,'interact',width,height,nil,nil,bounds)
         local vehicleActionAvailable=context.nearBike or context.nearTruck
         local worldActionAvailable=context.worldActionLabel~=nil
         if vehicleActionAvailable then
@@ -172,12 +185,12 @@ function Touch.actionButtons(width,height,p,context,options)
                 x,y,actionRadius,false,not context.gearTransition and not context.pedCrash)
         end
         if worldActionAvailable then
-            x,y=touchPoint(p,'worldAction',width,height)
+            x,y=touchPoint(p,'worldAction',width,height,nil,nil,bounds)
             addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)
         end
         if mobile and not context.arrived then
-            x,y=touchPoint(p,'boost',width,height)
+            x,y=touchPoint(p,'boost',width,height,nil,nil,bounds)
             addButton(buttons,'boost','SPRINT','boost',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)
         end
@@ -185,7 +198,7 @@ function Touch.actionButtons(width,height,p,context,options)
 
     -- Keep these clear of the top-right menus, minimap and throttle controls.
     local cameraY=(context.controlsTop or (mobile and 208 or 246))+cameraRadius
-    local cameraX=(context.controlsTop and Cockpit.CARD_X or 16)+cameraRadius
+    local cameraX=(context.controlsTop and (context.cardX or Cockpit.CARD_X) or screenLeft+16)+cameraRadius
     if not context.cameraMenu then
         addButton(buttons,'followCamera',context.outsideMode=='follow' and 'FIXED' or 'FOLLOW',
             'follow',cameraX,cameraY,cameraRadius,context.outsideMode=='follow',true)
@@ -197,7 +210,8 @@ function Touch.actionButtons(width,height,p,context,options)
         cameraRadius,false,not context.gearTransition and not context.pedCrash and not context.arrived)
     if mobile and mounted and context.vehicle and not context.arrived then
         local stick=p.layout.stick or {x=.10,y=.80}
-        local toggleX=clamp(stick.x*width,cameraRadius+pad,width-cameraRadius-pad)
+        local toggleX=clamp(horizontalPoint(stick,width,bounds),screenLeft+cameraRadius+pad,
+            screenRight-cameraRadius-pad)
         local toggleY=clamp((cameraY+stick.y*height)*.5,cameraRadius+pad,height-cameraRadius-pad)
         addButton(buttons,'steeringMode',context.steeringHorizontal and 'HORIZ' or 'RADIAL',
             'steer',toggleX,toggleY,cameraRadius,context.steeringHorizontal==true,
@@ -215,18 +229,20 @@ function Touch.actionButtons(width,height,p,context,options)
             utilities[#utilities+1]={'shiftDown','DOWN','shift',false}
             utilities[#utilities+1]={'shiftUp','UP','shift',false}
         end
-    elseif not mounted and not context.arrived then
+    elseif not mounted and not context.arrived and context.gearNearBike then
         local label=context.gearTransition and 'WAIT' or context.gearOutfit=='geared' and 'REMOVE' or 'GEAR'
         utilities={{'gear',label,'helmet',context.gearOutfit=='geared',not context.gearTransition}}
     end
     if mounted and #utilities>0 then
-        addGearButtons(buttons,utilities,width,height,utilityRadius,left,right)
+        addGearButtons(buttons,utilities,width,height,utilityRadius,left,right,screenLeft,screenRight)
     elseif #utilities>0 then
         local rowScale=math.min(1.25,width*.64/720,height*.32/230)
         local cockpitTop=height-230*rowScale
         local y=math.max(minDim*.50,cockpitTop-utilityRadius-12)
+        if bounds then y=math.min(y,height*.54) end
         local spacing=math.max(utilityRadius*2+7,math.min(width*.08,72))
-        local left=(width-(#utilities-1)*spacing)*.5
+        local left=bounds and screenRight-utilityRadius-24-(#utilities-1)*spacing
+            or (width-(#utilities-1)*spacing)*.5
         for i,item in ipairs(utilities) do
             addButton(buttons,item[1],item[2],item[3],left+(i-1)*spacing,y,utilityRadius,
                 item[4],item[5])
@@ -259,11 +275,11 @@ function Touch.actionAt(x,y,width,height,p,context,options)
     return nearestPhysical
 end
 
-function Touch:move(id,x,y,width,height,p,sensitivity)
+function Touch:move(id,x,y,width,height,p,sensitivity,bounds)
     local c=self.contacts[id];if not c then return false end
     if c.stick then
         local point=stickPoint(p);local radius=math.min(width,height)*.09
-        local dx,dy=(x-point.x*width)/radius,(y-point.y*height)/radius
+        local dx,dy=(x-horizontalPoint(point,width,bounds))/radius,(y-point.y*height)/radius
         self.x,self.y=shape(dx,dy,DEADZONE,RESPONSE_POWER,sensitivity)
         -- Horizontal vehicle mode ignores vertical thumb drift when steering.
         self.horizontalX=select(1,shape(dx,0,DEADZONE,RESPONSE_POWER,sensitivity))
@@ -289,11 +305,12 @@ function Touch:press(id,x,y,width,height,p,perform,context,options)
     end
     local radius=math.min(width,height)*.045
     local point=stickPoint(p)
-    local dx,dy=x-point.x*width,y-point.y*height
+    local dx,dy=x-horizontalPoint(point,width,options.bounds),y-point.y*height
     local hitRadius=radius*2.2
     if dx*dx+dy*dy<=hitRadius*hitRadius then
         for _,contact in pairs(self.contacts) do if contact.stick then return true end end
-        self.contacts[id]={stick=true};return self:move(id,x,y,width,height,p,options.stickSensitivity)
+        self.contacts[id]={stick=true};return self:move(id,x,y,width,height,p,
+            options.stickSensitivity,options.bounds)
     end
     if context.mounted and not context.gearTransition and options.allowGrip~=false
         and options.mobile and options.camera and (not options.hiddenHud or options.camera.firstPerson) then
@@ -324,7 +341,7 @@ local function fontFor(self,size)
     self.fonts=self.fonts or {}
     size=math.max(8,math.floor(size+.5))
     if not self.fonts[size] then
-        self.fonts[size]=require('src.screens.typography').get(size)
+        self.fonts[size]=love.graphics.newFont(size)
         self.fonts[size]:setFilter('linear','linear')
     end
     return self.fonts[size]
@@ -360,7 +377,7 @@ function Touch:draw(width,height,p,context,options)
     local g=love.graphics;g.push('all')
     local minDim=math.min(width,height);local radius=minDim*.045
     if showStick then
-        local stick=p.layout.stick;local cx,cy=stick.x*width,stick.y*height
+        local stick=p.layout.stick;local cx,cy=horizontalPoint(stick,width,options.bounds),stick.y*height
         local horizontal=options.horizontalSteering==true and context.mounted
         local aim=not horizontal and context.mounted and B.freeCameraTouch(mobile,options.camera)
         local knobX,knobY=self.x,self.y

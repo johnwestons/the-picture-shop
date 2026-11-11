@@ -134,7 +134,7 @@ function Map:snapshot(rect,actor,options)
         end
         local keyRect
         if layout.key and column and row then
-            local keyY=layout.key.y+layout.keyHeaderHeight
+            local keyY=layout.key.y+(layout.mobile and layout.keyHeaderHeight or 0)
             keyRect={x=layout.key.x+column*layout.columnWidth+3,
                 y=keyY+row*layout.rowHeight+2,width=layout.columnWidth-6,height=layout.rowHeight-4}
         end
@@ -160,9 +160,9 @@ local miniRanges={math.huge,800,400,240,140,80,45}
 Map.MINI_LEVELS=#miniRanges
 local function miniLayout(rect)
     if rect.height<200 then
-        local height=math.max(50,rect.height-46)
-        local size=math.min(38,(height-4)/2)
-        return {x=rect.x+8,y=rect.y+38,width=rect.width-size*2-28,height=height,compact=true},size
+        local height=math.max(50,rect.height-34)
+        local size=math.min(32,(height-6)/2)
+        return {x=rect.x+8,y=rect.y+28,width=rect.width-size*2-24,height=height,compact=true},size
     end
     local header=rect.height>=200 and 48 or 38
     local height=math.max(30,rect.height-header-30)
@@ -342,7 +342,7 @@ local function badge(g,x,y,index,color,font,radius)
     g.setFont(font);g.printf(tostring(index),x-radius,y-font:getHeight()/2,radius*2,'center')
 end
 function Map:font(size)
-    if not self.fonts[size]then self.fonts[size]=require('src.screens.typography').get(size)end
+    if not self.fonts[size]then self.fonts[size]=love.graphics.newFont(size)end
     return self.fonts[size]
 end
 local function contains(rect,x,y)
@@ -500,9 +500,9 @@ function Map:draw(rect,actor,options)
         if s.layout.pageCount>1 then
             g.print(('DESTINATIONS  ·  %d / %d'):format(s.layout.page,s.layout.pageCount),s.layout.key.x+12,s.layout.key.y+8)
         elseif mobile then
-            g.print('DESTINATIONS',s.layout.key.x+12,s.layout.key.y+8)
+            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+8)
         else
-            g.print('DESTINATIONS',s.layout.key.x+12,s.layout.key.y+9)
+            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+9)
         end
     end
     for _,area in ipairs(s.recreation)do
@@ -546,7 +546,7 @@ function Map:drawMini(rect,actor,options)
     g.rectangle('fill',rect.x,rect.y,rect.width,rect.height,7)
     g.setColor(.43,.57,.51,.96);g.setLineWidth(1);g.rectangle('line',rect.x,rect.y,rect.width,rect.height,7)
     local guidance=s.guidance
-    local ix,iy=rect.x+23,rect.y+22
+    local ix,iy=rect.x+(area.compact and 17 or 23),rect.y+(area.compact and 15 or 22)
     g.setColor(.38,1,.87,1);g.setLineWidth(4);g.setLineJoin('bevel')
     if guidance.kind=='left' or guidance.kind=='right' then
         local d=guidance.kind=='left' and -1 or 1
@@ -560,14 +560,21 @@ function Map:drawMini(rect,actor,options)
     else
         g.line(ix,iy+11,ix,iy-8);g.polygon('fill',ix,iy-14,ix-8,iy-4,ix+8,iy-4)
     end
-    local font=self:font(rect.height>=200 and 17 or 14)
+    local font=self:font(rect.height>=200 and 17 or area.compact and 12 or 14)
     g.setFont(font);g.setColor(.96,.99,.97,1)
-    g.print(guidance.text,rect.x+46,rect.y+5)
+    local heading=not options.destination and
+        (area.compact and 'Set destination in MAP' or 'Choose a destination') or guidance.text
+    if area.compact then
+        heading=require('src.screens.typography').ellipsize(heading,rect.width-52)
+    end
+    g.print(heading,rect.x+(area.compact and 35 or 46),rect.y+5)
     g.setFont(self:font(12));g.setColor(.68,.83,.82,1)
     local instruction=guidance.kind=='unavailable' and 'Open MAP to choose a destination'
         or guidance.kind=='arrive' and 'Look for the entrance'
         or (guidance.distance>0 and Gps.distance(guidance.distance)..'  ·  ' or '')..Gps.distance(guidance.remaining)..' remaining'
-    g.print(instruction,rect.x+46,rect.y+(rect.height>=200 and 28 or 22))
+    if not area.compact then
+        g.print(instruction,rect.x+46,rect.y+(rect.height>=200 and 28 or 22))
+    end
     local destinationFont=self:font(13);g.setFont(destinationFont);g.setColor(1,.82,.43,1)
     local title=self:label(options.destination) or 'Choose a destination in MAP'
     local available=area.compact and area.width-12 or rect.width-20
@@ -681,11 +688,13 @@ function Map:drawMini(rect,actor,options)
     g.setFont(self:font(10));g.print(Gps.distance(metres),barX,barY-17)
     g.pop() -- Restore the viewport clip before drawing the map controls.
     local titleX,titleY=rect.x+10,rect.y+rect.height-22
-    if area.compact then
+    if area.compact and options.destination then
         titleX,titleY=area.x+4,area.y+area.height-18
         g.setColor(.02,.05,.05,.94);g.rectangle('fill',area.x,titleY-2,area.width,20,3)
     end
-    g.setFont(destinationFont);g.setColor(1,.82,.43,1);g.print(title,titleX,titleY)
+    if not area.compact or options.destination then
+        g.setFont(destinationFont);g.setColor(1,.82,.43,1);g.print(title,titleX,titleY)
+    end
 
     for direction=-1,1,2 do
         local b=Map.miniZoomButton(rect,direction)
@@ -711,8 +720,7 @@ end
 function Map:release()
     if self.background then self.background:release();self.background=nil end
     if self.miniTerrain then self.miniTerrain:release();self.miniTerrain=nil end
-    -- Typography owns these shared fonts; closing the map must not invalidate
-    -- the title screen and other UI that use the same cached sizes.
+    for _,font in pairs(self.fonts) do font:release() end
     self.fonts={};self.miniDetail=nil;self.gpsPath=nil;self.gpsRoute=nil;self.released=true
 end
 return Map

@@ -13,7 +13,7 @@ local TerrainCache = require("src.commute.terrain_cache")
 local TitleScreen = { selected = 1, mode = "normal", message = "", onStart = nil,
     onLocal = nil, onDirect = nil, hover = nil, pressed = nil, hoverSlot = nil, pressedSlot = nil }
 TitleScreen.DISPLAY_MESSAGES = {
-    "Hello Trevor, welcome back to work.", "Happy Printing", "Have a Great Day",
+    "Welcome back to work.", "Happy Printing", "Have a Great Day",
     "Be a Nice Critter", "Sponsored by The CritterNet",
 }
 TitleScreen.DISPLAY_PERIOD = 5
@@ -38,7 +38,7 @@ local function slotRect(index) return { x = 148, y = 344 + (index - 1) * 58, wid
 local function ensureFonts()
     sectionFont = sectionFont or Fonts.get("metal", 16)
     bodyFont = bodyFont or Fonts.get("paper", 13)
-    footerFont = footerFont or require('src.screens.typography').get(10)
+    footerFont = footerFont or love.graphics.newFont(10)
 end
 
 local function runningVersion()
@@ -90,6 +90,7 @@ function TitleScreen.displayText()
     if TitleScreen.displayOverride ~= nil then return TitleScreen.displayOverride end
     if TitleScreen.message ~= "" then return TitleScreen.message end
     local index = math.floor((TitleScreen.cycleTime or 0) / TitleScreen.DISPLAY_PERIOD) + 1
+    if index==1 then return 'Hello '..require('src.player_profile').name(TitleScreen.profileSettings)..', welcome back to work.' end
     return TitleScreen.DISPLAY_MESSAGES[index]
 end
 function TitleScreen.slots()
@@ -171,7 +172,19 @@ local function startNew()
 end
 local function beginSetup()
     TitleScreen.setup=ShopSetup.new();TitleScreen.townSetup=nil;TitleScreen.mode="shop-setup"
+    TitleScreen.setup.startMode=TitleScreen.startMode or "quick"
     TitleScreen.message="Choose the clock pace before creating this shop."
+end
+local function chooseStart(mode)
+    TitleScreen.startMode=mode
+    beginSetup()
+    return true
+end
+local function showStartModes()
+    TitleScreen.mode="start-mode"
+    TitleScreen.startMode="quick"
+    TitleScreen.message="Choose how your new shop begins."
+    return true
 end
 local function beginTownSetup()
     TitleScreen.townSetup=TitleScreen.townSetup or TownSetup.new(TitleScreen.setup,true)
@@ -208,7 +221,7 @@ local function requestNew()
         TitleScreen.message = "Slot " .. TitleScreen.selected .. " already has a shop. Confirm overwrite or cancel."
         return true
     end
-    beginSetup()
+    showStartModes()
     return true
 end
 
@@ -220,7 +233,7 @@ end
 
 local function confirmPending()
     if TitleScreen.mode == "overwrite-confirm" then
-        beginSetup()
+        showStartModes()
         return true
     end
     if TitleScreen.mode == "delete-confirm" then
@@ -313,6 +326,16 @@ end
 function TitleScreen.keypressed(key)
     if TitleScreen.mode=="terrain-bake" then return true end
     if TitleScreen.pendingAction then return true end
+    if TitleScreen.mode=="start-mode" then
+        if key=="escape" or key=="back" then TitleScreen.mode="normal";return true end
+        if key=="1" or key=="q" then return chooseStart("quick") end
+        if key=="2" or key=="s" then return chooseStart("story") end
+        if key=="up" or key=="down" or key=="left" or key=="right" or key=="tab" then
+            TitleScreen.startMode=TitleScreen.startMode=="quick" and "story" or "quick";return true
+        end
+        if key=="return" or key=="kpenter" or key=="space" then return chooseStart(TitleScreen.startMode) end
+        return true
+    end
     if TitleScreen.mode=="town-setup" then
         return handleTownAction(TownSetup.keypressed(TitleScreen.townSetup,key,TitleScreen.setup))
     end
@@ -354,6 +377,12 @@ function TitleScreen.mousepressed(x, y, button)
     if TitleScreen.mode=="terrain-bake" then return true end
     if button ~= 1 then return false end
     if TitleScreen.pendingAction then return true end
+    if TitleScreen.mode=="start-mode" then
+        if inside({x=260,y=351,width=440,height=55},x,y) then return chooseStart("quick") end
+        if inside({x=260,y=415,width=440,height=55},x,y) then return chooseStart("story") end
+        if inside({x=390,y=485,width=180,height=40},x,y) then TitleScreen.mode="normal";return true end
+        return true
+    end
     TitleScreen.keyboardFocus = nil
     if TitleScreen.mode=="town-setup" then
         return handleTownAction(TownSetup.mousepressed(TitleScreen.townSetup,x,y,TitleScreen.setup))
@@ -488,6 +517,23 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         TownSetup.draw(TitleScreen.townSetup,TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
     elseif TitleScreen.mode == "shop-setup" then
         ShopSetup.draw(TitleScreen.setup,TitleScreen.selected,assets,mouseX,mouseY)
+    elseif TitleScreen.mode == "start-mode" then
+        Skin.panel(assets,{x=225,y=300,width=510,height=245})
+        love.graphics.setFont(sectionFont);love.graphics.setColor(.96,.89,.65)
+        love.graphics.printf("HOW WILL YOUR SHOP BEGIN?",240,318,480,"center")
+        local choices={{"quick","QUICK START","Open shop with the current setup",351},
+            {"story","STORY","Meet Grandpa and restore the closed shop",415}}
+        for _,item in ipairs(choices) do
+            local selected=TitleScreen.startMode==item[1]
+            love.graphics.setColor(selected and .13 or .06,selected and .31 or .12,selected and .32 or .14,.96)
+            love.graphics.rectangle("fill",260,item[4],440,55,5)
+            love.graphics.setColor(selected and .46 or .33,selected and .80 or .51,selected and .72 or .48)
+            love.graphics.rectangle("line",260,item[4],440,55,5)
+            love.graphics.setFont(bodyFont);love.graphics.printf(item[2],274,item[4]+7,412,"center")
+            love.graphics.setFont(footerFont);love.graphics.printf(item[3],274,item[4]+32,412,"center")
+        end
+        love.graphics.setColor(.75,.81,.75);love.graphics.setFont(footerFont)
+        love.graphics.printf("1 / 2 choose   ·   Enter confirm   ·   Esc back",260,489,440,"center")
     elseif TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"
         Skin.panel(assets, { x = 260, y = 330, width = 440, height = 146 })
@@ -510,11 +556,11 @@ function TitleScreen.draw(assets, mouseX, mouseY)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
             or (TitleScreen.onDirect
-                and "Arrows: Select  |  Enter: Open  |  L: Local  |  I: Direct"
-                or "Arrows: Select  |  Enter: Open  |  L: Local Play"),
-        12, 649, Config.baseWidth - 24, "center")
+                and "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
+                or "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | Q Quit"),
+        12, 652, Config.baseWidth - 24, "center")
     love.graphics.setColor(0.94, 0.82, 0.50, 0.95)
-    love.graphics.printf(TitleScreen.versionText(), 0, 664, Config.baseWidth, "center")
+    love.graphics.printf(TitleScreen.versionText(), 0, 663, Config.baseWidth, "center")
     love.graphics.pop()
 end
 

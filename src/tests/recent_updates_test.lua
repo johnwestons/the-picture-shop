@@ -67,7 +67,8 @@ function Test.run(context, check)
         applyPlayerColorways = function(fur, overalls)
             appliedFur, appliedOveralls = fur, overalls
         end })
-    OptionsScreen.mousepressed(543, 114, 1)
+    local playerTab=OptionsScreen.tabRect('character')
+    OptionsScreen.mousepressed(playerTab.x+playerTab.width/2, 114, 1)
     OptionsScreen.mousepressed(292 + (furIndex - 1) * 80 + 36, 301, 1)
     OptionsScreen.mousepressed(292 + (overallsIndex - 1) * 80 + 36, 461, 1)
     Settings.save, Settings.applyAudio, Settings.applyDisplay = previousSave, previousAudio, previousDisplay

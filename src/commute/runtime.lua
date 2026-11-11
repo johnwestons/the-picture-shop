@@ -129,6 +129,15 @@ function C.localTrip(R)
     return setmetatable({origin=part.origin,destination=part.destination,deliveryRun=run,
         purpose=run and 'delivery' or 'outing'},{__index=t})
 end
+function C.worldUiBounds(R)
+    if not C.mobileInputEnabled(R) or not R.optionsAccessLayout then return nil end
+    local _,bounds=R.optionsAccessLayout()
+    return bounds
+end
+function C.cardX(R)
+    local bounds=C.worldUiBounds(R)
+    return (bounds and bounds.left or 0)+Cockpit.CARD_X
+end
 local function nearbyTruck(trip,rider)
     if not trip or not rider then return nil end
     if rider.vehicle=='truck' and rider.truck then return rider.truck end
@@ -149,17 +158,20 @@ function C.mapButton(R)
         local height=mobile and 48 or 42
         return {x=right-width-16,y=82,width=width,height=height}
     end
-    return {x=right-140,y=94,width=122,height=32}
+    return {x=right-144,y=12,width=80,height=36}
 end
 function C.miniMapButton(R)
     if R._commute and R._commute.mapOpen then return nil end
     local camera=C.cameraButton(R)
-    return camera and {x=camera.x-80,y=camera.y,width=72,height=camera.height} or nil
+    return camera and {x=camera.x-72,y=camera.y,width=68,height=camera.height} or nil
 end
 function C.miniMapRect(R)
-    local width=math.min(370,math.max(300,R.Config.baseWidth*.30))
-    local height=math.min(260,math.max(110,R.Config.baseHeight*.55-138))
-    return {x=R.Config.baseWidth-width-18,y=138,width=width,height=height}
+    local narrow=R.Config.baseWidth<760
+    local width=narrow and 250 or math.min(370,math.max(300,R.Config.baseWidth*.30))
+    local height=narrow and 155 or math.min(260,math.max(110,R.Config.baseHeight*.55-138))
+    local bounds=C.worldUiBounds(R)
+    return {x=(bounds and bounds.right or R.Config.baseWidth)-width-18,
+        y=narrow and 70 or 54,width=width,height=height}
 end
 function C.mobileInputEnabled(R)
     return R.mobileControls and R.mobileControls.isEnabled and R.mobileControls:isEnabled() or false
@@ -269,7 +281,6 @@ local function rideNotice(R,part)
     return Cockpit.riderHint(part.rider,part.presentation) or R.state.message
 end
 function C.controlContext(R,part,controlsTop)
-    require('src.commute.cockpit').syncLayout(R)
     part=part or C.localPart(R)
     local rider=part and part.rider
     local gear=rider and rider.gear or {}
@@ -283,8 +294,9 @@ function C.controlContext(R,part,controlsTop)
         and rider.vehicle~='truck' or false
     truck=truck or trip and require('src.commute.trip').truckFor(rider,trip)
     local world=C.world(R)
-    local nearBike=rider and not gear.mounted and not gear.transition and rider.vehicle~='truck'
+    local gearNearBike=rider and not gear.mounted and rider.vehicle~='truck'
         and rider.bike and M.length(rider.ped.x-rider.bike.x,rider.ped.z-rider.bike.z)<=3.2 or false
+    local nearBike=gearNearBike and not gear.transition
     local atFuelPump=rider and Station.pumpMode(rider,truck,world)~=nil or false
     local worldActionLabel
     local vehicleActionLabel=nearTruck and 'GET IN TRUCK' or nearBike and 'MOUNT' or nil
@@ -309,16 +321,20 @@ function C.controlContext(R,part,controlsTop)
             end
             if storeId then
                 worldActionLabel=storeId=='grocery' and 'ENTER' or 'SHOP'
+            elseif trip.independent and (nearDoor(sites.warehouse)
+                or nearDoor(sites[R.state.home.apartmentId])) then worldActionLabel='ENTER'
             elseif nearDoor(sites[part.destination or trip.destination]) then worldActionLabel='ENTER'
             elseif nearDoor(sites[part.origin or trip.origin]) then worldActionLabel='ENTER'
             elseif run and run.status=='loading' and nearTruck and Trip.truckAtLoadingBay(world,truck)
                 and (not selectedTruck or selectedTruck.model==truck.model) then worldActionLabel='MANIFEST' end
         end
     end
+    if require('src.story_intro').near(R,part) then worldActionLabel='TALK' end
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
-        vehicle=rider and rider.vehicle,nearTruck=nearTruck,nearBike=nearBike,
+        vehicle=rider and rider.vehicle,nearTruck=nearTruck,nearBike=nearBike,gearNearBike=gearNearBike,
+        cardX=C.cardX(R),
         vehicleActionLabel=vehicleActionLabel,worldActionLabel=worldActionLabel,atFuelPump=atFuelPump,
         engine=isTruck and truck.engine~=false or not isTruck and gear.engine==true,gearOutfit=gear.outfit,
         gearTransition=gear.transition~=nil,arrived=part and part.arrived==true,
@@ -359,8 +375,12 @@ local function nearbyDoor(R,part,trip,view)
         add('grocery')
         add('general-store')
         add('diner')
-        add(part.destination or trip.destination)
-        add(part.origin or trip.origin)
+        if trip.independent then
+            add('warehouse');add(R.state.home.apartmentId)
+        else
+            add(part.destination or trip.destination)
+            add(part.origin or trip.origin)
+        end
     end
     local best,bestDistance
     for _,candidate in ipairs(candidates) do
@@ -451,7 +471,7 @@ local function completeDoorTransition(R,transition)
 end
 function C.cameraButton(R)
     local map=C.mapButton(R);if not map then return nil end
-    return {x=map.x-94,y=map.y,width=88,height=map.height}
+    return {x=map.x-76,y=map.y,width=72,height=map.height}
 end
 function C.toggleMap(R)
     if not C.mapButton(R) then return false end
@@ -478,7 +498,19 @@ function C.activeWaypoint(R)
         local target=stop and stop.kind=='city' and 'mainland_exit' or stop and stop.id or 'warehouse'
         return C.world(R).roads.destinations[target] and target or 'warehouse'
     end
-    local target=view.waypointId or trip and trip.destination
+    -- Story travel has no assigned next stop. An explicit GPS choice may be
+    -- resumed, but visiting a place clears it again.
+    if trip and trip.independent and not view.waypointId then
+        local c=require('src.warehouse_condition').of(R.state)
+        if c and c.mode=='story' and not c.firstDestination then return nil end
+    end
+    -- Regular warehouse outings also start without an automatic GPS route.
+    if trip and trip.origin=='warehouse' and not view.waypointId then
+        local c=require('src.warehouse_condition').of(R.state)
+        if not c or c.mode~='story' or not c.grandpaMet or not c.firstDestination then return nil end
+    end
+    local part=C.localPart(R)
+    local target=view.waypointId or part and part.destination or trip and trip.destination
     local destinations=C.world(R).roads.destinations
     return destinations[target] and target or trip and trip.destination
 end
@@ -500,7 +532,26 @@ function C.setWaypoint(R,id)
     local trip=C.localTrip(R)
     if not trip or not C.world(R).roads.destinations[id] then return false end
     if trip.purpose=='delivery' then return id==C.activeWaypoint(R) end
-    local view=R._commute;view.waypointId=id~=trip.destination and id or nil
+    local part=C.localPart(R)
+    local condition=require('src.warehouse_condition').of(R.state)
+    if trip.independent and part and condition and condition.mode=='story'
+        and condition.grandpaMet and not condition.grandOpened
+        and (id=='warehouse' or id==R.state.home.apartmentId) then
+        local clearing=C.activeWaypoint(R)==id
+        local action=clearing and 'routeclear:'
+            or (id=='warehouse' and 'routework:' or 'routehome:')
+        if not C.request(R,action..trip.token) then return false end
+        if clearing then R._commute.waypointId=nil
+        else R._commute.waypointId=id end
+        C.refreshNavigation(R,C.localPart(R),0,true)
+        return true
+    end
+    if trip.independent and part and (id=='warehouse' or id==R.state.home.apartmentId) then
+        if not C.request(R,(id=='warehouse' and 'routework:' or 'routehome:')..trip.token) then return false end
+    end
+    local view=R._commute
+    if trip.origin=='warehouse' then view.waypointId=view.waypointId~=id and id or nil
+    else view.waypointId=id~=(part and part.destination or trip.destination) and id or nil end
     C.refreshNavigation(R,C.localPart(R),0,true)
     local destination=C.world(R).roads.destinations[id]
     R.state.message='Navigation set to '..(destination.label or id)..'.'
@@ -539,9 +590,11 @@ function C.mapPointer(R,x,y)
             local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
             if view.routeMap:pressMiniFollow(rect,x,y,actor) then return true end
             if view.routeMap:pressMiniZoom(rect,x,y) then return true end
-            -- The GPS is a glanceable driving display; open the town map for
-            -- choosing destinations instead of changing a route on a stray tap.
-            C.toggleMap(R)
+            local id=view.routeMap:hitMini(rect,x,y,actor,{destination=C.activeWaypoint(R),
+                home=R.state.home.apartmentId})
+            if id then C.setWaypoint(R,id) end
+            -- Marker taps choose a route in place. The separate MAP button
+            -- remains the deliberate way to open the full town map.
             return true
         end
     end
@@ -594,7 +647,9 @@ function C.drawMap(R,part)
     local label=view.mapOpen and 'CLOSE' or 'MAP'
     if not view.mapOpen then
         Icons.draw('map',button.x+15,button.y+button.height*.5,20)
-        if not C.mobileInputEnabled(R) then label=label..'  ['..Bindings.hint(C.bindings(R),'map')..']' end
+        if not C.mobileInputEnabled(R) and button.width>=105 then
+            label=label..'  ['..Bindings.hint(C.bindings(R),'map')..']'
+        end
         g.printf(label,button.x+28,button.y+(button.height-g.getFont():getHeight())/2,button.width-30,'center')
     else
         g.setFont(view.routeMap:font(C.mobileInputEnabled(R) and 17 or 16))
@@ -606,6 +661,7 @@ function C.drawMap(R,part)
         require('src.screens.ui').panel(nav,{.10,.15,.15,1},visible and {.64,.79,.57,1} or {.43,.53,.51,1},6,1)
         g.setColor(.94,.95,.89)
         local navLabel=visible and 'HIDE' or 'NAV'
+        if not C.mobileInputEnabled(R) then navLabel=navLabel..' TAB' end
         g.printf(navLabel,nav.x+4,nav.y+(nav.height-g.getFont():getHeight())/2,nav.width-8,'center')
     end
     g.pop()
@@ -621,7 +677,8 @@ function C.drawCameraButton(R)
     g.printf('CAM',
         button.x+25,button.y+(button.height-g.getFont():getHeight())/2,button.width-27,'center')
     g.pop()
-    if view.cameraMenu then CameraMenu.draw(button,view.camera,C.localPart(R).rider) end
+    if view.cameraMenu then CameraMenu.draw(button,view.camera,C.localPart(R).rider,
+        require('src.screens.hud_visibility').cameraLocked(R),C.miniMapRect(R).x) end
     return true
 end
 function C.adjustTruckCabView(R,direction)
@@ -648,19 +705,21 @@ function C.cameraPointer(R,x,y)
     local view=R._commute
     local function hit(b) return x>=b.x and x<=b.x+b.width and y>=b.y and y<=b.y+b.height end
     if hit(button) then
-        C.cancelCameraDrag(R)
+        C.cancelCameraLook(R)
         view.cameraMenu=not view.cameraMenu
         return true
     end
     if not view.cameraMenu then return false end
     local rider=C.localPart(R).rider
-    local seatDirection=CameraMenu.adjustmentAt(button,x,y,view.camera,rider)
+    local mapLeft=C.miniMapRect(R).x
+    local seatDirection=CameraMenu.adjustmentAt(button,x,y,view.camera,rider,mapLeft)
     if seatDirection then C.adjustTruckCabView(R,seatDirection);return true end
     for i,mode in ipairs(CameraMenu.modes) do
-        if hit(CameraMenu.row(button,i)) then
+        if hit(CameraMenu.row(button,i,mapLeft)) then
             local id=mode[1]
-            if not CameraMenu.enabled(id,rider) then return true end
-            if id=='center' then view.camera:recenter()
+            if not CameraMenu.enabled(id,rider,view.camera) then return true end
+            if id=='lock' then require('src.screens.hud_visibility').toggleCameraLock(R)
+            elseif id=='center' then view.camera:recenter()
             elseif id=='first' then view.camera:setFirstPerson(true,Rider.actor(rider),
                 not rider.gear.mounted and rider.vehicle~='truck')
             else
@@ -778,6 +837,8 @@ function C.bind(R,player,connected)
     return okay,part
 end
 local actions={grocery=true,exitgrocery=true,equip=true,remove=true,mount=true,dismount=true,arrive=true,load_delivery=true,deliver_stop=true,finish=true,force=true,cancel=true,
+    enterhome=true,enterwork=true,
+    routehome=true,routework=true,routeclear=true,
     automatic=true,manual=true,shiftup=true,shiftdown=true,ignition=true,headlight=true,beam=true,reverse=true,rescue=true,truck=true,
     signalLeft=true,signalRight=true,radioPrevious=true,radioPlay=true,radioNext=true,radioMute=true}
 function C.decode(command)
@@ -921,7 +982,44 @@ function C.command(R,player,command)
     local action,token,intent=C.decode(command)
     if not action then return false,'invalid_action','Choose an available riding action.','commute' end
     local okay,message,event
-    if action=='grocery' or action=='exitgrocery' then
+    if action=='enterhome' or action=='enterwork' then
+        local part,t=Trip.participant(R.state,player,token)
+        if not part or not t.independent or part.arrived or part.interior
+            or player.sceneId~='commute' or t.deliveryRun then
+            okay,message=false,'Walk up to the apartment or Picture Shop entrance.'
+        else
+            local previous=part.destination
+            part.destination=action=='enterwork' and 'warehouse' or R.state.home.apartmentId
+            local accepted,code,detail,kind=C.command(R,player,'finish:'..token)
+            if not accepted then part.destination=previous end
+            return accepted,code,detail,kind
+        end
+    elseif action=='routeclear' then
+        local part,t=Trip.participant(R.state,player,token)
+        if not part or not t.independent or part.arrived or part.interior
+            or player.sceneId~='commute' or t.deliveryRun then
+            okay,message=false,'Clear navigation while traveling freely outdoors.'
+        else
+            okay=require('src.story_progress').clearRoute(R)
+            message=okay and 'Navigation cleared.' or 'There is no selected route to clear.'
+        end
+    elseif action=='routehome' or action=='routework' then
+        local part,t=Trip.participant(R.state,player,token)
+        local id=action=='routework' and 'warehouse' or R.state.home.apartmentId
+        if not part or not t.independent or part.arrived or part.interior
+            or player.sceneId~='commute' or t.deliveryRun
+            or not C.world(R).roads.destinations[id] then
+            okay,message=false,'Choose a destination while traveling freely outdoors.'
+        else
+            if part.destination~=id then
+                part.destination=id
+                R.state.home.revision=R.state.home.revision+1
+            end
+            require('src.story_progress').choose(R,id)
+            okay=true
+            message='Navigation set to '..(C.world(R).roads.destinations[id].label or id)..'.'
+        end
+    elseif action=='grocery' or action=='exitgrocery' then
         local part,t=Trip.participant(R.state,player,token)
         if not part or not t.independent then return false,'wrong_scene','This store visit has ended.','commute' end
         if action=='grocery' then
@@ -1008,13 +1106,16 @@ function C.command(R,player,command)
         elseif action=='cancel' then okay,event=Trip.cancel(R.state,player,token,C.world(R))
         else okay,event=Trip.finish(R.state,player,token,action=='force') end
         if okay then
+            local storyVisit=t and t.independent
+                and require('src.story_progress').visit(R,event.destination)
+            local storyMessage=storyVisit and R.state.message
             local players={}
             for _,p in ipairs(require('src.weekend_runtime').players(R)) do
                 if event.participants[Residents.key(p)] then players[#players+1]=p end
             end
             require('src.home_travel').placeArrival(R.state,players,event.destination~='warehouse',{
                 resolveShopSpawn=function(x,y,id,party)return R.World.resolveNetworkSpawn(x,y,id,R.Assets,R.state,party) end})
-            message=event.message
+            message=storyMessage or event.message
             if (player.id or 1)==(R.World.player.id or 1) then R.state.screen='world';R.World.selectedInteraction=nil end
         else message=event end
     else
@@ -1030,7 +1131,7 @@ function C.command(R,player,command)
     end
     message=message or (okay and 'Riding action started.' or 'That riding action is unavailable.')
     if okay then
-        R.state.message=message;R.saveCurrent()
+        R.state.message=message;R.saveCurrent(action=='routehome' or action=='routework' or action=='routeclear')
         if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
         if (action=='finish' or action=='force' or action=='cancel') and not C.active(R) then C.releaseView(R) end
     end
@@ -1092,7 +1193,8 @@ local function input(rider,x,y,boost)
         and {steer=steer,drive=y,boost=rider.vehicle~='truck' and boost==true}
         or {walkX=x,walkZ=y,sprint=boost==true}
 end
-function C.update(R,dt,x,y,boost)
+function C.update(R,dt,x,y,boost,cinematic)
+    if require('src.story_intro').dialogueOpen(R) then x,y,boost=0,0,false end
     local transitionView=R._commute
     if transitionView and transitionView.doorTransition
         and DoorTransition.update(transitionView.doorTransition,dt) then
@@ -1110,7 +1212,7 @@ function C.update(R,dt,x,y,boost)
     end
     if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').update(R,dt) end
     local dirty=false
-    if not R.multiplayer:isClient() then
+    if not cinematic and not R.multiplayer:isClient() then
         local players=require('src.weekend_runtime').players(R)
         R._commute=R._commute or {}
         local traffic= require('src.commute.delivery_traffic')
@@ -1244,11 +1346,16 @@ function C.update(R,dt,x,y,boost)
         -- Keep the truck cab and outside view on the same optical center on
         -- phones and desktop so the dashboard stays registered to the windshield.
         view.camera.viewCenterY=nil
-        C.applyCameraPreference(R,view.camera,rider)
+        if cinematic then
+            if view.camera.firstPerson then view.camera:setFirstPerson(false,actor) end
+            view.camera:setOutsideMode('follow',actor,rider.gear.mounted and not rider.gear.transition)
+            view.camera.targetZoom=rider.gear.mounted and 1.18 or 1.35
+            view.camera.offsetY=rider.gear.mounted and -110 or 0
+        else C.applyCameraPreference(R,view.camera,rider) end
         if not rider.gear.mounted or rider.vehicle=='truck' or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
         view.camera:updateRide(rider,dt,visual)
         C.refreshNavigation(R,part,dt,false)
-        if R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen
+        if not cinematic and R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen
             and not require('src.screens.hud_visibility').cameraLocked(R) then
             Bindings.camera(C.bindings(R),view.camera,dt,view.touchControls)
         end
@@ -1256,7 +1363,9 @@ function C.update(R,dt,x,y,boost)
         if not view.renderer then
             -- Present a loading frame before decoding/uploading shared ride art.
             if not view.loading then view.loading=true;return dirty end
-            view.renderer=require('src.commute.renderer').new(world,{x=actor.x,z=actor.z})
+            view.renderer=require('src.commute.renderer').new(world,{x=actor.x,z=actor.z},
+                cinematic and {priorityPath=R._storyOpening and R._storyOpening.arrival
+                    and R._storyOpening.arrival.plan.terrainPath} or nil)
             view.renderer:prewarmViews()
             view.cockpit=require('src.commute.cockpit').new()
             view.cockpit:prewarmFirstPerson()
@@ -1295,11 +1404,10 @@ function C.update(R,dt,x,y,boost)
     end
     return dirty
 end
-function C.draw(R)
-    require('src.commute.cockpit').syncLayout(R)
+function C.draw(R,cinematic)
     local part=C.localPart(R);local view=R._commute
     if not part or not view then return end
-    local showHud=require('src.screens.hud_visibility').isVisible(R)
+    local showHud=not cinematic and require('src.screens.hud_visibility').isVisible(R)
     if not showHud then view.mapOpen=false;view.cameraMenu=false end
     if view.mechanicOffer and C.drawMechanic(R) then return end
     if not view.renderer or view.loading then
@@ -1326,12 +1434,16 @@ function C.draw(R)
     if view.mapOpen then g.clear(.025,.04,.035,1) else
     g.push();g.translate(offsetX,offsetY);g.scale(scaleX,scaleY)
     local localId=R.multiplayer.localId or 1;local playersById={}
+    local nameplates={}
     for _,player in ipairs(R.multiplayer:remotePlayers()) do playersById[player.id]=player end
     local actors={}
     for id,p in pairs(R.state.home.commute.participants) do
         local player=p.slot==localId and R.World.player or playersById[p.slot]
         if player and Residents.key(player)~=id then player=nil end
         local r=C.visualRider(p,player,R.state.home.commute.token)
+        if player and p~=part and not p.interior then
+            nameplates[#nameplates+1]={player=player,actor=Rider.actor(r),height=r.vehicle=='truck' and 3.9 or 2.1}
+        end
         if p==part and view.controlFeedback and r.vehicle=='truck' and r.truck~=p.rider.truck then
             local feedback=view.controlFeedback
             local delta=feedback.steer-(r.truck.steering or p.presentation.steer or 0)
@@ -1425,23 +1537,39 @@ function C.draw(R)
     g.push()
     if cabViewport then g.translate(cabViewport.x,cabViewport.y) end
     view.renderer:draw(renderCamera,actor,actors,R.App.settings)
+    require('src.story_intro').drawWorld(R,renderCamera)
+    local labelCamera=renderCamera.shoulderView or renderCamera
+    for _,entry in ipairs(nameplates) do
+        local p=entry.actor
+        local distance=(p.x-labelCamera.centerX)^2+(p.z-labelCamera.centerZ)^2
+        local sx,sy,depth=labelCamera:screen(p.x,p.z,(p.h or view.world:supportHeight(p.x,p.z))+entry.height)
+        if distance<(view.renderer.effectiveRadius or 64)^2
+            and (not labelCamera.firstPerson or depth and depth>.15)
+            and sx>=0 and sx<=(labelCamera.viewportWidth or 1280) and sy>=0 and sy<=(labelCamera.viewportHeight or 880) then
+            require('src.player_profile').drawNameplate(entry.player,sx,sy-20)
+        end
+    end
     for _,entry in ipairs(traffic) do
         if entry.deliveryEmployee and entry.actor and entry.actor.speechCode then
             local px,py=view.camera:screen(entry.actor.x,entry.actor.z,
                 (entry.actor.h or view.world:supportHeight(entry.actor.x,entry.actor.z))+1.65)
-            local caption=require('src.employee_speech').message(entry.actor.speechCode)
+            local Speech=require('src.employee_speech')
+            local caption=Speech.message(entry.actor.speechCode)
             if caption then
-                local width=love.graphics.getFont():getWidth(caption)+16
+                local visible,fullCaption=require('src.dialogue_presentation').present(
+                    'commute-delivery:'..tostring(entry.id),entry.characterId,caption,
+                    Speech.emotion(entry.actor.speechCode))
+                local width=love.graphics.getFont():getWidth(fullCaption or caption)+16
                 love.graphics.push('all');love.graphics.setShader();love.graphics.setColor(.035,.045,.045,.92)
                 love.graphics.rectangle('fill',px-width*.5,py-23,width,20,5)
                 love.graphics.setColor(.97,.96,.86,1)
-                love.graphics.printf(caption,px-width*.5+4,py-21,width-8,'center')
+                love.graphics.printf(visible or caption,px-width*.5+4,py-21,width-8,'center')
                 love.graphics.pop()
             end
         end
     end
     g.pop()
-    if not view.renderer:terrainReady() and not view.mapOpen then
+    if not cinematic and not view.renderer:terrainReady() and not view.mapOpen then
         local stats=view.renderer:terrainStats()
         local message=part.rider.gear.mounted
             and ('Town loading %d%% · riding opens when ready'):format(
@@ -1472,6 +1600,7 @@ function C.draw(R)
         if trip.purpose=='delivery' then
             local waypoint=C.activeWaypoint(R)
             markerIds=waypoint~='mainland_exit' and {waypoint} or {}
+        elseif trip.origin=='warehouse' then markerIds=view.waypointId and {view.waypointId} or {}
         else markerIds={trip.origin,trip.destination} end
         for _,id in ipairs(markerIds) do
             local site=view.world.sites.byId[id]
@@ -1484,7 +1613,7 @@ function C.draw(R)
     end
     g.pop()
     end
-    if not view.mapOpen and not view.doorTransition then
+    if not cinematic and not view.mapOpen and not view.doorTransition then
         drawDoorBeacon(R,part,activeTrip,view)
     end
     if view.doorTransition then
@@ -1499,65 +1628,38 @@ function C.draw(R)
         g.setColor(1,1,1);return
     end
     local trip=C.localTrip(R)
-    local target=view.world.roads.destinations[(trip.purpose=='outing' or trip.purpose=='delivery') and C.activeWaypoint(R) or trip.destination]
-    local toolbar=require('src.screens.hud_visibility').buttons(R)[1]
-    local right=(toolbar and toolbar.x or R.Config.baseWidth)-12
-    local cameraWidth=math.max(1,math.min(224,right-Cockpit.CARD_X-Cockpit.CARD_WIDTH-8))
-    g.setColor(.025,.04,.035,.94);g.rectangle('fill',right-cameraWidth,Cockpit.CARD_Y,cameraWidth,27,6)
-    local mode=CameraMenu.currentLabel(view.camera)
-    local cameraLabel=cameraWidth>=180 and 'CAM  ·  '..mode or mode
-    g.push('all');g.setFont(require('src.screens.typography').get(14))
-    g.setColor(.87,.91,.79);require('src.screens.player_status').printLine(cameraLabel,
-        right-cameraWidth+10,Cockpit.CARD_Y+6,cameraWidth-20)
-    g.pop()
+    local targetId
+    if trip.purpose=='delivery' or trip.origin=='warehouse' then
+        targetId=C.activeWaypoint(R)
+    else targetId=trip.destination end
+    local target=targetId and view.world.roads.destinations[targetId]
     local note=rideNotice(R,part)
     local mobile=C.mobileInputEnabled(R)
     local noteY,hintY,controlsTop=Cockpit.infoLayout(mobile,note)
     local actionContext=C.controlContext(R,part,controlsTop)
-    local infoRight=view.miniMapVisible~=false and C.miniMapRect(R).x-12 or R.Config.baseWidth-16
-    if not mobile then
-        g.setColor(.76,.83,.76)
-        local hints
-        if part.rider.vehicle=='truck' then
-            hints=Bindings.hint(bindings,'accelerate')..' GO  ·  '..Bindings.hint(bindings,'brake')..' BRAKE/REV  ·  '
-                ..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')..' STEER  ·  '
-                ..Bindings.hint(bindings,'interact')..' EXIT  ·  drag to look'
-        elseif not part.rider.gear.mounted then
-            hints=Bindings.hint(bindings,'boost')..' SPRINT'
-            if actionContext.vehicleActionLabel then
-                hints=hints..'  ·  '..Bindings.hint(bindings,'interact')..' '..actionContext.vehicleActionLabel
-            end
-            if actionContext.worldActionLabel then
-                hints=hints..'  ·  '..Bindings.hint(bindings,'worldAction')..' ACTION'
-            end
-            hints=hints..'  ·  drag to look'
-        else
-            hints=Bindings.hint(bindings,'accelerate')..' GO  ·  '..Bindings.hint(bindings,'brake')
-                ..' BRAKE/REV  ·  '..Bindings.hint(bindings,'left')..' / '..Bindings.hint(bindings,'right')
-                ..' STEER  ·  '..Bindings.hint(bindings,'horn')..' HORN  ·  '..Bindings.hint(bindings,'beam')
-                ..' HI/LO  ·  '..Bindings.hint(bindings,'interact')..' GET OFF  ·  drag to look'
-        end
-        require('src.screens.player_status').printLine(hints,Cockpit.CARD_X,hintY,infoRight-Cockpit.CARD_X)
-    end
+    local cardX=C.cardX(R)
+    local bounds=C.worldUiBounds(R)
+    local infoRight=view.miniMapVisible~=false and C.miniMapRect(R).x-12
+        or (bounds and bounds.right or R.Config.baseWidth)-16
     if note and tostring(note)~='' then
-        local noteWidth=math.min(630,g.getFont():getWidth(tostring(note))+18,infoRight-Cockpit.CARD_X)
-        g.setColor(.025,.04,.035,.72);g.rectangle('fill',Cockpit.CARD_X,noteY,noteWidth,27,6)
-        g.setColor(.83,.88,.80);require('src.screens.player_status').printLine(tostring(note),Cockpit.CARD_X+8,noteY+7,noteWidth-16)
+        local noteWidth=math.min(630,g.getFont():getWidth(tostring(note))+18,infoRight-cardX)
+        g.setColor(.025,.04,.035,.72);g.rectangle('fill',cardX,noteY,noteWidth,27,6)
+        g.setColor(.83,.88,.80);require('src.screens.player_status').printLine(tostring(note),cardX+8,noteY+7,noteWidth-16)
     end
     if not view.mapOpen and part.rider.vehicle=='truck' then
-        g.setColor(.025,.04,.035,.9);g.rectangle('fill',Cockpit.CARD_X,Cockpit.CARD_Y,Cockpit.CARD_WIDTH,Cockpit.CARD_HEIGHT,6)
+        Cockpit.drawVehicleFrame(cardX,Cockpit.CARD_Y)
         local truck=part.rider.truck
         local label=truck and truck.model=='kei' and 'KEI DELIVERY TRUCK' or 'DELIVERY TRUCK'
-        g.setColor(.84,.88,.77);require('src.screens.player_status').printLine(label,Cockpit.CARD_X+10,Cockpit.CARD_Y+11,Cockpit.CARD_WIDTH-20)
+        g.setColor(.84,.88,.77);require('src.screens.player_status').printLine(label,cardX+10,Cockpit.CARD_Y+11,Cockpit.CARD_WIDTH-20)
         local mph=(truck and truck.speed or 0)*2.236936
-        g.setColor(.96,.83,.48);require('src.screens.player_status').printLine(('SPEED  %02d MPH'):format(math.floor(mph+.5)),Cockpit.CARD_X+10,Cockpit.CARD_Y+39,Cockpit.CARD_WIDTH-20)
+        g.setColor(.96,.83,.48);require('src.screens.player_status').printLine(('SPEED  %02d MPH'):format(math.floor(mph+.5)),cardX+10,Cockpit.CARD_Y+39,Cockpit.CARD_WIDTH-20)
         local condition=100-(truck and truck.damage or 0)
         local fuel=math.floor((truck and truck.fuel or 0)+.5)
         g.setColor(condition<60 and 1 or .68,condition<60 and .53 or .84,.48)
         require('src.screens.player_status').printLine(('COND %d%%  ·  FUEL %d L'):format(condition,fuel),
-            Cockpit.CARD_X+10,Cockpit.CARD_Y+59,Cockpit.CARD_WIDTH-20)
+            cardX+10,Cockpit.CARD_Y+59,Cockpit.CARD_WIDTH-20)
     elseif not view.mapOpen then
-        Cockpit.drawCondition(part.rider.bike,Cockpit.CARD_X,Cockpit.CARD_Y,view.renderer.bikeArt)
+        Cockpit.drawCondition(part.rider.bike,cardX,Cockpit.CARD_Y,view.renderer.bikeArt)
     end
     if part.rider.gear.mounted and part.rider.vehicle~='truck' and not view.mapOpen then
         if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
@@ -1565,17 +1667,20 @@ function C.draw(R)
     end
     if not view.mapOpen then
         C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,C.touchProfile(R,part),actionContext,
-            {mobile=mobile,showActions=true,camera=view.camera,
+            {mobile=mobile,showActions=true,camera=view.camera,bounds=bounds,
                 horizontalSteering=mobile and horizontalTouchSteering(R,part.rider)})
     end
     C.drawMap(R,part)
     C.drawCameraButton(R)
+    require('src.story_intro').drawHud(R)
     g.setColor(1,1,1)
-    return target.label,trip.purpose=='delivery' and 'CUSTOMER DELIVERY' or trip.purpose=='outing' and 'TOWN OUTING' or trip.destination=='warehouse' and 'RIDE TO WORK' or 'RIDE HOME'
+    return target and target.label,
+        trip.purpose=='delivery' and 'CUSTOMER DELIVERY' or target and 'ROUTE SELECTED' or nil
 end
 local function performVehicleAction(R)
     local trip=C.localTrip(R);local part=C.localPart(R)
     if not trip or not part then return false end
+    if require('src.story_intro').open(R) then return true end
     if trip.deliveryRun and trip.deliveryRun.status=='offmap' then return true end
     local rider=part.rider
     if rider.vehicle=='truck' then return C.request(R,'truck:'..trip.token) end
@@ -1591,6 +1696,7 @@ end
 local function performWorldAction(R)
     local trip=C.localTrip(R);local part=C.localPart(R)
     if not trip or not part then return false end
+    if require('src.story_intro').open(R) then return true end
     if trip.deliveryRun and trip.deliveryRun.status=='offmap' then return true end
     if part.arrived then
         return beginDoorTransition(R,'finish',trip.token,part.destination or trip.destination)
@@ -1623,6 +1729,12 @@ local function performWorldAction(R)
             return beginDoorTransition(R,id,trip.token,id)
         end
     end
+    if trip.independent and not trip.deliveryRun and onFootAtDoor(sites.warehouse) then
+        return beginDoorTransition(R,'enterwork',trip.token,'warehouse')
+    end
+    if trip.independent and not trip.deliveryRun and onFootAtDoor(sites[R.state.home.apartmentId]) then
+        return beginDoorTransition(R,'enterhome',trip.token,R.state.home.apartmentId)
+    end
     if near(sites[part.destination or trip.destination]) then
         return beginDoorTransition(R,'arrive',trip.token,part.destination or trip.destination)
     end
@@ -1640,6 +1752,20 @@ end
 
 function C.keypressed(R,key,semantic)
     if R.state.screen~='world' then return false end
+    if require('src.story_intro').dialogueOpen(R) then
+        if key=='return' or key=='space' or key=='e' or key=='back' or key=='escape'
+            or not semantic and key==C.bindings(R).keyboard.worldAction then
+            require('src.story_intro').advance(R)
+        end
+        return true
+    end
+    if key=='j' and not semantic then
+        local c=require('src.warehouse_condition').of(R.state)
+        if c and c.mode=='story' and not c.grandOpened then
+            require('src.shop_room_controls').open(R,'utilities')
+            return true
+        end
+    end
     if not C.active(R) then
         if semantic and key=='g' or not semantic and key==C.bindings(R).keyboard.gear then
             local gear=require('src.commute.outfit').get(R.state,R.World.player)
@@ -1715,6 +1841,10 @@ function C.keypressed(R,key,semantic)
     return true
 end
 function C.perform(R,id)
+    if require('src.story_intro').dialogueOpen(R) then
+        if id=='interact' or id=='worldAction' then require('src.story_intro').advance(R) end
+        return true
+    end
     if id=='steeringMode' then return toggleMobileSteeringMode(R) end
     if id=='interact' or id=='dismount' then
         if R._commute and R._commute.mechanicOffer then
@@ -1740,6 +1870,10 @@ function C.perform(R,id)
 end
 function C.deviceInput(R,device,token)
     if R.state.screen~='world' or not C.active(R) then return false end
+    if require('src.story_intro').dialogueOpen(R) then
+        if token=='a' or token=='b' or token=='return' then require('src.story_intro').advance(R) end
+        return true
+    end
     if R._commute and R._commute.mechanicOffer and device=='controller' then
         local key=({b='escape',x='tab',leftshoulder='tab',rightshoulder='tab',back='escape',a='return',dpup='up',dpdown='down',dpleft='left',dpright='right'})[token]
         if key then require('src.commute.mechanic_shop').keypressed(R,key) end
@@ -1768,7 +1902,8 @@ function C.gearTouchButton(R)
     if not part or part.arrived or part.rider.gear.mounted or R._commute and R._commute.loading then return nil end
     local gear=part.rider.gear
     local width,height=R.Config.baseWidth,R.Config.baseHeight
-    for _,button in ipairs(Touch.actionButtons(width,height,C.touchProfile(R,part),C.controlContext(R,part),{mobile=true})) do
+    for _,button in ipairs(Touch.actionButtons(width,height,C.touchProfile(R,part),C.controlContext(R,part),
+        {mobile=true,bounds=C.worldUiBounds(R)})) do
         if button.action=='gear' then
             local diameter=button.hitRadius*2
             return {x=button.x-button.hitRadius,y=button.y-button.hitRadius,width=diameter,height=diameter,
@@ -1789,6 +1924,7 @@ function C.drawGearTouch(R)
 end
 function C.touchPressed(R,id,x,y)
     if R.state.screen~='world' or not C.localPart(R) then return false end
+    if require('src.story_intro').dialogueOpen(R) then return require('src.story_intro').pointer(R,x,y) end
     local view=R._commute
     if view and view.doorTransition then return true end
     if R._commute and R._commute.mechanicOffer then
@@ -1805,7 +1941,7 @@ function C.touchPressed(R,id,x,y)
         function(action) C.perform(R,action) end,C.controlContext(R,part),
         {mobile=true,allowGrip=C.mobileInputEnabled(R),camera=R._commute and R._commute.camera,
             stickSensitivity=touchStickSensitivity(R,part.rider),
-            hiddenHud=not require('src.screens.hud_visibility').isVisible(R)}) then return true end
+            hiddenHud=not require('src.screens.hud_visibility').isVisible(R),bounds=C.worldUiBounds(R)}) then return true end
     return C.cameraTouchPressed(R,id,x,y)
 end
 function C.touchMoved(R,id,x,y)
@@ -1814,7 +1950,7 @@ function C.touchMoved(R,id,x,y)
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     local part=C.localPart(R)
     if view and view.touchControls and view.touchControls:move(id,x,y,R.Config.baseWidth,R.Config.baseHeight,
-        C.touchProfile(R,part),touchStickSensitivity(R,part and part.rider)) then return true end
+        C.touchProfile(R,part),touchStickSensitivity(R,part and part.rider),C.worldUiBounds(R)) then return true end
     return C.cameraTouchMoved(R,id,x,y)
 end
 function C.touchReleased(R,id)
@@ -1826,6 +1962,7 @@ function C.touchReleased(R,id)
 end
 function C.pointer(R,x,y,source)
     if R.state.screen~='world' then return false end
+    if require('src.story_intro').dialogueOpen(R) then return require('src.story_intro').pointer(R,x,y) end
     if R._commute and R._commute.doorTransition then return true end
     local offer=R._commute and R._commute.mechanicOffer
     if offer then return require('src.commute.mechanic_shop').pointer(R,x,y) end
@@ -1838,6 +1975,7 @@ function C.pointer(R,x,y,source)
     local mobile=C.mobileInputEnabled(R)
     local action=Touch.actionAt(x,y,R.Config.baseWidth,R.Config.baseHeight,C.touchProfile(R,part),
         C.controlContext(R,part),{mobile=mobile,camera=R._commute and R._commute.camera,
+            bounds=C.worldUiBounds(R),
             hiddenHud=not require('src.screens.hud_visibility').isVisible(R)})
     if action then
         if not action.enabled then return true end

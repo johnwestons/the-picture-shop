@@ -62,6 +62,21 @@ function Test.run(check)
     local options={destination='building-03',route={points={{x=300,z=240},{x=125,z=80}}}}
     local plus,minus=Map.miniZoomButton(small,1),Map.miniZoomButton(small,-1)
     local initial=map:miniSnapshot(small,actor,options)
+    local autoRect=Map.miniFollowButton(small)
+    check('compact_gps_map_and_controls_have_distinct_hit_areas',
+        initial.area.y>=small.y+28 and initial.area.y+initial.area.height<=small.y+small.height
+        and initial.area.x+initial.area.width<plus.x
+        and plus.x+plus.width<=minus.x
+        and autoRect.y>=plus.y+plus.height
+        and autoRect.x+autoRect.width<=small.x+small.width)
+    local oldPrint=love.graphics.print;local destinationHeadings=0
+    love.graphics.print=function(t,...)
+        if t=='Set destination in MAP' then destinationHeadings=destinationHeadings+1 end
+        return oldPrint(t,...)
+    end
+    local headingOkay,headingReason=pcall(map.drawMini,map,small,actor,{})
+    love.graphics.print=oldPrint;assert(headingOkay,headingReason)
+    check('compact_gps_destination_hint_appears_once_above_map',destinationHeadings==1)
     map:pressMiniZoom(small,plus.x+5,plus.y+5)
     local closer=map:miniSnapshot(small,actor,options)
     check('mini_zoom_enlarges_cached_map_about_rider',closer.viewport.scale>initial.viewport.scale
@@ -96,9 +111,10 @@ function Test.run(check)
     local manual=map:miniSnapshot(small,actor,options)
     check('gps_manual_zoom_survives_speed_change',not map.miniAuto
         and manual.range==map:miniSnapshot(small,{x=300,z=240,heading=0,speed=30},options).range)
-    local uiFont=map:font(16)
+    local uiFont=require('src.screens.typography').get(16)
+    check('travel_map_fonts_are_owned_by_map',map:font(16)~=uiFont)
     map:release();map:release();map:prepare()
-    check('travel_map_release_preserves_shared_ui_fonts',uiFont==require('src.screens.typography').get(16)
+    check('travel_map_release_preserves_other_ui_fonts',uiFont==require('src.screens.typography').get(16)
         and uiFont:getWidth('Title screen')>0)
     check('travel_map_release_is_idempotent_and_cannot_recreate_resources',map.released and map.background==nil
         and map.backgroundBuilds==1 and map.terrainSamples==samples)

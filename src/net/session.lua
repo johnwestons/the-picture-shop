@@ -12,5 +12,6 @@ require("src.net.session.client_messages").install(Runtime)
 require("src.net.session.service").install(Runtime)
 require("src.net.session.client_update").install(Runtime)
 require("src.net.session.workshop_controls").install(Runtime)
+require("src.net.session.diagnostics").install(Runtime)
 
 return Runtime.Session

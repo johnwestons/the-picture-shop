@@ -266,15 +266,13 @@ function Station.draw(v,args,width,height)
         g.setColor(.76,.80,.72,1);text(g,'$1.60 per litre',436,238,410)
         text(g,('Current tank  %.2f / %.0f L'):format(fuel,capacity),436,270,410)
         button(g,440,296,60,58,'−',amount>0)
-        g.push('all');g.setFont(require('src.screens.typography').get(14))
         g.setColor(.99,.94,.78,1);g.printf(('%d.%03d L'):format(math.floor(amount/1000),amount%1000),505,316,70,'center')
-        g.pop()
         button(g,575,296,60,58,'+',amount<amountLimit(v.mode,args))
         button(g,440,367,195,44,'FILL TO FULL',true)
         g.setColor(.95,.86,.64,1);g.print(('TOTAL  $%.2f'):format(cost(v.mode,amount)/100),440,434,0,1.35)
         text(g,v.mode=='truck' and 'The truck must be parked in its marked bay.'
             or 'The motorcycle must be in a marked pump bay.',675,290,190)
-        text(g,amount>0 and ('Selected amount: %.3f L'):format(amount/1000) or 'Tank is full.',675,370,190)
+        text(g,amount>0 and ('Selected amount: %.3f L'):format(amount/1000) or 'Tank is full.',675,333,190)
     end
     g.setColor(1,.89,.67,1)
     text(g,v.notice or (v.mode=='counter' and 'Only oil changes are available at the counter.'

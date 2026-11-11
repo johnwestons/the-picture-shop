@@ -37,7 +37,12 @@ function Test.run(context,check)
     end
     local function options()
         local screen,bounds=R.optionsAccessLayout()
-        tap(R.OptionsScreen.accessRect(screen,bounds))
+        local shared=require('src.screens.warehouse_hud')
+        if shared.active(R) then
+            local layout=shared.layoutFor(R,bounds)
+            tap(layout.menu)
+            tap(shared.menuRow(layout,1))
+        else tap(R.OptionsScreen.accessRect(screen,bounds)) end
         check('scene_exit_touch_opens_options_'..finger,R.state.screen=='options',
             ('from=%s to=%s scene=%s loadingAssets=%s'):format(tostring(screen),tostring(R.state.screen),
                 tostring(R.World.player.sceneId),tostring(R.Assets.isLoading())))
@@ -110,7 +115,10 @@ function Test.run(context,check)
         check('scene_exit_escape_opens_riding_options',R.state.screen=='options')
         capture(R,'dismounted-options-exit');R.App.keypressed('escape')
         check('scene_exit_escape_resumes_dismounted_game',R.state.screen=='world')
-        tap(require('src.screens.hud').exitRect(select(2,R.optionsAccessLayout())))
+        local shared=require('src.screens.warehouse_hud')
+        local layout=shared.layoutFor(R,select(2,R.optionsAccessLayout()))
+        tap(layout.menu)
+        tap(shared.menuRow(layout,2))
         local footSave=assert(R.Save.load(3))
         check('scene_exit_dismounted_trip_keeps_bike_and_walker_separate',R.state.screen=='title'
             and not footSave.state.home.commute.participants.owner.rider.gear.mounted

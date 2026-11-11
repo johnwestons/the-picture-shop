@@ -195,6 +195,13 @@ function Rooms.targets(player,state)
             hoverX=Rooms.roomEntrance.hoverX,
             hoverY=Rooms.roomEntrance.hoverY,hoverRadius=Rooms.roomEntrance.hoverRadius,
             prompt="E: choose an expansion room"}}
+        local condition=require("src.warehouse_condition").of(state)
+        if condition then
+            local point=require("src.warehouse_condition").anchors.breaker
+            targets.restoration={kind="restoration",x=point.x,y=point.y,radius=point.radius,
+                hoverX=point.hoverX,hoverY=point.hoverY,hoverRadius=25,
+                prompt=condition.mode=="story" and "E: inspect closed-shop restoration" or "E: warehouse light switch"}
+        end
         ballTargets(targets,player,state)
         return targets
     end
@@ -454,6 +461,9 @@ function Rooms.transfer(player,state,action,palletId,context)
     return true,"accepted",action=="store" and "Shop stock stored in this room." or "Stock returned to the warehouse entrance."
 end
 function Rooms.perform(player,state,kind,command,context)
+    if kind=="restoration" then
+        return require("src.warehouse_condition").perform(state,player,command)
+    end
     if kind=="shopRoom" then return Rooms.transition(player,state,command,context) end
     if kind=="roomRest" then
         if command~="rest" and command~="stand" then return false,"not_allowed","Unknown break room action." end

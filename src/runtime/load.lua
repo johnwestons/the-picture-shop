@@ -71,7 +71,6 @@ function Component.install(Runtime)
         Runtime.acceptanceHostPlan = acceptanceHost
         Runtime.acceptanceHostRelocationSignature = nil
         love.graphics.setDefaultFilter("nearest", "nearest")
-        love.graphics.setFont(require('src.screens.typography').get(16))
         Runtime.App.settings = Runtime.Settings.load()
         Runtime.ComputerScreen.configureTimeFormat(function()
             return Runtime.App.settings and Runtime.App.settings.twelveHourTime

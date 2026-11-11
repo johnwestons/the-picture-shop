@@ -5,11 +5,6 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.ComputerScreen.mousepressed(state, x, y, button)
         if button ~= 1 then return nil end
-        local detail=Runtime.ComputerScreen
-        if (detail.tab=='active' or detail.tab=='completed') and not detail.promoJobId and not detail.tabDropdownOpen
-            and (detail.jobDetailMaxScroll or 0)>0 and Runtime.contains(detail.jobDetailViewport(),x,y) then
-            detail.jobDetailDragY=y;return {action='detail_scroll'}
-        end
         -- Do not retain Android keyboard focus when the player taps elsewhere.
         -- The estimate and promotion input hit targets below explicitly opt back in.
         Runtime.ComputerScreen.quoteFocused = false
@@ -40,7 +35,7 @@ function Component.install(Runtime)
         end
         if Runtime.ComputerScreen.tab=="clock" then
             local speed=require("src.screens.shop_clock").speedAt(x,y,
-                {x=82,y=184,width=792,height=444})
+                {x=110,y=190,width=738,height=394})
             if speed then
                 if not Runtime.ComputerScreen.canChangeGameClockSpeed() then
                     state.message="Only the host can change game speed."
@@ -54,20 +49,30 @@ function Component.install(Runtime)
                 return {action="blocked"}
             end
         end
-        if Runtime.ComputerScreen.tab=="home" then return Runtime.homeMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab=="home" then
+            local hx,hy=Runtime.containedPagePoint(x,y,Runtime.HOME_PAGE_LAYOUT)
+            return Runtime.homeMousepressed(state,hx,hy)
+        end
         if Runtime.ComputerScreen.tab=='receipts' then return Runtime.receiptsMousepressed(state,x,y) end
         if Runtime.ComputerScreen.tab=='financials' or Runtime.ComputerScreen.tab=='bills'
             or Runtime.ComputerScreen.tab=='player_wages' then
             return Runtime.financialsMousepressed(state,x,y)
         end
         if Runtime.ComputerScreen.tab=="groceries" or Runtime.ComputerScreen.tab=="takeout" or Runtime.ComputerScreen.tab=="home_orders" or Runtime.ComputerScreen.tab=="furniture" then
-            return Runtime.homeShopMousepressed(state,x,y)
+            local hx,hy=Runtime.containedPagePoint(x,y,Runtime.HOME_PAGE_LAYOUT)
+            return Runtime.homeShopMousepressed(state,hx,hy)
         end
         if Runtime.ComputerScreen.tab=="radio" then
-            return require("src.jukebox").mousepressed(state,x,y,button,
+            local rx,ry=Runtime.containedPagePoint(x,y,Runtime.RADIO_PAGE_LAYOUT)
+            return require("src.jukebox").mousepressed(state,rx,ry,button,
                 Runtime.ComputerScreen.radioReadOnly())
         end
-        if Runtime.ComputerScreen.tab == "warehouse" then return Runtime.warehouseMousepressed(state,x,y) end
+        if Runtime.ComputerScreen.tab == "warehouse" then
+            local layout=Runtime.ComputerScreen.warehouseStagingPage
+                and Runtime.WAREHOUSE_STAGING_LAYOUT or Runtime.WAREHOUSE_PAGE_LAYOUT
+            local wx,wy=Runtime.containedPagePoint(x,y,layout)
+            return Runtime.warehouseMousepressed(state,wx,wy)
+        end
         if Runtime.ComputerScreen.tab == "hiring" then
             return Runtime.ComputerScreen.hiringMousepressed(state,x,y)
         end
@@ -294,7 +299,7 @@ function Component.install(Runtime)
             for row = 1, pageSize do
                 local email = inbox[firstEmail + row - 1]
                 if not email then break end
-                local rect = { x = 94, y = Runtime.emailRowY() + (row - 1) * 54, width = 280, height = 46 }
+                local rect = { x = 116, y = Runtime.emailRowY() + (row - 1) * 54, width = 282, height = 46 }
                 if Runtime.contains(rect, x, y) then
                     Runtime.ComputerScreen.selectedEmailId = email.id
                     Runtime.ComputerScreen.emailSelectionRequired = false
@@ -467,22 +472,23 @@ function Component.install(Runtime)
             return nil
         end
 
+        local scrolled = Runtime.jobScrollPointer(state,x,y)
+        if scrolled then return scrolled end
         local _, visible, page, maximumPage = Runtime.currentPageJobs(state)
-        if Runtime.contains(Runtime.PREVIOUS, x, y) and page > 1 then
+        if Runtime.contains(Runtime.jobRect('PREVIOUS'), x, y) and page > 1 then
             Runtime.ComputerScreen.pages[Runtime.ComputerScreen.tab] = page - 1
             local _, pageJobs = Runtime.currentPageJobs(state)
             Runtime.ComputerScreen.selectedJobId = pageJobs[1] and pageJobs[1].id or nil
             return { action = "page", page = page - 1 }
         end
-        if Runtime.contains(Runtime.NEXT, x, y) and page < maximumPage then
+        if Runtime.contains(Runtime.jobRect('NEXT'), x, y) and page < maximumPage then
             Runtime.ComputerScreen.pages[Runtime.ComputerScreen.tab] = page + 1
             local _, pageJobs = Runtime.currentPageJobs(state)
             Runtime.ComputerScreen.selectedJobId = pageJobs[1] and pageJobs[1].id or nil
             return { action = "page", page = page + 1 }
         end
         for row, job in ipairs(visible) do
-            local rect = { x = Runtime.LIST.x + 8, y = Runtime.LIST.y + 14 + (row - 1) * Runtime.ROW_HEIGHT,
-                width = Runtime.LIST.width - 16, height = 38 }
+            local rect = Runtime.jobRowRect(row)
             if Runtime.contains(rect, x, y) then
                 Runtime.ComputerScreen.selectedJobId = job.id
                 return { action = "select", job = job }
@@ -490,7 +496,7 @@ function Component.install(Runtime)
         end
         local selected = Runtime.findJob(Runtime.jobsForTab(state, Runtime.ComputerScreen.tab), Runtime.ComputerScreen.selectedJobId)
         if Runtime.ComputerScreen.tab == "active" and selected
-            and Runtime.contains(Runtime.PICKUP_EMPLOYEE,x,y)
+            and Runtime.contains(Runtime.jobRect('PICKUP_EMPLOYEE'),x,y)
             and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
             and selected.inspection.status == "passed" then
             if selected.status == "ready_for_pickup" then
@@ -502,7 +508,7 @@ function Component.install(Runtime)
             return {action="pickup_ready",job=selected,driverMode="employee"}
         end
         if Runtime.ComputerScreen.tab == "active" and selected
-            and Runtime.contains(Runtime.PICKUP_PLAYER,x,y)
+            and Runtime.contains(Runtime.jobRect('PICKUP_PLAYER'),x,y)
             and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
             and selected.inspection.status == "passed" then
             if selected.status == "ready_for_pickup" then
@@ -516,14 +522,14 @@ function Component.install(Runtime)
         if Runtime.ComputerScreen.tab=="active" and selected
             and (Runtime.completionReady(selected) or selected.status=="ready_for_pickup") and selected.inspection
             and selected.inspection.status=="passed"
-            and (Runtime.contains(Runtime.COMPLETE,x,y)) then
+            and (Runtime.contains(Runtime.jobRect('COMPLETE'),x,y)) then
             if selected.outboundDelivery and selected.outboundDelivery.transport == "customer"
                 and selected.status == "in_production" then
                 return { action = "pickup_ready", job = selected }
             end
             return nil
         end
-        if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.COMPLETE, x, y) then
+        if Runtime.ComputerScreen.tab == "active" and Runtime.contains(Runtime.jobRect('COMPLETE'), x, y) then
             if not Runtime.completionReady(selected) then
                 return { action = "completion_blocked", job = selected }
             end
@@ -551,7 +557,7 @@ function Component.install(Runtime)
             return { action = "quality_inspection", job = selected, inspection = result }
         end
         if Runtime.ComputerScreen.tab == "completed" and selected
-            and not Runtime.promotionSentForJob(state, selected) and Runtime.contains(Runtime.JOB_PROMO, x, y)
+            and not Runtime.promotionSentForJob(state, selected) and Runtime.contains(Runtime.jobRect('JOB_PROMO'), x, y)
         then
             Runtime.ComputerScreen.promoJobId = selected.id
             Runtime.ComputerScreen.promoText = ""
@@ -564,11 +570,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.wheelmoved(state, _, y)
+        if y ~= 0 and Runtime.ComputerScreen.scrollJobDetail(state, y > 0 and -1 or 1) then return true end
         if Runtime.ComputerScreen.tab=='receipts' then return Runtime.ComputerScreen.receiptScroll(state,y>0 and -1 or 1) end
-        local detail=Runtime.ComputerScreen
-        if (detail.tab=='active' or detail.tab=='completed') and (detail.jobDetailMaxScroll or 0)>0 then
-            detail.scrollJobDetail(-y*42);return true
-        end
+
         if Runtime.ComputerScreen.tab ~= "calendar" or y == 0 then return false end
         if not Runtime.ComputerScreen.calendarDayOpen then return false end
         local _,_,maximum=Runtime.clampCalendarDayScroll(state)
@@ -578,18 +582,21 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.mousemoved(state,x,y)
-        local detail=Runtime.ComputerScreen
-        if detail.jobDetailDragY then detail.scrollJobDetail(detail.jobDetailDragY-y);detail.jobDetailDragY=y;return true end
         if Runtime.ComputerScreen.tab=="warehouse" then
-            return Runtime.warehouseMouseMoved(state,x,y)
+            local layout=Runtime.ComputerScreen.warehouseStagingPage
+                and Runtime.WAREHOUSE_STAGING_LAYOUT or Runtime.WAREHOUSE_PAGE_LAYOUT
+            local wx,wy=Runtime.containedPagePoint(x,y,layout)
+            return Runtime.warehouseMouseMoved(state,wx,wy)
         end
         return false
     end
 
     function Runtime.ComputerScreen.mousereleased(state,x,y,button)
-        if button==1 then Runtime.ComputerScreen.jobDetailDragY=nil end
         if Runtime.ComputerScreen.tab=="warehouse" then
-            return Runtime.warehouseMouseReleased(state,x,y,button)
+            local layout=Runtime.ComputerScreen.warehouseStagingPage
+                and Runtime.WAREHOUSE_STAGING_LAYOUT or Runtime.WAREHOUSE_PAGE_LAYOUT
+            local wx,wy=Runtime.containedPagePoint(x,y,layout)
+            return Runtime.warehouseMouseReleased(state,wx,wy,button)
         end
         return false
     end

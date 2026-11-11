@@ -1,5 +1,6 @@
 -- Presentation-only motorcycle mixer. No saved state or network commands.
 local Audio={};Audio.__index=Audio
+local Soundscape=require('src.soundscape')
 local root='assets/audio/commute/'
 local bands={1400,3000,5000,7500}
 local loops={'engine-1400','engine-3000','engine-5000','engine-7500','wind','tires','intake','brake','nature'}
@@ -27,13 +28,15 @@ function Audio:loadSources()
     if not love or not love.audio then return end
     local function load(name,loop)
         local path=name=='nature' and root..'forest-ambience.mp3' or root..name..'.wav'
-        local ok,source=pcall(love.audio.newSource,path,name=='nature' and 'stream' or 'static')
+        local ok,source=pcall(love.audio.newSource,Soundscape.path('commute-'..name,path),name=='nature' and 'stream' or 'static')
         if ok then source:setLooping(loop);source:setVolume(0);self.sources[name]=source
         else self.errors[#self.errors+1]=path..': '..tostring(source);print('[COMMUTE AUDIO] '..self.errors[#self.errors]) end
     end
     for _,name in ipairs(loops) do load(name,true) end
     for _,name in ipairs({'ignition','shutdown','shift','impact'}) do load(name,false) end
     local ok,source=pcall(function()
+        local custom=Soundscape.path('commute-horn',nil)
+        if custom then local horn=love.audio.newSource(custom,'static');horn:setLooping(true);horn:setVolume(0);return horn end
         local rate=22050;local count=rate/2
         local data=love.sound.newSoundData(count,rate,16,1)
         for i=0,count-1 do
@@ -64,11 +67,12 @@ end
 function Audio:cue(name,volume)
     local s=self.sources[name]
     if not s or self.muted or self.paused then return end
-    s:stop();s:setVolume(self.master*self.sfx*volume);s:play()
+    s:stop();s:setVolume(self.master*self.sfx*volume*Soundscape.gain('commute-'..name,'sfx'));s:play()
 end
 function Audio:loop(name,volume,pitch,ambient)
     local s=self.sources[name];if not s then return end
     volume=volume*self.master*(ambient and self.ambient or self.sfx)
+        *Soundscape.gain('commute-'..name,ambient and 'ambience' or 'sfx')
     s:setVolume(volume);s:setPitch(clamp(pitch or 1,.4,2.5))
     if volume>.0001 then if not s:isPlaying() then s:play() end
     elseif s:isPlaying() then s:pause() end

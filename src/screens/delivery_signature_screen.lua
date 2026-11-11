@@ -13,7 +13,8 @@ local STAMP={0.40,0.16,0.12,1}
 
 local function font(size)
     if Screen.fonts[size] then return Screen.fonts[size] end
-    local value=require('src.screens.typography').get(size)
+    local ok,value=pcall(love.graphics.newFont,Config.paths.workOrderFont,size)
+    if not ok or not value then value=love.graphics.newFont(size) end
     Screen.fonts[size]=value
     return value
 end

@@ -21,7 +21,8 @@ function Component.install(Runtime)
             else return false,"not_allowed","Unknown break room game.",requestedKind end
             return okay,code,message,requestedKind
         end
-        if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest" then
+        if requestedKind=="shopRoom" or requestedKind=="roomStock" or requestedKind=="roomRest"
+            or requestedKind=="restoration" then
             local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,
                 {assets=Runtime.World._assets,obstacles=Runtime.movementObstacles,players=function()
                     local result={Runtime.World.player}

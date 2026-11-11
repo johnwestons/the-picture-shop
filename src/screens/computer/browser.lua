@@ -14,7 +14,8 @@ function Component.install(Runtime)
         {id="address_paw", label="CritterNet menu", x=121, y=137, width=48, height=41},
         {id="www", label="Online suppliers", x=697, y=137, width=42, height=42},
         {id="status_paw", label="CritterNet menu", x=116, y=601, width=47, height=36},
-        {id="clock", label="Shop clock", x=785, y=646, width=76, height=20},
+        {id="clock", label="Shop clock", x=Runtime.BEZEL_CLOCK.x, y=Runtime.BEZEL_CLOCK.y,
+            width=Runtime.BEZEL_CLOCK.width, height=Runtime.BEZEL_CLOCK.height},
     }
     Runtime.BROWSER_PANEL = {x=170, y=184, width=518, height=444}
     Runtime.BROWSER_CLOSE = {x=630, y=194, width=44, height=30}
@@ -67,20 +68,7 @@ function Component.install(Runtime)
             or screen.tab == "completed" or screen.tab == "deliveries"
     end
     function Runtime.browserButtons()
-        if not require("src.screens.computer.mobile_layout").active() then return Runtime.BROWSER_BUTTONS end
-        if not screen.tabDropdownOpen then return {} end
-        -- The compact phone header hides the sprite toolbar. Keep the same
-        -- actions available as labeled buttons beneath its destination menu.
-        local _, height = Runtime.tabDropdownGroups()
-        local result = {}
-        for index, definition in ipairs({{"back","< BACK"},{"forward","FORWARD >"},
-            {"home","HOME"},{"search","FIND"},{"favorites","FAVORITES"},
-            {"email","EMAIL"},{"www","SUPPLIERS"},{"clock","CLOCK"}}) do
-            result[index] = {id=definition[1],label=definition[2],compact=true,
-                x=Runtime.TAB_DROPDOWN.x+4+((index-1)%4)*128,
-                y=Runtime.TAB_DROPDOWN.y+height+6+math.floor((index-1)/4)*44,width=124,height=40}
-        end
-        return result
+        return Runtime.BROWSER_BUTTONS
     end
     local function clearFocus()
         screen.quoteFocused, screen.deliveryQuoteFocused, screen.promoFocused = false, false, false

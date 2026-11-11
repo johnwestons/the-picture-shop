@@ -9,6 +9,7 @@ function Component.install(Runtime)
         if require('src.screens.notifications_screen').pointer(Runtime,x,y,button) then return true end
         local visibility=require('src.screens.hud_visibility')
         if visibility.pointer(Runtime,x,y,button) then return true end
+        if require('src.screens.warehouse_hud').active(Runtime) then return false end
         if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error'
             or Runtime.state.screen=='critter_kombat' then return false end
         local screen,bounds=Runtime.optionsAccessLayout()
@@ -94,7 +95,8 @@ function Component.install(Runtime)
             local result = Runtime.OptionsScreen.mousepressed(gameX, gameY, button)
             Runtime.syncMobileKeyboard()
             return result
-        elseif button == 1 and Runtime.OptionsScreen.accessHit(gameX, gameY, Runtime.optionsAccessLayout()) then
+        elseif button == 1 and not require('src.screens.warehouse_hud').active(Runtime)
+            and Runtime.OptionsScreen.accessHit(gameX, gameY, Runtime.optionsAccessLayout()) then
             return Runtime.openOptions()
         elseif Runtime.state.screen == "lan" then
             local result = Runtime.LanScreen.mousepressed(gameX, gameY, button)

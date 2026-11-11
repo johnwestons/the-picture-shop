@@ -2,6 +2,8 @@ local Config = require("src.config")
 local BusinessCalendar = require("src.business_calendar")
 local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
+local Typography = require("src.screens.typography")
+local WarehouseHud = require('src.screens.warehouse_hud')
 
 local Hud = {}
 local EXIT = { x = 816, y = 14, width = 126, height = 40 }
@@ -17,85 +19,145 @@ function Hud.drawExit(assets,pointerX,pointerY,bounds)
     local rect=Hud.exitRect(bounds)
     local hovered=pointerX and pointerY and BackButton.contains(rect,pointerX,pointerY)
     Ui.panel(rect,hovered and {.20,.27,.27,1} or {.12,.17,.18,1},{.43,.53,.51,1},4,1)
-    require('src.screens.typography').label('EXIT TO MENU',rect,{size=14})
+    love.graphics.setColor(.94,.95,.89)
+    love.graphics.printf('EXIT TO MENU',rect.x,rect.y+(rect.height-love.graphics.getFont():getHeight())/2,
+        rect.width,'center')
+end
+
+local function shadowedPrint(text, x, y, color)
+    love.graphics.setColor(0.04, 0.05, 0.06, 0.9)
+    love.graphics.print(text, x + 2, y + 2)
+    love.graphics.setColor(color)
+    love.graphics.print(text, x, y)
+end
+
+local function shadowedPrintf(text, x, y, width, color)
+    love.graphics.setColor(0.04, 0.05, 0.06, 0.9)
+    love.graphics.printf(text, x + 2, y + 2, width, "left")
+    love.graphics.setColor(color)
+    love.graphics.printf(text, x, y, width, "left")
 end
 
 function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller, bounds,
         followPlayerCamera,twelveHourTime,feedback,sceneId,player)
-    local Text=require('src.screens.typography')
-    local Status=require('src.screens.player_status')
-    bounds=bounds or {left=0,right=Config.baseWidth,bottom=Config.baseHeight}
-    local left,right,bottom=bounds.left,bounds.right,bounds.bottom or Config.baseHeight
-    local atHome=sceneId=='home' and state.home
-    EXIT.x,EXIT.y=right-EXIT.width-18,14
-    local g=love.graphics;g.push('all');g.setFont(Text.get(16))
-    local rect=Status.draw(state,twelveHourTime,bounds,
-        atHome and require('src.home_catalog').APARTMENTS[state.home.apartmentId].name or 'WAREHOUSE')
-    local y=rect.y+rect.height+6
-    local function card(text,color,width,size)
-        width=math.max(180,width or rect.width)
-        local lines,height,font=Text.lines(text,width-20,size or 16)
-        local panel={x=left+18,y=y,width=width,height=height+14}
-        Ui.panel(panel,Text.colors.panel,Text.colors.border,5,1)
-        g.setFont(font);g.setColor(color or Text.colors.body)
-        g.printf(text,panel.x+10,panel.y+7,width-20,'left')
-        y=y+panel.height+6
-        return panel
+    bounds = bounds or { left = 0, right = Config.baseWidth, bottom = Config.baseHeight }
+    local left, right, bottom = mobile and bounds.left or 0,
+        mobile and bounds.right or Config.baseWidth,
+        mobile and bounds.bottom or Config.baseHeight
+    EXIT.x, EXIT.y = right - EXIT.width - 18, 14
+    local atHome=sceneId=="home" and state.home
+    if sceneId=='warehouse' then
+        WarehouseHud.drawStatus(state,feedback,{left=left,right=right},twelveHourTime)
+    elseif atHome then
+        WarehouseHud.drawTerrainStatus(state,feedback,{left=left,right=right},twelveHourTime)
+    else
+    local originalFont=love.graphics.getFont()
+    local cashFont=Typography.get(mobile and 21 or 18)
+    love.graphics.setFont(cashFont)
+    local cashText = atHome and ("Home "..Ui.money(state.home.balanceCents/100)) or Ui.money(state.money)
+    local cashWidth = math.max(112, math.min(180, love.graphics.getFont():getWidth(cashText) + 22))
+    local cashX, cashY, cashHeight = left + 18, 13, mobile and 36 or 33
+    local cashDelta, cashTimer, cashDuration = 0, 0, 1
+    if feedback and not atHome then cashDelta, cashTimer, cashDuration = feedback:cashEffect() end
+    local cashAge = cashDuration - cashTimer
+    local pulse = cashTimer > 0 and math.max(0, 1 - cashAge / 0.34) or 0
+    local scale = 1 + pulse * 0.075
+    local cashColor = { 0.71, 0.63, 0.35 }
+    if cashTimer > 0 then
+        cashColor = cashDelta >= 0 and { 0.36, 0.88, 0.60 } or { 1.0, 0.61, 0.36 }
     end
-    if not atHome then
-        local inventory=state.inventory or {}
-        local stock='Paper '..Ui.commaNumber(inventory.paper)..'   Samples '..Ui.commaNumber(inventory.prints)
-        if state.bills and state.bills.balance>0 then stock=stock..'   Bills due '..Ui.money(state.bills.balance) end
-        card(stock,Text.colors.muted,rect.width,14)
+    love.graphics.push("all")
+    love.graphics.translate(cashX + cashWidth / 2, cashY + cashHeight / 2)
+    love.graphics.scale(scale, scale)
+    love.graphics.translate(-cashX - cashWidth / 2, -cashY - cashHeight / 2)
+    love.graphics.setColor(0.055, 0.075, 0.085, 0.94)
+    love.graphics.rectangle("fill", cashX, cashY, cashWidth, cashHeight, 6, 6)
+    love.graphics.setColor(cashColor[1], cashColor[2], cashColor[3], 0.28 + pulse * 0.68)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.rectangle("line", cashX, cashY, cashWidth, cashHeight, 6, 6)
+    love.graphics.setColor(0.95, 0.84, 0.30)
+    love.graphics.print(cashText, cashX + 11, cashY + (cashHeight-cashFont:getHeight())/2)
+    love.graphics.pop()
+    if cashTimer > 0 then
+        local fade = math.min(1, cashTimer / 0.25)
+        local direction = cashDelta >= 0 and "+" or "−"
+        local changeText = direction .. Ui.money(math.abs(cashDelta))
+        love.graphics.push("all")
+        love.graphics.setColor(cashColor[1], cashColor[2], cashColor[3], fade)
+        love.graphics.print(changeText, cashX + 9, cashY + 33 - math.min(cashAge, 0.42) * 14)
+        love.graphics.pop()
     end
-    if feedback then
-        local delta,timer=feedback:cashEffect()
-        if timer and timer>0 and rect.width>=520 then
-            g.setFont(Text.get(16,'bold'));g.setColor(delta>=0 and {.58,1,.73,1} or Text.colors.warning)
-            g.print((delta>=0 and '+' or '−')..Ui.money(math.abs(delta)),rect.x+rect.width-125,rect.y+29)
-        end
+    local statFont=Typography.get(mobile and 20 or 17)
+    love.graphics.setFont(statFont)
+    local paperText="Paper: " .. state.inventory.paper
+    local samplesText="Samples: " .. state.inventory.prints
+    local paperX = left + math.max(160, cashWidth + 34)
+    local samplesX=paperX+math.max(98,statFont:getWidth(paperText)+17)
+    local dateX=samplesX+math.max(100,statFont:getWidth(samplesText)+17)
+    if atHome then
+        shadowedPrint(require("src.home_catalog").APARTMENTS[state.home.apartmentId].name,paperX,20,{.88,.92,.94})
+    else
+        shadowedPrint(paperText, paperX, 18, { 0.88, 0.92, 0.94 })
+        shadowedPrint(samplesText, samplesX, 18, { 0.88, 0.92, 0.94 })
     end
-    if state.message and state.message~='' then
-        local messageWidth=atHome and math.min(rect.width,660) or rect.width
-        card(state.message,Text.colors.body,messageWidth,16)
+    love.graphics.setFont(originalFont)
+    local date = BusinessCalendar.ensure(state)
+    local dateText = BusinessCalendar.weekdayName(date.weekday) .. " • "
+        .. BusinessCalendar.shortDate(state)
+    shadowedPrint(dateText, dateX, 20, { 0.74, 0.88, 0.89 })
+    shadowedPrint("TIME "..BusinessCalendar.timeText(state,twelveHourTime),dateX,38,{.96,.85,.40})
+    if not atHome and state.bills and state.bills.balance > 0 then
+        local billsX = dateX + math.max(190, love.graphics.getFont():getWidth(dateText) + 18)
+        shadowedPrint("Bills due: $" .. state.bills.balance, billsX, 20, { 0.96, 0.48, 0.30 })
     end
-    local homeNeedsTop=math.max(120,y)
+    end
+    if sceneId~='warehouse' then Hud.drawExit(assets,pointerX,pointerY,{right=right}) end
+    if state.message and sceneId~='warehouse' then
+        local reserved=sceneId=="warehouse" and 442 or 320
+        love.graphics.push('all')
+        love.graphics.setFont(Typography.get(mobile and 18 or 16))
+        shadowedPrintf(state.message, left + 24, 62, right - left - reserved, { 0.88, 0.92, 0.94 })
+        love.graphics.pop()
+    end
     local week=state.home and state.home.weekend
-    if week and week.phase~='working' then
-        local status=require('src.weekend_flow').isOuting(state) and 'TOWN OUTING · The shop keeps its normal schedule.'
-            or week.phase=='closing' and 'FRIDAY CLOSING · Finish work and pickups, then go home.'
-            or week.phase=='ready' and 'SHOP CLOSED · Go home from the front entrance. Time is held.'
-            or ('AT HOME · Return Monday at '..BusinessCalendar.formatTime(7,30,twelveHourTime)
-                ..'. Shop opens '..BusinessCalendar.formatTime(9,0,twelveHourTime)..'.')
-        -- Home needs occupy the left below the header; keep the weekend notice
-        -- beside them, with its own backdrop instead of text on scene art.
-        if atHome then
-            local oldLeft=left;left=left+304;y=math.max(140,y)
-            card(status,Text.colors.accent,math.max(210,right-left-24),14);left=oldLeft
-        else card(status,Text.colors.accent,rect.width,14) end
+    if week and week.phase~="working" and sceneId~='warehouse' then
+        local status=require("src.weekend_flow").isOuting(state) and "TOWN OUTING: use either entrance to return. The shop keeps its normal schedule."
+            or week.phase=="closing" and "FRIDAY CLOSING: finish work and pickups, then go home from the front entrance."
+            or week.phase=="ready" and "SHOP CLOSED: use the exterior front entrance to go home. Time is held."
+            or ("AT HOME: return becomes available Monday at "..BusinessCalendar.formatTime(7,30,twelveHourTime)
+                ..", before the "..BusinessCalendar.formatTime(8,0,twelveHourTime)
+                .." employee shift. Shop opens at "..BusinessCalendar.formatTime(9,0,twelveHourTime)..".")
+        shadowedPrintf(status,left+24,92,right-left-48,{.96,.85,.40})
     end
-    if prompt and prompt~='' then
-        local shown=prompt
+    if prompt then
+        local shownPrompt = prompt
         if mobile then
-            shown=shown:gsub('^E%s+or%s+F:%s*','USE / PARK: '):gsub('^E:%s*','USE: ')
-                :gsub('X:%s*dismiss applicant','DISMISS applicant')
-        elseif controller then shown=shown:gsub('^E%s+or%s+F:%s*','A / X: '):gsub('^E:%s*','A: ') end
-        local width=math.min(620,right-left-48)
-        local _,height,font=Text.lines(shown,width-24,16,'bold')
-        local panel={x=(left+right-width)/2,y=bottom-(mobile and 112 or 64)-height,width=width,height=height+20}
-        Ui.panel(panel,Text.colors.panel,Text.colors.accent,6,1)
-        g.setFont(font);g.setColor(Text.colors.accent);g.printf(shown,panel.x+12,panel.y+10,width-24,'center')
+            shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "TAP USE / PARK: ")
+                :gsub("^E:%s*EMAIL RESUME%s*|%s*X:%s*NOT HIRING", "TAP EMAIL RESUME / NOT HIRING button")
+                :gsub("^E:%s*", "TAP USE: ")
+                :gsub("%s+X:%s*dismiss applicant", " / use DISMISS button")
+        elseif controller then
+            shownPrompt = shownPrompt:gsub("^E%s+or%s+F:%s*", "A or X: ")
+                :gsub("^E:%s*EMAIL RESUME%s*|%s*X:%s*NOT HIRING", "A: EMAIL RESUME  /  B: NOT HIRING")
+                :gsub("^E:%s*", "A: ")
+                :gsub("X:%s*dismiss applicant", "B: dismiss applicant")
+        end
+        shadowedPrint(shownPrompt, mobile and (left + right) / 2 - 230 or 360,
+            bottom - 52, { 0.95, 0.85, 0.35 })
     end
-    if atHome and player then require('src.home_activity_controls').drawHud(state,player,left,right,
-        homeNeedsTop) end
-    if not mobile then
-        local hint=controller and 'LEFT STICK: Move   A: Use   X: Park   START: Menu' or 'WASD / arrows: Move   E: Use   O: Options'
-        g.setFont(Text.get(14));local w=g.getFont():getWidth(hint)+20
-        Ui.panel({x=left+18,y=bottom-32,width=w,height=26},Text.colors.panel,nil,4)
-        g.setColor(Text.colors.muted);g.print(hint,left+28,bottom-27)
-    end
-    Hud.drawExit(assets,pointerX,pointerY,{right=right});g.pop()
+    if atHome and player then require("src.home_activity_controls").drawHud(state,player,left,right) end
+    shadowedPrint(
+        controller and "LEFT STICK / D-PAD: MOVE    A: USE    X: PARK    Y: MOVE    START: MENU"
+            or mobile and (followPlayerCamera
+                and "ONE FINGER: CONTROLS    TWO FINGERS: PINCH ZOOM    CAMERA: FOLLOW"
+                or "ONE FINGER: CONTROLS    TWO FINGERS: PINCH + PAN")
+            or "WASD / arrows: move    E: interact",
+        left + 22,
+        bottom - 28,
+        { 0.82, 0.86, 0.88 }
+    )
 end
+
 function Hud.hitTest(x, y)
     return BackButton.contains(EXIT, x, y) and "exit" or nil
 end

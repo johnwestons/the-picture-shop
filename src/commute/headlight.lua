@@ -4,10 +4,12 @@ local Headlight={FORWARD=.72,HEIGHT=.82}
 function Headlight.position(bike)
     local pitch=bike.pitch or 0
     local heading=bike.heading or 0
-    local forward=Headlight.FORWARD*math.cos(pitch)
+    local truck=require('src.commute.local_lights').trucks[bike]
+    local nose=truck and require('src.commute.truck_footprint').dimensions(bike).halfLength+(bike.model=='kei' and .30 or .55) or Headlight.FORWARD
+    local forward=nose*math.cos(pitch)
     local x=(bike.x or 0)+math.cos(heading)*forward
     local z=(bike.z or 0)+math.sin(heading)*forward
-    local height=(bike.h or 0)+Headlight.HEIGHT+Headlight.FORWARD*math.sin(pitch)
+    local height=(bike.h or 0)+(truck and (bike.model=='kei' and .80 or 1.08) or Headlight.HEIGHT)+nose*math.sin(pitch)
     return x,z,height
 end
 
@@ -20,6 +22,9 @@ end
 function Headlight.send(shader,camera,bike)
     local x,z,height=Headlight.position(bike)
     local range,spread,drop=Headlight.parameters(bike)
+    local lights=require('src.commute.local_lights')
+    lights.send(shader,camera)
+    shader:send('rideLightSeparation',lights.trucks[bike] and require('src.commute.truck_footprint').dimensions(bike).halfWidth*.78 or 0)
     shader:send('rideHeadlight',bike.headlight==true)
     shader:send('rideForward',{math.cos(bike.heading or 0),math.sin(bike.heading or 0)})
     shader:send('rideLightOffset',{x-camera.centerX,z-camera.centerZ})

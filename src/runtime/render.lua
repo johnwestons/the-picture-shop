@@ -7,7 +7,7 @@ function Component.install(Runtime)
     function Runtime.App.draw()
         if Runtime.state.screen~='world'then require('src.dock_renderer').pause()
         else require('src.dock_renderer').selectScene(require('src.shop_rooms').scene(Runtime.World.player),Runtime.state)end
-        love.graphics.setFont(require('src.screens.typography').get(16))
+
         Runtime.CharacterAssets.beginFrame()
         love.graphics.clear(0.04, 0.05, 0.07)
         local viewBounds = Runtime.syncCamera()
@@ -15,14 +15,20 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
-        local wideOffice=(Runtime.state.screen=='computer' or Runtime.state.screen=='workshop_remote'
-            and Runtime.WorkshopRemoteScreen.resourceId=='office_computer')
-            and require('src.screens.computer.mobile_layout').active()
         local wideCommute=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
             and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
             and Runtime.World.player.sceneId=='commute'
+        local wideNotifications=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
+            and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='notifications'
         Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight,
-            not (mobileWorld or mobileUi or wideCommute or wideOffice), Runtime.App.officeUsesSafeArea())
+            not (mobileWorld or mobileUi or wideCommute or wideNotifications), Runtime.App.officeUsesSafeArea())
+        if require('src.story_opening').active(Runtime) then
+            require('src.story_opening').draw(Runtime)
+            Runtime.CharacterAssets.endFrame()
+            Runtime.Viewport.endDraw()
+            Runtime.Smoke.drawn()
+            return
+        end
         if Runtime.spriteLabActive then
             Runtime.SpriteMotionLab.draw(Runtime.CharacterAssets)
             Runtime.CharacterAssets.endFrame()
@@ -30,8 +36,13 @@ function Component.install(Runtime)
             Runtime.Smoke.drawn()
             return
         end
-        if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery') then
-            local destination,objective=require('src.commute.runtime').draw(Runtime)
+        local portableUtilities=Runtime.state.screen=='shop_rooms'
+            and require('src.shop_room_controls').isPortableUtilities()
+            and Runtime.World.player.sceneId=='commute'
+        if (Runtime.state.screen=='world' or portableUtilities)
+            and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery') then
+            require('src.commute.runtime').draw(Runtime)
+            if portableUtilities then require('src.shop_room_controls').draw(Runtime) end
             if Runtime.World.player.sceneId=='grocery' then
                 Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
             end
@@ -41,15 +52,19 @@ function Component.install(Runtime)
             -- The grocery interior owns its header. Overlaying the outdoor
             -- status card obscures its title/cart and clips on wide phones.
             if Runtime.World.player.sceneId~='grocery' then
-                require('src.screens.player_status').draw(Runtime.state,
-                    Runtime.App.settings and Runtime.App.settings.twelveHourTime,bounds,destination,objective)
+                require('src.screens.warehouse_hud').drawTerrainStatus(Runtime.state,
+                    Runtime.App.playerFeedback,bounds or {left=0,right=Runtime.Config.baseWidth},
+                    Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             end
-            Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
-            Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
+            if not require('src.screens.warehouse_hud').active(Runtime) then
+                Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
+                Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
+            end
             require('src.screens.notifications_screen').drawAccess(Runtime,bounds)
             end
             HudVisibility.draw(Runtime)
-            if showHud and Runtime.App.playerFeedback then
+            if showHud and Runtime.App.playerFeedback
+                and not require('src.screens.warehouse_hud').active(Runtime) then
                 Runtime.App.playerFeedback:drawToast(bounds,'commute')
             end
             Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
@@ -185,7 +200,8 @@ function Component.install(Runtime)
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
             and Runtime.state.screen ~= 'notifications'
             and Runtime.state.screen ~= "delivery_signature"
-            and Runtime.state.screen ~= "critter_kombat" and (Runtime.state.screen~='world' or showHud) then
+            and Runtime.state.screen ~= "critter_kombat" and (Runtime.state.screen~='world' or showHud)
+            and not require('src.screens.warehouse_hud').active(Runtime) then
             local optionsX, optionsY = Runtime.pointerPosition()
             local accessScreen, accessBounds = Runtime.optionsAccessLayout()
             Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
@@ -194,10 +210,11 @@ function Component.install(Runtime)
             and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"
             and Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
             and Runtime.state.screen ~= 'notifications'
+            and not require('src.screens.warehouse_hud').active(Runtime)
         then
             Runtime.App.playerFeedback:drawToast(viewBounds, Runtime.state.screen)
         end
-        if not mobileWorld and not mobileUi and not wideOffice then
+        if not mobileWorld and not mobileUi and not wideNotifications then
             Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
         end
         Runtime.Ui.drawPressFeedback()

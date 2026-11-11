@@ -145,6 +145,14 @@ function Transport.createClient(address, options)
     if not channels then return nil, "ENet sessions require between 3 and 255 channels." end
     local nativeHost, createError = createNativeHost(enet, nil, 1, channels,
         tonumber(options.incomingBandwidth) or 0, tonumber(options.outgoingBandwidth) or 0)
+    local compatibilityFallback=false
+    if not nativeHost and love and love.system and love.system.getOS()=='iOS' then
+        -- Some embedded ENet bindings reject the unbound client form. An
+        -- explicit ephemeral socket preserves the remote endpoint and protocol.
+        nativeHost,createError=createNativeHost(enet,'*:0',1,channels,
+            tonumber(options.incomingBandwidth) or 0,tonumber(options.outgoingBandwidth) or 0)
+        compatibilityFallback=nativeHost~=nil
+    end
     if not nativeHost then return nil, createError end
 
     local connectData = wholeNumber(options.connectData or 0, 0, 2147483647)
@@ -163,6 +171,7 @@ function Transport.createClient(address, options)
         peer = peer,
     })
     instance._peers[peer] = true
+    instance.compatibilityFallback=compatibilityFallback
     return instance
 end
 

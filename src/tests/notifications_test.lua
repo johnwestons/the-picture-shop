@@ -71,6 +71,19 @@ function Test.run(context,check)
     check('notification_email_and_phone_keep_full_details_without_duplicates',#fresh.notifications.items==2
         and fresh.notifications.items[1].body:find('A small cutting job.',1,true)
         and fresh.notifications.items[2].body:find('Paper delivery',1,true))
+    local shop=State.new();shop.screen='world'
+    local shopFeedback=Feedback.new({state=shop});shopFeedback:update(.1)
+    local beforeShop=#shop.notifications.items
+    shop.inventory.paper=shop.inventory.paper+200
+    shop.jobs.active={{id='SHOP-NOTICE-1',company='Millhaven Studio',status='ready_for_pickup'}}
+    shop.bills.balance=75
+    shopFeedback:update(.1)
+    check('warehouse_important_events_use_saved_notices',
+        #shop.notifications.items==beforeShop+3
+        and Notices.findKey(shop,'shop:ready:SHOP-NOTICE-1')
+        and Notices.findKey(shop,'business:bills:2026:1'))
+    shopFeedback:update(.1)
+    check('warehouse_event_notices_do_not_repeat_each_frame',#shop.notifications.items==beforeShop+3)
     local R={state=fresh,App={playerFeedback=f,settings={}},optionsAccessLayout=function()return 'world',nil end}
     local rect=f:toastRect(nil,'world');local id=f.notices[1].id
     check('notification_toast_opens_matching_expanded_entry',Screen.pointer(R,rect.x+15,rect.y+15,1)
@@ -87,7 +100,23 @@ function Test.run(context,check)
         and fresh.screen=='notifications')
     Screen.close(R)
 
-    Screen.open(R);Screen.pointer(R,205,130,1)
+    local paging=State.new();paging.screen='world'
+    for i=1,8 do Notices.add(paging,'email','Paging note '..i,'Detail '..i,'Body '..i) end
+    local pageRuntime={state=paging,App={settings={}}}
+    Screen.open(pageRuntime)
+    local nextPage=Screen.layout(pageRuntime).rects.next
+    Screen.pointer(pageRuntime,nextPage.x+10,nextPage.y+10,1)
+    check('clipboard_next_turns_to_second_page_and_selects_a_note',paging.notificationPage==2
+        and Screen.pageTurn and Screen.pageTurn.direction==1 and paging.notificationSelection)
+    local previousPage=Screen.layout(pageRuntime).rects.previous
+    Screen.pointer(pageRuntime,previousPage.x+10,previousPage.y+10,1)
+    check('clipboard_previous_returns_to_first_page',paging.notificationPage==1
+        and Screen.pageTurn and Screen.pageTurn.direction==-1)
+    Screen.close(pageRuntime)
+
+    Screen.open(R)
+    local referenceTab=Screen.layout(R).rects.tutorial
+    Screen.pointer(R,referenceTab.x+10,referenceTab.y+10,1)
     check('tutorial_reference_library_available_before_earning_lessons',Notices.findKey(fresh,'tutorial:apartment')
         and Notices.findKey(fresh,'tutorial:weekend') and Notices.findKey(fresh,'tutorial:motorcycle'))
     Screen.close(R)
@@ -114,9 +143,10 @@ function Test.run(context,check)
     check('tutorial_reads_apartment_activity_from_local_resident',contextState.tutorial.seen.apartment
         and contextState.tutorial.seen.homecare)
     fresh.tutorial=Tutorial.new(true);Screen.open(R)
-    Screen.pointer(R,65,630,1)
+    local tutorialToggle=Screen.layout(R).rects.toggle
+    Screen.pointer(R,tutorialToggle.x+10,tutorialToggle.y+10,1)
     check('tutorial_can_be_paused_without_losing_step',not fresh.tutorial.enabled and fresh.tutorial.step==1)
-    Screen.pointer(R,65,630,1)
+    Screen.pointer(R,tutorialToggle.x+10,tutorialToggle.y+10,1)
     check('tutorial_can_be_enabled_from_inbox',fresh.tutorial.enabled and fresh.tutorial.step==1)
     Screen.close(R)
 
@@ -190,9 +220,15 @@ function Test.run(context,check)
         end
         live.App.keypressed('escape')
         local ox,oy,scale=live.Viewport.transform(live.Config.baseWidth,live.Config.baseHeight,live.App.officeUsesSafeArea())
-        local _,bounds=live.optionsAccessLayout();local access=Screen.buttonRect(bounds)
+        local _,bounds=live.optionsAccessLayout();local access=Screen.buttonRect(bounds,live)
         live.App.touchpressed('notification-test',ox+(access.x+12)*scale,oy+(access.y+12)*scale)
         check('notification_native_touch_opens_hud_inbox',live.state.screen=='notifications')
+        for i=1,7 do Notices.add(live.state,'email','Touch page '..i,'Page check','Body') end
+        local nextRect=Screen.layout(live).rects.next
+        live.App.touchpressed('notification-next',ox+(nextRect.x+nextRect.width/2)*scale,
+            oy+(nextRect.y+nextRect.height/2)*scale)
+        check('notification_native_touch_turns_clipboard_page',live.state.notificationPage==2
+            and Screen.pageTurn and Screen.pageTurn.direction==1)
         live.App.gamepadpressed(nil,'b')
         check('notification_controller_back_restores_world',live.state.screen=='world')
         live.state.screen=oldScreen;live.state.notifications=oldHistory;live.state.tutorial=oldTutorial

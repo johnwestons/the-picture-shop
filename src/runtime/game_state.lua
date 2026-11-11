@@ -48,6 +48,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.startGame(payload, mode)
+        Runtime._storyOpening=nil
         -- Pending coalesced requests still refer to the current live shop.
         -- Finish them before reusing that state table for another save slot.
         if Runtime.Save.flush and not Runtime.Save.flush() then
@@ -67,6 +68,10 @@ function Component.install(Runtime)
         require("src.home_residents").recover(Runtime.state)
         Runtime.World.player.homeResidentId="owner";Runtime.World.player.homeJoinedAtHours=nil
         require("src.home_travel").clearRequest(week)
+        if mode=="new" and Runtime.state.warehouse.condition.mode=="story" then
+            local spawned,reason=require('src.story_intro').spawn(Runtime)
+            if not spawned then return false,"Could not start at Grandpa's farm: "..tostring(reason) end
+        end
         if Runtime.state.home.commute then
             require('src.commute.runtime').restore(Runtime)
         elseif require("src.weekend_flow").atHome(Runtime.state) then
@@ -75,6 +80,7 @@ function Component.install(Runtime)
                 Runtime.World.player.x,Runtime.World.player.y=require("src.home_layouts").spawn(Runtime.state,1)
             end
         end
+        require('src.story_progress').reconcile(Runtime)
         if Runtime.World.player.sceneId=="home" then
             local rooms=require("src.shop_rooms")
             local assets=rooms.assets(Runtime.Assets,"home",Runtime.state)
@@ -109,6 +115,7 @@ function Component.install(Runtime)
         if payload.recovered then
             Runtime.state.message = "Recovered this shop from its last valid " .. tostring(payload.recoverySource) .. " copy."
         end
+        require('src.story_opening').begin(Runtime)
         return true
     end
 

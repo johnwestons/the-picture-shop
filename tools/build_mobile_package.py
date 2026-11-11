@@ -311,6 +311,29 @@ def validate_runtime_asset_modules(stage: Path) -> None:
                 )
 
 
+def runtime_custom_audio_paths(root: Path = ROOT, kind: str = "custom") -> list[Path]:
+    """Only explicitly published soundscape assets; never studio history."""
+    if kind not in ("custom", "dialogue"):
+        raise ValueError("Unknown authored audio collection")
+    directory = root / "assets/audio" / kind
+    manifest_path = directory / "manifest.json"
+    if not manifest_path.exists():
+        return []
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    lua_path = directory / "manifest.lua"
+    if hashlib.sha256(lua_path.read_bytes()).hexdigest() != manifest.get("luaSha256"):
+        raise ValueError("Soundscape manifest mismatch: Apply to game again in the studio")
+    result = [manifest_path, lua_path]
+    for relative in manifest["files"]:
+        if not re.fullmatch(r"assets/audio/" + kind + r"/[a-f0-9]{64}\.wav", relative):
+            raise ValueError(f"Unsafe published audio path: {relative}")
+        source = root / relative
+        if hashlib.sha256(source.read_bytes()).hexdigest() != source.stem:
+            raise ValueError(f"Published audio changed: {relative}")
+        result.append(source)
+    return result
+
+
 def copy_runtime(stage: Path) -> None:
     # Validate before the larger shared runtime copy, then copy this closed set.
     runtime_source_paths()
@@ -336,6 +359,8 @@ def copy_runtime(stage: Path) -> None:
     )
     audio_files.extend(runtime_music_paths())
     audio_files.extend(audio_root / "commute" / name for name in COMMUTE_AUDIO_FILES)
+    audio_files.extend(runtime_custom_audio_paths(ROOT))
+    audio_files.extend(runtime_custom_audio_paths(ROOT, "dialogue"))
     for source in audio_files:
         destination = stage / source.relative_to(ROOT)
         destination.parent.mkdir(parents=True, exist_ok=True)

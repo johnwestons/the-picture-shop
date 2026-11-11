@@ -138,6 +138,20 @@ end
 local function createInvoice(state)
     local date, bills = Calendar.ensure(state)
     local charges, total = Calendar.monthlyCharges()
+    local condition=require("src.warehouse_condition").of(state)
+    if condition and condition.mode=="story" then
+        local active={}
+        total=0
+        for _,charge in ipairs(charges) do
+            if charge.id~="power" or condition.powerConnected then
+                if charge.id~="water" or condition.waterConnected then
+                    active[#active+1]=charge
+                    total=total+charge.amount
+                end
+            end
+        end
+        charges=active
+    end
     local invoice = {
         id = string.format("BILL-%04d", bills.nextInvoiceId),
         year = date.year,

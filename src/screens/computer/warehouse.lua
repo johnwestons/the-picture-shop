@@ -147,7 +147,8 @@ function Component.install(Runtime)
                 if bayId==bay and optionId==option then rect=Runtime.warehouseOptionRect(bi,oi) end
             end end
         end
-        if rect then return rect.x+rect.width/2,rect.y+rect.height/2 end
+        if rect then return Runtime.containedPageCoords(rect.x+rect.width/2,rect.y+rect.height/2,
+            Runtime.WAREHOUSE_PAGE_LAYOUT) end
     end
 
     function Runtime.ComputerScreen.warehouseView(state)

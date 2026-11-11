@@ -1,9 +1,9 @@
 local Watchdog=require('src.ai_watchdog')
 local Config=require('src.config')
 local BuildVersion=require('src.build_version')
-local Panel={PAGE_SIZE=1}
+local Panel={PAGE_SIZE=2}
 local font,smallFont
-local CARD={x=116,width=728,height=211}
+local CARD={x=116,width=728,height=101}
 local OLDER={x=735,y=577,width=108,height=23}
 local NEWER={x=619,y=577,width=108,height=23}
 local LATEST={x=503,y=577,width=108,height=23}
@@ -68,21 +68,20 @@ local function drawEvent(g,event,y,now)
     g.printf(('#%04d  %s  ·  %s  ·  %s%s'):format(event.sequence,event.status,
         clean(event.system),clean(event.subject),scope),CARD.x+8,y+5,CARD.width-16,'left')
     g.setFont(smallFont);g.setColor(.71,.82,.79,1)
-    g.printf('Key: '..clean(event.issueId)..'    Stage: '..clean(event.stage),CARD.x+8,y+29,CARD.width-16,'left')
+    g.printf('Key: '..clean(event.issueId)..'    Stage: '..clean(event.stage),CARD.x+8,y+21,CARD.width-16,'left')
     local position=event.x and event.z and ('X/Z '..safeNumber(event.x)..', '..safeNumber(event.z))
         or event.x and event.y and ('X/Y '..safeNumber(event.x)..', '..safeNumber(event.y)) or 'position unavailable'
     local elapsed=event.elapsed and ('stalled '..safeNumber(event.elapsed)..'s') or 'duration n/a'
     local attempt=event.attempt and ('attempt '..tostring(event.attempt)) or 'attempt n/a'
     local age=event.recordedAt and ('age '..ageText(math.max(0,now-event.recordedAt))) or 'age n/a'
     g.setColor(.68,.75,.74,1)
-    g.printf(table.concat({elapsed,attempt,age,position},'  ·  '),CARD.x+8,y+53,CARD.width-16,'left')
-    local yy=y+78
-    for _,row in ipairs({{'Reason: ',event.reason,{.9,.93,.87,1}},
-            {'Action: ',event.action,{.72,1,.86,1}},{'Detail: ',event.detail,{.79,.85,.82,1}}}) do
-        local text=row[1]..clean(row[2]);local _,height=require('src.screens.typography').lines(text,CARD.width-20,14)
-        g.setFont(require('src.screens.typography').get(14));g.setColor(row[3])
-        g.printf(text,CARD.x+10,yy,CARD.width-20,'left');yy=yy+height+7
-    end
+    g.printf(table.concat({elapsed,attempt,age,position},'  ·  '),CARD.x+8,y+35,CARD.width-16,'left')
+    g.setColor(.84,.88,.83,1)
+    g.printf('Reason: '..clean(event.reason),CARD.x+8,y+49,CARD.width-16,'left')
+    g.setColor(.66,.91,.82,1)
+    g.printf('Action: '..clean(event.action),CARD.x+8,y+63,CARD.width-16,'left')
+    g.setColor(.72,.78,.75,1)
+    g.printf('Detail: '..clean(event.detail),CARD.x+8,y+77,CARD.width-16,'left')
 end
 
 local function appSummary(state,environment,g)
@@ -112,11 +111,11 @@ local function appSummary(state,environment,g)
         if okay then width,height=w or 0,h or 0 end
     end
     return {
-        ('APP %s | %s | LÖVE %s | %s FPS | %sms | Lua %.1f MB'):format(
+        ('APP · build %s · OS %s · LÖVE %s · FPS %s · frame %sms · Lua %.1f MB'):format(
             clean(BuildVersion.name),clean(osName),loveVersion,tostring(fps),safeNumber(frameMs,'%.2f'),luaMb),
-        ('GAME %s / %s | slot %s | XY %s | %s | assets %s'):format(
+        ('GAME · screen %s · scene %s · slot %s · player %s · clock %s · assets %s'):format(
             clean(environment.screen),clean(scene),slot,position,clock,clean(pack)),
-        ('RENDER %dx%d / %dx%d | draws %s/%s batched | textures %s MB | images %s | canvases %s'):format(
+        ('RENDER · window %dx%d / base %dx%d · draw calls %s · batches %s · texture memory %s MB · images %s · canvases %s'):format(
             width,height,Config.baseWidth,Config.baseHeight,
             tostring(graphics.drawcalls or 'n/a'),tostring(graphics.drawcallsbatched or 'n/a'),
             safeNumber(textureMb,'%.1f'),tostring(graphics.images or 'n/a'),tostring(graphics.canvases or 'n/a')),
@@ -128,7 +127,7 @@ local function drawNetwork(g,info,y)
     local count=tonumber(info.playerCount) or 0
     local maximum=tonumber(info.maxPlayers) or 0
     local role=clean(info.role)
-    local line1=('NET %s %s %s | ready %s | slot %s | %d/%d players | peers %s | wait %s/%s | %s ch%s v%s'):format(
+    local line1=('CONNECTION · %s · %s · %s · ready %s · slot %s · players %d/%d · peers %s · pending %s/%s · %s · ch %s · proto %s'):format(
         clean(info.status),role,clean(info.networkKind),tostring(info.connected==true),
         tostring(info.localSlot or 'n/a'),count,maximum,tostring(info.peerCount or 0),
         tostring(info.pendingPeers or 0),tostring(info.pendingApprovals or 0),clean(info.transport),
@@ -137,7 +136,7 @@ local function drawNetwork(g,info,y)
         or role=='Host' and 'host' or 'waiting'
     local lossTotal=(tonumber(info.pingReceived) or 0)+(tonumber(info.pingLost) or 0)
     local lossPercent=lossTotal>0 and ('%.1f%%'):format((info.pingLost or 0)*100/lossTotal) or 'n/a'
-    local line2=('RTT now/avg/min/max %s/%s/%s/%sms | age %s | %s/%s samples | loss %s (%s) | fail %s | wait %s'):format(
+    local line2=('PING · now/avg/min/max %s/%s/%s/%s ms · age %s · samples %s/%s · lost %s (%s) · send failures %s · pending %s'):format(
         ping,safeNumber(info.rttAverageMs,'%.0f'),safeNumber(info.rttMinMs,'%.0f'),
         safeNumber(info.rttMaxMs,'%.0f'),ageText(info.rttAgeSeconds),tostring(info.pingReceived or 0),
         tostring(info.pingSent or 0),tostring(info.pingLost or 0),lossPercent,
@@ -150,7 +149,7 @@ local function drawNetwork(g,info,y)
         peerRows[#peerRows+1]=clean(peer.slot)..' '..state..' '..rtt..'±'..variance..'ms'
     end
     if #peerRows==0 then peerRows[1]='No active peer links.' end
-    local sync=('SYNC host/client tick %s/%s | shop rev %s/%s | pending action/work/safety %d/%d/%d | rejects %s'):format(
+    local sync=('SYNC · host/client-observed tick %s/%s · host/client shop rev %s/%s · pending interaction/workshop/safety %d/%d/%d · rejecting peers %s'):format(
         tostring(info.serverTick or 'n/a'),tostring(info.lastServerTick or 'n/a'),
         tostring(info.shopRevision or 'n/a'),tostring(info.lastShopRevision or 'n/a'),
         info.pendingInteraction and 1 or 0,info.pendingWorkshop and 1 or 0,
@@ -180,13 +179,12 @@ function Panel.drawOptions(state,environment,offset)
     local first=#items>0 and offset+1 or 0
     local last=math.min(#items,offset+Panel.PAGE_SIZE)
     local g=love.graphics
-    font=font or require('src.screens.typography').get(14);smallFont=smallFont or require('src.screens.typography').get(12)
+    font=font or g.newFont(11);smallFont=smallFont or g.newFont(9)
     local now=love.timer and love.timer.getTime and love.timer.getTime() or os.clock()
     g.push('all');g.setShader();g.setFont(font)
     g.setColor(.92,.95,.89,1);g.print('LIVE PLAYTEST DIAGNOSTICS',116,151)
     g.setColor(.61,.69,.66,1)
-    g.setFont(smallFont)
-    g.print(('Session %s · private connection and player data hidden'):format(
+    g.print(('Session time %s · no IP addresses, player names, save data, or credentials shown'):format(
         ageText(environment.sessionSeconds)),116,169)
     g.setColor(.045,.061,.064,.98);g.rectangle('fill',110,185,740,132,5,5)
     g.setColor(.29,.37,.36,1);g.rectangle('line',110,185,740,132,5,5)
@@ -197,17 +195,17 @@ function Panel.drawOptions(state,environment,offset)
     g.setColor(.045,.061,.064,.98);g.rectangle('fill',110,321,740,282,5,5)
     g.setColor(.29,.37,.36,1);g.rectangle('line',110,321,740,282,5,5)
     g.setFont(font);g.setColor(.92,.95,.89,1)
-    g.printf(('AI WATCHDOG · %d active · %d retained reports · showing %s–%s'):format(
+    g.printf(('GAME WATCHDOG · %d active · %d retained reports · showing %s–%s'):format(
         #snapshot.active,#snapshot.events,#items>0 and first or 0,last),124,328,712,'left')
     g.setFont(smallFont)
     if #items==0 then
         g.setColor(.72,.80,.76,1)
-        g.printf('No AI stalls or recoveries have been recorded in this session.',124,372,712,'left')
+        g.printf('No gameplay or connection reports have been recorded in this session.',124,372,712,'left')
     else
         for row=1,Panel.PAGE_SIZE do
             local eventIndex=offset+row
             local event=items[eventIndex]
-            if event then drawEvent(g,event,350,now) end
+            if event then drawEvent(g,event,350+(row-1)*107,now) end
         end
     end
     drawButton(g,NEWER,'NEWER',offset>0)

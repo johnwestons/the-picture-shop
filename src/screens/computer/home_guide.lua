@@ -2,12 +2,10 @@
 local Shopping=require("src.home_shopping")
 local Food=require("src.home_food_catalog")
 local Calendar=require("src.business_calendar")
-local Text=require('src.screens.typography')
 local Guide={}
 Guide.TOPICS={"FIRST WEEKEND","FOOD & WATER","FURNITURE","CHORES","SLEEP & WORK","MONEY & GUESTS"}
 local controls={back={x=104,y=554,width=230,height=44},action={x=374,y=554,width=218,height=44},
-    secondary={x=608,y=554,width=230,height=44},previous={x=360,y=270,width=100,height=40},
-    next={x=738,y=270,width=100,height=40}}
+    secondary={x=608,y=554,width=230,height=44}}
 function Guide.rect(name,index)
     if name=="topic" and Guide.TOPICS[index] then return {x=104,y=242+(index-1)*48,width=230,height=44} end
     return controls[name]
@@ -68,34 +66,13 @@ end
 function Guide.mousepressed(state,page,x,y,contains)
     for i=1,#Guide.TOPICS do if contains(Guide.rect("topic",i),x,y) then return i end end
     if contains(controls.back,x,y) then return page,"back" end
-    for _,key in ipairs({'previous','next'}) do
-        if contains(controls[key],x,y) then return page,key end
-    end
     local content=Guide.content(state,page)
     for _,key in ipairs({"action","secondary"}) do
         if content[key] and contains(controls[key],x,y) then return page,content[key][2] end
     end
     return page
 end
-function Guide.bodyLayout(state,page,twelveHourTime)
-    local font=Text.get(16)
-    local lines={}
-    for index,block in ipairs(Guide.content(state,page).blocks) do
-        if index>1 then lines[#lines+1]='' end
-        if twelveHourTime then
-            block=block:gsub('(%d%d):(%d%d)',function(hour,minute)
-                return Calendar.formatTime(tonumber(hour),tonumber(minute),true)
-            end)
-        end
-        local _,wrapped=font:getWrap(block,478)
-        for _,line in ipairs(wrapped) do lines[#lines+1]=line end
-    end
-    local perPage=math.max(1,math.floor((542-318)/(font:getHeight()*font:getLineHeight())))
-    return lines,font,perPage,math.max(1,math.ceil(#lines/perPage))
-end
-function Guide.draw(Runtime,state,page,px,py,bodyPage)
-    love.graphics.push('all')
-    love.graphics.setFont(Text.get(16))
+function Guide.draw(Runtime,state,page,px,py)
     local function label(text,x,y,w,color)
         love.graphics.setColor(unpack(color or {.85,.92,.87,1}));love.graphics.printf(text,x,y,w,"left")
     end
@@ -107,23 +84,22 @@ function Guide.draw(Runtime,state,page,px,py,bodyPage)
     for i,title in ipairs(Guide.TOPICS) do button(Guide.rect("topic",i),title,true,i==page) end
     local content=Guide.content(state,page)
     label(content.title,360,242,478,{1,.86,.41,1})
+    local y=272;local font=love.graphics.getFont()
     local twelveHourTime=type(Runtime.twelveHourTime)=="function" and Runtime.twelveHourTime() or false
-    local lines,font,perPage,pages=Guide.bodyLayout(state,page,twelveHourTime)
-    bodyPage=math.max(1,math.min(pages,bodyPage or 1))
-    button(controls.previous,'PREV',bodyPage>1)
-    button(controls.next,'NEXT',bodyPage<pages)
-    label(('Page %d / %d'):format(bodyPage,pages),498,282,220)
-    love.graphics.setFont(font)
-    local y=318
-    for index=(bodyPage-1)*perPage+1,math.min(bodyPage*perPage,#lines) do
-        label(lines[index],360,y,478)
-        y=y+font:getHeight()*font:getLineHeight()
+    for _,block in ipairs(content.blocks) do
+        local displayBlock=block
+        if twelveHourTime then
+            displayBlock=displayBlock:gsub("(%d%d):(%d%d)",function(hour,minute)
+                return Calendar.formatTime(tonumber(hour),tonumber(minute),true)
+            end)
+        end
+        label(displayBlock,360,y,478)
+        local _,lines=font:getWrap(displayBlock,478);y=y+#lines*font:getHeight()*font:getLineHeight()+12
     end
     button(controls.back,"MY HOME",true)
     for _,key in ipairs({"action","secondary"}) do
         if content[key] then button(controls[key],content[key][1],content[key][2]~="sleep" or require("src.weekend_flow").atHome(state)) end
     end
-    love.graphics.pop()
     return y -- Allows layout checks against the shared footer.
 end
 return Guide

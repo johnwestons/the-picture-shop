@@ -35,6 +35,8 @@ function Renderer.clearCache()
     WarehouseRenderer.clearCache()
     require("src.shop_room_renderer").clearCache()
     require("src.home_renderer").clearCache()
+    require("src.warehouse_condition_renderer").clear()
+    require("src.warehouse_footprints").reset()
 end
 
 function Renderer.machineUnitsInScene(state, sceneId)
@@ -309,8 +311,8 @@ local function drawBayDoor(assets)
     )
 end
 
-local function drawBackground(assets)
-    local background = assets.get("warehouse")
+local function drawBackground(assets,state)
+    local background = require("src.warehouse_condition_renderer").image(state,assets)
     if background then
         WarehouseScene.drawArchitecture(assets)
         love.graphics.setColor(1, 1, 1)
@@ -329,8 +331,8 @@ local function drawBackground(assets)
     love.graphics.polygon("fill", 80, 115, 480, 55, 880, 115, 480, 620)
 end
 
-local function drawLoungeForeground(assets, seat)
-    if Config.warehouse.roomScenes then return require("src.shop_room_renderer").drawLobbyForeground(assets,seat) end
+local function drawLoungeForeground(assets, seat,state)
+    if Config.warehouse.roomScenes then return require("src.shop_room_renderer").drawLobbyForeground(assets,seat,state) end
     local key = seat and seat.foreground
     local foreground = key and Config.loungeSeating.foregrounds[key]
     local image = foreground and assets.get(foreground.asset)
@@ -583,8 +585,12 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         WarehouseRenderer.endFrame()
         return
     end
-    drawBackground(assets)
+    drawBackground(assets,state)
+    require("src.warehouse_condition_renderer").drawStatic(state)
     WarehouseRenderer.drawFloors(assets, state)
+    local footprints=require("src.warehouse_footprints")
+    footprints.update(state,World.player,remotePlayers)
+    footprints.draw()
     CutterStaging.draw(state)
     drawWorkPhone(assets, state)
     drawWallVentFan(assets)
@@ -760,7 +766,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
             draw = function()
                 World.customer:draw(characterAssets)
                 if World.customer.state == "waiting" or World.customer.state == "reviewing" then
-                    drawLoungeForeground(assets, World.customer.seat)
+                    drawLoungeForeground(assets, World.customer.seat,state)
                 end
             end,
         }
@@ -768,7 +774,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     if World.vendor.visible then
         actors[#actors + 1] = { y = World.vendor.y, draw = function()
             World.vendor:draw(characterAssets)
-            if World.vendor.state=="waiting" or World.vendor.state=="reviewing" then drawLoungeForeground(assets,World.vendor.seat) end
+            if World.vendor.state=="waiting" or World.vendor.state=="reviewing" then drawLoungeForeground(assets,World.vendor.seat,state) end
         end }
     end
     for _,entry in ipairs(employeeEntries) do
@@ -802,10 +808,18 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
         if a.y == b.y then return (a.layer or 0) < (b.layer or 0) end
         return a.y < b.y
     end)
+    local shadowMachines=Renderer.machineUnitsInScene(state,'warehouse')
+    for _,machine in pairs({firstCutter,firstWrapper,firstWindmill})do
+        if machine and not machine.world then shadowMachines[#shadowMachines+1]=machine end
+    end
+    require('src.warehouse_shadows').scene(World,state,remotePlayers,employeeEntries,physicalPallets,
+        shadowMachines,{
+            polar_115=cutter,skid_wrapper=wrapper,heidelberg_10x15=windmill,_jack=jack})
     InteractionBeacon.drawUnderlay(World.getInteraction(), World.player.interactionClock, {
         player = World.player,
     })
     for _, actor in ipairs(actors) do actor.draw() end
+    require("src.warehouse_condition_renderer").drawAmbient(state)
     -- Captions are an overlay so foreground machines cannot hide them.
     for _,employee in ipairs(employeeEntries) do EmployeeRenderer.drawBubble(employee,characterAssets,state) end
     InteractionBeacon.drawOverlay(World.getInteraction(), World.player.interactionClock, {

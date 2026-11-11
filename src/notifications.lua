@@ -1,6 +1,6 @@
 -- Local player history. This is saved with the shop, not applied from peers.
 local Notices={LIMIT=60}
-local kinds={email=true,phone=true,customer=true,supplier=true,tutorial=true,calendar=true}
+local kinds={email=true,phone=true,customer=true,supplier=true,tutorial=true,calendar=true,shop=true}
 local function integer(n,low,high)
     return type(n)=='number' and n==math.floor(n) and n>=low and n<=high
 end

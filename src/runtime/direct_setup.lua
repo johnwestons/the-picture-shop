@@ -160,7 +160,7 @@ function Component.install(Runtime)
             kind = "initial_host",
             payload = payload,
             saveMode = mode,
-            name = tostring(playerName or "Direct Worker"):gsub("Worker", "Host"),
+            name = playerName or require('src.player_profile').name(Runtime.App.settings),
         }
         return true, codeOrError
     end
@@ -213,7 +213,7 @@ function Component.install(Runtime)
         end
         local payload, mode, loadError = Runtime.prepareHostSave(slot)
         if not payload then return false, loadError end
-        local name = tostring(playerName or "Direct Worker"):gsub("Worker", "Host")
+        local name = playerName or require('src.player_profile').name(Runtime.App.settings)
         return Runtime.DirectIpv4Runtime.beginHost("initial", name, payload, mode)
     end
 end

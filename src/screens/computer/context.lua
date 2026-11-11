@@ -97,7 +97,9 @@ function Component.install(Runtime)
     end
 
     Runtime.PANEL = { x = 52, y = 34, width = 856, height = 610 }
-    Runtime.CLOSE = { x = 756, y = 48, width = 132, height = 40 }
+    -- The close control is the X already painted into the browser sprite.
+    Runtime.CLOSE = { x = 823, y = 42, width = 27, height = 30 }
+    Runtime.BEZEL_CLOCK = { x = 536, y = 646, width = 325, height = 20 }
     Runtime.TABS = {
         { id = "active", label = "ACTIVE JOBS", group = "customers", url = "www.thecritternet.com/job-desk/active" },
         { id = "completed", label = "COMPLETED JOBS", group = "customers", url = "www.thecritternet.com/job-desk/completed" },
@@ -138,8 +140,8 @@ function Component.install(Runtime)
     Runtime.PICKUP_EMPLOYEE = { x = 632, y = 598, width = 104, height = 36 }
     Runtime.PICKUP_PLAYER = { x = 742, y = 598, width = 108, height = 36 }
     Runtime.MONITOR = { x = 16, y = 8, width = 928, height = 660 }
-    Runtime.WWW_SITE = { x = 92, y = 238, width = 140, height = 42, gap = 8 }
-    Runtime.WWW_PRODUCT = { x = 92, y = 296, width = 748, rowHeight = 52, gap = 6 }
+    Runtime.WWW_SITE = { x = 116, y = 238, width = 140, height = 42, gap = 8 }
+    Runtime.WWW_PRODUCT = { x = 116, y = 296, width = 722, rowHeight = 52, gap = 6 }
     Runtime.WWW_SITES = {
         { name = "PAPER DEPOT", short = "PAPER", url = "www.thecritternet.com/paper-depot", categoryIndex = 1 },
         { name = "PRESSROOM SUPPLY", short = "PRESS", url = "www.thecritternet.com/pressroom", categoryIndex = 2 },
@@ -148,50 +150,106 @@ function Component.install(Runtime)
         { name = "MACHINE MARKET", short = "MACHINES", url = "www.thecritternet.com/machines", kind = "machines" },
     }
     Runtime.CART_BUTTON = { x = 714, y = 194, width = 126, height = 36 }
-    Runtime.CART_BACK = { x = 102, y = 548, width = 126, height = 40 }
-    Runtime.CART_CLEAR = { x = 244, y = 548, width = 126, height = 40 }
-    Runtime.CART_CHECKOUT = { x = 630, y = 548, width = 190, height = 40 }
-    Runtime.CART_PREVIOUS = { x = 400, y = 552, width = 42, height = 32 }
-    Runtime.CART_NEXT = { x = 514, y = 552, width = 42, height = 32 }
+    Runtime.CART_BACK = { x = 116, y = 540, width = 126, height = 40 }
+    Runtime.CART_CLEAR = { x = 252, y = 540, width = 126, height = 40 }
+    Runtime.CART_CHECKOUT = { x = 648, y = 540, width = 190, height = 40 }
+    Runtime.CART_PREVIOUS = { x = 410, y = 544, width = 42, height = 32 }
+    Runtime.CART_NEXT = { x = 516, y = 544, width = 42, height = 32 }
     Runtime.CART_PAGE_SIZE = 7
-    Runtime.PAY_BILLS = { x = 612, y = 522, width = 196, height = 46 }
-    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 512, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 512, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 452, width = 392, height = 20 }
-    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 570, width = 186, height = 44 }
-    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 570, width = 186, height = 44 }
+    Runtime.PAY_BILLS = { x = 612, y = 508, width = 196, height = 42 }
+    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 484, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 444, width = 392, height = 20 }
+    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 540, width = 186, height = 44 }
+    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 540, width = 186, height = 44 }
     Runtime.EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
     Runtime.EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
     Runtime.EMAIL_DELETE = { x = 640, y = 526, width = 186, height = 44 }
-    Runtime.EMAIL_FOLDER_INBOX = { x = 94, y = 218, width = 128, height = 28 }
-    Runtime.EMAIL_FOLDER_ARCHIVE = { x = 230, y = 218, width = 144, height = 28 }
-    Runtime.EMAIL_PREVIOUS = { x = 94, y = 562, width = 82, height = 28 }
-    Runtime.EMAIL_NEXT = { x = 292, y = 562, width = 82, height = 28 }
-    Runtime.EMAIL_PAGE_SIZE = 6
-    Runtime.PROMO_CANCEL = { x = 434, y = 442, width = 186, height = 44 }
-    Runtime.PROMO = { x = 640, y = 442, width = 186, height = 44 }
+    Runtime.EMAIL_FOLDER_INBOX = { x = 116, y = 218, width = 128, height = 28 }
+    Runtime.EMAIL_FOLDER_ARCHIVE = { x = 252, y = 218, width = 144, height = 28 }
+    Runtime.EMAIL_PREVIOUS = { x = 116, y = 550, width = 82, height = 28 }
+    Runtime.EMAIL_NEXT = { x = 314, y = 550, width = 82, height = 28 }
+    Runtime.EMAIL_PAGE_SIZE = 5
+    Runtime.PROMO_CANCEL = Runtime.EMAIL_DECLINE
+    Runtime.PROMO = { x = 640, y = 526, width = 186, height = 44 }
     Runtime.JOB_PROMO = { x = 640, y = 590, width = 186, height = 44 }
-    Runtime.PROMO_INPUT = { x = 434, y = 306, width = 392, height = 96 }
-    Runtime.CAL_PANEL = { x = 82, y = 190, width = 792, height = 408 }
-    Runtime.CAL_PREVIOUS = { x = 96, y = 202, width = 42, height = 30 }
-    Runtime.CAL_NEXT = { x = 818, y = 202, width = 42, height = 30 }
-    Runtime.CAL_GRID = { x = 94, y = 272, cellWidth = 108, cellHeight = 52 }
-    Runtime.CAL_DAY_DIALOG = { x = 112, y = 190, width = 736, height = 412 }
+    Runtime.PROMO_INPUT = { x = 434, y = 338, width = 392, height = 122 }
+    Runtime.CAL_PANEL = { x = 110, y = 190, width = 738, height = 394 }
+    Runtime.CAL_PREVIOUS = { x = 116, y = 202, width = 42, height = 30 }
+    Runtime.CAL_NEXT = { x = 800, y = 202, width = 42, height = 30 }
+    Runtime.CAL_GRID = { x = 116, y = 272, cellWidth = 104, cellHeight = 52 }
+    Runtime.CAL_DAY_DIALOG = { x = 112, y = 190, width = 736, height = 394 }
     Runtime.CAL_DAY_CLOSE = { x = 794, y = 199, width = 38, height = 30 }
     Runtime.CAL_DAY_LIST = { visibleRows = 5, rowHeight = 45,
         shop = { x = 128, y = 266, width = 430, height = 264 },
         town = { x = 572, y = 266, width = 260, height = 264 } }
     Runtime.CAL_DAY_SCROLL_UP = { x = 460, y = 541, width = 44, height = 24 }
     Runtime.CAL_DAY_SCROLL_DOWN = { x = 510, y = 541, width = 48, height = 24 }
-    Runtime.MACHINE_OFFER = { x = 92, y = 296, width = 354, height = 50, gap = 5 }
-    Runtime.OWNED_MACHINE = { x = 486, y = 296, width = 354, height = 64, gap = 8 }
+    Runtime.MACHINE_OFFER = { x = 116, y = 304, width = 354, height = 50, gap = 5 }
+    Runtime.OWNED_MACHINE = { x = 484, y = 304, width = 354, height = 56, gap = 5 }
     Runtime.ComputerScreen.machinePageSize = 4
-    Runtime.ComputerScreen.machinePreviousRect = { x = 490, y = 588, width = 78, height = 28 }
-    Runtime.ComputerScreen.machineNextRect = { x = 760, y = 588, width = 78, height = 28 }
+    Runtime.ComputerScreen.machinePreviousRect = { x = 490, y = 548, width = 78, height = 28 }
+    Runtime.ComputerScreen.machineNextRect = { x = 760, y = 548, width = 78, height = 28 }
     Runtime.ROW_HEIGHT = 46
     Runtime.JOBS_PER_PAGE = 7
 
+    -- The approved job desk spacing is shared by its active, completed and delivery views.
+    Runtime.ACTIVE_JOB_RECTS = {
+        LIST = { x = 116, y = 194, width = 282, height = 352 },
+        DETAIL = { x = 410, y = 194, width = 438, height = 390 },
+        PREVIOUS = { x = 116, y = 552, width = 76, height = 30 },
+        NEXT = { x = 322, y = 552, width = 76, height = 30 },
+        COMPLETE = { x = 600, y = 546, width = 236, height = 30 },
+        PICKUP_EMPLOYEE = { x = 600, y = 546, width = 104, height = 30 },
+        PICKUP_PLAYER = { x = 710, y = 546, width = 126, height = 30 },
+        JOB_PROMO = { x = 636, y = 546, width = 200, height = 30 },
+    }
+    function Runtime.isJobDeskTab()
+        local tab = Runtime.ComputerScreen.tab
+        return tab == 'active' or tab == 'completed' or tab == 'deliveries'
+    end
+    function Runtime.jobRect(name)
+        return Runtime.isJobDeskTab() and Runtime.ACTIVE_JOB_RECTS[name] or Runtime[name]
+    end
+    function Runtime.jobRowRect(row)
+        local list = Runtime.jobRect('LIST')
+        local active = Runtime.isJobDeskTab()
+        return { x = list.x + 8, y = list.y + (active and 10 or 14) + (row - 1) * (active and 66 or Runtime.ROW_HEIGHT),
+            width = list.width - 16, height = active and 60 or 38 }
+    end
+    function Runtime.jobsPerPage()
+        return Runtime.isJobDeskTab() and 5 or Runtime.JOBS_PER_PAGE
+    end
+
     Runtime.contains, Runtime.commaNumber, Runtime.money = Runtime.Ui.contains, Runtime.Ui.commaNumber, Runtime.Ui.money
+
+    -- Legacy office tools share the CRT content window. Their internal grids
+    -- stay intact while draw and input use the same contained coordinates.
+    Runtime.HIRING_PAGE_LAYOUT = {x=31.6,y=17.4,sx=.956,sy=.9054}
+    Runtime.SCHEDULE_PAGE_LAYOUT = {x=31.7,y=21.1,sx=.932,sy=.908}
+    Runtime.HOME_PAGE_LAYOUT = {x=33.6,y=13.45,sx=.932,sy=.929,fontSize=13}
+    Runtime.RADIO_PAGE_LAYOUT = {x=33.6,y=21.5,sx=.932,sy=.887,fontSize=14}
+    Runtime.WAREHOUSE_PAGE_LAYOUT = {x=31.6,y=9.5,sx=.956,sy=.95,fontSize=13}
+    Runtime.WAREHOUSE_STAGING_LAYOUT = {x=55.25,y=18.2,sx=.883,sy=.901,fontSize=14}
+    function Runtime.containedPageCoords(x,y,layout)
+        return layout.x+x*layout.sx,layout.y+y*layout.sy
+    end
+    function Runtime.containedPagePoint(x,y,layout)
+        if not x or not y then return nil,nil end
+        return (x-layout.x)/layout.sx,(y-layout.y)/layout.sy
+    end
+    function Runtime.drawContainedPage(draw,pointerX,pointerY,layout)
+        local ix,iy=Runtime.containedPagePoint(pointerX,pointerY,layout)
+        local oldX,oldY=Runtime.buttonDrawPointerX,Runtime.buttonDrawPointerY
+        love.graphics.push('all')
+        love.graphics.translate(layout.x,layout.y)
+        love.graphics.scale(layout.sx,layout.sy)
+        love.graphics.setFont(require('src.screens.computer.fonts').get('sans',layout.fontSize or 14))
+        Runtime.buttonDrawPointerX,Runtime.buttonDrawPointerY=ix,iy
+        draw(ix,iy)
+        Runtime.buttonDrawPointerX,Runtime.buttonDrawPointerY=oldX,oldY
+        love.graphics.pop()
+    end
 
     Runtime.WAREHOUSE_BAYS = { "front_left", "front_right" }
     Runtime.WAREHOUSE_OPTIONS = { "floor", "storage", "breakroom" }
@@ -199,7 +257,7 @@ function Component.install(Runtime)
     Runtime.WAREHOUSE_CONFIRM = {x=508,y=514,width=228,height=40}
     Runtime.WAREHOUSE_CANCEL = {x=216,y=514,width=180,height=40}
     Runtime.WAREHOUSE_ACK = {x=206,y=430,width=542,height=48}
-    Runtime.CREDIT_MACHINE = { x = 98, y = 306, width = 350, height = 66, gap = 4 }
+    Runtime.CREDIT_MACHINE = { x = 116, y = 306, width = 332, height = 66, gap = 4 }
     Runtime.CREDIT_MACHINE_ACTION = { x = 354, width = 88, height = 32 }
     Runtime.CREDIT_CHANNEL_ONLINE = { x = 262, y = 279, width = 78, height = 22 }
     Runtime.CREDIT_CHANNEL_DEALER = { x = 344, y = 279, width = 88, height = 22 }

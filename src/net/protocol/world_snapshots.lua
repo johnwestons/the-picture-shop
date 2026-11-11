@@ -6,8 +6,11 @@ function Component.install(Runtime)
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost" })
+            { "name", "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost" })
         if not valid then return nil, shapeError end
+        if payload.name~=nil and not require('src.player_profile').validName(payload.name) then
+            return nil,'input.name is invalid'
+        end
         local taskAction, taskActionError = Runtime.normalizeTaskAction(
             payload.taskAction, "input.taskAction")
         if taskActionError then return nil, taskActionError end
@@ -82,7 +85,7 @@ function Component.install(Runtime)
                 Runtime.RabbitColorways.count("overalls"), "input.overallsColorway")
             if not overallsColorway then return nil, fieldError end
         end
-        return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,
+        return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,name=payload.name,
             furColorway = furColorway, overallsColorway = overallsColorway,
             taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade,boost=boost }
     end

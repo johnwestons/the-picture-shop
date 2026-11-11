@@ -1,10 +1,8 @@
--- Shared, screen-readable typewriter lettering. Scene textures keep their own
--- art direction; interactive UI uses this family and smooth font filtering.
+-- Text helpers for newer screens. Existing screens retain their original fonts.
+-- The broad Courier Prime replacement was rolled back pending screen reviews.
 local Text = {}
 local cache = {}
-local fallbackCache={}
 local sizes = setmetatable({}, {__mode='k'})
-Text.paths = {regular='assets/fonts/CourierPrime-Regular.ttf', bold='assets/fonts/CourierPrime-Bold.ttf'}
 Text.sizes = {caption=12, compact=14, body=16, button=16, heading=20, title=26}
 Text.colors = {body={.94,.95,.89,1}, muted={.76,.84,.82,1}, accent={1,.85,.44,1},
     panel={.025,.045,.05,.97}, border={.42,.54,.51,1}, warning={1,.72,.43,1}}
@@ -14,16 +12,7 @@ function Text.get(size, weight)
     weight=weight or 'regular'
     local key=weight..':'..size
     if not cache[key] then
-        local font=love.graphics.newFont(assert(Text.paths[weight]),size)
-        if not fallbackCache[size] then
-            local symbols=love.graphics.newFont('assets/fonts/NotoSansSymbols.ttf',size)
-            local symbols2=love.graphics.newFont('assets/fonts/NotoSansSymbols2-Regular.ttf',size)
-            local fallback=love.graphics.newFont(size)
-            for _,f in ipairs({symbols,symbols2,fallback}) do f:setFilter('linear','linear') end
-            fallbackCache[size]={symbols,symbols2,fallback}
-        end
-        font:setFallbacks(unpack(fallbackCache[size]))
-        font:setFilter('linear','linear');font:setLineHeight(1.12)
+        local font=love.graphics.newFont(size)
         cache[key]=font;sizes[font]=size
     end
     return cache[key]
@@ -31,8 +20,7 @@ end
 
 function Text.size(font) return sizes[font or love.graphics.getFont()] end
 
--- Do not squeeze long text below the caption floor. Callers can wrap, shorten
--- a redundant label, or allocate another row instead of scaling it away.
+-- Helpers remain available to the receipt archive, notifications and browser.
 function Text.fit(text,size,width,height,weight,minimum)
     minimum=math.max(Text.sizes.caption,minimum or Text.sizes.compact)
     for candidate=math.max(minimum,size),minimum,-1 do

@@ -65,6 +65,8 @@ function P.install()
         local ImageLoader=require('src.image_loader')
         report.startup.modules_ms=(timer()-start)*1000
         instrument(Renderer,'build','terrain_build')
+        instrument(require('src.commute.shadows'),'draw','shadow_draw')
+        instrument(require('src.commute.truck_turntable_pages'),'get','truck_texture')
         instrument(Renderer,'buildStep','terrain_build')
         instrument(Renderer,'props','props')
         instrument(Renderer,'buildRoadMeshes','road_meshes')
@@ -130,6 +132,16 @@ function P.install()
         end
         ImageLoader.setEnabled(true)
         start=timer();local renderer=Renderer.new(world,nil,rendererOptions)
+        local shadowHour=tonumber(os.getenv('PICTURE_SHOP_SHADOW_HOUR'))
+        if shadowHour then
+            require('src.video_settings').apply({vegetationShadows=os.getenv('PICTURE_SHOP_SHADOW_TREES')=='1',
+                shadowDistance=os.getenv('PICTURE_SHOP_SHADOW_DISTANCE') or 'medium',
+                renderDistance=os.getenv('PICTURE_SHOP_RENDER_DISTANCE') or 'medium'})
+            renderer.calendar={month=6,day=1,totalDays=0,elapsed=shadowHour/24*1200,secondsPerDay=1200}
+            renderer.shadows.disabled=os.getenv('PICTURE_SHOP_SHADOWS_OFF')=='1'
+            report.shadow_hour=shadowHour;report.shadows_enabled=not renderer.shadows.disabled
+            report.video_settings=require('src.video_settings').current
+        end
         report.startup.renderer_ms=(timer()-start)*1000
         report.mobile_policy=renderer.mobile==true
         report.mobile_foliage_radius=Renderer.MOBILE_FOLIAGE_RADIUS
@@ -157,7 +169,20 @@ function P.install()
         local heading=townSeed and math.atan2(route.points[2].z-spawn.z,route.points[2].x-spawn.x) or -.7
         local rider=Rider.new(spawn.x,spawn.z,heading,{version=1,outfit='geared',mounted=true,engine=true,revision=0})
         Rider.update(rider,{},0,world)
-        local actor=rider.bike;local camera=Camera.new(actor,world)
+        local actor=rider.bike
+        local nightScenario=os.getenv('PICTURE_SHOP_NIGHT_SCENARIO')
+        if nightScenario=='truck' then
+            actor=require('src.commute.delivery_truck').new(spawn.x,spawn.z,heading)
+            actor.h=world:supportHeight(actor.x,actor.z);actor.headlight=true
+        elseif nightScenario=='lamp' then
+            for _,f in ipairs(require('src.commute.infrastructure').ensure(world).fixtures) do
+                if f.kind=='lamp' then actor.x=f.x+1.5;actor.z=f.z+1.5;break end
+            end
+            actor.h=world:supportHeight(actor.x,actor.z);actor.headlight=false
+        end
+        local sceneActors={{actor=actor,truck=nightScenario=='truck',bikeOnly=false,localPlayer=true}}
+        local camera=Camera.new(actor,world)
+        report.night_scenario=nightScenario
         local paintId=os.getenv('PICTURE_SHOP_BIKE_PAINT')
         if paintId and paintId~='' then
             assert(require('src.commute.bike_paint').valid(paintId),'Unknown benchmark paint finish')
@@ -190,7 +215,7 @@ function P.install()
         local captureOnly=os.getenv('PICTURE_SHOP_PERFORMANCE_CAPTURE_ONLY')=='1'
         local function capture(name)
             if not captures then return end
-            love.graphics.origin();renderer:draw(camera,actor,{{actor=actor,bikeOnly=false,localPlayer=true}})
+            love.graphics.origin();renderer:draw(camera,actor,sceneActors)
             cockpit:draw(actor,rider.gear.engine,1280,880,nil,camera)
             love.graphics.captureScreenshot(function(data)
                 local encoded=data:encode('png');local file=assert(io.open(output..'/'..name..'.png','wb'))
@@ -218,7 +243,7 @@ function P.install()
                 frame.update_ms=(timer()-t)*1000
                 t=timer();renderer:prepare(camera,1/60);frame.prepare_ms=(timer()-t)*1000
                 t=timer();love.graphics.origin();love.graphics.clear(.03,.04,.04,1)
-                renderer:draw(camera,actor,{{actor=actor,bikeOnly=false,localPlayer=true}})
+                renderer:draw(camera,actor,sceneActors)
                 cockpit:draw(actor,rider.gear.engine,1280,880,nil,camera)
                 love.graphics.flushBatch();frame.draw_ms=(timer()-t)*1000
                 local graphics=love.graphics.getStats()
@@ -391,6 +416,12 @@ function P.install()
             row.elapsed_ms=stageElapsed*1000
             row.gpu_drained_series_fps=gpuFence and #samples/stageElapsed or nil
             row.final_gpu_readback=gpuFence
+            if shadowHour and (name=='stationary' or name=='first_person_steady') then
+                local pixels=renderer:prewarmViews().canvas:newImageData()
+                local file=assert(io.open(output..'/'..name..'.png','wb'));file:write(pixels:encode('png'):getString());file:close();pixels:release()
+                row.shadow_vertices=renderer.shadows.stats.vertices or 0
+                row.shadow_static_casters=renderer.shadows.stats.staticCasters or 0
+            end
             row.over_16_67ms=0;row.over_33_33ms=0
             for _,sample in ipairs(samples) do
                 if sample.frame_ms>1000/60 then row.over_16_67ms=row.over_16_67ms+1 end
@@ -428,6 +459,12 @@ function P.install()
         stage('first_person_steady',180)
         stage('first_person_streaming',300,function(i) position(90+i*.3) end)
         stage('first_person_rotation',180,function(i) camera:orbit(2,0) end)
+        if shadowHour then
+            stage('shadow_camera_switches',180,function(i)
+                if i%6==1 then camera:setFirstPerson(not camera.firstPerson,actor)end
+                camera.yaw=(20+i*2)%360
+            end)
+        end
         if bridgeStress and renderer.structures then
             local best,bestCount=nil,-1
             for _,road in ipairs(roads.segments) do if road.bridge then

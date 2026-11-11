@@ -8,6 +8,9 @@ local function legacyGeometry(suite)
 end
 
 local DOMAIN_SUITES = {
+    require('src.tests.player_profile_test'),
+    require('src.tests.warehouse_condition_test'),
+    {run=function(_,check)require('src.commute.tests.day_night_test').run(check)end},
     {run=function(context,check)
         local receipts=require('src.tests.receipt_book_test').run(context,check)
         require('src.tests.receipt_archive_ui_test').run(context,check,receipts)
@@ -73,6 +76,7 @@ local DOMAIN_SUITES = {
     require("src.tests.critter_crisis_controller_test"),
     require("src.tests.performance_regression_test"),
     require("src.tests.ai_watchdog_test"),
+    require("src.tests.connection_watchdog_test"),
     require("src.tests.scaling_performance_test"),
     require("src.tests.late_game_load_test"),
     require("src.tests.async_save_test"),

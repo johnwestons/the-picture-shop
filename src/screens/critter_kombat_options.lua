@@ -5,7 +5,7 @@ local labels={keyboard="KEYBOARD",mouse="MOUSE",gamepad="CONTROLLER",touch="TOUC
 local fonts={}
 local function inside(x,y,r) return x>=r[1] and x<=r[1]+r[3] and y>=r[2] and y<=r[2]+r[4] end
 local function text(value,x,y,w,size,color)
-    fonts[size]=fonts[size] or require('src.screens.typography').get(size)
+    fonts[size]=fonts[size] or love.graphics.newFont("assets/fonts/VT323-Regular.ttf",size)
     love.graphics.setFont(fonts[size]);love.graphics.setColor(unpack(color or {1,.86,.55,1}))
     love.graphics.printf(value,x,y,w,"center")
 end

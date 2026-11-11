@@ -215,7 +215,8 @@ function State.applySave(state, payload)
     state._networkMachinePoses = nil
     state._machinePoseUnits = nil
     state.screen = "world"
-    state.message = "Shop opened."
+    state.message = require("src.warehouse_condition").openForBusiness(state)
+        and "Shop opened." or "The shop is still closed while you restore it."
     return true
 end
 
@@ -258,7 +259,8 @@ function State.applySharedSnapshot(state, snapshot)
     state._technicianPose = nil
     require("src.warehouse_delivery_driver").reset(state)
     state.screen = "world"
-    state.message = "Shop opened."
+    state.message = require("src.warehouse_condition").openForBusiness(state)
+        and "Shop opened." or "The shop is still closed while you restore it."
     return true
 end
 

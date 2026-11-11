@@ -2,23 +2,24 @@ local Notices=require('src.notifications')
 local Tutorial=require('src.tutorial')
 local Ui=require('src.screens.ui')
 local Text=require('src.screens.typography')
+local Clipboard=require('src.screens.notification_clipboard')
+local WarehouseHud=require('src.screens.warehouse_hud')
 local Screen={}
 local hidden={title=true,lan=true,direct=true,asset_error=true,options=true,notifications=true}
-local rects={close={x=790,y=34,width=132,height=44},all={x=40,y=115,width=146,height=40},
-    tutorial={x=194,y=115,width=146,height=40},previous={x=40,y=552,width=90,height=40},
-    next={x=250,y=552,width=90,height=40},up={x=742,y=552,width=80,height=40},
-    down={x=834,y=552,width=80,height=40},toggle={x=40,y=612,width=250,height=40},
-    readAll={x=306,y=612,width=210,height=40}}
+Screen.layout=Clipboard.layout
+Screen.detailHit=Clipboard.detailHit
 function Screen.available(R)return not hidden[R.state.screen]end
 function Screen.buttonRect(bounds,R)
     local right=bounds and bounds.right or require('src.config').baseWidth
+    if WarehouseHud.active(R) then return WarehouseHud.layoutFor(R,bounds).noticeIcon end
     if R and R.World and R.World.player.sceneId=='commute' then
-        local hud=require('src.commute.cockpit');hud.syncLayout(R)
-        local map=require('src.commute.runtime').miniMapRect(R)
-        local x=hud.CARD_X+hud.CARD_WIDTH+8
+        local hud=require('src.commute.cockpit')
+        local commute=require('src.commute.runtime')
+        local map=commute.miniMapRect(R)
+        local x=commute.cardX(R)+hud.CARD_WIDTH+8
         return {x=x,y=hud.CARD_Y+34,width=math.max(106,math.min(174,map.x-x-12)),height=34}
     end
-    return {x=right-140,y=58,width=122,height=32}
+    return {x=right-60,y=60,width=40,height=40}
 end
 local function changed(R)if R.App.playerFeedback then R.App.playerFeedback.dirty=true end end
 function Screen.items(R)
@@ -48,6 +49,7 @@ function Screen.open(R,id)
     if state.screen=='machine' and R.Machine and R.Machine.releaseOperator then R.Machine.releaseOperator(state) end
     if R.mobileControls then R.mobileControls:cancelAll() end
     state.screen='notifications';state.notificationFilter='all';state.notificationPage=1
+    Screen.pageTurn=nil
     local list=Screen.items(R)
     Screen.select(R,id or list[1] and list[1].id)
     if R.syncMobileKeyboard then R.syncMobileKeyboard() end
@@ -56,6 +58,7 @@ end
 function Screen.close(R)
     R.state.screen=R.state.notificationReturnScreen or 'world'
     R.state.notificationReturnScreen=nil
+    Screen.pageTurn=nil
     if R.syncMobileKeyboard then R.syncMobileKeyboard() end
     return true
 end
@@ -65,17 +68,22 @@ function Screen.scroll(R,amount)
 end
 local function page(R,direction)
     local items=Screen.items(R);local pages=math.max(1,math.ceil(#items/6))
-    R.state.notificationPage=math.max(1,math.min(pages,(R.state.notificationPage or 1)+direction))
+    local old=R.state.notificationPage or 1
+    R.state.notificationPage=math.max(1,math.min(pages,old+direction))
+    if R.state.notificationPage~=old then
+        Screen.pageTurn={start=love.timer.getTime(),direction=direction,from=old}
+    end
     local first=items[(R.state.notificationPage-1)*6+1];Screen.select(R,first and first.id)
 end
 function Screen.pointer(R,x,y,button)
     if R.state.screen=='notifications' then
         if button~=1 then return true end
-        for name,rect in pairs(rects) do if Ui.contains(rect,x,y) then
+        local layout=Clipboard.layout(R)
+        for name,rect in pairs(layout.rects) do if Ui.contains(rect,x,y) then
             if name=='close' then return Screen.close(R)
             elseif name=='all' or name=='tutorial' then
                 if name=='tutorial' and Tutorial.addReferences(R.state) then changed(R) end
-                R.state.notificationFilter=name;R.state.notificationPage=1;page(R,0)
+                R.state.notificationFilter=name;R.state.notificationPage=1;Screen.pageTurn=nil;page(R,0)
             elseif name=='previous' or name=='next' then page(R,name=='next' and 1 or -1)
             elseif name=='up' or name=='down' then Screen.scroll(R,name=='down' and 180 or -180)
             elseif name=='toggle' then
@@ -96,7 +104,8 @@ function Screen.pointer(R,x,y,button)
         local items=Screen.items(R)
         for row=1,6 do
             local n=items[((R.state.notificationPage or 1)-1)*6+row]
-            if n and Ui.contains({x=40,y=168+(row-1)*62,width=300,height=56},x,y) then Screen.select(R,n.id);break end
+            if n and Ui.contains({x=layout.list.x,y=layout.list.y+(row-1)*46,
+                    width=layout.list.width,height=44},x,y) then Screen.select(R,n.id);break end
         end
         return true
     end
@@ -107,6 +116,7 @@ function Screen.pointer(R,x,y,button)
     -- let their controls handle the pointer without requesting world geometry.
     if R.state.screen~='world' and not feedback then return false end
     local _,bounds=R.optionsAccessLayout()
+    if WarehouseHud.active(R) then return WarehouseHud.noticePointer(R,x,y,bounds) end
     if R.state.screen=='world' and Ui.contains(Screen.buttonRect(bounds,R),x,y) then return Screen.open(R) end
     local toastBounds=R.syncCamera and R.syncCamera() or bounds
     local commute=R.state.screen=='world' and R.World and R.World.player
@@ -127,65 +137,24 @@ function Screen.keypressed(R,key)
         local list=Screen.items(R);local current=1
         for i,n in ipairs(list) do if n.id==R.state.notificationSelection then current=i end end
         current=math.max(1,math.min(#list,current+(key=='down' and 1 or -1)))
-        if list[current] then R.state.notificationPage=math.ceil(current/6);Screen.select(R,list[current].id) end
+        if list[current] then
+            local old=R.state.notificationPage or 1
+            R.state.notificationPage=math.ceil(current/6)
+            if R.state.notificationPage~=old then
+                Screen.pageTurn={start=love.timer.getTime(),direction=key=='down' and 1 or -1,from=old}
+            end
+            Screen.select(R,list[current].id)
+        end
     end
     return true
 end
-local function label(value,x,y,width,size,color)
-    love.graphics.setFont(Text.get(size or 16));love.graphics.setColor(color or {.88,.93,.91,1})
-    love.graphics.printf(value,x,y,width,'left')
-end
-local function button(rect,title,selected)
-    Ui.panel(rect,selected and {.15,.30,.23,1} or {.10,.16,.18,1},{.34,.53,.46,1},5,1)
-    Text.label(title,rect,{size=15})
-end
 function Screen.drawAccess(R,bounds)
     if R.state.screen~='world' then return end
+    if WarehouseHud.active(R) then return WarehouseHud.drawNotices(R,bounds) end
     local count=Notices.unread(R.state);local rect=Screen.buttonRect(bounds,R)
-    love.graphics.push('all')
-    button(rect,'NOTICES'..(count>0 and (' '..(count>99 and '99+' or count)) or ''),count>0)
-    love.graphics.pop()
+    WarehouseHud.drawNoticeIcon(rect,count)
 end
 function Screen.draw(R)
-    local g=love.graphics;g.push('all');g.setShader()
-    g.setColor(.025,.045,.05,1);g.rectangle('fill',0,0,960,678)
-    label('NOTIFICATIONS',40,36,700,28,{.71,.96,.79,1})
-    local t=R.state.tutorial or Tutorial.new(false)
-    local status=t.finished and 'Tutorial complete' or t.enabled and ('Tutorial: lesson '..t.step..' of '..#Tutorial.steps) or 'Tutorial off'
-    label(Notices.unread(R.state)..' unread  /  '..status,40,80,720,15)
-    button(rects.close,'CLOSE / ESC');button(rects.all,'ALL',R.state.notificationFilter~='tutorial')
-    button(rects.tutorial,'TUTORIAL',R.state.notificationFilter=='tutorial')
-    local items=Screen.items(R);local currentPage=R.state.notificationPage or 1
-    for row=1,6 do
-        local n=items[(currentPage-1)*6+row]
-        if n then
-            local rect={x=40,y=168+(row-1)*62,width=300,height=56}
-            Ui.panel(rect,n.id==R.state.notificationSelection and {.14,.28,.23,1} or {.07,.12,.14,1},{.22,.35,.32,1},4,1)
-            local f=Text.get(14,'bold');g.setFont(f);g.setColor(.91,.96,.9,1)
-            g.print(Text.ellipsize(n.title,274,f),rect.x+12,rect.y+8)
-            label((n.unread and 'NEW  ·  ' or '')..n.kind:upper()..'  ·  Day '..(n.day+1),rect.x+12,rect.y+32,274,12,{.62,.80,.73,1})
-        end
-    end
-    if #items==0 then label('No notifications here yet.\nNew messages and tutorial lessons will appear here.',52,204,276,17) end
-    button(rects.previous,'PREV');button(rects.next,'NEXT')
-    label(currentPage..' / '..math.max(1,math.ceil(#items/6)),158,564,80,15)
-    Ui.panel({x=360,y=115,width=562,height=477},{.055,.10,.115,1},{.25,.40,.36,1},6,1)
-    local n=Notices.find(R.state,R.state.notificationSelection)
-    if n then
-        label(n.title,382,136,516,22,{.86,.98,.88,1})
-        label(n.detail,382,206,516,16,{.64,.82,.75,1})
-        local lines,height,font=Text.lines(n.body,516,17)
-        R.state.notificationMaxScroll=math.max(0,height-270)
-        Screen.scroll(R,0)
-        local sx,sy=g.transformPoint(382,268);local ex,ey=g.transformPoint(898,538)
-        g.setScissor(sx,sy,ex-sx,ey-sy);g.setFont(font);g.setColor(.9,.94,.92,1)
-        g.printf(n.body,382,268-(R.state.notificationScroll or 0),516,'left');g.setScissor()
-        button(rects.up,'UP');button(rects.down,'DOWN')
-        label(height>270 and 'Scroll for more / PgUp / PgDn' or 'Saved for you to revisit.',382,563,350,13,{.64,.82,.75,1})
-    else label('Select a notification to read more.',382,156,516,20) end
-    button(rects.toggle,t.finished and 'TUTORIAL COMPLETE' or t.enabled and 'PAUSE TUTORIAL' or 'ENABLE TUTORIAL')
-    button(rects.readAll,'MARK ALL READ')
-    label('Close to return to your game.',548,624,374,14)
-    g.pop()
+    if not Clipboard.draw(R,Screen.items(R),Screen.pageTurn) then Screen.pageTurn=nil end
 end
 return Screen

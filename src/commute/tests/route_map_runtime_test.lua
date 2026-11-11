@@ -136,9 +136,29 @@ function Test.run(context,check)
         check('gps_auto_button_restores_navigation_follow',map.miniAuto and map.miniFollow and C.activeWaypoint(R)==target)
         draw(R,'gps-auto-mobile')
         R.mobileControls.enabled=false;draw(R,'gps-auto-desktop');R.mobileControls.enabled=true
-        tap({x=mini.x+30,y=mini.y+60,width=30,height=30})
-        check('gps_map_tap_opens_destinations_without_rerouting',R._commute.mapOpen and C.activeWaypoint(R)==target)
-        tap(C.mapButton(R))
+        local miniState=map:miniSnapshot(mini,observed.actor,{destination=target,home=R.state.home.apartmentId})
+        local chosen,chosenX,chosenY
+        for _,entry in ipairs(map.entries) do
+            if entry.id~=target then
+                local destination=entry.site
+                if destination then
+                    local siteX,siteZ=destination.x or destination.origin.x,
+                        destination.z or destination.origin.z
+                    local t=miniState.transform
+                    local dx,dz=siteX-t.centerX,siteZ-t.centerZ
+                    local x=t.x+t.scale*(t.cos*dx-t.sin*dz)
+                    local y=t.y+t.scale*(t.sin*dx+t.cos*dz)
+                    if x>=miniState.area.x+4 and x<=miniState.area.x+miniState.area.width-4
+                        and y>=miniState.area.y+4 and y<=miniState.area.y+miniState.area.height-4 then
+                        chosen,chosenX,chosenY=entry.id,x,y;break
+                    end
+                end
+            end
+        end
+        assert(chosen,'Expected a visible alternate GPS destination')
+        tap({x=chosenX-1,y=chosenY-1,width=2,height=2})
+        check('gps_map_tap_changes_destination_without_opening_full_map',
+            not R._commute.mapOpen and C.activeWaypoint(R)==chosen)
         click(C.mapButton(R))
         check('route_map_pc_button_opens_map',R._commute.mapOpen==true)
         tap(C.mapButton(R))
@@ -161,14 +181,19 @@ function Test.run(context,check)
             and math.abs(rider.ped.x-bike.x)+math.abs(rider.ped.z-bike.z)>.5
             and near(observed.actor.x,rider.ped.x) and near(observed.actor.z,rider.ped.z)
             and near(observed.actor.heading,rider.ped.heading))
-        local screen,bounds=R.optionsAccessLayout()
-        tap(R.OptionsScreen.accessRect(screen,bounds))
+        local _,bounds=R.optionsAccessLayout()
+        local hud=require('src.screens.warehouse_hud')
+        local menu=hud.layoutFor(R,bounds)
+        tap(menu.menu)
+        tap(hud.menuRow(menu,1))
         check('route_map_global_options_remain_touch_accessible',R.state.screen=='options')
         R.App.keypressed('escape')
         check('route_map_options_resume_returns_to_travel',R.state.screen=='world' and C.localPart(R)~=nil)
         if not R._commute.mapOpen then tap(C.mapButton(R))end
         draw(R,'travel-map-seeded-town')
-        tap(require('src.screens.hud').exitRect(select(2,R.optionsAccessLayout())))
+        menu=hud.layoutFor(R,select(2,R.optionsAccessLayout()))
+        tap(menu.menu)
+        tap(hud.menuRow(menu,2))
         check('route_map_exit_releases_cached_map_with_travel_scene',R.state.screen=='title'
             and R._commute==nil and map.released==true and map.background==nil)
     end,debug.traceback)

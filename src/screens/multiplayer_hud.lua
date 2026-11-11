@@ -415,7 +415,12 @@ local function drawStatusPanel(info, layout)
     for index, row in ipairs(layout.statusPlayers) do
         local y = 300 + (index - 1) * 34
         love.graphics.setColor(0.91, 0.93, 0.90, 1)
-        love.graphics.printf(row.name, panel.x + 12, y, panel.width - 128, "left")
+        local star=row.playerId==1 and 16 or 0
+        if star>0 then
+            love.graphics.setColor(.95,.78,.23,1);require('src.player_profile').drawStar(panel.x+18,y+7,6)
+            love.graphics.setColor(.91,.93,.90,1)
+        end
+        love.graphics.printf(row.name, panel.x + 12+star, y, panel.width - 128-star, "left")
         love.graphics.setColor(0.95, 0.78, 0.23, 1)
         love.graphics.printf(row.badge, panel.x + panel.width - 120, y, 108, "right")
     end

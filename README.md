@@ -1,5 +1,21 @@
 # The Picture Shop
 
+**OPTIONS > VIDEO** controls object shadows, optional tree shadows, shadow distance,
+and world render distance. The default uses shaped object shadows with tree shadows
+off and medium distances. Preferences save on this device and apply immediately.
+Outdoor shadows follow the sun; warehouse shadows project away from a central
+ceiling light. These inexpensive shadows fall on floors/terrain, not other objects.
+Existing shading painted into the artwork remains when object shadows are disabled.
+
+`RUN_SHADOW_LAB.bat` opens an isolated comparison using the production shadow modules
+and simplified test casters. Tab changes scenes, S toggles shadows, O opens Video
+options, arrow keys change sun time, F changes the outdoor perspective, and moving
+the mouse moves the warehouse worker. `RUN_SHADOW_SMOKE_TEST.bat` checks projection,
+graphics paths, and settings persistence without loading a gameplay save.
+Outdoor static shadow rebuilds run in small time-budgeted steps, keep their previous
+mesh until ready, and do not restart merely because the camera rotates. Terrain
+meshes stay resident when render distance decreases; the option reduces visible work.
+
 The always-available **OPTIONS** button (or `O` / controller Start) opens game,
 audio, movable touch-control, and developer cheat settings. In **CONTROLS**, drag
 the movement stick and action buttons in the preview; positions are saved for
@@ -16,8 +32,11 @@ wheel to zoom; turn follow off to resume mobile panning. This preference is save
 on each device and follows that device's player during Local Play. Shop menus
 keep their own camera views. The current Android build is available below.
 
-In **OPTIONS > PLAYER**, pick rabbit fur and overall colors without replacing
-the sprite sheets; each player's choices appear for the rest of the online shop.
+In **OPTIONS > PLAYER**, set your display name with **SAVE NAME** and pick rabbit
+fur and overall colors. This device profile carries across save slots and Local,
+Direct, and private server play. Names and colors update for connected players;
+the host has a small gold star beside their name. NPC greetings and household
+records use the chosen name.
 Use **COMPUTER > HIRING > STAFF** to send an employee home for the day. A safe
 cutter cycle finishes first, and unfinished work resumes on the next shift. The
 computer shows the shop time as a digital readout at the bottom right. In the
@@ -37,7 +56,7 @@ for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
 delivery truck at the loading dock. Employees automatically choose available
 jacks and can transport separate pallets at the same time. Each jack and its
 load survives saving; approach a free jack to operate it yourself. The current
-source uses multiplayer protocol **74**, so all players need the same build.
+source uses multiplayer protocol **75**, so all players need the same build.
 
 New commute towns use road generator 12: public streets carry traffic in both
 directions, bridge approaches keep their lane width, and the Millhaven link
@@ -174,12 +193,13 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest test installers are [Android 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-0.1.0-android.105-Install.apk)
-and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
-Both packages use the same clean source commit and multiplayer protocol **74**.
-This update adds readable typewriter UI, larger mobile office pages, mixed-job
-delivery loads, visible customer pickup traffic and recovery, revised town roads
-and GPS, tutorial notices, an office receipt archive, and business-hour scheduling.
+The latest test installers are [Android 106](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.106/ThePictureShop-0.1.0-android.106-Install.apk)
+and [Windows 106](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.106/ThePictureShop-Windows-Setup-0.1.0-test.106.exe).
+Both packages use the same clean source commit and multiplayer protocol **75**.
+This playtest adds the Millhaven-to-Grandpa story opening, five warehouse
+restoration stages, a clearer ride HUD and GPS, new park and campground paths,
+terrain lighting, and updated office, receipt, and audio systems. The multiplayer
+new-shop lobby and synchronized story opening are still in development.
 Update every multiplayer participant together; older protocol builds cannot join.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
@@ -198,7 +218,7 @@ is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
 install. Installing over the existing app keeps saves. Android requires the same
-signing identity for an in-place update; the Android 105 playtest package uses the
+signing identity for an in-place update; the Android 106 playtest package uses the
 project's current debug signing key and is intended for this private tester flow.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
@@ -847,3 +867,10 @@ failure reproduction and verification limits.
 screens share `src/screens/ui.lua`, and domain/integration checks live under `src/tests/`. See
 `docs/asset_manifest.md`, `docs/testing.md`, `docs/coding_conventions.md`, `docs/asset_pipeline.md`,
 and `docs/polar115_research.md` for the runtime boundary, test map, conventions, and production research.
+# Outdoor night lighting
+
+Street lamps and modeled entrance fixtures fade on with the calendar's night lighting. Nearby lamp selection also fades over 0.45 seconds, with a gradual distance falloff, so entering range or changing the nearest lamps does not abruptly switch their illumination. Terrain, roads, grass and building surfaces receive the same local lighting in outside and first-person views. Character shadows use rounded head, ears, torso, arms and separate legs instead of a box. The driven truck uses two softened headlights at its front fascia; the motorcycle uses one. Existing headlight and high-beam controls still apply.
+
+This inexpensive pass selects up to four nearby stationary lamps and four actor/vehicle shadow proxies. It does not generate shadow maps or rebuild meshes when the camera rotates. Object shadows and shadow distance in Options → Video also control these local shadows; switching shadows off leaves the lights visible. Trees and detailed static scenery do not cast local-light shadows in this first pass. Billboard characters receive their existing scene tint rather than per-pixel local lighting.
+
+`RUN_SHADOW_SMOKE_TEST.bat` includes GPU checks for lamp illumination, actor occlusion, daytime shutoff and shadow settings, plus truck/motorcycle lamp placement checks. The performance probe accepts `PICTURE_SHOP_SHADOW_HOUR=22` and `PICTURE_SHOP_NIGHT_SCENARIO=truck` or `lamp`; the lamp scenario needs a generated town (`PICTURE_SHOP_TOWN_SEED=12345`). Captures and timings are written to the configured performance output directory.

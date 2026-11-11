@@ -32,6 +32,8 @@ function Component.install(Runtime)
                             generation = generation,
                             stage = "hello",
                         }
+                        self:connectionNote('incoming worker','RESOLVED','Incoming transport connection',
+                            'Wait for a validated hello and host admission','network:peer')
                     end
                 elseif event.type == "disconnect" then
                     self:_removePeer(event.peer, "Connection lost")
@@ -158,6 +160,8 @@ function Component.install(Runtime)
         end
         for _, expired in ipairs(expiredPeers) do
             local peer = expired.peer
+            self:connectionNote('worker handshake expired','RESOLVED','An incoming worker did not finish joining',
+                'Retired the incomplete connection; host remains open','network:peer')
             if self.networkKind == "direct" then
                 local approval = expired.stage == "approval"
                 self:_rejectDirectPending(peer,

@@ -26,13 +26,20 @@ function Test.run(context, check)
     assert(drawOkay, drawError)
     local mapScale = math.min(520 / 960, 344 / 678)
     local mapX = 76 + (520 - 960 * mapScale) / 2
-    local left, top = 41 + mapX * 1.37, 29 + 260 * 1.37
-    local right, bottom = 41 + (mapX + 960 * mapScale) * 1.37, 29 + 604 * 1.37
+    local left, top = 41 + (55.25 + mapX * .883) * 1.37, 29 + (18.2 + 260 * .901) * 1.37
+    local right, bottom = 41 + (55.25 + (mapX + 960 * mapScale) * .883) * 1.37,
+        29 + (18.2 + 604 * .901) * 1.37
     check("computer_staging_map_clip_tracks_mobile_viewport",
         stagingClip and stagingClip[1] == math.floor(left)
             and stagingClip[2] == math.floor(top)
             and stagingClip[3] == math.ceil(right) - math.floor(left)
             and stagingClip[4] == math.ceil(bottom) - math.floor(top))
+    local exit=stagingComputer.mousepressed(state,55.25+770*.883,18.2+206*.901,1)
+    check("computer_staging_contained_exit_click_works",exit and exit.action=="warehouse_staging_page_changed"
+        and not stagingComputer.warehouseStagingPage)
+    local reopen=stagingComputer.mousepressed(state,31.6+600*.956,9.5+216*.95,1)
+    check("computer_staging_contained_reentry_click_works",reopen and reopen.action=="warehouse_staging_page_changed"
+        and stagingComputer.warehouseStagingPage)
     local oldDimensions, oldSafeArea, oldOS = love.graphics.getDimensions, love.window.getSafeArea, love.system.getOS
     local oldCamera, oldScreen, oldSlot = app.mobileCamera, state.screen, state.activeSlot
     local oldTab, oldDropdown = computer.tab, computer.tabDropdownOpen
@@ -84,9 +91,10 @@ function Test.run(context, check)
                 app.mousereleased(x+354*scale,y+103*scale,1,false)
                 check("computer_fit_real_app_find_hit_" .. suffix,computer.browserOverlay=="search" and computer.wantsTextInput())
                 computer.dismissBrowserOverlay()
-                app.mousepressed(x + 822 * scale, y + 68 * scale, 1, false)
-                app.mousereleased(x + 822 * scale, y + 68 * scale, 1, false)
-                check("computer_fit_real_app_back_hit_" .. suffix, state.screen == "world")
+                -- Actual painted X location, independent of the screen's hitbox helper.
+                app.mousepressed(x + 836 * scale, y + 56 * scale, 1, false)
+                app.mousereleased(x + 836 * scale, y + 56 * scale, 1, false)
+                check("computer_fit_real_app_sprite_x_hit_" .. suffix, state.screen == "world")
             end
             -- The multiplayer office uses the same fit and inverse transform.
             state.screen, state.activeSlot, Remote.resourceId = "workshop_remote", nil, "office_computer"

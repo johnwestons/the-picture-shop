@@ -159,6 +159,11 @@ function Component.install(Runtime)
                 if id then Runtime.multiplayer:markShopDirty();Runtime.saveCurrent() end
                 return id,reason
             end,
+            updatePlayerProfile = function(player)
+                if require('src.home_residents').setName(Runtime.state,player,player.name) then
+                    Runtime.multiplayer:markShopDirty(true);Runtime.saveCurrent()
+                end
+            end,
             resolveGuestSpawn = function(hostX, hostY, guestIndex, players)
                 if require("src.home_travel").guestJoined(Runtime.state,guestIndex) then Runtime.multiplayer:markShopDirty() end
                 if require("src.shop_rooms").scene(Runtime.World.player)=="home" then
@@ -284,6 +289,7 @@ function Component.install(Runtime)
                 local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim,signature)
                 if okay and targetKind=='deliverySignature' then Runtime.saveCurrent() end
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
+                if okay and targetKind=="restoration" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="roomGame" and
                     (desiredState=="basketball:pickup" or desiredState=="basketball:drop") then
                     Runtime.saveCurrent()

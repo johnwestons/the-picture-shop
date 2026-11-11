@@ -11,9 +11,9 @@ local titleFont, bodyFont, smallFont
 
 local function ensureFonts()
     local g = love.graphics
-    titleFont = titleFont or require('src.screens.typography').get(18,'bold')
-    bodyFont = bodyFont or require('src.screens.typography').get(16)
-    smallFont = smallFont or require('src.screens.typography').get(14)
+    titleFont = titleFont or g.newFont(14)
+    bodyFont = bodyFont or g.newFont(12)
+    smallFont = smallFont or g.newFont(10)
 end
 
 local function versionParts(version)
@@ -44,9 +44,9 @@ local function linesFor(text, width)
 end
 
 local function entryHeight(entry)
-    local height = 39 + linesFor(entry.title or 'Update',CARD.width-26)*bodyFont:getHeight()*bodyFont:getLineHeight()
+    local height = 55
     for _, change in ipairs(entry.changes or {}) do
-        height = height + linesFor(change, CARD.width - 40) * bodyFont:getHeight()*bodyFont:getLineHeight() + 8
+        height = height + linesFor(change, CARD.width - 48) * 16 + 5
     end
     return height + 8
 end
@@ -114,10 +114,7 @@ function Panel.drawOptions(offset)
 
     local fullHeight = contentHeight(entries)
     local y = VIEWPORT.y - offset + 8
-    local sx,sy=g.transformPoint(VIEWPORT.x,VIEWPORT.y)
-    local ex,ey=g.transformPoint(VIEWPORT.x+VIEWPORT.width,VIEWPORT.y+VIEWPORT.height)
-    local oldScissor={g.getScissor()}
-    g.intersectScissor(sx,sy,ex-sx,ey-sy)
+    g.setScissor(VIEWPORT.x, VIEWPORT.y, VIEWPORT.width, VIEWPORT.height)
     for _, entry in ipairs(entries) do
         local height = entryHeight(entry)
         if y + height > VIEWPORT.y and y < VIEWPORT.y + VIEWPORT.height then
@@ -140,20 +137,20 @@ function Panel.drawOptions(offset)
             g.setColor(.88, .91, .84, 1)
             g.printf(tostring(entry.title or "Update"), CARD.x + 13, y + 29,
                 CARD.width - 26, "left")
-            local changeY = y + 39 + linesFor(entry.title or 'Update',CARD.width-26)*bodyFont:getHeight()*bodyFont:getLineHeight()
+            local changeY = y + 51
             for _, change in ipairs(entry.changes or {}) do
-                local lineCount = linesFor(change, CARD.width - 40)
+                local lineCount = linesFor(change, CARD.width - 48)
                 g.setColor(.84, .68, .28, 1)
                 g.circle("fill", CARD.x + 17, changeY + 7, 2)
                 g.setColor(.76, .83, .78, 1)
                 g.printf(tostring(change), CARD.x + 27, changeY,
                     CARD.width - 40, "left")
-                changeY = changeY + lineCount * bodyFont:getHeight()*bodyFont:getLineHeight() + 8
+                changeY = changeY + lineCount * 16 + 5
             end
         end
         y = y + height + 8
     end
-    g.setScissor(unpack(oldScissor))
+    g.setScissor()
 
     if maximum > 0 then
         local trackX, trackY, trackH = 837, VIEWPORT.y + 3, VIEWPORT.height - 6

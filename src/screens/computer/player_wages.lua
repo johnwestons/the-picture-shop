@@ -1,10 +1,10 @@
 -- Human-worker wage agreement on the shared office computer.
 local Payroll=require('src.guest_payroll')
 local Component={}
-local previous={x=104,y=570,width=114,height=32}
-local nextPage={x=734,y=570,width=114,height=32}
+local previous={x=116,y=520,width=114,height=32}
+local nextPage={x=724,y=520,width=114,height=32}
 local function rowRect(index)
-    local y=268+(index-1)*100
+    local y=264+(index-1)*84
     return {y=y,minus={x=570,y=y+31,width=36,height=34},plus={x=610,y=y+31,width=36,height=34},
         propose={x=652,y=y+31,width=88,height=34},accept={x=746,y=y+31,width=102,height=34}}
 end
@@ -78,7 +78,7 @@ function Component.install(Runtime)
     function Runtime.drawPlayerWages(state,pointerX,pointerY)
         local rows=entries(state);local maxPage=math.max(1,math.ceil(#rows/3))
         page=math.min(page,maxPage)
-        Runtime.panel({x=82,y=190,width=792,height=424},{.045,.075,.09,1},{.28,.48,.48,1})
+        Runtime.panel({x=110,y=190,width=738,height=364},{.045,.075,.09,1},{.28,.48,.48,1})
         local function label(value,x,y,width,color)
             love.graphics.setColor(unpack(color or {.85,.92,.87,1}))
             love.graphics.printf(value,x,y,width,'left')
@@ -87,9 +87,9 @@ function Component.install(Runtime)
             local hover=pointerX and pointerY and Runtime.contains(rect,pointerX,pointerY)
             Runtime.drawComputerButton(rect,title,enabled and (hover and 'primaryHover' or 'primary') or 'disabled')
         end
-        label('PLAYER WAGES',104,210,740,{1,.86,.41,1})
-        label('Connected guests earn shop-time wages, even while riding. Host cash pays them automatically.',104,237,740)
-        if #rows==0 then label('No player has joined this shop yet. New guests start at $1.00 per hour.',104,320,740) end
+        label('PLAYER WAGES',124,210,712,{1,.86,.41,1})
+        label('Connected guests earn shop-time wages, even while riding. Host cash pays them automatically.',124,237,712)
+        if #rows==0 then label('No player has joined this shop yet. New guests start at $1.00 per hour.',124,320,712) end
         for visible=1,3 do
             local row=rows[(page-1)*3+visible]
             if row then
@@ -100,14 +100,14 @@ function Component.install(Runtime)
                 local due=math.max(0,math.floor(earned+1e-6)-paid)
                 local online=resident.activePlayerId~=nil
                 love.graphics.setColor(.09,.15,.17,1)
-                love.graphics.rectangle('fill',102,rect.y,748,94,4,4)
-                label((resident.name or row.id)..(online and '  /  CONNECTED' or '  /  OFFLINE'),112,rect.y+7,430,
+                love.graphics.rectangle('fill',116,rect.y,722,82,4,4)
+                label((resident.name or row.id)..(online and '  /  CONNECTED' or '  /  OFFLINE'),128,rect.y+7,424,
                     online and {.58,.94,.72,1} or {.65,.72,.72,1})
                 label(string.format('Agreed $%.2f/hr   |   Earned $%.2f   |   Paid $%.2f   |   Owed $%.2f',
-                    (resident.wageCents or Payroll.DEFAULT_WAGE_CENTS)/100,earned/100,paid/100,due/100),112,rect.y+36,450)
+                    (resident.wageCents or Payroll.DEFAULT_WAGE_CENTS)/100,earned/100,paid/100,due/100),128,rect.y+32,438)
                 local proposal=resident.wageProposal
                 label(proposal and string.format('Offer $%.2f/hr from %s',proposal.wageCents/100,
-                    proposal.fromPlayerId==1 and 'host' or 'guest') or 'No pending offer',112,rect.y+67,450)
+                    proposal.fromPlayerId==1 and 'host' or 'guest') or 'No pending offer',128,rect.y+61,438)
                 local allowed=active(row)
                 button(rect.minus,'-',allowed and draft>Payroll.MIN_WAGE_CENTS)
                 button(rect.plus,'+',allowed and draft<Payroll.MAX_WAGE_CENTS)
@@ -117,7 +117,7 @@ function Component.install(Runtime)
             end
         end
         button(previous,'PREVIOUS',page>1)
-        label(string.format('%d / %d',page,maxPage),432,578,100)
+        label(string.format('%d / %d',page,maxPage),432,528,100)
         button(nextPage,'NEXT',page<maxPage)
     end
 end

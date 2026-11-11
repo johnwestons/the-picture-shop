@@ -12,14 +12,14 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawCart(state, pointerX, pointerY)
-        Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
+        Runtime.panel({ x = 110, y = 190, width = 738, height = 394 },
             { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
         local total, count = Runtime.cartTotal()
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.print("ONLINE CART", 104, 208)
+        love.graphics.print("ONLINE CART", 124, 208)
         love.graphics.setColor(0.70, 0.79, 0.80)
         love.graphics.printf("Review everything before checkout. A separate receipt is emailed for every order.",
-            300, 208, 524, "right")
+            300, 208, 538, "right")
         local maximumPage = math.max(1, math.ceil(#Runtime.ComputerScreen.cart / Runtime.CART_PAGE_SIZE))
         Runtime.ComputerScreen.cartPage = math.max(1, math.min(Runtime.ComputerScreen.cartPage or 1, maximumPage))
         local first = (Runtime.ComputerScreen.cartPage - 1) * Runtime.CART_PAGE_SIZE + 1
@@ -33,9 +33,9 @@ function Component.install(Runtime)
             if not entry then break end
             local y = 244 + (visibleIndex - 1) * 40
             love.graphics.setColor(visibleIndex % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
-            love.graphics.rectangle("fill", 102, y, 704, 36, 2, 2)
+            love.graphics.rectangle("fill", 116, y, 718, 36, 2, 2)
             love.graphics.setColor(0.86, 0.90, 0.88)
-            love.graphics.printf(entry.name, 114, y + 10, 390, "left")
+            love.graphics.printf(entry.name, 128, y + 10, 376, "left")
             love.graphics.setColor(0.63, 0.72, 0.73)
             love.graphics.printf("× " .. tostring(entry.quantity), 500, y + 10, 54, "right")
             love.graphics.setColor(0.96, 0.84, 0.30)
@@ -64,11 +64,11 @@ function Component.install(Runtime)
     function Runtime.drawInventory(state)
         local inventory = state.inventory or {}
         love.graphics.setColor(0.73, 0.80, 0.81)
-        love.graphics.print("PHYSICAL PALLET INVENTORY", 92, 202)
+        love.graphics.print("PHYSICAL PALLET INVENTORY", 116, 202)
         local cards = {
-            { label = "RAW PALLETS", value = inventory.rawPallets or 0, x = 92, color = { 0.37, 0.53, 0.63 } },
-            { label = "IN PROCESS", value = inventory.inProcessPallets or 0, x = 350, color = { 0.73, 0.52, 0.20 } },
-            { label = "FINISHED", value = inventory.finishedPallets or 0, x = 608, color = { 0.20, 0.57, 0.36 } },
+            { label = "RAW PALLETS", value = inventory.rawPallets or 0, x = 116, color = { 0.37, 0.53, 0.63 } },
+            { label = "IN PROCESS", value = inventory.inProcessPallets or 0, x = 358, color = { 0.73, 0.52, 0.20 } },
+            { label = "FINISHED", value = inventory.finishedPallets or 0, x = 600, color = { 0.20, 0.57, 0.36 } },
         }
         for _, card in ipairs(cards) do
             Runtime.panel({ x = card.x, y = 234, width = 224, height = 112 },
@@ -79,33 +79,36 @@ function Component.install(Runtime)
             love.graphics.setColor(0.96, 0.84, 0.30)
             love.graphics.printf(tostring(card.value), card.x, 292, 224, "center")
         end
-        Runtime.panel({ x = 92, y = 360, width = 740, height = 274 },
+        Runtime.panel({ x = 116, y = 360, width = 708, height = 224 },
             { 0.06, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
         love.graphics.setColor(0.73, 0.80, 0.81)
-        love.graphics.print("SHOP STOCK", 116, 380)
+        love.graphics.print("SHOP STOCK", 128, 380)
         love.graphics.setColor(0.42, 0.73, 0.78)
-        love.graphics.printf("Order supplies in WWW",
-            400, 380, 406, "right")
+        love.graphics.printf("Buy more through the WWW tab at www.thecritternet.com",
+            404, 380, 404, "right")
         love.graphics.setColor(0.73, 0.80, 0.81)
-        love.graphics.print("Loose starter sheets", 116, 414)
-        love.graphics.print("Finished samples", 474, 414)
+        love.graphics.print("Loose starter sheets", 128, 414)
+        love.graphics.print("Finished samples", 482, 414)
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.printf(Runtime.commaNumber(inventory.paper or 0), 314, 414, 110, "right")
-        love.graphics.printf(Runtime.commaNumber(inventory.prints or 0), 672, 414, 110, "right")
+        love.graphics.printf(Runtime.commaNumber(inventory.paper or 0), 318, 414, 110, "right")
+        love.graphics.printf(Runtime.commaNumber(inventory.prints or 0), 680, 414, 110, "right")
         local rows = Runtime.Procurement.inventoryRows(state)
         local rowsPerColumn = math.max(1, math.ceil(#rows / 2))
-        local rowSpacing = 28
+        local rowSpacing = math.min(22, math.max(15, math.floor(116 / math.max(1, rowsPerColumn - 1))))
+        local originalFont=love.graphics.getFont()
+        love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
         for index, item in ipairs(rows) do
             local column = math.floor((index - 1) / rowsPerColumn)
             local row = (index - 1) % rowsPerColumn
-            local x, y = 116 + column * 358, 456 + row * rowSpacing
+            local x, y = 128 + column * 354, 452 + row * rowSpacing
             love.graphics.setColor(row % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
-            love.graphics.rectangle("fill", x - 8, y - 7, 326, 28, 2, 2)
+            love.graphics.rectangle("fill", x - 8, y - 4, 326, math.min(20,rowSpacing), 2, 2)
             love.graphics.setColor(0.73, 0.80, 0.81)
             love.graphics.print(item.label, x, y)
             love.graphics.setColor(0.95, 0.84, 0.30)
             love.graphics.printf(Runtime.commaNumber(item.quantity) .. " " .. item.unit, x + 190, y, 116, "right")
         end
+        love.graphics.setFont(originalFont)
     end
 
     function Runtime.conditionColor(condition)
@@ -142,24 +145,35 @@ function Component.install(Runtime)
             bills = 15,
             credit = 16,
         }
-        Runtime.drawCritterNetSprite(assets, frames[Runtime.ComputerScreen.tab] or 5,
-            696, 52, 46, 31, 0.96)
+        local frame = frames[Runtime.ComputerScreen.tab] or 5
+        if Runtime.ComputerScreen.tab == 'active' then
+            -- The atlas shifts the paw trio sideways between frames. Place each
+            -- frame over the three fixed paws painted into the browser chrome.
+            local positions = {
+                [5] = {691,159}, [6] = {685,176},
+                [7] = {693,179}, [8] = {708,172},
+            }
+            local placement = positions[frame]
+            Runtime.drawCritterNetSprite(assets,frame,placement[1],58,placement[2],88,0.96)
+        else
+            Runtime.drawCritterNetSprite(assets,frame,696,52,46,31,0.96)
+        end
     end
 
     function Runtime.drawWww(state, pointerX, pointerY, assets)
-        Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
+        Runtime.panel({ x = 110, y = 190, width = 738, height = 394 },
             { 0.035, 0.055, 0.075, 1 }, { 0.32, 0.56, 0.58, 1 })
         local site = Runtime.WWW_SITES[Runtime.ComputerScreen.wwwSite] or Runtime.WWW_SITES[1]
         -- The browser address bar above owns the URL; this is the site masthead.
-        Runtime.panel({ x = 96, y = 198, width = 604, height = 32 },
+        Runtime.panel({ x = 116, y = 198, width = 584, height = 32 },
             { 0.025, 0.15, 0.18, 1 }, { 0.31, 0.64, 0.65, 1 }, 3, 1)
         love.graphics.setColor(0.96, 0.94, 0.84, 1)
-        love.graphics.print("CRITTERNET  /  " .. site.name, 114, 206)
+        love.graphics.print("CRITTERNET  /  " .. site.name, 130, 206)
         local animationTime = love.timer.getTime()
         local globeFrame = 1 + math.floor(animationTime * 2.5) % 4
         local pulseFrame = 5 + math.floor(animationTime * 4) % 4
         local modemFrame = 9 + math.floor(animationTime * 3) % 4
-        Runtime.drawCritterNetSprite(assets, globeFrame, 646, 196, 58, 38, 1)
+        Runtime.drawCritterNetSprite(assets, globeFrame, 400, 196, 58, 38, 1)
         Runtime.drawCritterNetSprite(assets, pulseFrame, 350, 492, 184, 122, 0.14)
         for index, website in ipairs(Runtime.WWW_SITES) do
             local rect = Runtime.wwwSiteRect(index)
@@ -193,11 +207,14 @@ function Component.install(Runtime)
                 love.graphics.printf(item.retailName or item.name, row.x + 14, row.y + 8, 430, "left")
                 if (salePercent or 0) > 0 then love.graphics.setColor(0.50, 0.94, 0.56, 1)
                 else love.graphics.setColor(0.66,0.72,0.72,1) end
+                local originalFont=love.graphics.getFont()
+                love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
                 love.graphics.print(available
                     and ((salePercent or 0) > 0
                         and string.format("%d%% SALE • regular %s • loading dock", salePercent, Runtime.money(regularPrice))
                         or string.format("Ships to loading dock • salesman bulk $%d",item.price))
                     or tostring(item.unavailableReason),row.x+14,row.y+29)
+                love.graphics.setFont(originalFont)
                 local hovered = affordable and pointerX and Runtime.contains(buy, pointerX, pointerY)
                 Runtime.drawComputerButton(buy,
                     available and ((salePercent or 0) > 0 and ("SALE " .. Runtime.money(price))
@@ -207,22 +224,22 @@ function Component.install(Runtime)
             return
         end
         love.graphics.setColor(0.68, 0.83, 0.84)
-        love.graphics.print("MACHINE LISTINGS", Runtime.MACHINE_OFFER.x, 278)
+        love.graphics.print("MACHINE LISTINGS", Runtime.MACHINE_OFFER.x, 284)
         for index, offer in ipairs(Runtime.MachineFleet.offers("online")) do
-            local Text=require('src.screens.typography');love.graphics.setFont(Text.get(14))
             local y = Runtime.MACHINE_OFFER.y + (index - 1) * (Runtime.MACHINE_OFFER.height + Runtime.MACHINE_OFFER.gap)
             local buy = Runtime.machineBuyRect(index)
             Runtime.panel({ x = Runtime.MACHINE_OFFER.x, y = y, width = Runtime.MACHINE_OFFER.width, height = Runtime.MACHINE_OFFER.height },
                 { 0.06, 0.09, 0.12, 1 }, { 0.24, 0.40, 0.46, 1 })
             love.graphics.setColor(0.92, 0.95, 0.93)
-            local labelWidth=buy.x-Runtime.MACHINE_OFFER.x-20
-            love.graphics.print(Text.ellipsize(offer.name,labelWidth), Runtime.MACHINE_OFFER.x + 12, y + 5)
+            local nameScale = math.min(1, (buy.x - Runtime.MACHINE_OFFER.x - 20)
+                / math.max(1, love.graphics.getFont():getWidth(offer.name)))
+            love.graphics.print(offer.name, Runtime.MACHINE_OFFER.x + 12, y + 5, 0, nameScale, nameScale)
             local red, green, blue = Runtime.conditionColor(offer.condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(Text.ellipsize(string.format("%s • %.0f%%", offer.conditionStatus, offer.condition),labelWidth),
+            love.graphics.print(string.format("%s • %.0f%% condition", offer.conditionStatus, offer.condition),
                 Runtime.MACHINE_OFFER.x + 12, y + 20)
             love.graphics.setColor(0.58, 0.67, 0.69)
-            love.graphics.print(Text.ellipsize('Flatbed delivery',labelWidth), Runtime.MACHINE_OFFER.x + 12, y + 36)
+            love.graphics.print("Inspected • flatbed delivery", Runtime.MACHINE_OFFER.x + 12, y + 36)
             local total = Runtime.cartTotal()
             local affordable = (state.money or 0) >= total + offer.price
             local canFinance = (state.money or 0) < offer.price
@@ -234,7 +251,7 @@ function Component.install(Runtime)
         end
 
         love.graphics.setColor(0.63, 0.72, 0.74)
-        love.graphics.print("YOUR MACHINES", Runtime.OWNED_MACHINE.x, 278)
+        love.graphics.print("YOUR MACHINES", Runtime.OWNED_MACHINE.x, 284)
         local owned, pages = Runtime.ComputerScreen.ownedMachinePage(state)
         if #owned == 0 then
             love.graphics.setColor(0.52, 0.60, 0.62)
@@ -246,22 +263,20 @@ function Component.install(Runtime)
             if item then
             local y = Runtime.OWNED_MACHINE.y + (visibleIndex - 1) * (Runtime.OWNED_MACHINE.height + Runtime.OWNED_MACHINE.gap)
             local sell = Runtime.machineSellRect(visibleIndex)
-            local Text=require('src.screens.typography');love.graphics.setFont(Text.get(14))
-            local labelWidth=sell.x-Runtime.OWNED_MACHINE.x-18
             local condition = Runtime.MachineFleet.condition(item)
             local weakest = Runtime.MachineFleet.weakestComponent(item)
             Runtime.panel({ x = Runtime.OWNED_MACHINE.x, y = y, width = Runtime.OWNED_MACHINE.width, height = Runtime.OWNED_MACHINE.height },
                 { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.34, 0.38, 1 })
             love.graphics.setColor(0.92, 0.95, 0.93)
-            love.graphics.print(Text.ellipsize(item.id .. "  " .. (Runtime.MachineFleet.definition(item.modelId).shortName),labelWidth),
-                Runtime.OWNED_MACHINE.x + 10, y + 9)
+            love.graphics.print(item.id .. "  " .. (Runtime.MachineFleet.definition(item.modelId).shortName),
+                Runtime.OWNED_MACHINE.x + 10, y + 6)
             local red, green, blue = Runtime.conditionColor(condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(Text.ellipsize(string.format("%.1f%% • %s",
-                condition, item.status:upper()),labelWidth), Runtime.OWNED_MACHINE.x + 10, y + 30)
+            love.graphics.print(string.format("%s %.1f%% • %s", Runtime.MachineFleet.conditionStatus(condition),
+                condition, item.status:upper()), Runtime.OWNED_MACHINE.x + 10, y + 22)
             love.graphics.setColor(0.55, 0.64, 0.66)
-            love.graphics.print(Text.ellipsize(string.format("%s %.0f%% • %d cycles", weakest.label,
-                weakest.value, item.cycles),labelWidth), Runtime.OWNED_MACHINE.x + 10, y + 46)
+            love.graphics.print(string.format("%s %.0f%% • %d cycles", weakest.label,
+                weakest.value, item.cycles), Runtime.OWNED_MACHINE.x + 10, y + 39)
             local hovered = pointerX and Runtime.contains(sell, pointerX, pointerY)
             Runtime.drawComputerButton(sell,
                 "SELL\n" .. Runtime.money(Runtime.MachineFleet.resaleValue(item, "online")),
@@ -279,8 +294,11 @@ function Component.install(Runtime)
             Runtime.drawComputerButton(nextRect, "NEXT", Runtime.ComputerScreen.machinePage >= pages
                 and "disabled" or nextHovered and "hover" or "secondary")
             love.graphics.printf(string.format("%d / %d", Runtime.ComputerScreen.machinePage, pages),
-                588, 595, 164, "center")
+                588, 554, 164, "center")
         end
+        love.graphics.setColor(0.55, 0.68, 0.69)
+        love.graphics.printf("Verified machines ship to your shop floor.",
+            116, 550, 354, "center")
     end
 end
 

@@ -164,7 +164,11 @@ function Flow.outingArrival(state,atHome)
     -- lost when the traveler returns to the warehouse.
     Flow.update(state,false)
     state.home.visit=(atHome or Flow.shopClosed(state)) and {kind="outing",scene=atHome and "home" or "warehouse"} or nil
+    local home=state.home
+    local town=require('src.commute.town')
+    local townName=home and home.town and home.town.name
+        or town.defaultName(home and home.town and home.town.seed)
     return changed(state,atHome and "Welcome to your apartment. The shop keeps its normal schedule."
-        or "Back at the shop. Your town outing is complete.")
+        or "Welcome back to "..townName..". Your town outing is complete.")
 end
 return Flow

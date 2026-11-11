@@ -32,6 +32,10 @@ function Home.new(options,day)
     end
     if townError then return nil,townError end
     if not Town.valid(town) then return nil,"Invalid town layout. Generate a town again." end
+    if not town.name then
+        town,townError=Town.withName(town,Town.defaultName(town.seed))
+        if not town then return nil,townError end
+    end
     local due=nextMonth(day)
     if due-day<7 then due=nextMonth(due) end
     local result={version=1,revision=0,apartmentId=id,furnishingPreset=preset,town=Town.copy(town),
@@ -115,6 +119,11 @@ function Home.normalize(home,day,hours)
     -- Existing shops keep their original geography. Saved layouts are copied,
     -- never regenerated from a seed when generator code changes.
     if not result.town then result.town=Town.legacy() end
+    if not result.town.name then
+        local named,nameError=Town.withName(result.town,Town.defaultName(result.town.seed))
+        if not named then return nil,nameError end
+        result.town=named
+    end
     result.townCharacters=TownCharacters.normalize(result.townCharacters,result.town,hours)
     if not result.townCharacters then return nil,"Invalid saved town character roster." end
     if result.commute then

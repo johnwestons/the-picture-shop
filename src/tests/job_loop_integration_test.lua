@@ -100,8 +100,9 @@ function Test.run(context, check, jobs)
         inspectionAction and fullLoopOffer.inspection and fullLoopOffer.inspection.status == "passed"
             and fullLoopSaveCalls == 1)
     fullLoopSaveCalls = 0
+    local employeeX,employeeY=context.computerScreen.pickupChoiceCenter('employee')
     check("full_loop_requests_pickup", context.input.mousepressed(
-        pickupX, pickupY, 1, fullLoopInput)
+        employeeX, employeeY, 1, fullLoopInput)
         and fullLoopOffer.status == "ready_for_pickup"
         and fullLoopOffer.pickup.status == "awaiting_schedule"
         and fullLoopSaveCalls == 1)

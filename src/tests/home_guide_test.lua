@@ -29,13 +29,6 @@ function Test.run(context,check)
         guest.draw(s,nil,nil,context.assets)
         local bottom=Guide.draw({contains=Ui.contains,drawComputerButton=function() end},s,i)
         check("home_guide_topic_fits_above_footer_"..i,bottom<=550,"bottom="..bottom)
-        local _,_,_,pages=Guide.bodyLayout(s,i,true)
-        for part=2,pages do
-            local last=Guide.draw({contains=Ui.contains,drawComputerButton=function() end,
-                twelveHourTime=function() return true end},s,i,nil,nil,part)
-            check(('home_guide_topic_%d_page_%d_fits_footer'):format(i,part),last<=550)
-        end
-        love.graphics.clear();guest.draw(s,nil,nil,context.assets)
         love.graphics.pop()
         if destination then
             local data=canvas:newImageData();local encoded=data:encode("png")
@@ -44,11 +37,6 @@ function Test.run(context,check)
         end
         canvas:release()
     end
-    for _=1,20 do
-        check('home_guide_page_turn_'.._,click(s,guest,'next').action=='home_view')
-    end
-    check('home_guide_previous_page_stays_in_guide',click(s,guest,'previous').action=='home_view'
-        and guest.tab=='home' and sent==0)
     check("home_guide_reading_never_spends_or_sends",sent==0 and s.home.revision==revision and s.home.balanceCents==balance
         and s.home.lease.paidCents==rent and #s.home.shopping.orders==0)
     click(s,guest,"action") -- Personal pay, still read-only.

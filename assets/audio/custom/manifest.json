@@ -1,0 +1,30 @@
+{
+  "files": [
+    "assets/audio/custom/898c19dc8bfcbcc6efb843c3ce536a24f570759f5ed0c98d49643c7898dfcbd2.wav",
+    "assets/audio/custom/1b3ed39d36e305852e11883891618a959663c2f5152bd2974e32a894a4c7e6de.wav",
+    "assets/audio/custom/2adf12261104485581e1ea6089c0ca6c07a91fa947c56be60067bfb21bd3fd8c.wav"
+  ],
+  "bytes": 479616,
+  "credits": [
+    {
+      "slot": "shop-loading_door",
+      "path": "assets/audio/custom/898c19dc8bfcbcc6efb843c3ce536a24f570759f5ed0c98d49643c7898dfcbd2.wav",
+      "label": "Loading Door variation",
+      "notes": ""
+    },
+    {
+      "slot": "shop-truck_arrival",
+      "path": "assets/audio/custom/1b3ed39d36e305852e11883891618a959663c2f5152bd2974e32a894a4c7e6de.wav",
+      "label": "Truck Arrival variation",
+      "notes": ""
+    },
+    {
+      "slot": "commute-horn",
+      "path": "assets/audio/custom/2adf12261104485581e1ea6089c0ca6c07a91fa947c56be60067bfb21bd3fd8c.wav",
+      "label": "Vehicle horn variation",
+      "notes": ""
+    }
+  ],
+  "luaSha256": "8400ee721b20b1ec69c29c2aadcaca2792974e3196f13a54eaf2cefcc57ec2be",
+  "published": "2026-11-11T00:50:40.673Z"
+}

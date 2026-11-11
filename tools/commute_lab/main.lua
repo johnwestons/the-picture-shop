@@ -260,6 +260,18 @@ function love.load()
                 if site and (not selected or selected[id]) then cases[#cases+1]={name='town-first-person-'..id,x=site.parking.x,z=site.parking.z,
                     heading=math.atan2(site.z-site.parking.z,site.x-site.parking.x),firstPerson=true} end
             end
+            if os.getenv('PICTURE_SHOP_DAY_NIGHT_REVIEW')=='1' then
+                local site=assert(roads.sites.byId.farm,'Day/night review needs a farm')
+                cases={}
+                for _,hour in ipairs({9,12,21,0}) do
+                    cases[#cases+1]={name=('farm-%02d00'):format(hour),x=site.parking.x,z=site.parking.z,
+                        yaw=20-site.yaw*180/math.pi,zoom=.68,siteId=site.id,firstPerson=false,
+                        month=6,day=21,hour=hour}
+                end
+                cases[#cases+1]={name='farm-first-person-0000',x=site.parking.x,z=site.parking.z,
+                    heading=math.atan2(site.z-site.parking.z,site.x-site.parking.x),
+                    firstPerson=true,month=6,day=21,hour=0}
+            end
             assert(#cases>0,'Town review site filter selected no buildings')
         elseif previewCheck then
             for _,p in ipairs(cases) do p.x,p.z=startX,startZ end
@@ -269,7 +281,11 @@ function love.load()
         end
     end
     if bridgeReview then place(331,270,0,55,.8)
-    elseif townSeed and captureDir and not (warehouseReview or previewCheck or firstPersonCheck) then reviewCase(cases[1])
+    elseif townSeed and captureDir and not (warehouseReview or previewCheck or firstPersonCheck) then
+        if os.getenv('PICTURE_SHOP_DAY_NIGHT_REVIEW')=='1' then
+            renderer.calendar={year=2026,month=6,day=21,totalDays=0,elapsed=cases[1].hour/24*1200,secondsPerDay=1200}
+        end
+        reviewCase(cases[1])
     else place(startX,startZ,warehouseReview and 0 or 20) end
     if previewCheck then
         assert(love.filesystem.getIdentity()=='the-picture-shop-motorcycle-preview')
@@ -448,7 +464,10 @@ function love.draw()
             caseIndex=caseIndex+1
             if caseIndex>#cases then love.event.quit(0)
             else
-                local p=cases[caseIndex];renderer.calendar={month=p.month or 5,totalDays=0};reviewCase(p)
+                local p=cases[caseIndex]
+                renderer.calendar={year=2026,month=p.month or 5,day=p.day or 1,totalDays=0,
+                    elapsed=(p.hour or 9)/24*1200,secondsPerDay=1200}
+                reviewCase(p)
                 if p.onFoot then
                     rider.bike.headlight=true;assert(Rider.command(rider,'dismount',world))
                     for _=1,80 do Rider.update(rider,{},1/60,world) end

@@ -39,7 +39,7 @@ function Component.install(Runtime)
         Runtime.activeWrapperRemote = nil
         Runtime.activeWindmillRemote = nil
         Runtime.machineRemoteSessions = {}
-        local hostName = tostring(playerName or "LAN Worker"):gsub("Worker", "Host")
+        local hostName = playerName or require('src.player_profile').name(Runtime.App.settings)
         local ok, errorMessage = Runtime.multiplayer:startHost({
             port = 22122,
             name = hostName,
@@ -89,6 +89,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.startLanClient(address, playerName, reconnecting)
+        playerName=playerName or require('src.player_profile').name(Runtime.App.settings)
         if reconnecting ~= true then
             Runtime.lanReconnect:cancel(false)
             Runtime.lanReconnect:remember(address, playerName)
@@ -101,6 +102,7 @@ function Component.install(Runtime)
             furColorway = Runtime.App.settings and Runtime.App.settings.furColorway or 1,
             overallsColorway = Runtime.App.settings and Runtime.App.settings.overallsColorway or 1,
         })
+        if ok and reconnecting~=true then Runtime.lanReconnectArmed=true end
         if not ok and reconnecting ~= true then Runtime.startLanSearch() end
         return ok, message
     end

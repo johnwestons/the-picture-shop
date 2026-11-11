@@ -18,6 +18,8 @@ local Colorways=require('src.rabbit_colorways')
 local SilhouetteStyle=require('src.commute.silhouette_style')
 local BikePaintArt=require('src.commute.bike_paint_art')
 local Bays=require('src.commute.parking_bays')
+local DayNight=require('src.commute.day_night')
+local Shadows=require('src.commute.shadows')
 local Renderer={BUILD_BUDGET_SECONDS=.004,LOAD_BUDGET_SECONDS=.012,
     MOBILE_LOAD_BUDGET_SECONDS=.006,
     -- Preserve distant tree silhouettes while shortening low brush on phones.
@@ -67,18 +69,29 @@ local function tileDistance(tile,x,z)
     local dz=math.max(tile.z0-z,0,z-tile.z1)
     return dx*dx+dz*dz
 end
+local function routePriority(tile,path)
+    local best=math.huge
+    local traveled=0
+    for i=2,#path do
+        local a,b=path[i-1],path[i]
+        local dx,dz=b.x-a.x,b.z-a.z
+        local span=math.sqrt(dx*dx+dz*dz)
+        if span>0 then
+            local u=math.max(0,math.min(1,((tile.centerX-a.x)*dx+(tile.centerZ-a.z)*dz)/(span*span)))
+            local x,z=a.x+dx*u,a.z+dz*u
+            local off=math.sqrt(tileDistance(tile,x,z))
+            if off<30 then best=math.min(best,traveled+span*u+off*3) end
+        end
+        traveled=traveled+span
+    end
+    return best
+end
 local function depthBefore(a,b)return a.depth<b.depth end
 local function normalizedVector(x,y,z)
     local inverse=1/math.sqrt(x*x+y*y+z*z)
     return {x*inverse,y*inverse,z*inverse}
 end
-local SUN_DIRECTION=normalizedVector(-.4,.8,-.3)
-local MOON_DIRECTION={0,1,0}
 local WATER_VIEW={0,.8,.6}
-local WATER_SUN_DIRECTION=normalizedVector(SUN_DIRECTION[1]+WATER_VIEW[1],
-    SUN_DIRECTION[2]+WATER_VIEW[2],SUN_DIRECTION[3]+WATER_VIEW[3])
-local WATER_MOON_DIRECTION=normalizedVector(MOON_DIRECTION[1]+WATER_VIEW[1],
-    MOON_DIRECTION[2]+WATER_VIEW[2],MOON_DIRECTION[3]+WATER_VIEW[3])
 
 function Renderer.new(world,spawn,options)
     options=options or {}
@@ -87,7 +100,7 @@ function Renderer.new(world,spawn,options)
     local self=setmetatable({world=world,ground=Ground.new({mobile=mobile}),chunks={},radius=64,clock=0,serial=0,
         mobile=mobile,terrainSpacing=terrainSpacing,
         calendar=world.calendar or {month=5,totalDays=0},viewportWidth=1280,viewportHeight=880,
-        tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),
+        tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),shadows=Shadows.new(),
         outsideSpriteShader=love.graphics.newShader(outsideSpriteShader()),
         tireTrackShader=love.graphics.newShader(tireTrackDepthShader()),
         outsideColorwaysShader=love.graphics.newShader(outsideDepthVertex..Colorways.blendShaderSource()..[[
@@ -140,8 +153,13 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
     for _,tile in ipairs(self.terrain.tiles) do
         tile.starter=tileDistance(tile,origin.x,origin.z)<=self.starter.radius^2
         if tile.starter then self.starterRemaining=self.starterRemaining+1 end
+        if options.priorityPath then tile.routePriority=routePriority(tile,options.priorityPath) end
     end
     table.sort(self.terrain.tiles,function(a,b)
+        if options.priorityPath then
+            if a.starter~=b.starter then return a.starter end
+            if a.routePriority~=b.routePriority then return a.routePriority<b.routePriority end
+        end
         local da,db=tileDistance(a,origin.x,origin.z),tileDistance(b,origin.x,origin.z)
         if da~=db then return da<db end
         if a.x0~=b.x0 then return a.x0<b.x0 end
@@ -419,7 +437,7 @@ function Renderer:prepare(camera,dt)
     self.world.calendar=self.calendar
     self.clock=self.clock+dt;self.serial=self.serial+1
     local radius=math.max(self.radius,camera.firstPerson and 96 or 35/camera.zoom)
-    self.effectiveRadius=math.min(radius,96)
+    self.effectiveRadius=math.min(radius,require('src.video_settings').renderRadius())
     self:prepareTerrain()
     self.effectiveRadius=self:coverageRadius(camera)
     self:updateTerrainDrawList(camera)
@@ -499,6 +517,8 @@ function Renderer:drawLoading()
 end
 function Renderer:shader(camera)
     local s=self.ground.shader;local t=self.clock
+    require('src.commute.headlight').send(s,camera,self.lightActor or {})
+    local light=DayNight.sample(self.calendar)
     camera:send(s)
     s:send('groundDepthSpan',self:depthSpan())
     local viewRadius=self.effectiveRadius or self.radius
@@ -506,11 +526,19 @@ function Renderer:shader(camera)
     s:send('detailFadeStart',self.mobile and viewRadius*.42 or viewRadius*2)
     s:send('detailFadeEnd',self.mobile and viewRadius*.70 or viewRadius*3)
     s:send('cloudPhase',{t*.03,t*.023,t*.017});s:send('cloudStrength',.15)
-    s:send('sunDirection',SUN_DIRECTION);s:send('sunColor',{1,.86,.66});s:send('sunlight',.45);s:send('ambientLight',.65)
-    s:send('moonDirection',MOON_DIRECTION)
+    s:send('sunDirection',light.sunDirection);s:send('sunColor',light.sunColor)
+    s:send('sunlight',light.sunlight);s:send('ambientLight',light.ambient)
+    s:send('moonDirection',light.moonDirection);s:send('moonlight',light.moonlight)
+    s:send('moonColor',{.58,.69,.94})
+    s:send('fogColor',camera.firstPerson and light.horizon or light.sky)
     s:send('waterDetail',.85);s:send('wavePhase',{t*1.1,t*.7,t*.3});s:send('ripplePhase',{t,t*.8})
-    s:send('waterView',WATER_VIEW);s:send('waterSunDirection',WATER_SUN_DIRECTION)
-    s:send('waterMoonDirection',WATER_MOON_DIRECTION);s:send('waterRoughness',.5)
+    s:send('waterView',WATER_VIEW)
+    s:send('waterSunDirection',normalizedVector(light.sunDirection[1]+WATER_VIEW[1],
+        light.sunDirection[2]+WATER_VIEW[2],light.sunDirection[3]+WATER_VIEW[3]))
+    s:send('waterMoonDirection',normalizedVector(light.moonDirection[1]+WATER_VIEW[1],
+        light.moonDirection[2]+WATER_VIEW[2],light.moonDirection[3]+WATER_VIEW[3]))
+    s:send('waterRoughness',.5)
+    if self.structures and self.structures.setLighting then self.structures:setLighting(light) end
     local _,tint,litter=Flora.season(self.calendar)
     s:send('seasonTint',tint);s:send('litterSeasonShift',litter)
     return s
@@ -549,34 +577,6 @@ function Renderer:props(camera,radius)
     local props=self.vegetation:visible(camera.centerX,camera.centerZ,foliageRadius,self.calendar,inView,budget)
     for _,p in ipairs(props) do p.scale=p.scale*Flora.scale(p);p.depth=camera:depth(p.x,p.z,p.h) end
     return props
-end
-function Renderer:headlight(camera,bike)
-    if not bike.headlight then return end
-    local g=love.graphics
-    local Headlight=require('src.commute.headlight')
-    local sourceX,sourceZ,sourceHeight=Headlight.position(bike)
-    local length,spread=Headlight.parameters(bike)
-    local heading=bike.heading or 0
-    local function point(forward,side,raised)
-        local x=sourceX+math.cos(heading)*forward-math.sin(heading)*side
-        local z=sourceZ+math.sin(heading)*forward+math.cos(heading)*side
-        local height=raised and sourceHeight or self.world:supportHeight(x,z)+.05
-        return camera:screen(x,z,height)
-    end
-    for d=1,length do
-        local x=sourceX+math.cos(heading)*d;local z=sourceZ+math.sin(heading)*d
-        if self.world.roads:blocked(self.world,x,z) then length=d;break end
-    end
-    local ax,ay=point(0,0,true)
-    for layer=5,1,-1 do
-        local reach=length*(.42+layer*.116);local width=.15+reach*spread
-        local bx,by=point(reach,-width,false);local cx,cy=point(reach,width,false)
-        local alpha=(bike.headlightHighBeam and .046 or .038)*(1-layer*.075)
-        if bike.headlightHighBeam then g.setColor(.94,.91,.75,alpha)
-        else g.setColor(1,.88,.61,alpha) end
-        g.polygon('fill',ax,ay,bx,by,cx,cy)
-    end
-    g.setColor(1,1,1)
 end
 -- Call during an already-presented loading screen. Interactive view switching
 -- then reuses its shader, canvas and road-marking mesh without cold allocations.
@@ -672,6 +672,8 @@ function Renderer:draw(camera,actor,actors,settings)
     if not self:starterReady() then self:drawLoading();return end
     local highlightStyle=SilhouetteStyle.resolve(settings)
     if not actors then actors={{actor=actor,localPlayer=true}} end
+    self.lightActor=actor
+    require('src.commute.local_lights').prepare(self,camera,actors,DayNight.sample(self.calendar).daylight)
     if camera.firstPerson then
         return self:prewarmViews():draw(self,camera,actor,actors,highlightStyle)
     end
@@ -682,10 +684,12 @@ function Renderer:draw(camera,actor,actors,settings)
     local canvas=self:prewarmViews().canvas
     local foliageRadius=Renderer.foliageRadius(self.effectiveRadius,self.mobile)
     g.push('all');g.origin();g.setScissor();g.setShader();g.setBlendMode('alpha')
-    g.setCanvas({canvas,depth=true});g.clear(.22,.27,.26,1,0,1)
+    local light=DayNight.sample(self.calendar)
+    g.setCanvas({canvas,depth=true,stencil=true});g.clear(light.sky[1],light.sky[2],light.sky[3],1,0,1)
     g.setDepthMode('lequal',true);g.setMeshCullMode('none')
     self:drawTerrain(camera)
     for _,mesh in ipairs(self.roadMeshes) do g.draw(mesh) end
+    self.shadows:draw(self,camera,actors,light)
     self.structures:drawOutsideDepth(camera,actor,self.effectiveRadius)
     self.structures:drawOutsidePropsDepth(camera,actor,self.effectiveRadius)
     self:drawGrass(camera,actor)
@@ -721,6 +725,8 @@ function Renderer:draw(camera,actor,actors,settings)
     end
     for _,entry in ipairs(actors) do self:drawOutsideActor(entry,camera,highlightStyle) end
     if self.bikeParticles then self.bikeParticles:draw(camera,self.effectiveRadius,depthSpan) end
+    g.setShader();g.setDepthMode();g.setColor(.045,.075,.15,light.sceneShade)
+    g.rectangle('fill',0,0,self.viewportWidth,self.viewportHeight)
     g.pop()
     -- The caller's viewport scissor is expressed in screen-space, but this
     -- canvas is composited beneath the commute view's nested transform. Reset
@@ -728,11 +734,13 @@ function Renderer:draw(camera,actor,actors,settings)
     g.push('all');g.setScissor();g.setShader();g.setColor(1,1,1);g.setBlendMode('alpha','premultiplied')
     g.draw(canvas,0,0);g.pop()
     self:drawRoads(camera,true)
-    for _,entry in ipairs(actors) do if not entry.gear then self:headlight(camera,entry.actor) end end
+    -- Surface headlights are rendered in the shared terrain/structure shaders.
     g.setColor(1,1,1);g.setLineWidth(1)
 end
 function Renderer:release()
     if self.released then return end;self.released=true
+    require('src.commute.local_lights').release(self.world)
+    if self.shadows then self.shadows:release() end
     self.terrain=nil
     if self.firstPersonView then self.firstPersonView:release() end
     for _,chunk in pairs(self.chunks) do chunk.mesh:release() end

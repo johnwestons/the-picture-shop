@@ -12,7 +12,7 @@ function Component.install(Runtime)
         homeActivity = true,
         homeDelivery = true,
         homeFurniture = true,
-        shopRoom = true, roomStock = true, roomRest = true, roomGame = true,
+        shopRoom = true, roomStock = true, roomRest = true, roomGame = true, restoration = true,
     }
 
     Runtime.INTERACTION_DOOR_STATES = {
@@ -54,6 +54,7 @@ function Component.install(Runtime)
                     or payload.desiredState:match("^force:%d+$"))
                 or #payload.desiredState<=900 and payload.desiredState:match("^delivery:[%w_%-]+[,%w_%-]*$"))
             or targetKind=="roomRest" and (payload.desiredState=="rest" or payload.desiredState=="stand")
+            or targetKind=="restoration" and require("src.warehouse_condition").ACTIONS[payload.desiredState]==true
             or targetKind=="roomStock" and type(payload.desiredState)=="string" and #payload.desiredState<=150
                 and (payload.desiredState:match("^store:[%w_.%-]+$") or payload.desiredState:match("^retrieve:[%w_.%-]+$"))
             or targetKind=="roomGame" and type(payload.desiredState)=="string"

@@ -5,7 +5,7 @@ local Test = {}
 
 local EXPECTED_INTERACTIONS = {
     commute=true,
-    shopEntrance=true,roomStock=true,roomRest=true,roomGame=true,homeTravel=true,homeActivity=true,homeDelivery=true,homeFurniture=true,
+    shopEntrance=true,roomStock=true,roomRest=true,roomGame=true,restoration=true,homeTravel=true,homeActivity=true,homeDelivery=true,homeFurniture=true,
     computer = true,
     shopClock = true,
     workPhone = true,

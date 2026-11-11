@@ -120,7 +120,7 @@ function Test.run(check)
         inputRuntime.Config.baseWidth,inputRuntime.Config.baseHeight=size[1],size[2]
         local button=Runtime.cameraButton(inputRuntime)
         local okay=button and Runtime.cameraPointer(inputRuntime,button.x+button.width*.5,button.y+button.height*.5)
-        local row=require('src.commute.camera_menu').row(button,4)
+        local row=require('src.commute.camera_menu').row(button,4,Runtime.miniMapRect(inputRuntime).x)
         okay=okay and inputRuntime._commute.cameraMenu and Runtime.cameraPointer(inputRuntime,row.x+30,row.y+15)
         check('first_person_camera_toggle_button_while_moving_'..size[1],okay and camera.firstPerson)
         camera:toggleView(r)

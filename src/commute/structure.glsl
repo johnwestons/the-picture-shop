@@ -36,14 +36,25 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 #endif
 #ifdef PIXEL
 extern float structureRadius;
+extern vec3 sunDirection;
+extern vec3 sunColor;
+extern vec3 fogColor;
+extern float sunlight;
+extern float ambientLight;
+extern bool useStructureTexture;
 vec4 effect(vec4 color,Image image,vec2 uv,vec2 pixel) {
     vec3 normal=normalize(structureNormal);
-    float sun=max(dot(normal,normalize(vec3(-.4,.8,-.3))),0.0);
+    float sun=max(dot(normal,normalize(sunDirection)),0.0);
     float sky=.5+.5*normal.y;
-    vec3 surface=color.rgb*(vec3(.43+.13*sky)+vec3(1.0,.91,.78)*(.48*sun));
-    if(firstPerson && rideHeadlight) surface=riderLight(surface,structureDelta,structureHeight);
-    vec3 fog=firstPerson?vec3(.57,.68,.70):vec3(.22,.27,.26);
-    surface=mix(surface,fog,smoothstep(structureRadius*.78,structureRadius,structureDistance));
-    return vec4(surface,color.a);
+    vec4 albedo=useStructureTexture ? Texel(image,uv)*color : color;
+    vec3 surface=albedo.rgb*(vec3(ambientLight*(.7+.3*sky))+sunColor*(sunlight*sun));
+    surface=localLighting(surface,structureDelta,structureHeight);
+    surface=riderLight(surface,structureDelta,structureHeight);
+    // Reserved vertex alpha .99 marks opaque lamp glass (byte-quantized).
+    if(!useStructureTexture && albedo.a>.985 && albedo.a<.995) {
+        surface=mix(surface,vec3(1.0,.87,.52),localNight);albedo.a=1.0;
+    }
+    surface=mix(surface,fogColor,smoothstep(structureRadius*.78,structureRadius,structureDistance));
+    return vec4(surface,albedo.a);
 }
 #endif

@@ -1,3 +1,4 @@
+local Soundscape=require('src.soundscape')
 local Jukebox = {
     trackIndex = 1,
     source = nil,
@@ -34,6 +35,8 @@ local PLAYBACK_START_GRACE_SECONDS = 1.5
 local function currentTrack()
     return TRACKS[Jukebox.trackIndex] or TRACKS[1]
 end
+local function studioId()return 'music-'..currentTrack().file:gsub('%.wav$','') end
+local function studioVolume()return Jukebox.muted and 0 or .24*Soundscape.gain(studioId(),'music') end
 
 local function clock()
     if love and love.timer and type(love.timer.getTime) == "function" then
@@ -51,7 +54,7 @@ end
 
 local function setVolume()
     if Jukebox.source then
-        pcall(Jukebox.source.setVolume, Jukebox.source, Jukebox.muted and 0 or 0.24)
+        pcall(Jukebox.source.setVolume, Jukebox.source, studioVolume())
     end
 end
 
@@ -69,7 +72,7 @@ local function startCurrentTrack()
         Jukebox.source = nil
     end
     Jukebox.playbackStartedAt = nil
-    local ok, source = pcall(love.audio.newSource, MUSIC_ROOT .. currentTrack().file, "stream")
+    local ok, source = pcall(love.audio.newSource, Soundscape.path(studioId(),MUSIC_ROOT .. currentTrack().file), "stream")
     if not ok or not source then
         Jukebox.loadError = tostring(source or "The selected track could not be loaded.")
         Jukebox.active, Jukebox.paused = false, true
@@ -78,7 +81,7 @@ local function startCurrentTrack()
     end
     local started, startError = pcall(function()
         source:setLooping(false)
-        source:setVolume(Jukebox.muted and 0 or 0.24)
+        source:setVolume(studioVolume())
         source:play()
     end)
     if not started then

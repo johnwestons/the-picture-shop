@@ -20,7 +20,8 @@ function BackButton.draw(assets, rect, label, pointerX, pointerY, pressed)
         love.graphics.setColor(0.18, 0.19, 0.19, 1)
         love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 3, 3)
     end
-    require('src.screens.typography').label(label or 'BACK',rect)
+    love.graphics.setColor(0.94, 0.94, 0.90)
+    love.graphics.printf(label or "BACK", rect.x, rect.y + rect.height / 2 - 6, rect.width, "center")
 end
 
 return BackButton

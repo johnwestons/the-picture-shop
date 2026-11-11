@@ -19,14 +19,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.enter(state)
-        Runtime.ComputerScreen.jobDetailScroll,Runtime.ComputerScreen.jobDetailMaxScroll=0,0
-        Runtime.ComputerScreen.jobDetailDragY,Runtime.ComputerScreen.jobDetailKey=nil,nil
         Runtime.ComputerScreen.tab = state.home and require("src.weekend_flow").atHome(state) and "home" or "active"
         if Runtime.resetHomeView then Runtime.resetHomeView() end
         if Runtime.resetReceipts then Runtime.resetReceipts() end
         Runtime.ComputerScreen.emailFolder = "inbox"
         Runtime.ComputerScreen.pages = { active = 1, completed = 1, deliveries = 1 }
         Runtime.ComputerScreen.selectedJobId = nil
+        Runtime.ComputerScreen.jobScrollId, Runtime.ComputerScreen.jobScroll = nil, 0
         Runtime.ComputerScreen.selectedEmailId = nil
         Runtime.ComputerScreen.emailPage = 1
         Runtime.ComputerScreen.emailSelectionRequired = false
@@ -127,7 +126,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.completeCenter()
-        return Runtime.COMPLETE.x + Runtime.COMPLETE.width / 2, Runtime.COMPLETE.y + Runtime.COMPLETE.height / 2
+        return Runtime.jobRect('COMPLETE').x + Runtime.jobRect('COMPLETE').width / 2, Runtime.jobRect('COMPLETE').y + Runtime.jobRect('COMPLETE').height / 2
+    end
+
+    function Runtime.ComputerScreen.pickupChoiceCenter(driverMode)
+        local rect = Runtime.jobRect(driverMode == 'player' and 'PICKUP_PLAYER' or 'PICKUP_EMPLOYEE')
+        return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
     function Runtime.ComputerScreen.retailButtonCenter(index)
@@ -308,8 +312,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.promotionButtonCenter()
-        return Runtime.JOB_PROMO.x + Runtime.JOB_PROMO.width / 2,
-            Runtime.JOB_PROMO.y + Runtime.JOB_PROMO.height / 2
+        local rect = Runtime.jobRect('JOB_PROMO')
+        return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
     function Runtime.ComputerScreen.sendPromotionCenter()
@@ -318,7 +322,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.rowCenter(row)
-        return Runtime.LIST.x + Runtime.LIST.width / 2, Runtime.LIST.y + 14 + (row - 1) * Runtime.ROW_HEIGHT + 18
+        local rect = Runtime.jobRowRect(row)
+        return rect.x + rect.width / 2, rect.y + rect.height / 2
     end
 
     function Runtime.ComputerScreen.calendarDayCenter(day)
@@ -346,6 +351,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.hiringMousepressed(state,x,y)
+        x,y=Runtime.containedPagePoint(x,y,Runtime.HIRING_PAGE_LAYOUT)
         local result=Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.hiring,x,y,function(intent)
             return Runtime.ComputerScreen.employeeCommand(state,intent)
         end,false,Runtime.dependencies.remoteCommand==nil,
@@ -358,6 +364,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.scheduleMousepressed(state,x,y)
+        x,y=Runtime.containedPagePoint(x,y,Runtime.SCHEDULE_PAGE_LAYOUT)
         return Runtime.ScheduleScreen.mousepressed(state,Runtime.ComputerScreen.schedule,x,y,function(intent)
             return Runtime.ComputerScreen.employeeCommand(state,intent)
         end,false)

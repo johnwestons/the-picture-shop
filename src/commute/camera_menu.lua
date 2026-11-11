@@ -1,15 +1,16 @@
 local Menu={}
 Menu.modes={{'fixed','Free camera'},{'follow','Follow rider'},{'shoulder','Over the shoulder'},
-    {'first','First person'},{'center','Recenter view'}}
+    {'first','First person'},{'center','Recenter view'},{'lock','Lock camera'}}
 
-function Menu.row(button,i)
-    return {x=button.x+button.width-175,y=button.y+button.height+4+(i-1)*38,width=175,height=37}
+function Menu.row(button,i,mapLeft)
+    return {x=mapLeft and mapLeft-181 or button.x+button.width-175,
+        y=(mapLeft and 152 or button.y+button.height+4)+(i-1)*38,width=175,height=37}
 end
 function Menu.hasTruckSeatPad(camera,rider)
     return camera and camera.firstPerson and rider and rider.vehicle=='truck'
 end
-function Menu.seatPad(button)
-    local last=Menu.row(button,#Menu.modes)
+function Menu.seatPad(button,mapLeft)
+    local last=Menu.row(button,#Menu.modes,mapLeft)
     local frame={x=last.x-35,y=last.y+last.height+5,width=210,height=102}
     local center=frame.x+67
     local size=30
@@ -22,17 +23,18 @@ function Menu.seatPad(button)
         back={x=frame.x+132,y=frame.y+64,width=68,height=27},
     }
 end
-function Menu.adjustmentAt(button,x,y,camera,rider)
+function Menu.adjustmentAt(button,x,y,camera,rider,mapLeft)
     if not Menu.hasTruckSeatPad(camera,rider) then return nil end
-    local _,buttons=Menu.seatPad(button)
+    local _,buttons=Menu.seatPad(button,mapLeft)
     for direction,rect in pairs(buttons) do
         if x>=rect.x and x<=rect.x+rect.width and y>=rect.y and y<=rect.y+rect.height then
             return direction
         end
     end
 end
-function Menu.enabled(id,rider)
+function Menu.enabled(id,rider,camera)
     local mounted=rider and (rider.gear.mounted or rider.vehicle=='truck')
+    if id=='lock' then return camera and (camera.firstPerson or camera.outsideMode~='follow') end
     if id=='first' then return rider and not rider.gear.transition end
     return id~='shoulder' or mounted and not rider.gear.transition
 end
@@ -41,22 +43,23 @@ function Menu.currentLabel(camera)
     for _,mode in ipairs(Menu.modes) do if mode[1]==id then return mode[2] end end
     return Menu.modes[1][2]
 end
-function Menu.draw(button,camera,rider)
+function Menu.draw(button,camera,rider,locked,mapLeft)
     local g=love.graphics
     local current=camera.firstPerson and 'first' or camera.outsideMode
     g.push('all')
     for i,mode in ipairs(Menu.modes) do
-        local row=Menu.row(button,i)
+        local row=Menu.row(button,i,mapLeft)
         g.setColor(.06,.10,.09,.97);g.rectangle('fill',row.x,row.y,row.width,row.height,4)
-        if Menu.enabled(mode[1],rider) then g.setColor(.90,.87,.71) else g.setColor(.45,.48,.45) end
-        if mode[1]~='center' then
+        if Menu.enabled(mode[1],rider,camera) then g.setColor(.90,.87,.71) else g.setColor(.45,.48,.45) end
+        if mode[1]~='center' and mode[1]~='lock' then
             g.circle('line',row.x+14,row.y+18,5)
             if mode[1]==current then g.circle('fill',row.x+14,row.y+18,3) end
         end
-        g.print(mode[2],row.x+26,row.y+(row.height-g.getFont():getHeight())*.5)
+        g.print(mode[1]=='lock' and (locked and 'Unlock camera' or 'Lock camera') or mode[2],
+            row.x+26,row.y+(row.height-g.getFont():getHeight())*.5)
     end
     if Menu.hasTruckSeatPad(camera,rider) then
-        local frame,buttons=Menu.seatPad(button)
+        local frame,buttons=Menu.seatPad(button,mapLeft)
         g.setColor(.06,.10,.09,.97);g.rectangle('fill',frame.x,frame.y,frame.width,frame.height,4)
         g.setColor(.72,.79,.72,1);g.printf('CAB VIEW POSITION',frame.x+4,frame.y+4,frame.width-8,'center')
         for direction,rect in pairs(buttons) do

@@ -26,11 +26,13 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 #endif
 #ifdef PIXEL
 extern float sceneryRadius;
+extern vec3 fogColor;
 vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
     vec4 surface=Texel(tex,uv)*color;
     if(surface.a<.08) discard;
-    if(rideHeadlight) surface.rgb=riderLight(surface.rgb,fromCameraCenter,surfaceHeight);
-    surface.rgb=mix(surface.rgb,vec3(.57,.68,.70),smoothstep(sceneryRadius*.74,sceneryRadius,distanceFromEye));
+    surface.rgb=localLighting(surface.rgb,fromCameraCenter,surfaceHeight);
+    surface.rgb=riderLight(surface.rgb,fromCameraCenter,surfaceHeight);
+    surface.rgb=mix(surface.rgb,fogColor,smoothstep(sceneryRadius*.74,sceneryRadius,distanceFromEye));
     return surface;
 }
 #endif
@@ -46,6 +48,7 @@ vec4 position(mat4 transform_projection,vec4 vertex_position) {
 #endif
 #ifdef PIXEL
 extern float spriteFog;
+extern vec3 fogColor;
 extern bool silhouetteMode;
 extern vec3 silhouetteColor;
 ]]..SilhouetteStyle.shaderFunctions..[[
@@ -57,7 +60,7 @@ vec4 effect(vec4 color,Image tex,vec2 uv,vec2 pixel) {
         if(silhouetteOutlineOnly && !silhouetteOutlinePixel(tex,uv)) discard;
         return vec4(silhouetteColor,silhouetteOutputAlpha(surface.a));
     }
-    surface.rgb=mix(surface.rgb,vec3(.57,.68,.70),spriteFog);
+    surface.rgb=mix(surface.rgb,fogColor,spriteFog);
     return surface;
 }
 #endif
@@ -158,14 +161,16 @@ function View:billboard(camera,x,z,h,radius,draw,surfaceTop,silhouetteMode,highl
 end
 function View:draw(renderer,camera,actor,actors,highlightStyle)
     local g=love.graphics
+    local light=require('src.commute.day_night').sample(renderer.calendar)
     -- Restore the caller's canvas, transform and depth state even when the
     -- commute is drawn inside the main game's scaled UI canvas.
     g.push('all');g.origin();g.setScissor();g.setShader();g.setBlendMode('alpha')
-    g.setCanvas({self.canvas,depth=true});g.setDepthMode('always',false)
-    g.clear(.57,.68,.70,1,0,1)
+    g.setCanvas({self.canvas,depth=true,stencil=true});g.setDepthMode('always',false)
+    g.clear(light.horizon[1],light.horizon[2],light.horizon[3],1,0,1)
     for y=0,math.min(self.viewportHeight,420),14 do
         local t=y/440
-        g.setColor(M.lerp(.28,.57,t),M.lerp(.49,.68,t),M.lerp(.65,.70,t))
+        g.setColor(M.lerp(light.sky[1],light.horizon[1],t),
+            M.lerp(light.sky[2],light.horizon[2],t),M.lerp(light.sky[3],light.horizon[3],t))
         g.rectangle('fill',0,y,self.viewportWidth,14)
     end
     g.setDepthMode('lequal',true);g.setMeshCullMode('none');g.setColor(1,1,1)
@@ -177,9 +182,11 @@ function View:draw(renderer,camera,actor,actors,highlightStyle)
         g.draw(chunk.mesh) -- Fog-radius tile culling is independent of camera pitch.
     end
     for _,mesh in ipairs(renderer.roadMeshes) do g.draw(mesh) end
+    if renderer.shadows then renderer.shadows:draw(renderer,camera,actors,light) end
     if renderer.grassFields then renderer:drawGrass(camera,actor) end
     if renderer.tireTracks then renderer.tireTracks:draw(camera,renderer.tireTrackShader,renderer:depthSpan()) end
     FP.send(camera,self.shader);self.shader:send('sceneryRadius',renderer.effectiveRadius)
+    self.shader:send('fogColor',light.horizon);self.spriteShader:send('fogColor',light.horizon)
     self.shader:send('cameraCenter',{camera.centerX,camera.centerZ})
     Headlight.send(self.shader,camera,actor)
     g.setShader(self.shader)
@@ -276,6 +283,8 @@ function View:draw(renderer,camera,actor,actors,highlightStyle)
         end
     end
     if renderer.bikeParticles then renderer.bikeParticles:draw(camera,renderer.effectiveRadius,renderer:depthSpan()) end
+    g.setShader();g.setDepthMode();g.setColor(.045,.075,.15,light.sceneShade)
+    g.rectangle('fill',0,0,self.viewportWidth,self.viewportHeight)
     g.pop()
     -- See the isometric renderer: Android's inherited viewport scissor clips
     -- this full-size scene canvas when it is drawn under nested transforms.

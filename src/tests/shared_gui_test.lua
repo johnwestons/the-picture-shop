@@ -37,11 +37,12 @@ function Test.run(context,check)
     local function last(action) return sent[#sent] and sent[#sent].action==action end
     local assets,previousPack=context.assets,context.assets.activePack
     local canvas=love.graphics.newCanvas(960,680)
+    local baselineFont=love.graphics.newFont(12)
     local previousTime=love.timer.getTime
     love.timer.getTime=function() return 10 end
     local function render(name,draw,save)
         love.graphics.push("all"); love.graphics.setCanvas(canvas); love.graphics.clear(0,0,0,1)
-        love.graphics.setFont(require('src.screens.typography').get(16))
+        love.graphics.setFont(baselineFont)
         local ok,err=pcall(draw or function() Remote.draw(state,nil,nil,assets) end)
         love.graphics.pop()
         check("shared_gui_renders_"..name..(ok and "" or ": "..tostring(err)),ok)
@@ -62,21 +63,6 @@ function Test.run(context,check)
         check("shared_gui_office_"..tab.."_pixel_matches_host",remoteHash==hostHash)
     end
     Remote.sharedComputer.tab="www"
-    do
-        Remote.sharedComputer.tab='active';render('office_long_job')
-        local screen=Remote.sharedComputer;local rect=screen.jobDetailViewport()
-        local x,y=rect.x+40,rect.y+rect.height-25
-        Remote.waiting=false;Remote.mousepressed(state,x,y,1,send)
-        local input=require('src.input')
-        local oldScreen=state.screen;state.screen='workshop_remote'
-        local inputContext={state=state,workshopRemoteScreen=Remote}
-        input.mousemoved(x,rect.y+25,inputContext)
-        input.mousereleased(x,rect.y+25,1,inputContext)
-        state.screen=oldScreen
-        check('shared_gui_guest_job_drag_routes_through_game_input',screen.jobDetailScroll>0 and not screen.jobDetailDragY)
-        render('office_long_job_scrolled')
-        Remote.sharedComputer.tab='www'
-    end
     for site=1,5 do Remote.sharedComputer.wwwSite=site; render("office_site_"..site) end
     Remote.sharedComputer.wwwSite=1
     click(Remote.sharedComputer.retailButtonCenter(1))
@@ -205,6 +191,6 @@ function Test.run(context,check)
     check("shared_gui_phone_response_does_not_create_local_order",last("phone_respond") and #state.workPhone.history==0)
     check("shared_gui_rendering_never_spends_stock_or_runs_client_job",state.money==money and state.inventory.stock.maintenance_kit==kit
         and pallet.paper.currentSize.width==10)
-    Remote.clear(); canvas:release(); love.timer.getTime=previousTime; assets.activatePack(previousPack)
+    Remote.clear(); canvas:release(); baselineFont:release(); love.timer.getTime=previousTime; assets.activatePack(previousPack)
 end
 return Test

@@ -11,14 +11,15 @@ local Options=require('src.commute.island_options')
 local Codec=require('src.net.codec')
 local Setup={}
 local buttons={terrain={x=405,y=73,width=150,height=28},generate={x=590,y=170,width=175,height=42},random={x=775,y=170,width=125,height=42},
-    save={x=590,y=309,width=310,height=40},previous={x=590,y=511,width=52,height=36},
-    next={x=848,y=511,width=52,height=36},load={x=590,y=555,width=150,height=36},
-    delete={x=750,y=555,width=150,height=36},back={x=55,y=597,width=150,height=43},
+    randomName={x=805,y=252,width=95,height=36},save={x=590,y=365,width=310,height=36},previous={x=590,y=520,width=52,height=34},
+    next={x=848,y=520,width=52,height=34},load={x=590,y=551,width=150,height=34},
+    delete={x=750,y=551,width=150,height=34},back={x=55,y=597,width=150,height=43},
     cancel={x=215,y=597,width=150,height=43},start={x=700,y=597,width=200,height=43}}
-local fields={seed={x=590,y=118,width=310,height=42},name={x=590,y=259,width=310,height=40}}
+local fields={seed={x=590,y=118,width=310,height=42},townName={x=590,y=252,width=205,height=36},
+    name={x=590,y=320,width=310,height=35}}
 buttons.island={x=215,y=73,width=180,height=28}
 local progressCancel={x=380,y=408,width=200,height=44}
-local confirmation={tutorial={x=240,y=320,width=480,height=58},
+local confirmation={tutorial={x=240,y=338,width=480,height=58},
     backPreview={x=240,y=433,width=220,height=46},confirmCreate={x=480,y=433,width=240,height=46}}
 local pageSize=4
 local generationSerial=0
@@ -157,11 +158,13 @@ end
 function Setup.new(options,asyncGeneration)
     options=options or {}
     local items,err=Presets.load()
-    local state={seedText=tostring(options.townSeed or randomSeed()),nameText='',items=items,
+    local seed=options.townSeed or randomSeed()
+    local state={seedText=tostring(seed),townNameText=Town.defaultName(seed),nameText='',items=items,
         page=1,selected=nil,focus=nil,message='Roll or enter a number or word, then generate a preview.',
         settings=Options.copy(options.island),dirty=true,terrainVisible=true,asyncGeneration=asyncGeneration==true,
         tutorialEnabled=options.tutorialEnabled~=false}
-    if options.town and Town.valid(options.town) then show(state,options.town)
+    if options.town and Town.valid(options.town) then
+        show(state,options.town);state.townNameText=options.town.name or Town.defaultName(options.town.seed)
     end
     if err then state.message=err end
     return state
@@ -170,7 +173,7 @@ function Setup.wantsTextInput(state) return state and state.focus~=nil or false 
 function Setup.textinput(state,value)
     if state.confirming then return false end
     if not state.focus or type(value)~='string' then return false end
-    local key=state.focus=='seed' and 'seedText' or 'nameText'
+    local key=state.focus=='seed' and 'seedText' or state.focus=='townName' and 'townNameText' or 'nameText'
     value=state.focus=='seed' and value:gsub('[^%a%d]','') or value:gsub('[^%w %.%-]','')
     if state.replaceText then state[key]='';state.replaceText=false end
     state[key]=(state[key]..value):sub(1,state.focus=='seed' and 32 or Presets.MAX_NAME)
@@ -187,19 +190,27 @@ local function action(state,name,options)
     elseif name=='random' then
         state.seedText=tostring(randomSeed());state.dirty=true
         state.message='Seed rolled. Generate a preview to see this town.'
+    elseif name=='randomName' then
+        local index=(love and love.math and love.math.random or math.random)(1,#Town.NAMES)
+        state.townNameText=Town.NAMES[index]
+        state.message='Town name selected. You can still edit it.'
     elseif name=='start' then
-        if state.dirty or not state.town then state.message='Generate a preview before creating your shop.'
+        if Town.cleanName(state.townNameText)=='' then state.message='Enter a name for your town.'
+        elseif state.dirty or not state.town then state.message='Generate a preview before creating your shop.'
         elseif Town.valid(state.town) then state.confirming=true end
     elseif name=='previous' or name=='next' then
         local pages=math.max(1,math.ceil(#state.items/pageSize))
         state.page=(state.page-1+(name=='next' and 1 or -1))%pages+1
     elseif name=='load' then
         local item=state.items[state.selected]
-        if item then show(state,item.town);state.nameText=item.name;state.message='Loaded '..item.name..'.'
+        if item then show(state,item.town);state.nameText=item.name
+            state.townNameText=item.town.name or Town.defaultName(item.town.seed);state.message='Loaded '..item.name..'.'
         else state.message='Choose a saved town first.' end
     elseif name=='save' then
         if state.dirty or not state.town then state.message='Generate a preview before saving it.';return 'changed' end
-        local items,err=Presets.upsert(state.items,{name=state.nameText,town=state.town})
+        local namedTown,namedError=Town.withName(state.town,state.townNameText)
+        local items,err
+        if namedTown then items,err=Presets.upsert(state.items,{name=state.nameText,town=namedTown}) else err=namedError end
         if items then
             state.items=items;state.nameText=Presets.cleanName(state.nameText)
             for i,item in ipairs(items) do if item.name==state.nameText then state.selected=i;state.page=math.ceil(i/pageSize) end end
@@ -215,8 +226,9 @@ end
 local function confirm(state,name,options)
     if name=='tutorial' then state.tutorialEnabled=not state.tutorialEnabled
     elseif name=='backPreview' then state.confirming=false
-    elseif name=='confirmCreate' and not state.dirty and state.town and Town.valid(state.town) then
-        options.town=Town.copy(state.town);options.townSeed=state.town.seed
+    elseif name=='confirmCreate' and not state.dirty and state.town and Town.valid(state.town)
+        and Town.cleanName(state.townNameText)~='' then
+        options.town=assert(Town.withName(state.town,state.townNameText));options.townSeed=state.town.seed
         options.tutorialEnabled=state.tutorialEnabled
         state.confirming=false;return 'start'
     end
@@ -245,11 +257,18 @@ function Setup.keypressed(state,key,options)
         if state.focus then state.focus=nil;return 'changed' end
         return 'back'
     end
-    if key=='tab' then state.focus=state.focus=='seed' and 'name' or 'seed';state.replaceText=true;return 'changed' end
+    if key=='tab' then
+        local order={seed='townName',townName='name',name='seed'}
+        state.focus=order[state.focus] or 'seed';state.replaceText=true;return 'changed'
+    end
     if state.focus then
-        if key=='return' or key=='kpenter' then return action(state,state.focus=='seed' and 'generate' or 'save',options) end
+        if key=='return' or key=='kpenter' then
+            if state.focus=='seed' then return action(state,'generate',options) end
+            if state.focus=='name' then return action(state,'save',options) end
+            state.focus=nil;state.replaceText=false;return 'changed'
+        end
         if key=='backspace' or key=='delete' then
-            local field=state.focus=='seed' and 'seedText' or 'nameText'
+            local field=state.focus=='seed' and 'seedText' or state.focus=='townName' and 'townNameText' or 'nameText'
             state[field]=state.replaceText and '' or state[field]:sub(1,-2);state.replaceText=false
             if state.focus=='seed' then state.dirty=true end
         end
@@ -312,7 +331,7 @@ function Setup.mousepressed(state,x,y,options)
     for name,b in pairs(buttons) do if Ui.contains(b,x,y) then return action(state,name,options) end end
     for row=1,pageSize do
         local index=(state.page-1)*pageSize+row
-        if state.items[index] and Ui.contains({x=590,y=365+(row-1)*35,width=310,height=33},x,y) then
+        if state.items[index] and Ui.contains({x=590,y=402+(row-1)*29,width=310,height=28},x,y) then
             state.selected=index;state.nameText=state.items[index].name;state.focus=nil;return 'changed'
         end
     end
@@ -397,25 +416,28 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
             id==options.apartmentId and {1,.84,.3,1} or nil)
     end
     text('TOWN SEED · LETTERS OK',590,92,310,17,{1,.86,.36,1})
-    text('SAVE A NAMED TOWN',590,233,310,17,{1,.86,.36,1})
+    text('TOWN NAME',590,231,310,17,{1,.86,.36,1})
+    text('SAVE THIS LAYOUT AS A PRESET',590,298,310,17,{1,.86,.36,1})
     for name,b in pairs(fields) do
         Skin.field(assets,b,state.focus==name and 'selected' or 'normal')
-        local value=name=='seed' and state.seedText or state.nameText
-        text(value~='' and value or 'Town name',b.x+12,b.y+10,b.width-24,
+        local value=name=='seed' and state.seedText or name=='townName' and state.townNameText or state.nameText
+        local placeholder=name=='townName' and 'Type a town name' or 'Preset name'
+        text(value~='' and value or placeholder,b.x+12,b.y+10,b.width-24,
             name=='seed' and #value>24 and 15 or 18)
     end
-    if #state.items==0 then text('No saved towns yet.',600,394,290,16,nil,'center') end
+    if #state.items==0 then text('No saved towns yet.',600,423,290,16,nil,'center') end
     for row=1,pageSize do
         local index=(state.page-1)*pageSize+row;local item=state.items[index]
         if item then
-            local b={x=590,y=365+(row-1)*35,width=310,height=33}
+            local b={x=590,y=402+(row-1)*29,width=310,height=28}
             Skin.field(assets,b,index==state.selected and 'selected' or 'normal')
-            text(item.name,b.x+8,b.y+8,b.width-16,15)
+            text(item.name,b.x+8,b.y+6,b.width-16,15)
         end
     end
-    text(state.page..' / '..math.max(1,math.ceil(#state.items/pageSize)),644,522,202,14,nil,'center')
-    text(state.message or '',377,597,309,13,state.dirty and {1,.79,.35,1} or nil)
-    local labels={terrain=state.terrainVisible and 'TERRAIN: ON' or 'TERRAIN: OFF',generate='GENERATE PREVIEW',random='REROLL',save='SAVE NAMED TOWN',previous='<',next='>',
+    text(state.page..' / '..math.max(1,math.ceil(#state.items/pageSize)),644,521,202,14,nil,'center')
+    text(state.message or '',377,583,309,13,state.dirty and {1,.79,.35,1} or nil)
+    local labels={terrain=state.terrainVisible and 'TERRAIN: ON' or 'TERRAIN: OFF',generate='GENERATE PREVIEW',random='REROLL',
+        randomName='RANDOM NAME',save='SAVE PRESET',previous='<',next='>',
         load='LOAD PRESET',delete='DELETE PRESET',back='BACK',cancel='CANCEL',start='CREATE SHOP'}
     labels.island='ISLAND SETTINGS'
     for name,b in pairs(buttons) do
@@ -441,8 +463,9 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
         g.setColor(.005,.012,.015,.84);g.rectangle('fill',0,0,960,684)
         Skin.panel(assets,{x=205,y=190,width=550,height=315})
         text('IS THIS YOUR TOWN?',235,215,490,24,{1,.86,.36,1},'center')
-        text('Create this town in save slot '..slot..'?',240,258,480,17,nil,'center')
-        text('Town seed: '..tostring(state.town.seed),240,292,480,15,nil,'center')
+        text('Create this town in save slot '..slot..'?',240,255,480,17,nil,'center')
+        text('Town seed: '..tostring(state.town.seed),240,285,480,15,nil,'center')
+        text('Town name: '..tostring(Town.cleanName(state.townNameText)),240,309,480,16,{.88,1,.88,1},'center')
         local b=confirmation.tutorial
         Ui.panel(b,{.09,.16,.15,1},{.4,.65,.48,1},5,1)
         g.setColor(.73,.94,.76,1);g.rectangle('line',b.x+15,b.y+16,25,25,3,3)
@@ -451,7 +474,7 @@ function Setup.draw(state,options,slot,assets,mouseX,mouseY)
         end
         text('Enable tutorial',b.x+54,b.y+8,400,19,{.88,1,.88,1})
         text('First steps with saved, detailed instructions.',b.x+54,b.y+33,408,12)
-        text('Space: tutorial  /  Enter: create  /  Esc: back',240,393,480,13,nil,'center')
+        text('Space: tutorial  /  Enter: create  /  Esc: back',240,405,480,13,nil,'center')
         for _,name in ipairs({'backPreview','confirmCreate'}) do
             local rect=confirmation[name];Skin.button(assets,rect,'normal')
             text(name=='backPreview' and 'KEEP LOOKING' or 'CREATE THIS SHOP',rect.x+8,rect.y+14,rect.width-16,16,nil,'center')

@@ -3,6 +3,8 @@ local Status=require('src.screens.player_status')
 local Calendar=require('src.business_calendar')
 local C=require('src.commute.runtime')
 local Visibility=require('src.screens.hud_visibility')
+local WarehouseHud=require('src.screens.warehouse_hud')
+local Ui=require('src.screens.ui')
 local Test={}
 local function save(canvas,path)
     local data=canvas:newImageData();local png=data:encode('png')
@@ -25,9 +27,7 @@ function Test.run(context,check)
     local function capture(scene,width,height,twelveHour)
         R.Config.baseWidth,R.Config.baseHeight=width,height
         R.App.settings.twelveHourTime=twelveHour
-        local _,statusBounds=R.optionsAccessLayout()
-        local statusRect=Status.layout(statusBounds)
-        local date,money=Status.displayText(R.state,twelveHour,Status.statsWidth(statusRect,R.World.player.sceneId=='commute'))
+        local date,money=Status.text(R.state,twelveHour)
         local shown,labels,positions={},{},{};local print,printf=g.print,g.printf
         g.print=function(text,x,y,rotation,sx,sy,...)
             labels[text]=true
@@ -52,44 +52,69 @@ function Test.run(context,check)
         local rect=Status.layout(bounds)
         local options=R.OptionsScreen.accessRect('world',bounds)
         local exit=require('src.screens.hud').exitRect(bounds)
+        local newHud=WarehouseHud.active(R)
+        local themedHud=newHud or scene=='apartment'
+        local layout=newHud and WarehouseHud.layoutFor(R,bounds)
+            or scene=='apartment' and WarehouseHud.layout(bounds,true)
         if Visibility.isVisible(R) then
-        check('scene_hud_'..scene..'_'..width..'_live_date_and_balances_draw_at_top',shown[date] and shown[money])
-        local fits=shown[date] and shown[money]
-        for _,text in ipairs({date,money}) do
-            local line=shown[text]
-            fits=fits and line and line.x>=rect.x and line.x+line.width<=rect.x+rect.width+.01
-                and line.y+line.height<=rect.y+rect.height
-        end
-        check('scene_hud_'..scene..'_'..width..'_text_and_menu_controls_do_not_overlap',fits
-            and rect.x+rect.width+8<=options.x and options.x+options.width<=exit.x)
+            if themedHud then
+                local cash=Ui.money(R.state.money)
+                local time=Calendar.timeText(R.state,twelveHour)
+                local home=Ui.money((R.state.home.balanceCents or 0)/100)
+                local narrowRide=layout.narrow
+                check('scene_hud_'..scene..'_'..width..'_live_date_and_balances_draw_at_top',
+                    labels[cash] and labels[time] and labels[narrowRide and 'NOV' or 'NOV 2026']
+                    and labels[home])
+                local right=bounds.right or width
+                check('scene_hud_'..scene..'_'..width..'_text_and_menu_controls_do_not_overlap',
+                    layout.cash.x+layout.cash.width<layout.calendar.x
+                    and layout.calendar.x+layout.calendar.width<layout.clock.x
+                    and layout.clock.x+layout.clock.width<layout.menu.x
+                    and layout.menu.x+layout.menu.width<=right)
+            else
+                check('scene_hud_'..scene..'_'..width..'_live_date_and_balances_draw_at_top',shown[date] and shown[money])
+                local fits=shown[date] and shown[money]
+                for _,text in ipairs({date,money}) do
+                    local line=shown[text]
+                    fits=fits and line and line.x>=rect.x and line.x+line.width<=rect.x+rect.width+.01
+                        and line.y+line.height<=rect.y+rect.height
+                end
+                check('scene_hud_'..scene..'_'..width..'_text_and_menu_controls_do_not_overlap',fits
+                    and rect.x+rect.width+8<=options.x and options.x+options.width<=exit.x)
+            end
         else
             check('scene_hud_'..scene..'_'..width..'_hidden_stats_and_menu_buttons_are_not_drawn',
                 not shown[date] and not shown[money] and not labels['EXIT TO MENU'] and not labels['OPTIONS'] and not labels['DOOR'])
         end
         for _,button in ipairs(Visibility.buttons(R)) do
-            check('scene_hud_'..scene..'_'..width..'_'..button.id..'_button_remains_visible',labels[button.label])
+            check('scene_hud_'..scene..'_'..width..'_'..button.id..'_button_remains_visible',
+                button.icon or labels[button.label])
         end
         if R.World.player.sceneId=='commute' then
             local map=C.mapButton(R)
             local buttons=Visibility.buttons(R)
             if Visibility.isVisible(R) and not R._commute.mapOpen then
-                local cam=R._commute.camera
-                local mode=require('src.commute.camera_menu').currentLabel(cam)
-                local label=positions['CAM  ·  '..mode] or positions[mode]
-                if not label then for text,position in pairs(positions) do
-                    if type(text)=='string' and (text:find('^CAM  ·') or text:sub(1,4)==mode:sub(1,4)) then label=position;break end
-                end end
-                local hud=require('src.commute.cockpit')
-                local goal=positions[C.world(R).roads.destinations[R.state.home.commute.destination].label]
-                check('ride_objective_inside_balance_panel_'..scene..width,goal and goal.y>=rect.y and goal.y<rect.y+rect.height
-                    and (rect.width<520 and goal.y>shown[money].y+shown[money].height
-                        or rect.width>=520 and goal.x>shown[money].x+shown[money].width)
-                    and goal.x+goal.width<=rect.x+rect.width)
-                check('ride_camera_label_fits_beside_hud_toolbar_'..scene..width,label and label.y>=rect.y+rect.height
-                    and label.x+label.width<buttons[1].x and label.x>=hud.CARD_X+hud.CARD_WIDTH+8)
+                check('ride_shop_and_home_balances_share_header_'..scene..width,
+                    labels['SHOP'] and labels['HOME'])
+                local cameraButton=C.cameraButton(R)
+                check('ride_camera_control_remains_clear_of_menu_'..scene..width,
+                    cameraButton and cameraButton.x+cameraButton.width<layout.menu.x)
                 local bike=C.localPart(R).rider.bike
                 local condition=positions['CONDITION '..(100-bike.damage)..'%']
-                check('ride_bike_card_sits_below_stats_'..scene..width,condition and condition.y-5==rect.y+rect.height+6)
+                check('ride_bike_card_sits_below_stats_'..scene..width,
+                    condition and condition.y>=layout.cash.y+layout.cash.height)
+                if layout.narrow then
+                    local mini=C.miniMapRect(R)
+                    local cardRight=C.cardX(R)+require('src.commute.cockpit').CARD_WIDTH
+                    local clock=positions[Calendar.timeText(R.state,twelveHour)]
+                    check('ride_compact_header_and_notice_controls_have_separate_space_'..scene..width,
+                        clock and clock.x>=layout.clock.x and clock.x+clock.width<=layout.clock.x+layout.clock.width
+                        and layout.calendar.x+layout.calendar.width<layout.clock.x
+                        and layout.noticeIcon.x>cardRight+4
+                        and layout.noticeToggle.x+layout.noticeToggle.width<mini.x-4
+                        and mini.y>=layout.calendar.y+layout.calendar.height
+                        and mini.y>=layout.clock.y+layout.clock.height)
+                end
                 local fuel,_,low,beam=require('src.commute.fuel_gauge').read(bike)
                 check('ride_bike_card_shows_miles_fuel_and_lamp_'..scene..width,
                     labels[('%.1f mi'):format(bike.service.miles)] and labels[('%.1f / 4.0 L'):format(fuel)]
@@ -97,7 +122,8 @@ function Test.run(context,check)
                     and (labels['LOW FUEL']==true)==low)
             end
             check('scene_hud_'..scene..'_'..width..'_toolbar_and_menu_controls_do_not_overlap',map
-                and buttons[1].y>=options.y+options.height and buttons[1].y+buttons[1].height<=map.y)
+                and layout and map.x+map.width<layout.menu.x
+                and layout.menu.x+layout.menu.width<=(bounds.right or width))
             local Touch=require('src.commute.touch_controls')
             local ctx=C.controlContext(R)
             local controls=Touch.actionButtons(width,height,C.bindings(R),ctx,
@@ -116,8 +142,7 @@ function Test.run(context,check)
             end
             check('scene_hud_'..scene..'_'..width..'_camera_actions_clear_condition_and_minimap',clear)
         end
-        local calendarText=Status.text(R.state,twelveHour)
-        records[#records+1]=scene..' '..width..' '..calendarText..' | '..money
+        records[#records+1]=scene..' '..width..' '..date..' | '..money
         save(canvas,output..('/%s-%d.png'):format(scene,width));canvas:release()
     end
     local okay,reason=xpcall(function()
@@ -128,6 +153,17 @@ function Test.run(context,check)
         R.World.load({id=1,sceneId='home',x=x,y=y,character=R.World.player.character})
         R.state.screen='world';sampleValues()
         for _,size in ipairs({{640,480},{960,678},{1280,880}}) do capture('apartment',size[1],size[2],true) end
+        local homeScreen,homeBounds=R.optionsAccessLayout()
+        local homeOptions=R.OptionsScreen.accessRect(homeScreen,homeBounds)
+        local homeExit=require('src.screens.hud').exitRect(homeBounds)
+        local homeNotices=require('src.screens.notifications_screen').buttonRect(homeBounds,R)
+        local homeVisibility=Visibility.buttons(R)[1]
+        check('scene_hud_home_icon_buttons_have_separate_hit_targets',homeScreen=='home_world'
+            and homeOptions.x+homeOptions.width<=homeExit.x
+            and homeVisibility.icon and homeVisibility.x+homeVisibility.width<=homeNotices.x
+            and homeNotices.y>=homeExit.y+homeExit.height
+            and R.OptionsScreen.accessHit(homeOptions.x+homeOptions.width/2,
+                homeOptions.y+homeOptions.height/2,homeScreen,homeBounds))
         check('scene_hud_uses_game_weekday_date_and_twelve_hour_preference',records[1]:find('Wednesday',1,true)
             and records[1]:find('Nov 4, 2026',1,true) and records[1]:find('11:45 PM',1,true))
         R.state.home.balanceCents=122956

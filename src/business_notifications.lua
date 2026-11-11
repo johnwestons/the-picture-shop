@@ -19,5 +19,12 @@ function Guide.update(feedback)
     if key and not Notices.findKey(state,key) then
         feedback:enqueue('calendar',title,detail,Guide.weekendBody,key)
     end
+    local balance=state.bills and tonumber(state.bills.balance) or 0
+    local billKey=('business:bills:%d:%d'):format(state.calendar.year or 2026,state.calendar.month or 1)
+    if balance>0 and not Notices.findKey(state,billKey) then
+        feedback:enqueue('calendar','SHOP BILL DUE',
+            ('$%d due. Open Finances on CritterNet.'):format(balance),
+            ('The shop has $%d in bills due. Review and pay them from the office computer.'):format(balance),billKey)
+    end
 end
 return Guide

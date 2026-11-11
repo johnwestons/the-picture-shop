@@ -236,7 +236,7 @@ function Test.run(_,check)
     local allText=table.concat(texts,"\n")
     check("warehouse_office_page_and_confirmation_render_in_shared_chrome",drawOkay and confirmOkay
         and allText:find("CRITTERNET / WAREHOUSE",1,true)~=nil
-        and allText:find("one game day each",1,true)~=nil
+        and allText:find("one game day",1,true)~=nil
         and allText:lower():find("separate room",1,true)~=nil
         and allText:find("I understand: the upper 5 shelves need a forklift",1,true)==nil,
         string.format("draw=%s (%s), confirm=%s (%s), text=%s",tostring(drawOkay),tostring(drawError),

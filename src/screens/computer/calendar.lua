@@ -41,7 +41,7 @@ local function hourLabel(hours,twelveHourTime)
 end
 
 local function shopHoursLabel(totalDay,twelveHourTime)
-    local opens,closes=BusinessHours.serviceWindow(totalDay)
+    local opens,closes=BusinessHours.window(totalDay)
     if opens==closes then return 'CLOSED' end
     if opens==0 and closes==24 then return 'OPEN ALL DAY' end
     return 'OPEN '..hourLabel(opens,twelveHourTime)..' – '..hourLabel(closes,twelveHourTime)
@@ -132,14 +132,14 @@ local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,
         g.printf(string.format('Showing %d–%d of %d in each list  •  scroll or use arrows',
             scroll+1,math.min(scroll+Runtime.CAL_DAY_LIST.visibleRows,
                 math.max(#shopEvents,#townEvents)),math.max(#shopEvents,#townEvents)),
-            dialog.x+16,dialog.y+386,dialog.width-180,'left')
+            dialog.x+16,dialog.y+372,dialog.width-180,'left')
         Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_UP,'UP',
             scroll>0 and 'secondary' or 'disabled')
         Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_DOWN,'DOWN',
             scroll<maximum and 'secondary' or 'disabled')
     else
         g.setColor(.55,.65,.66,1)
-        g.print('Click another date to see its plan.',dialog.x+18,dialog.y+390)
+        g.print('Click another date to see its plan.',dialog.x+18,dialog.y+370)
     end
 end
 
@@ -160,9 +160,11 @@ function Component.install(Runtime)
             146,207,650,'center')
         local season=CustomerDemand.seasonForMonth(month)
         love.graphics.setColor(.63,.75,.75,1)
-        love.graphics.setFont(require('src.screens.typography').get(14))
-        love.graphics.printf(string.format('%s · Demand %d%% · Select a day',
-            season.name,math.floor(season.demand*100+.5)),112,235,732,'center')
+        local originalFont=love.graphics.getFont()
+        love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
+        love.graphics.printf(string.format('%s  •  Seasonal demand %d%%  •  Click a date for its day plan',
+            season.name,math.floor(season.demand*100+.5)),116,235,726,'center')
+        love.graphics.setFont(originalFont)
 
         local weekdayLabels={'MON','TUE','WED','THU','FRI','SAT','SUN'}
         local grid=Runtime.CAL_GRID

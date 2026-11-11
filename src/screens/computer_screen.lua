@@ -24,7 +24,7 @@ local function create(dependencies)
     require("src.screens.computer.render").install(Runtime)
     require("src.screens.computer.browser").install(Runtime)
     require("src.screens.computer.browser_chrome").install(Runtime)
-    require('src.screens.computer.mobile_layout').install(Runtime)
+
     return Runtime.ComputerScreen
 end
 

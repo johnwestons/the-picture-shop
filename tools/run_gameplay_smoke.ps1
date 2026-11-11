@@ -70,6 +70,7 @@ try {
         $env:PICTURE_SHOP_SMOKE_REPORT=$report
         $env:PICTURE_SHOP_SMOKE_FOCUS=$entry.focus
         $env:PICTURE_SHOP_MOBILE=if($entry.mobile){'1'}else{'0'}
+        if($entry.focus -eq 'scene-hud'){$env:PICTURE_SHOP_HUD_OUTPUT=$stageRoot}
         if($entry.seed){$env:PICTURE_SHOP_GAMEPLAY_SEED=[string]$entry.seed}
         $required=@($plan.features | Where-Object { $entry.id -in $_.stages } | ForEach-Object { $_.checks } | Sort-Object -Unique)
         Write-Output "[$($index+1)/$($selected.Count)] START $($entry.id)"

@@ -378,6 +378,11 @@ function Test.run(context,check)
     local function staffingCountDraw(section)
         local oldSection,oldView,oldSelected=screen.hiring.section,screen.hiring.view,screen.hiring.selectedId
         local rendered={}
+        local originalPrint=love.graphics.print
+        love.graphics.print=function(text,...)
+            if type(text)=="string" then rendered[#rendered+1]=text end
+            return originalPrint(text,...)
+        end
         love.graphics.printf=function(text,...)
             if type(text)=="string" then rendered[#rendered+1]=text end
             return originalPrintf(text,...)
@@ -387,6 +392,7 @@ function Test.run(context,check)
         love.graphics.push("all")
         local okay,err=pcall(screen.draw,fresh,nil,nil,context.assets)
         love.graphics.pop()
+        love.graphics.print=originalPrint
         love.graphics.printf=originalPrintf
         screen.hiring.section,screen.hiring.view,screen.hiring.selectedId=oldSection,oldView,oldSelected
         return okay,table.concat(rendered,"\n"),err
@@ -395,10 +401,11 @@ function Test.run(context,check)
     local staffCounterOk,staffCounterText=staffingCountDraw("staff")
     local payrollCounterOk,payrollCounterText=staffingCountDraw("payroll")
     local employeeCapacityLabel=("1/%d employees"):format(Employees.MAX_STAFF)
+    local staffTabLabel=("STAFF (1/%d)"):format(Employees.MAX_STAFF)
     check("employees_staffing_tabs_show_active_payroll_count",
         applicantsCounterOk and staffCounterOk and payrollCounterOk
-        and applicantsCounterText:find(employeeCapacityLabel,1,true)~=nil
-        and staffCounterText:find(employeeCapacityLabel,1,true)~=nil
+        and applicantsCounterText:find(staffTabLabel,1,true)~=nil
+        and staffCounterText:find(staffTabLabel,1,true)~=nil
         and payrollCounterText:find(employeeCapacityLabel,1,true)~=nil)
     screen.hiring.view="assignment";draw("employees_hiring_assignment_draws")
     screen.hiring.section="payroll";screen.hiring.view="detail";draw("employees_hiring_payroll_draws")

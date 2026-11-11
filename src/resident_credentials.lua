@@ -11,12 +11,12 @@ function Credentials.get()
         if Credentials.valid(value) then return value end
         return nil,"The saved resident identity is unreadable. Restore that identity to reconnect to your resident."
     end
-    local bytes=require("src.net.crypto_native").randomBytes(32)
+    local bytes,_,source=require("src.net.secure_random").bytes(32)
     if type(bytes)~="string" or #bytes~=32 then return nil,"Secure resident identity generation is unavailable on this device." end
     local token=love.data.encode("string","hex",bytes)
     if not love.filesystem.write(path,token) or love.filesystem.read(path)~=token then
         return nil,"Could not save this device's resident identity."
     end
-    return token
+    return token,nil,source
 end
 return Credentials

@@ -72,6 +72,7 @@ extern vec3 sunDirection;
 extern vec3 sunColor;
 extern float sunlight;
 extern float ambientLight;
+extern vec3 fogColor;
 extern vec3 moonDirection;
 extern vec3 moonColor;
 extern float moonlight;
@@ -157,8 +158,9 @@ vec4 effect(vec4 color,Image image,vec2 uv,vec2 screen_coords)
     surface*=vec3(ambientLight)+sunColor*(sunlight*diffuse)+moonColor*(moonlight*moonDiffuse);
     if (waterDepth>0.0 && waterDetail>0.0) surface=waterSurface(surface);
     surface*=cloudLight;
-    if(firstPerson && rideHeadlight) surface=riderLight(surface,worldPosition,worldHeight);
-    surface=mix(surface,firstPerson ? vec3(.57,.68,.70) : vec3(0.22,0.27,0.26),smoothstep(viewRadius*.74,viewRadius,viewDistance));
+    surface=localLighting(surface,worldPosition,worldHeight);
+    surface=riderLight(surface,worldPosition,worldHeight);
+    surface=mix(surface,fogColor,smoothstep(viewRadius*.74,viewRadius,viewDistance));
     return vec4(surface,color.a);
 }
 #endif

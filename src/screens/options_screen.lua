@@ -5,6 +5,9 @@ local RabbitColorways = require("src.rabbit_colorways")
 local CharacterAssets = require("src.character_assets")
 local Ui = require("src.screens.ui")
 local SilhouetteStyle = require("src.commute.silhouette_style")
+local PlayerProfile = require('src.player_profile')
+local PROFILE_NAME={x=250,y=178,width=370,height=40}
+local PROFILE_SAVE={x=634,y=178,width=162,height=40}
 
 local OptionsScreen = {
     tab = "game",
@@ -45,6 +48,13 @@ local TABS = {
     debug = { x = 736, y = 90, width = 118, height = 48, label = "DEBUG" },
 }
 local TAB_ORDER = { "game", "audio", "controls", "character", "cheats", "debug" }
+-- Keep a full-size hit target for every tab inside the existing panel.
+TABS.video={label='VIDEO'}
+TAB_ORDER={'game','video','audio','controls','character','cheats','debug'}
+for i,id in ipairs(TAB_ORDER)do TABS[id].x=106+(i-1)*108;TABS[id].y=90;TABS[id].width=104;TABS[id].height=48 end
+function OptionsScreen.tabRect(id)
+    local r=TABS[id];if r then return {x=r.x,y=r.y,width=r.width,height=r.height}end
+end
 local SLOT_RECTS = {
     { x = 286, y = 166, width = 116, height = 42 },
     { x = 422, y = 166, width = 116, height = 42 },
@@ -74,7 +84,15 @@ local AUDIO_ROWS = {
     { id = "masterVolume", label = "Master volume", kind = "level" },
     { id = "sfxVolume", label = "Effects volume", kind = "level" },
     { id = "ambientVolume", label = "Ambience volume", kind = "level" },
+    { id = "dialogueVolume", label = "Dialogue volume", kind = "level" },
+    { id = "dialogueVoicesEnabled", label = "Character voices", kind = "toggle" },
     { id = "muted", label = "Mute all audio", kind = "toggle" },
+}
+local VIDEO_ROWS={
+    {id='dynamicShadows',label='Object shadows',kind='toggle'},
+    {id='vegetationShadows',label='Tree shadows',kind='toggle'},
+    {id='shadowDistance',label='Shadow distance',kind='cycle'},
+    {id='renderDistance',label='World render distance',kind='cycle'},
 }
 local CONTROL_PREVIEW = { x = 205, y = 176, width = 550, height = 238 }
 local CONTROL_VIEW_SELECT = { x = 164, y = 143, width = 632, height = 30 }
@@ -88,8 +106,8 @@ local SENSITIVITY_ROWS = {
     { id = "mobileDriveSensitivity", label = "DRIVING STICK", y = 462 },
 }
 local COLORWAY_GROUPS = {
-    { id = "furColorway", group = "fur", label = "FUR", y = 230 },
-    { id = "overallsColorway", group = "overalls", label = "OVERALLS", y = 390 },
+    { id = "furColorway", group = "fur", label = "FUR", y = 258 },
+    { id = "overallsColorway", group = "overalls", label = "OVERALLS", y = 398 },
 }
 local CONTROL_SPECS = {
     joystick = { label = "MOVE", radius = 43 },
@@ -239,6 +257,7 @@ function OptionsScreen.enter(context)
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
         and "Audio and game settings are local. Save cheats are host-only."
         or "Changes are saved immediately."
+    if OptionsScreen.tab=='character' then OptionsScreen.message='Choose SAVE NAME after editing. Color choices save immediately.' end
 end
 
 function OptionsScreen.leave()
@@ -293,11 +312,11 @@ function OptionsScreen.wantsTextInput()
 end
 
 function OptionsScreen.accessRect(screen, bounds)
-    if screen=='computer' and require('src.screens.computer.mobile_layout').active() then
-        return require('src.screens.computer.mobile_layout').geometry().options
-    end
     -- Keep the global shortcut clear of each console's own Back/Exit controls.
-    if screen == "world" then
+    if screen == 'home_world' then
+        local right = bounds and bounds.right or Config.baseWidth
+        return {x=right-200,y=14,width=42,height=42}
+    elseif screen == "world" then
         local right = bounds and bounds.right or Config.baseWidth
         return { x = right - 272, y = 14, width = ACCESS.width, height = ACCESS.height }
     elseif screen == "machine" then
@@ -338,6 +357,7 @@ local function selectTab(tab)
             and "Save cheats are host-only in multiplayer."
             or "Developer tools: save changes are immediate.")
         or tab == "debug" and "Live AI and multiplayer diagnostics for playtesting."
+        or tab == "character" and 'Choose SAVE NAME after editing. Color choices save immediately.'
         or "Changes are saved immediately."
     return true
 end
@@ -369,7 +389,9 @@ end
 local setChoice
 
 local function choiceOptions(id)
-    if id=="twelveHourTime" then
+    if id=='shadowDistance' or id=='renderDistance' then
+        return {{value='near',label='NEAR'},{value='medium',label='MEDIUM'},{value='far',label='FAR'}}
+    elseif id=="twelveHourTime" then
         return {{value=true,label="12 HOUR"},{value=false,label="24 HOUR"}}
     elseif id=="occlusionHighlightStyle" then
         return {{value="filled",label="FILLED"},{value="outline",label="OUTLINE"}}
@@ -472,7 +494,25 @@ local function grantCheat(index)
     return ok
 end
 
+local function beginProfileName()
+    OptionsScreen.editField='playerName'
+    OptionsScreen.editBuffer=PlayerProfile.name(OptionsScreen.context.settings)
+    OptionsScreen.replaceName=true
+    OptionsScreen.message='Type your display name, then choose SAVE NAME or press Enter.'
+    return true
+end
 local function commitEdit()
+    if OptionsScreen.editField=='playerName' then
+        local name=PlayerProfile.cleanName(OptionsScreen.editBuffer)
+        if name=='' then OptionsScreen.message='Enter a display name before saving.';return false end
+        OptionsScreen.context.settings.playerName=name
+        local saved=Settings.save(OptionsScreen.context.settings)
+        if OptionsScreen.context.applyPlayerProfile then OptionsScreen.context.applyPlayerProfile() end
+        OptionsScreen.message=saved and 'Player profile saved for every shop and multiplayer session.'
+            or 'Your name is active for this session, but could not be saved. Try again.'
+        if saved then OptionsScreen.editField,OptionsScreen.editBuffer=nil,'' end
+        return saved
+    end
     local field = SaveEditor.field(OptionsScreen.editField)
     if not field then return false end
     local value = tonumber(OptionsScreen.editBuffer)
@@ -486,6 +526,7 @@ local function commitEdit()
 end
 
 local function rowsForTab()
+    if OptionsScreen.tab == 'video' then return VIDEO_ROWS end
     if OptionsScreen.tab == "game" then return GAME_ROWS end
     if OptionsScreen.tab == "audio" then return AUDIO_ROWS end
     if OptionsScreen.tab == "controls" then return {} end
@@ -622,7 +663,10 @@ function OptionsScreen.keypressed(key)
             return true
         end
         if key == "backspace" then
-            OptionsScreen.editBuffer = OptionsScreen.editBuffer:sub(1, -2)
+            OptionsScreen.editBuffer = OptionsScreen.editField=='playerName'
+                and (OptionsScreen.replaceName and '' or PlayerProfile.backspace(OptionsScreen.editBuffer))
+                or OptionsScreen.editBuffer:sub(1, -2)
+            OptionsScreen.replaceName=false
             return true
         end
         return false
@@ -678,6 +722,7 @@ function OptionsScreen.keypressed(key)
         return false
     end
     if OptionsScreen.tab == "character" then
+        if key=='n' then return beginProfileName() end
         if key == "up" or key == "w" then
             OptionsScreen.selectedRow = 1
             return true
@@ -743,6 +788,12 @@ end
 
 function OptionsScreen.textinput(text)
     if not OptionsScreen.editField then return false end
+    if OptionsScreen.editField=='playerName' then
+        local prefix=OptionsScreen.replaceName and '' or OptionsScreen.editBuffer
+        OptionsScreen.editBuffer=PlayerProfile.input(prefix..tostring(text or ''))
+        OptionsScreen.replaceName=false
+        return true
+    end
     local digits = tostring(text or ""):gsub("[^0-9]", "")
     if digits == "" then return false end
     OptionsScreen.editBuffer = (OptionsScreen.editBuffer .. digits):sub(1, 9)
@@ -842,6 +893,11 @@ function OptionsScreen.mousepressed(x, y, button)
         end
         return false
     elseif OptionsScreen.tab == "character" then
+        if Ui.contains(PROFILE_NAME,x,y) then return beginProfileName() end
+        if Ui.contains(PROFILE_SAVE,x,y) then
+            if OptionsScreen.editField=='playerName' then return commitEdit() end
+            return beginProfileName()
+        end
         for rowIndex, row in ipairs(COLORWAY_GROUPS) do
             for choiceIndex = 1, RabbitColorways.count(row.group) do
                 if Ui.contains(colorwayCellRect(rowIndex, choiceIndex), x, y) then
@@ -957,6 +1013,23 @@ end
 
 function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds, assets)
     OptionsScreen.hover = mouseX and mouseY and { x = mouseX, y = mouseY } or nil
+    if screen == 'home_world' then
+        local g=love.graphics;local rect=OptionsScreen.accessRect(screen,bounds)
+        local hovered=mouseX and mouseY and Ui.contains(rect,mouseX,mouseY)
+        g.push('all');g.setShader()
+        g.setColor(hovered and .18 or .055,hovered and .29 or .12,.12,.96)
+        g.circle('fill',rect.x+21,rect.y+21,20)
+        g.setColor(.76,.66,.40,1);g.setLineWidth(2)
+        g.circle('line',rect.x+21,rect.y+21,18)
+        for i=0,7 do
+            local angle=i*math.pi/4
+            g.line(rect.x+21+math.cos(angle)*10,rect.y+21+math.sin(angle)*10,
+                rect.x+21+math.cos(angle)*15,rect.y+21+math.sin(angle)*15)
+        end
+        g.circle('line',rect.x+21,rect.y+21,9)
+        g.circle('line',rect.x+21,rect.y+21,3)
+        g.pop();return
+    end
     if screen == "title" then
         local rect = OptionsScreen.accessRect(screen, bounds)
         local hovered = mouseX and mouseY and Ui.contains(rect, mouseX, mouseY)
@@ -969,6 +1042,14 @@ function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds, assets)
         love.graphics.printf("OPTIONS", rect.x + 11, rect.y + (rect.height - font:getHeight()) / 2,
             rect.width - 22, "center")
         love.graphics.setFont(previousFont)
+        return
+    end
+    if screen == 'computer' then
+        local rect = OptionsScreen.accessRect(screen, bounds)
+        local hovered = mouseX and mouseY and Ui.contains(rect, mouseX, mouseY)
+        Ui.panel(rect, {0.12, 0.17, 0.18, hovered and 0.85 or 0.56}, {0.43, 0.53, 0.51, 0.7}, 4, 1)
+        love.graphics.setColor(0.94, 0.95, 0.89)
+        love.graphics.printf('OPTIONS', rect.x, rect.y + rect.height / 2 - 7, rect.width, 'center')
         return
     end
     drawButton(OptionsScreen.accessRect(screen, bounds), "OPTIONS", false, false)
@@ -1048,11 +1129,9 @@ local function drawControlPreview()
         love.graphics.setLineWidth(dragged and 4 or 3)
         love.graphics.circle("line", x, y, spec.radius)
         love.graphics.setColor(0.96, 0.98, 0.92, 1)
-        local Text=require('src.screens.typography')
-        love.graphics.push('all');love.graphics.setFont(Text.get(12,'bold'))
-        local label=spec.label:gsub('ACTION ','ACT ')
-        love.graphics.printf(label,x-spec.radius,y-7,spec.radius*2,'center')
-        love.graphics.pop()
+        local textScale = spec.radius < 30 and 0.60 or 0.74
+        love.graphics.printf(spec.label, x - spec.radius, y - 6,
+            spec.radius * 2, "center", 0, textScale, textScale)
     end
     love.graphics.setLineWidth(1)
 end
@@ -1119,10 +1198,19 @@ end
 
 local function drawColorways()
     love.graphics.setColor(0.78, 0.81, 0.76)
-    love.graphics.print("RABBIT COLORWAYS", 164, 166)
+    love.graphics.print("PLAYER PROFILE", 164, 150)
+    love.graphics.print('NAME',164,188)
+    Ui.panel(PROFILE_NAME,{.10,.14,.14,1},OptionsScreen.editField=='playerName'
+        and {.98,.80,.30,1} or {.38,.47,.45,1},4,1)
+    local name=OptionsScreen.editField=='playerName' and OptionsScreen.editBuffer
+        or PlayerProfile.name(OptionsScreen.context.settings)
+    love.graphics.setColor(.95,.94,.83,1)
+    local nameScale=math.min(1,(PROFILE_NAME.width-20)/math.max(1,love.graphics.getFont():getWidth(name)))
+    love.graphics.print(name,PROFILE_NAME.x+10,PROFILE_NAME.y+10,0,nameScale,nameScale)
+    drawButton(PROFILE_SAVE,'SAVE NAME',false,false)
     love.graphics.setColor(0.58, 0.64, 0.61)
-    love.graphics.printf("Choose a fur tone and overall color. Your choices are saved on this device and shared online.",
-        164, 193, 632, "left")
+    love.graphics.printf('Name and colors carry across all saves on this device and are shared online. [N: edit name]',
+        164, 230, 632, 'left')
     for rowIndex, row in ipairs(COLORWAY_GROUPS) do
         Ui.panel({ x = 164, y = row.y, width = 632, height = 124 },
             OptionsScreen.selectedRow == rowIndex and { 0.11, 0.15, 0.15, 1 }
@@ -1149,10 +1237,7 @@ local function drawColorways()
             love.graphics.setLineWidth(1)
             love.graphics.setColor(choiceIndex == selected and { 0.98, 0.84, 0.38, 1 }
                 or { 0.78, 0.82, 0.77, 1 })
-            love.graphics.push('all')
-            love.graphics.setFont(require('src.screens.typography').get(14))
             love.graphics.printf(choice.name, rect.x + 1, rect.y + 51, rect.width - 2, "center")
-            love.graphics.pop()
         end
     end
     local image, quad = CharacterAssets.get("rabbit-worker", "idle", 1)
@@ -1167,8 +1252,7 @@ local function drawColorways()
     love.graphics.setColor(0.86, 0.88, 0.82)
     love.graphics.print("LIVE PLAYER PREVIEW", 514, 551)
     love.graphics.setColor(0.58, 0.64, 0.61)
-    love.graphics.setFont(require('src.screens.typography').get(14))
-    love.graphics.printf("These colors appear online.", 514, 575, 282, "left")
+    love.graphics.printf(PlayerProfile.name(OptionsScreen.context.settings), 514, 575, 250, "left")
 end
 
 function OptionsScreen.draw(mouseX, mouseY)
@@ -1207,30 +1291,43 @@ function OptionsScreen.draw(mouseX, mouseY)
             SilhouetteStyle.STYLE_LABELS[OptionsScreen.context.settings.occlusionHighlightStyle] or "FILLED",
         }
         drawRows(GAME_ROWS, values, false)
-        love.graphics.setFont(require('src.screens.typography').get(14))
-        love.graphics.setColor(0.76, 0.83, 0.79)
+        love.graphics.setColor(0.58, 0.64, 0.61)
         love.graphics.printf(android and "Fullscreen is managed by Android."
             or "Display, time format, and hidden-player highlight changes apply immediately.", 164, 522, 632, "center")
-        love.graphics.printf("Choose a filled or outlined highlight. Left/right changes color.",
+        love.graphics.printf("Hidden-player highlights can be filled or outlined. Use left/right to change color.",
             164, 548, 632, "center")
-        love.graphics.printf("Follow centers the camera. Pinch or mouse wheel to zoom.",
+        love.graphics.printf("Follow keeps you centered; turn it off to pan. Pinch or mouse wheel zooms.",
             164, 574, 632, "center")
+    elseif OptionsScreen.tab == 'video' then
+        local settings=OptionsScreen.context.settings
+        love.graphics.setColor(.78,.81,.76);love.graphics.print('VIDEO / PERFORMANCE',164,166)
+        drawRows(VIDEO_ROWS,{
+            settings.dynamicShadows~=false and 'ON' or 'OFF',settings.vegetationShadows==true and 'ON' or 'OFF',
+            (settings.shadowDistance or 'medium'):upper(),(settings.renderDistance or 'medium'):upper()},false)
+        love.graphics.setColor(.58,.64,.61)
+        love.graphics.printf('Object shadows affect the warehouse and outdoors. Tree shadows are optional; grass never casts shadows.',164,438,632,'center')
+        love.graphics.printf('Shorter distances reduce outdoor detail and shadow work. Tree shadows require object shadows to be ON.',164,490,632,'center')
+        love.graphics.printf('Changes apply immediately and save on this device. New shadow areas fill in gradually to keep camera movement smooth.',164,548,632,'center')
     elseif OptionsScreen.tab == "audio" then
         love.graphics.setColor(0.78, 0.81, 0.76)
         love.graphics.print("AUDIO MIX", 164, 166)
         local settings = OptionsScreen.context.settings
         drawRows(AUDIO_ROWS, {
             settings.masterVolume .. "%", settings.sfxVolume .. "%",
-            settings.ambientVolume .. "%", settings.muted and "ON" or "OFF",
+            settings.ambientVolume .. "%", settings.dialogueVolume .. "%",
+            settings.dialogueVoicesEnabled and "ON" or "OFF",
+            settings.muted and "ON" or "OFF",
         }, false)
+        love.graphics.setColor(0.58, 0.64, 0.61)
+        love.graphics.printf("Dialogue volume is separate from effects. Turning character voices off keeps dialogue text and bubbles.",
+            164, 532, 632, "center")
     elseif OptionsScreen.tab == "controls" then
         drawControlPreview()
         drawControlViewSelector()
         drawSensitivitySliders()
         love.graphics.setColor(0.58, 0.64, 0.61)
-        love.graphics.setFont(require('src.screens.typography').get(14))
-        love.graphics.printf("MOVE / USE are shared. Other buttons save per view on this device.",
-            164, 518, 632, "center")
+        love.graphics.printf("Shared MOVE / USE positions carry across screens; move any other button per view. Layouts save on this device.",
+            164, 528, 632, "center")
         drawButton(RESET_CONTROLS, OptionsScreen.selectedControlView == "shared"
             and "RESET SHARED" or "RESET THIS VIEW", false, false)
         local steering=OptionsScreen.context.settings.mobileVehicleSteering or 'radial'
@@ -1293,11 +1390,9 @@ function OptionsScreen.draw(mouseX, mouseY)
         end
     end
 
-    love.graphics.setFont(require('src.screens.typography').get(14))
-    love.graphics.setColor(0.78, 0.84, 0.78)
+    love.graphics.setColor(0.72, 0.76, 0.70)
     love.graphics.printf(OptionsScreen.message, 116, 604, 728, "center")
-    love.graphics.setFont(require('src.screens.typography').get(12))
-    love.graphics.setColor(0.74, 0.81, 0.77)
+    love.graphics.setColor(0.47, 0.53, 0.50)
     love.graphics.printf(OptionsScreen.tab=="controls"
         and "Drag sliders for stick sensitivity  |  H: steering mode  |  M: motorcycle controls"
         or OptionsScreen.tab=="cheats"

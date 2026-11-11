@@ -78,7 +78,8 @@ function Test.run(context,check)
     local viewButton=C.cameraButton(R)
     assert(viewButton and C.touchPressed(R,'view-button',viewButton.x+viewButton.width*.5,viewButton.y+viewButton.height*.5));ticks(2)
     local menu=require('src.commute.camera_menu')
-    local eye=menu.row(viewButton,4)
+    local mapLeft=C.miniMapRect(R).x
+    local eye=menu.row(viewButton,4,mapLeft)
     assert(C.touchPressed(R,'view-choice',eye.x+30,eye.y+15));ticks(2)
     check('commute_runtime_touch_enters_first_person',R._commute.camera.firstPerson)
     assert(C.cameraPointerPressed(R,3,false));assert(C.cameraPointerMoved(R,-70,30));C.cameraPointerReleased(R,3);ticks(12)
@@ -86,7 +87,7 @@ function Test.run(context,check)
     -- Looking left moves the straight-ahead handlebars to the right of view.
     check('commute_runtime_middle_left_look_keeps_cockpit_on_bike',lookX>100
         and R._commute.camera.lookYaw<0 and R._commute.camera.headYaw<0)
-    local centerButton=menu.row(viewButton,5)
+    local centerButton=menu.row(viewButton,5,mapLeft)
     assert(C.pointer(R,viewButton.x+30,viewButton.y+15))
     assert(C.pointer(R,centerButton.x+30,centerButton.y+15));ticks(1)
     check('commute_runtime_center_button_faces_bike_forward',R._commute.camera.headYaw==0 and R._commute.camera.lookYaw==0)

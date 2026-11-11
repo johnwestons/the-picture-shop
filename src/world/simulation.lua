@@ -233,7 +233,8 @@ function Component.install(Runtime)
         Runtime.PalletLogistics.update(state, dt, Runtime.Config.palletLogistics.unloadDuration)
         -- Only one reception visitor advances at a time. The other visitor keeps
         -- their full cooldown while the entrance, lounge, or desk is occupied.
-        local receptionClosed = not require("src.weekend_flow").acceptsNewWork(state)
+        local receptionClosed = not require("src.warehouse_condition").openForBusiness(state)
+            or not require("src.weekend_flow").acceptsNewWork(state)
             or not Runtime.BusinessCalendar.isBusinessOpen(state) or Runtime.EmployeeAI.receptionOccupied(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
         local customerEvent = Runtime.World.customer:update(dt, player,

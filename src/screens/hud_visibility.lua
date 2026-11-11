@@ -35,12 +35,18 @@ function Visibility.toggleCameraLock(R)
 end
 function Visibility.buttons(R)
     if R.state.screen~='world' then return {} end
+    local sharedHud=require('src.screens.warehouse_hud').active(R)
     local _,bounds=R.optionsAccessLayout()
     local right=bounds and bounds.right or R.Config.baseWidth
     local mobile=R.mobileControls and R.mobileControls:isEnabled()
-    local buttons={{id='hud',x=right-272,y=58,width=128,height=32,
-        label=(Visibility.isVisible(R) and 'HIDE HUD' or 'SHOW HUD')..(mobile and '' or ' [F9]')}}
-    if Visibility.canLockCamera(R) then
+    local buttons={}
+    if not sharedHud then
+        local home=R.World and R.World.player.sceneId=='home'
+        buttons[#buttons+1]={id='hud',x=home and right-200 or right-272,y=home and 60 or 58,
+            width=home and 40 or 128,height=home and 40 or 32,icon=home,
+            label=(Visibility.isVisible(R) and 'HIDE HUD' or 'SHOW HUD')..(mobile and '' or ' [F9]')}
+    end
+    if Visibility.canLockCamera(R) and not sharedHud then
         buttons[#buttons+1]={id='lock',x=right-140,y=58,width=122,height=32,
             label=(Visibility.cameraLocked(R) and 'UNLOCK' or 'LOCK CAM')..(mobile and '' or ' [F8]')}
     end
@@ -48,6 +54,11 @@ function Visibility.buttons(R)
 end
 function Visibility.pointer(R,x,y,button)
     if button~=1 then return false end
+    local WarehouseHud=require('src.screens.warehouse_hud')
+    if WarehouseHud.active(R) then
+        local _,bounds=R.optionsAccessLayout()
+        if WarehouseHud.menuPointer(R,x,y,button,bounds) then return true end
+    end
     for _,b in ipairs(Visibility.buttons(R)) do
         if Ui.contains(b,x,y) then
             return b.id=='hud' and Visibility.toggle(R) or Visibility.toggleCameraLock(R)
@@ -62,13 +73,26 @@ function Visibility.keypressed(R,key)
     return false
 end
 function Visibility.draw(R)
-    local g=love.graphics;font=font or require('src.screens.typography').get(12)
+    local WarehouseHud=require('src.screens.warehouse_hud')
+    if WarehouseHud.active(R) then
+        local _,bounds=R.optionsAccessLayout()
+        WarehouseHud.drawMenu(R,bounds)
+    end
+    local g=love.graphics;font=font or g.newFont(12)
     g.push('all');g.setShader();g.setFont(font)
     for _,b in ipairs(Visibility.buttons(R)) do
         local locked=b.id=='lock' and Visibility.cameraLocked(R)
         Ui.panel(b,{.055,.09,.095,.94},locked and {.91,.75,.37,1} or {.43,.53,.51,1},5,1)
         g.setColor(locked and 1 or .94,locked and .86 or .95,locked and .51 or .89,1)
-        g.printf(b.label,b.x,b.y+(b.height-font:getHeight())/2,b.width,'center')
+        if b.icon then
+            local cx,cy=b.x+b.width/2,b.y+b.height/2
+            g.setLineWidth(2)
+            g.ellipse('line',cx,cy,12,7)
+            g.circle('fill',cx,cy,3)
+            if not Visibility.isVisible(R) then g.line(cx-13,cy+11,cx+13,cy-11) end
+        else
+            g.printf(b.label,b.x,b.y+(b.height-font:getHeight())/2,b.width,'center')
+        end
     end
     g.pop()
 end

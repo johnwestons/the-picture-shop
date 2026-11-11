@@ -77,6 +77,7 @@ function Renderer.drawBall(x,y)
 end
 function Renderer.pruneCache() cache:prune() end
 function Renderer.clearCache()
+    require('src.warehouse_shadows').release()
     require("src.room_loading_bay_renderer").clear()
     cache:clear()
     require("src.basketball_renderer").clear()
@@ -91,7 +92,7 @@ function Renderer.selectScene(sceneId)
     cache:prune()
 end
 local function background(state,sceneId,assets)
-    if sceneId=="warehouse" then return assets.get("warehouse") end
+    if sceneId=="warehouse" then return require("src.warehouse_condition_renderer").image(state,assets) end
     local kind=Rooms.definition(state,sceneId)
     local stage=Rooms.constructionStage(state,sceneId)
     local path=stage and Rooms.constructionPaths[kind] and Rooms.constructionPaths[kind][stage]
@@ -143,9 +144,9 @@ end
 function Renderer.addShelfActors(actors,assets,state,drawPallet)
     actors[#actors+1]={y=0,layer=-1,draw=function() Renderer.drawShelves(assets,state,"warehouse",drawPallet) end}
 end
-function Renderer.drawLobbyForeground(assets,seat)
+function Renderer.drawLobbyForeground(assets,seat,state)
     local polygon=seat and require("src.warehouse_registration").lobbyForegrounds[seat.name]
-    local image=assets.get("warehouse")
+    local image=require("src.warehouse_condition_renderer").image(state,assets)
     if not polygon or not image then return end
     love.graphics.stencil(function() love.graphics.polygon("fill",unpack(polygon)) end,"replace",1)
     love.graphics.setStencilTest("greater",0);love.graphics.setColor(1,1,1)

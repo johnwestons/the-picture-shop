@@ -5,9 +5,10 @@ local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
 local Town={VERSION=1,GENERATOR_VERSION=12,MIN_SEED=1,MAX_SEED=2147483646}
+Town.NAMES={'Cedar Bay','Pine Hollow','Maple Crossing','Willow Creek','Harbor Point'}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
--- Generated labels are part of the saved seed fingerprint. Current signage
--- is applied to the runtime destinations without mutating a town or preset.
+-- Generated destination labels are part of the seed fingerprint. A player's
+-- town name is saved as presentation metadata and does not change the layout.
 local names={warehouse='The Picture Shop',['brick-walkup']='Brick walk-up',garden='Garden apartment',
     courtyard='Courtyard apartments',corner='Corner apartment',mechanic='WrenchWorks Garage',
     ['gas-station']='Gas Station',grocery='Town Grocery',['post-office']='Post Office',police='Police Station',
@@ -39,6 +40,14 @@ local function copy(v)
 end
 Town.copy=copy
 local function integer(v,lo,hi)return M.finite(v) and v%1==0 and v>=lo and v<=hi end
+function Town.cleanName(value)
+    if type(value)~='string' then return '' end
+    return ((value:gsub('[^%w%s%.%-]',' '):gsub('%s+',' '):match('^%s*(.-)%s*$') or ''):sub(1,28):gsub('%s+$',''))
+end
+function Town.defaultName(seed)
+    seed=integer(tonumber(seed),Town.MIN_SEED,Town.MAX_SEED) and tonumber(seed) or Town.MIN_SEED
+    return Town.NAMES[(seed-1)%#Town.NAMES+1]
+end
 local function point(p,lo,hi)
     return type(p)=='table' and M.finite(p.x) and M.finite(p.z) and M.finite(p.h)
         and p.x>=lo and p.x<=hi and p.z>=lo and p.z<=hi and p.h>=-2 and p.h<=84
@@ -54,7 +63,8 @@ local function array(t,maximum)
 end
 function Town.valid(t)
     if not plain(t) or type(t)~='table' or t.version~=1
-        or not integer(t.generatorVersion,0,Town.GENERATOR_VERSION) then return false end
+        or not integer(t.generatorVersion,0,Town.GENERATOR_VERSION)
+        or t.name~=nil and (type(t.name)~='string' or #t.name>28 or Town.cleanName(t.name)~=t.name or t.name=='') then return false end
     if t.generatorVersion>=6 and (type(t.terrain)~='table' or not Options.valid(t.terrain.settings)) then return false end
     local expectedBounds=t.generatorVersion>=4 and islandBounds or Default.bounds
     local function townPoint(p,lo,hi)
@@ -196,13 +206,20 @@ function Town.valid(t)
     if t.generatorVersion>=10 and not require('src.commute.driving_map').valid(t,t.drivingMap) then return false end
     return true
 end
+function Town.withName(t,name)
+    if not Town.valid(t) then return nil,'Invalid town layout.' end
+    name=Town.cleanName(name)
+    if name=='' then return nil,'Enter a town name.' end
+    local result=copy(t);result.name=name
+    return result
+end
 function Town.fingerprint(t)
     assert(plain(t),'Invalid town fingerprint data')
     local hash=17
     local function add(s)for i=1,#s do hash=(hash*131+s:byte(i))%2147483647 end end
     local function visit(v,root)
         if type(v)=='table' then
-            local keys={};for k in pairs(v) do if not (root and k=='id') then keys[#keys+1]=k end end
+            local keys={};for k in pairs(v) do if not (root and (k=='id' or k=='name')) then keys[#keys+1]=k end end
             table.sort(keys,function(a,b)return tostring(a)<tostring(b) end)
             for _,k in ipairs(keys) do add(tostring(k));visit(v[k]) end
         elseif type(v)=='number' then add(v==0 and '0' or ('%.12g'):format(v)) else add(tostring(v)) end
@@ -423,6 +440,8 @@ local function constructWorld(t,validate,pause)
         recreation=runtimeTown.recreation,drivingMap=runtimeTown.drivingMap,
         broadEarthworks=runtimeTown.generatorVersion>=12})
     roads:attach(world);world.townId=runtimeTown.id;world.town=runtimeTown
+    world.townName=Town.cleanName(runtimeTown.name)~='' and Town.cleanName(runtimeTown.name)
+        or Town.defaultName(runtimeTown.seed)
     if pause then pause()end
     world.mainlandExit=runtimeTown.mainlandExit;world.neighboringCity='Millhaven'
     if truckAccess then

@@ -254,6 +254,11 @@ function WorkPhone.queueCall(state, spec, nowHours)
     if phone.incoming then return false, "The work phone is already ringing." end
     spec = type(spec) == "table" and spec or {}
     if not VALID_KINDS[spec.kind] then return false, "That caller type is not supported." end
+    if (spec.kind == "customer_order" or spec.kind == "customer_status"
+        or spec.kind == "customer_complaint")
+        and not require("src.warehouse_condition").openForBusiness(state) then
+        return false, "Client calls begin after the grand opening."
+    end
     if spec.kind == "customer_status"
         and not jobHasArrived(findActiveJob(state, spec.jobId))
     then
@@ -338,7 +343,8 @@ function WorkPhone.update(state, dt)
             connectedNow = true
         end
     end
-    if phone.incoming or not BusinessCalendar.isBusinessOpen(state) then return connectedNow end
+    if phone.incoming or not BusinessCalendar.isBusinessOpen(state)
+        or not require("src.warehouse_condition").openForBusiness(state) then return connectedNow end
     local now = BusinessCalendar.absoluteHours(state)
     if #phone.deferredCalls > 0 then
         local deferred = table.remove(phone.deferredCalls, 1)

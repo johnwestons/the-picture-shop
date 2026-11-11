@@ -71,7 +71,8 @@ local function indoorOptionsTouch(context,check)
         R.state.screen='options'
         Options.enter({settings=Settings.normalize(),save={SLOT_COUNT=3},state=R.state,
             onClose=function()R.state.screen='world'end})
-        tap('indoor-options-tab',290,112)
+        local audioTab=Options.tabRect('audio')
+        tap('indoor-options-tab',audioTab.x+audioTab.width/2,112)
         check('mobile_'..kind..'_options_touch_changes_tab',Options.tab=='audio')
         tap('indoor-options-resume',868,41)
         check('mobile_'..kind..'_options_touch_resumes_world',R.state.screen=='world')

@@ -98,6 +98,7 @@ function Component.install(Runtime)
                 }
             end,
             applyPlayerColorways = Runtime.App.syncPlayerColorways,
+            applyPlayerProfile = Runtime.App.syncPlayerProfile,
             onClose = Runtime.closeOptions,
         })
         Runtime.state.screen = "options"

@@ -9,7 +9,7 @@ local Screen={view="menu",aimX=480,aimY=330,mouseFire=false,touches={},cover=fal
 local images,fonts={},{}
 local base="assets/generated/critter-crisis-v1/"
 local function font(n)
-    if not fonts[n] then fonts[n]=require('src.screens.typography').get(n) end
+    if not fonts[n] then fonts[n]=love.graphics.newFont("assets/fonts/VT323-Regular.ttf",n) end
     love.graphics.setFont(fonts[n])
     return fonts[n]
 end

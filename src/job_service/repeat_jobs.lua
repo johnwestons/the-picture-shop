@@ -65,6 +65,9 @@ function Component.install(Runtime)
         if type(state) ~= "table" or type(job) ~= "table" then
             return false, "state and job are required"
         end
+        if not require("src.warehouse_condition").openForBusiness(state) then
+            return false, "Hold the grand opening before requesting client job details."
+        end
         if job.status ~= "offered" then return false, "job is no longer available for estimating" end
         local email = Runtime.estimateRequestEmail(state, job)
         job.detailsRequestedAt = timestamp
@@ -184,6 +187,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.JobService.updateClientEmails(state)
+        if not require("src.warehouse_condition").openForBusiness(state) then return false end
         local emails = Runtime.ensureEmails(state)
         -- Leave client replies and estimate decisions queued overnight/weekends.
         if not Runtime.BusinessCalendar.isBusinessOpen(state) then return false end

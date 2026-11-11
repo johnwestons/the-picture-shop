@@ -79,7 +79,8 @@ function Test.run(context, check)
         setControlLayout = function(layout) previewLayout = layout end,
         commitControlLayout = function() layoutCommits = layoutCommits + 1 end,
     })
-    OptionsScreen.mousepressed(475, 114, 1)
+    local controlsTab=OptionsScreen.tabRect('controls')
+    OptionsScreen.mousepressed(controlsTab.x+controlsTab.width/2, 114, 1)
     OptionsScreen.mousepressed(263, 377, 1)
     OptionsScreen.mousemoved(410, 350)
     OptionsScreen.mousereleased(410, 350, 1)

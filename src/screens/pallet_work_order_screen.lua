@@ -13,7 +13,8 @@ local STAMP = { 0.40, 0.16, 0.12, 1 }
 
 local function workOrderFont(size)
     if Screen.fonts[size] then return Screen.fonts[size] end
-    local font = require('src.screens.typography').get(size)
+    local ok, font = pcall(love.graphics.newFont, Config.paths.workOrderFont, size)
+    if not ok or not font then font = love.graphics.newFont(size) end
     Screen.fonts[size] = font
     return font
 end

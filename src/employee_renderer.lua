@@ -10,6 +10,7 @@ for character,hands in pairs(medicFoxArt.hands) do MotionArt.hands[character]=ha
 local WorkPresentation=require("src.employee_work_presentation")
 local EmployeeHighFive=require("src.employee_high_five")
 local Renderer={}
+local Bubble=require("src.speech_bubble")
 local bubbleFont
 local function gaitFrameCount(assets,character,action)
     local count=assets and assets.getFrameCount and assets.getFrameCount(character,action)
@@ -169,16 +170,17 @@ function Renderer.draw(entry,characterAssets,state)
     end
 end
 function Renderer.bubbleLayout(message,font)
-    local width=math.min(176,math.max(52,font:getWidth(message)+16))
-    local _,lines=font:getWrap(message,width-12)
-    local height=math.max(22,math.ceil(#lines*font:getHeight()*font:getLineHeight())+10)
-    return width,height
+    return Bubble.layout(message,font)
 end
 function Renderer.drawBubble(entry,characterAssets,state)
-    local message=Speech.message(Speech.code(entry))
-    if not message then return end
+    local owner=state and state.home and state.home.residents and state.home.residents.owner
+    local code=Speech.code(entry)
+    local message=Speech.message(code,owner and owner.name)
     local a=entry.actor
     local character,action,frame,_,_,anchorY,scale,originX,originY=drawPose(entry,characterAssets,state)
+    local fullMessage
+    message,fullMessage=require('src.dialogue_presentation').present(a,character,message,Speech.emotion(code))
+    if not message then return end
     local top
     if characterAssets.getVisibleBounds then
         local _,y=characterAssets.getVisibleBounds(character,action,frame)
@@ -186,22 +188,8 @@ function Renderer.drawBubble(entry,characterAssets,state)
     end
     local headY=top and originY-(anchorY-top)*scale
         or originY-Config.characterRendering.referenceHeight*.30
-    bubbleFont=bubbleFont or require('src.screens.typography').get(14)
-    local width,height=Renderer.bubbleLayout(message,bubbleFont)
-    local x=math.max(4,math.min(Config.baseWidth-width-4,originX-width/2))
-    local y=math.max(4,headY-height-9)
-    local tailX=math.max(x+8,math.min(x+width-8,originX))
-    love.graphics.push("all")
-    love.graphics.setFont(bubbleFont)
-    love.graphics.setLineWidth(1)
-    love.graphics.setColor(.035,.06,.075,.94)
-    love.graphics.polygon("fill",tailX-4,y+height-1,tailX+4,y+height-1,tailX,y+height+6)
-    love.graphics.rectangle("fill",x,y,width,height,5,5)
-    love.graphics.setColor(.55,.82,.79,.9)
-    love.graphics.rectangle("line",x,y,width,height,5,5)
-    love.graphics.setColor(.96,.97,.91,1)
-    love.graphics.printf(message,x+6,y+5,width-12,"center")
-    love.graphics.pop()
+    bubbleFont=bubbleFont or love.graphics.newFont(11)
+    Bubble.draw(message,bubbleFont,originX,headY,Config.baseWidth,fullMessage)
 end
 function Renderer.entries(state) return Employees.actors(state) end
 return Renderer

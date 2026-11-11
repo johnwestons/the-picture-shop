@@ -87,6 +87,7 @@ function Component.install(Runtime)
         local ok, errorMessage = self:_sendToServer("input", {
             sessionId = self.sessionId,
             sequence = self.inputSequence,
+            name = self.localName,
             moveX = Runtime.clamp(context and context.inputX, -1, 1),
             moveY = Runtime.clamp(context and context.inputY, -1, 1),
             boost = context and context.inputBoost == true or false,

@@ -113,18 +113,22 @@ function Test.run(context, check)
 
     pressTitleMouse(newX, newY)
     pressTitleMouse(confirmX, confirmY)
-    check("title_mouse_overwrite_confirmation_opens_shop_setup",
-        context.title.mode=="shop-setup" and #titleStarts==0
+    check("title_mouse_overwrite_confirmation_opens_start_mode",
+        context.title.mode=="start-mode" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
+    pressTitleKey("1")
+    check("title_quick_start_opens_shop_setup",context.title.mode=="shop-setup")
     pressTitleKey("escape")
     check("title_cancel_shop_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
-    pressTitleMouse(newX,newY);pressTitleMouse(confirmX,confirmY);pressTitleKey("return")
+    pressTitleMouse(newX,newY);pressTitleMouse(confirmX,confirmY)
+    pressTitleKey("return");pressTitleKey("return")
     pressTitleMouse(require("src.screens.town_setup_screen").buttonCenter("cancel"))
     check("title_cancel_town_setup_keeps_existing_save",context.title.mode=="normal" and #titleStarts==0
         and love.filesystem.read("saves/slot3.lua")==occupiedBytes)
     pressTitleMouse(newX, newY)
     pressTitleMouse(confirmX, confirmY)
+    pressTitleKey("1")
     for i=1,13 do pressTitleKey("right") end
     pressTitleMouse(require("src.screens.shop_setup_screen").buttonCenter("start"))
     check("title_shop_setup_opens_town_preview_without_overwriting",
@@ -150,6 +154,7 @@ function Test.run(context, check)
     pressTitleKey("n")
     pressTitleKey("y")
     pressTitleKey("return")
+    pressTitleKey("return")
     generateTitleTownPreview(4243, true)
     pressTitleKey("return")
     finishTownBake()
@@ -163,7 +168,9 @@ function Test.run(context, check)
     context.title.enter(captureTitleStart)
     pressTitleKey("up")
     pressTitleKey("n")
-    check("title_empty_slot_opens_shop_setup",context.title.mode=="shop-setup" and #titleStarts==2)
+    check("title_empty_slot_opens_start_mode",context.title.mode=="start-mode" and #titleStarts==2)
+    pressTitleKey("return")
+    check("title_empty_slot_quick_start_opens_shop_setup",context.title.mode=="shop-setup")
     pressTitleKey("return")
     generateTitleTownPreview(4244, true)
     pressTitleKey("return")

@@ -101,7 +101,7 @@ function Component.install(Runtime)
     Runtime.spriteLabActive = false
     Runtime.mobileControls = nil
     Runtime.controller = nil
-    Runtime.multiplayer = Runtime.MultiplayerSession.new()
+    Runtime.multiplayer = Runtime.MultiplayerSession.new({diagnosticState=function() return Runtime.state end})
     Runtime.App.multiplayerFocusGrace = require("src.net.focus_grace").new({
         clock = function()
             if love and love.timer and love.timer.getTime then return love.timer.getTime() end

@@ -4,6 +4,9 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.keypressed(key)
+        if require('src.story_opening').active(Runtime) then
+            return require('src.story_opening').keypressed(Runtime,key)
+        end
         if require('src.screens.notifications_screen').keypressed(Runtime,key) then return true end
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading()
             and key~="escape" and key~="back" then return end
@@ -27,11 +30,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.keyreleased(key)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen == "lan" or Runtime.state.screen == "direct" then return false end
         Runtime.Input.keyreleased(key, Runtime.inputContext)
     end
 
     function Runtime.App.textinput(text)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=='notifications' then return true end
         if Runtime.state.screen == "title" then
             local result = Runtime.TitleScreen.textinput(text)
@@ -54,6 +59,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousepressed(x, y, button, isTouch)
+        if require('src.story_opening').active(Runtime) then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            return require('src.story_opening').pointer(Runtime,px,py)
+        end
         if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading() then return end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
@@ -70,6 +79,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousereleased(x, y, button, isTouch)
+        if require('src.story_opening').active(Runtime) then return true end
         if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.state.screen=='notifications' then return true end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
@@ -79,6 +89,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousemoved(x, y, dx, dy, isTouch)
+        if require('src.story_opening').active(Runtime) then return true end
         if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.state.screen=='notifications' then return true end
         if Runtime.mobileControls and Runtime.mobileControls:ignoreSyntheticMouse(isTouch) then return end
@@ -91,6 +102,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.wheelmoved(x, y)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=='notifications' then
             require('src.screens.notifications_screen').scroll(Runtime,-y*54);return true
         end
@@ -111,6 +123,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchpressed(id, x, y)
+        if require('src.story_opening').active(Runtime) then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            return require('src.story_opening').pointer(Runtime,px,py)
+        end
         if Runtime.Assets.isLoading and Runtime.Assets.isLoading() then return end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.state.screen=='delivery_signature' then
@@ -130,6 +146,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=='delivery_signature' then
             local px,py=Runtime.toPointerCoordinates(x,y)
             return Runtime.inputContext.deliverySignatureScreen.pointermoved(id,px,py)
@@ -137,7 +154,8 @@ function Component.install(Runtime)
         if Runtime.state.screen=='notifications' then
             local px,py=Runtime.toPointerCoordinates(x,y)
             local _,previousY=Runtime.toPointerCoordinates(x,y-(dy or 0))
-            if px>=360 then require('src.screens.notifications_screen').scroll(Runtime,previousY-py) end
+            local screen=require('src.screens.notifications_screen')
+            if screen.detailHit(Runtime,px,py) then screen.scroll(Runtime,previousY-py) end
             return true
         end
         local px,py=Runtime.toPointerCoordinates(x,y)
@@ -154,6 +172,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchreleased(id, x, y)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=='delivery_signature' then
             local px,py=Runtime.toPointerCoordinates(x,y)
             return Runtime.inputContext.deliverySignatureScreen.pointerreleased(id,px,py)
@@ -174,6 +193,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadpressed(joystick, button)
+        if require('src.story_opening').active(Runtime) then
+            if button=='a' or button=='b' or button=='start' or button=='back' then
+                return require('src.story_opening').finish(Runtime,true)
+            end
+            return true
+        end
         if Runtime.state.screen=='notifications' then
             local keys={b='escape',back='escape',dpup='up',dpdown='down',dpleft='left',dpright='right',leftshoulder='pageup',rightshoulder='pagedown'}
             if keys[button] then return require('src.screens.notifications_screen').keypressed(Runtime,keys[button]) end
@@ -198,6 +223,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadreleased(joystick, button)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").gamepadreleased(Runtime,joystick,button)
         end
@@ -205,6 +231,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadaxis(joystick,axis,value)
+        if require('src.story_opening').active(Runtime) then return true end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.gamepadaxis(joystick,axis,value) then return true end
         if require('src.commute.runtime').gamepadaxis(Runtime,joystick,axis,value) then return true end
         if Runtime.state.screen=="critter_kombat" then

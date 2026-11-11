@@ -80,3 +80,8 @@ __pycache__/
 /.codex-attachments/
 /artifacts/npc_voice_previews/
 /smoke-report.rpt
+
+# Local recording and sound-mix authoring histories. Published runtime clips
+# under assets/audio/dialogue/ and assets/audio/custom/ are versioned instead.
+/assets/audio/voices/
+/assets/source/soundscape-studio/

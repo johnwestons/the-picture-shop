@@ -11,7 +11,7 @@ local tabs={
 }
 local tabRects={}
 for index,tab in ipairs(tabs) do
-    tabRects[tab.id]={x=98+(index-1)*187,y=190,width=179,height=32}
+    tabRects[tab.id]={x=114+(index-1)*181,y=190,width=175,height=32}
 end
 local function section(Runtime)
     if Runtime.ComputerScreen.tab=='bills' then return 'bills' end
@@ -36,7 +36,7 @@ function Component.install(Runtime)
     function Runtime.drawFinancials(state,pointerX,pointerY,twelveHourTime)
         local active=section(Runtime)
         if active=='overview' then
-            Runtime.panel({x=82,y=182,width=770,height=444},{.045,.07,.08,1},{.30,.50,.49,1})
+            Runtime.panel({x=110,y=182,width=738,height=402},{.045,.07,.08,1},{.30,.50,.49,1})
             local summary=ShopFinances.summary(state)
             Budget.draw(state.money or 0,summary,ShopFinances.plan(summary))
         elseif active=='bills' then
@@ -47,8 +47,10 @@ function Component.install(Runtime)
         elseif active=='staff' then
             local ui=Runtime.ComputerScreen.financialHiring
             ui.section='payroll';ui.view='detail'
-            Runtime.Hiring.draw(state,ui,pointerX,pointerY,false,Runtime.drawComputerButton,
-                Runtime.dependencies.remoteCommand==nil,twelveHourTime,true)
+            Runtime.drawContainedPage(function(x,y)
+                Runtime.Hiring.draw(state,ui,x,y,false,Runtime.drawComputerButton,
+                    Runtime.dependencies.remoteCommand==nil,twelveHourTime,true)
+            end,pointerX,pointerY,Runtime.HIRING_PAGE_LAYOUT)
         else
             love.graphics.push()
             love.graphics.translate(0,30)
@@ -81,14 +83,15 @@ function Component.install(Runtime)
         elseif active=='players' then
             return Runtime.playerWagesMousepressed(state,x,y-30)
         elseif active=='staff' then
+            local hx,hy=Runtime.containedPagePoint(x,y,Runtime.HIRING_PAGE_LAYOUT)
             -- The embedded payroll view uses the old Shop Budget button as its
             -- return path, and omits the Hiring navigation row above the ledger.
-            if x>=364 and x<=578 and y>=554 and y<=600 then
+            if hx>=364 and hx<=578 and hy>=554 and hy<=600 then
                 Runtime.ComputerScreen.financialSection='overview'
                 return {action='financials_view',section='overview'}
             end
             if y<240 then return nil end
-            return Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.financialHiring,x,y,
+            return Runtime.Hiring.mousepressed(state,Runtime.ComputerScreen.financialHiring,hx,hy,
                 function(intent) return Runtime.ComputerScreen.employeeCommand(state,intent) end,
                 false,Runtime.dependencies.remoteCommand==nil,
                 Runtime.twelveHourTime())

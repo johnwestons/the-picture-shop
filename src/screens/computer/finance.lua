@@ -27,7 +27,10 @@ function Component.install(Runtime)
             Runtime.panel(rect,enabled and (hovered and {0.18,0.38,0.37,1} or {0.10,0.25,0.25,1}) or {0.10,0.13,0.14,1},
                 enabled and {0.42,0.72,0.64,1} or {0.28,0.35,0.34,1},3,1)
             love.graphics.setColor(enabled and {0.93,0.96,0.88,1} or {0.49,0.55,0.53,1})
-            love.graphics.printf(text,rect.x+5,rect.y+13,rect.width-10,"center")
+            local font=love.graphics.getFont()
+            local scale=math.min(1,(rect.width-10)/math.max(1,font:getWidth(text)))
+            love.graphics.print(text,rect.x+(rect.width-font:getWidth(text)*scale)/2,
+                rect.y+(rect.height-font:getHeight()*scale)/2,0,scale,scale)
         end
         if view.stagingPage then
             local StagingAreas=Runtime.StagingAreas
@@ -139,14 +142,20 @@ function Component.install(Runtime)
                 control(rect,label,enabled and view.enabled and not view.pending)
             end
             if area then
-                setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "..StagingAreas.purposeName(area.purpose)
-                    ..(fixedPurpose and "  /  FIXED" or "  /  CHANGE"),not fixedPurpose)
+                local purposeName=StagingAreas.purposeName(area.purpose)
+                setting(Runtime.WAREHOUSE_STAGING_PURPOSE,"PURPOSE  /  "
+                    ..(fixedPurpose and purposeName:gsub("^MACHINE ","") or purposeName)
+                    ..(fixedPurpose and "  /  FIXED" or "  /  NEXT"),not fixedPurpose)
                 local swatch=StagingAreas.color(area.color)
                 setting(Runtime.WAREHOUSE_STAGING_COLOR,"COLOR  /  "..swatch.label.."  /  NEXT",true)
                 if area.purpose=="machine_output" then
                     local machineLabel="NO INSTALLED MACHINE IN THIS ROOM"
                     for _,machine in ipairs(view.machineOptions) do
                         if machine.id==area.machineId then machineLabel=machine.label end
+                    end
+                    if area.id=="cutter-output" then
+                        machineLabel=machineLabel:match("^(.-)%s*/") or machineLabel
+                        machineLabel=machineLabel:gsub(" CUTTER$","")
                     end
                     setting(Runtime.WAREHOUSE_STAGING_MACHINE,"MACHINE  /  "..machineLabel
                         ..(area.id=="cutter-output" and "  /  FIXED" or "  /  NEXT"),
@@ -179,8 +188,8 @@ function Component.install(Runtime)
         love.graphics.print(view.gamesPage and "CRITTERNET / BREAK ROOM GAMES"
             or "CRITTERNET / WAREHOUSE IMPROVEMENTS",100,202)
         love.graphics.setColor(0.72,0.84,0.82,1)
-        love.graphics.print(view.gamesPage and "Install a game in each completed break room. Prices are per room."
-            or "Four construction stages · one game day each",100,224)
+        love.graphics.printf(view.gamesPage and "Install games in completed break rooms. Prices are per room."
+            or "Four construction stages; one game day per stage.",100,224,410,"left")
         if not view.stagingPage then
             control(Runtime.WAREHOUSE_PAGE_SWITCH,view.gamesPage and "ROOM UPGRADES" or "BREAK ROOM GAMES",true)
         end
@@ -236,16 +245,16 @@ function Component.install(Runtime)
             love.graphics.setColor(0.95,0.81,0.35,1)
             love.graphics.print("FORKLIFT / "..Runtime.money(view.forklift.price),104,490)
             love.graphics.setColor(0.74,0.84,0.79,1)
-            love.graphics.print("Forks: 50% middle / 100% top shelves and stacks.",104,518)
+            love.graphics.print("Raise forks to 50% for middle shelves, 100% for top shelves and stacks.",104,518)
             control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
                 view.enabled and not view.forkliftOwned and not view.pending)
         end
         love.graphics.setColor(0.96,0.77,0.38,1)
-        love.graphics.printf(view.message or "Visit rooms through the back passage. Storage holds 15 stock pallets.",100,555,736,"left")
+        love.graphics.printf(view.message or "Visit rooms through the passage. Storage holds 15 stock pallets off the shop floor.",100,548,736,"left")
         love.graphics.setColor(0.69,0.78,0.78,1)
         love.graphics.printf(view.pending and "Waiting for the host to confirm your purchase."
             or not view.enabled and "Purchasing is not enabled in this build."
-            or "Review a choice to confirm its cost. The raccoon mechanic calls before construction.",100,578,736,"left")
+            or "Review a choice to confirm its cost. The mechanic calls before construction.",100,582,736,"left")
         local choice=view.confirmation
         if not choice then return end
         local product=choice.kind=="buy_garage_door" and require("src.room_loading_bays").catalog()
@@ -285,7 +294,6 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawBills(state, pointerX, pointerY)
-        love.graphics.setFont(require('src.screens.typography').get(14))
         local charges, monthlyTotal = Runtime.BusinessCalendar.monthlyCharges()
         local balance,operatingDue,wages = Runtime.BusinessCalendar.amountDue(state)
         local accrued=(state.employment and Runtime.Payroll.total(state,Runtime.BusinessCalendar.absoluteHours(state),true) or 0)
@@ -305,47 +313,52 @@ function Component.install(Runtime)
                 fuelPaidThisMonth=fuelPaidThisMonth+(invoice.total or 0)
             end
         end
-        Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
+        Runtime.panel({ x = 110, y = 190, width = 738, height = 364 },
             { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 108, 214)
+        love.graphics.print("OPERATING BILLS, CLAIMS & PAYROLL", 124, 214)
         love.graphics.setColor(0.76, 0.83, 0.84)
-        love.graphics.print(Runtime.BusinessCalendar.dateText(state), 108, 242)
-        love.graphics.printf("Staff wages follow their pay cycle. Player wages settle when cash is available.",108,266,710,'left')
+        local originalFont=love.graphics.getFont()
+        love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
+        love.graphics.print(Runtime.BusinessCalendar.dateText(state), 124, 242)
+        love.graphics.print("Staff wages follow their pay cycle. Connected player wages settle as cash is available.", 124, 266)
+        love.graphics.setFont(originalFont)
 
         love.graphics.setColor(0.16, 0.22, 0.24)
-        love.graphics.rectangle("fill", 108, 302, 470, 28)
+        love.graphics.rectangle("fill", 116, 294, 470, 24)
         love.graphics.setColor(0.86, 0.89, 0.88)
-        love.graphics.print("EXPENSE", 122, 310)
-        love.graphics.print("FLAT MONTHLY RATE", 408, 310)
+        love.graphics.print("EXPENSE", 128, 300)
+        love.graphics.print("FLAT MONTHLY RATE", 416, 300)
+        love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
         for index, charge in ipairs(charges) do
-            local y = 330 + (index - 1) * 27
+            local y = 318 + (index - 1) * 21
             love.graphics.setColor(index % 2 == 0 and 0.085 or 0.105, 0.12, 0.14, 1)
-            love.graphics.rectangle("fill", 108, y, 470, 25)
+            love.graphics.rectangle("fill", 116, y, 470, 20)
             love.graphics.setColor(0.78, 0.84, 0.84)
-            love.graphics.print(charge.label, 122, y + 6)
+            love.graphics.print(charge.label, 128, y + 3)
             love.graphics.setColor(0.95, 0.84, 0.30)
-            love.graphics.printf(Runtime.money(charge.amount), 402, y + 6, 150, "right")
+            love.graphics.printf(Runtime.money(charge.amount), 416, y + 3, 150, "right")
         end
-        local summaryY=330+#charges*27+4
+        local summaryY=318+#charges*21+4
         love.graphics.setColor(0.72, 0.79, 0.80)
-        love.graphics.print("Normal monthly total", 122, summaryY)
+        love.graphics.print("Normal monthly total", 128, summaryY)
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.printf(Runtime.money(monthlyTotal), 402, summaryY, 150, "right")
+        love.graphics.printf(Runtime.money(monthlyTotal), 416, summaryY, 150, "right")
         love.graphics.setColor(.78,.84,.84,1)
-        love.graphics.print("Truck fuel paid this month",122,summaryY+24)
+        love.graphics.print("Delivery truck fuel paid this month",128,summaryY+20)
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.printf(Runtime.money(fuelPaidThisMonth),402,summaryY+24,150,"right")
+        love.graphics.printf(Runtime.money(fuelPaidThisMonth),416,summaryY+20,150,"right")
         love.graphics.setColor(claimTotal > 0 and 0.92 or 0.72, claimTotal > 0 and 0.48 or 0.79, 0.44)
-        love.graphics.print("Stock replacement claims", 122, summaryY+48)
-        love.graphics.printf(Runtime.money(claimTotal), 402, summaryY+48, 150, "right")
+        love.graphics.print("Customer stock replacement claims", 128, summaryY+40)
+        love.graphics.printf(Runtime.money(claimTotal), 416, summaryY+40, 150, "right")
         love.graphics.setColor(.78,.84,.84,1)
-        love.graphics.print("Staff and player wages due",122,summaryY+70)
-        love.graphics.printf(Runtime.money(wages),402,summaryY+70,150,"right")
-        love.graphics.print("Wages earned, not yet due",122,summaryY+91)
-        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),402,summaryY+91,150,"right")
-        love.graphics.print("Estimated staff pay / week",122,summaryY+112)
-        love.graphics.printf(Runtime.money(weekly),402,summaryY+112,150,"right")
+        love.graphics.print("Staff and player wages due",128,summaryY+60)
+        love.graphics.printf(Runtime.money(wages),416,summaryY+60,150,"right")
+        love.graphics.print("Wages earned, not yet due",128,summaryY+80)
+        love.graphics.printf(Runtime.money(math.max(0,accrued-wages)),416,summaryY+80,150,"right")
+        love.graphics.print("Estimated staff pay / week",128,summaryY+100)
+        love.graphics.printf(Runtime.money(weekly),416,summaryY+100,150,"right")
+        love.graphics.setFont(originalFont)
 
         Runtime.panel({ x = 604, y = 302, width = 204, height = 188 },
             { 0.08, 0.10, 0.11, 1 }, { 0.31, 0.48, 0.49, 1 })
@@ -354,12 +367,14 @@ function Component.install(Runtime)
         love.graphics.setColor(balance > 0 and 0.96 or 0.54, balance > 0 and 0.48 or 0.84, balance > 0 and 0.30 or 0.65)
         love.graphics.printf(Runtime.money(balance), 620, 370, 172, "center")
         love.graphics.setColor(0.58, 0.66, 0.67)
+        love.graphics.printf("Current amount due",620,408,172,"center")
         local obligationMix={
             {label="Bills",value=math.max(0,operatingDue-claimTotal),color={.40,.84,.81,1},valueText=shortMoney(math.max(0,operatingDue-claimTotal))},
             {label="Claims",value=claimTotal,color={1,.59,.50,1},valueText=shortMoney(claimTotal)},
             {label="Wages due",value=wages,color={.96,.77,.47,1},valueText=shortMoney(wages)},
         }
-        FinanceCharts.legend(615,414,obligationMix,180,22,3)
+        FinanceCharts.donut(758,455,29,obligationMix,"COSTS")
+        FinanceCharts.legend(615,435,obligationMix,105,14,3)
 
         local ownerOnly=Runtime.dependencies.remoteCommand~=nil and wages>0
         local payable = not ownerOnly and balance > 0
@@ -373,27 +388,25 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawCredit(state, pointerX, pointerY)
-        local Text=require('src.screens.typography')
-        love.graphics.setFont(Text.get(14))
         local profile = Runtime.Credit.profile(state)
         local quotes = Runtime.Credit.machineQuotes(state, Runtime.ComputerScreen.creditChannel)
         local loans = Runtime.Credit.loanRows(state)
-        Runtime.panel({ x = 82, y = 190, width = 770, height = 408 },
+        Runtime.panel({ x = 110, y = 190, width = 738, height = 394 },
             { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
         love.graphics.setColor(0.95, 0.84, 0.30)
-        love.graphics.print("CRITTER CREDIT PROFILE", 98, 202)
+        love.graphics.print("CRITTER CREDIT PROFILE", 116, 202)
 
-        Runtime.panel({ x = 98, y = 230, width = 350, height = 50 },
+        Runtime.panel({ x = 116, y = 230, width = 332, height = 50 },
             { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
         love.graphics.setColor(0.74, 0.83, 0.83)
-        love.graphics.print("CREDIT SCORE", 112, 239)
+        love.graphics.print("CREDIT SCORE", 128, 239)
         love.graphics.setColor(profile.score < 580 and { 0.95, 0.55, 0.40, 1 }
             or profile.score < 680 and { 0.96, 0.79, 0.38, 1 }
             or { 0.47, 0.86, 0.63, 1 })
-        love.graphics.print(string.format("%d  /  %s", profile.score, profile.tier:upper()), 228, 236)
+        love.graphics.print(string.format("%d  /  %s", profile.score, profile.tier:upper()), 244, 236)
         love.graphics.setColor(0.65, 0.74, 0.75)
-        love.graphics.print(string.format("%.2f%% APR / %d%% down / %d months",
-            profile.apr, profile.downPercent, profile.termMonths), 112, 258)
+        love.graphics.print(string.format("Offers: %.2f%% APR  •  %d%% down  •  %d months",
+            profile.apr, profile.downPercent, profile.termMonths), 128, 258)
 
         Runtime.panel({ x = 462, y = 230, width = 366, height = 50 },
             { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
@@ -402,11 +415,11 @@ function Component.install(Runtime)
         love.graphics.setColor(0.95, 0.84, 0.30)
         love.graphics.printf(Runtime.money(profile.totalBalance), 680, 237, 132, "right")
         love.graphics.setColor(0.65, 0.74, 0.75)
-        love.graphics.print(string.format("%d/%d accounts / %s per month",
+        love.graphics.print(string.format("%d of %d accounts  •  scheduled %s / month",
             profile.openLoans, Runtime.Credit.MAX_OPEN_LOANS, Runtime.money(profile.monthlyDue)), 476, 258)
 
         love.graphics.setColor(0.68, 0.83, 0.84)
-        love.graphics.print("MACHINE FINANCING", 102, 283)
+        love.graphics.print("MACHINE FINANCING", 116, 283)
         for _, option in ipairs({
             { id = "online", rect = Runtime.CREDIT_CHANNEL_ONLINE, label = "ONLINE" },
             { id = "dealer", rect = Runtime.CREDIT_CHANNEL_DEALER, label = "DEALER" },
@@ -424,12 +437,11 @@ function Component.install(Runtime)
             local action = Runtime.creditMachineActionRect(index)
             Runtime.panel(rect, { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.37, 0.40, 1 })
             love.graphics.setColor(0.91, 0.94, 0.92)
-            love.graphics.setFont(Text.get(14,'bold'))
-            love.graphics.print(Text.ellipsize(quote.name,rect.width-20), rect.x + 10, rect.y + 3)
-            love.graphics.setFont(Text.get(12))
+            local nameScale = math.min(1, 238 / math.max(1, love.graphics.getFont():getWidth(quote.name)))
+            love.graphics.print(quote.name, rect.x + 10, rect.y + 3, 0, nameScale, nameScale)
             local red, green, blue = Runtime.conditionColor(quote.condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(string.format("%s / %.0f%% / %s",
+            love.graphics.print(string.format("%s used  •  %.0f%% condition  •  %s",
                 quote.channel == "dealer" and "Dealer" or "Online", quote.condition, Runtime.money(quote.price)),
                 rect.x + 10, rect.y + 19)
             love.graphics.setColor(0.72, 0.81, 0.81)
@@ -445,7 +457,6 @@ function Component.install(Runtime)
                 quote.eligible and (hovered and "primaryHover" or "primary") or "disabled")
         end
 
-        love.graphics.setFont(Text.get(14))
         local visibleLoans = 0
         for _, loan in ipairs(loans) do
             if loan.status == "active" or loan.status == "defaulted" then
@@ -489,7 +500,7 @@ function Component.install(Runtime)
             local quote = Runtime.Credit.machineQuotes(state, choice.channel)[choice.offerIndex]
             if quote then
                 love.graphics.setColor(0.01, 0.02, 0.03, 0.82)
-                love.graphics.rectangle("fill", 82, 190, 770, 408)
+                love.graphics.rectangle("fill", 110, 190, 738, 394)
                 Runtime.panel(Runtime.CREDIT_CONFIRM_PANEL, { 0.07, 0.09, 0.11, 1 }, { 0.48, 0.68, 0.63, 1 })
                 love.graphics.setColor(0.95, 0.84, 0.30)
                 love.graphics.print("REVIEW MACHINE FINANCING", 176, 321)

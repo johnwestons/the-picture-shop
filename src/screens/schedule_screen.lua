@@ -287,8 +287,8 @@ function Screen.draw(state,ui,x,y,readOnly,buttonRenderer,twelveHourTime)
             short("DELIVERY DRIVER: APPOINTED EMPLOYEE UNAVAILABLE",154,234,420,{1,.65,.48,1})
             short("Use < or > to choose a current employee or automatic selection.",154,253,420,{.58,.73,.65,1})
         else
-            short("DELIVERY DRIVER: AUTO  |  HIGHEST AVAILABLE DRIVING SKILL",154,234,420,{1,.86,.43,1})
-            short("Use < or > to appoint; AUTO picks the highest skill after current work.",154,253,420,{.58,.73,.65,1})
+            short("DELIVERY DRIVER: AUTO  |  BEST AVAILABLE SKILL",154,234,420,{1,.86,.43,1})
+            short("Use < or > to appoint. AUTO dispatches after current work.",154,253,420,{.58,.73,.65,1})
         end
     end
     button("run",q.enabled and "PAUSE SCHEDULE" or "RESUME SCHEDULE",x,y,readOnly)

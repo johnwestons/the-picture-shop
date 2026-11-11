@@ -569,6 +569,31 @@ function Test.run(context, check, jobs)
                 - math.rad(orientation)) < 0.0001)
     end
 
+    local emptyLoad=context.State.new()
+    emptyLoad.inventory.paper=0
+    emptyLoad.inventory.stock.house_sheets=0
+    emptyLoad.inventory.stock.cover_stock=0
+    context.machine.reset(emptyLoad)
+    context.machineScreen.enter()
+    check('cutter_empty_load_menu_shows_no_false_stock',
+        context.machineScreen.keypressed(emptyLoad,'l')
+        and context.machineScreen.hasModal()
+        and #context.machineScreen.loadMenuOptions()==0)
+    local backX,backY=context.machineScreen.loadMenuBackCenter()
+    check('cutter_empty_load_menu_has_touch_back',backX and backY
+        and context.machineScreen.mousepressed(emptyLoad,backX,backY,1)
+        and not context.machineScreen.hasModal())
+    emptyLoad.inventory.paper=12
+    context.machineScreen.enter()
+    check('cutter_generic_load_menu_offers_shop_stock',
+        context.machineScreen.keypressed(emptyLoad,'l')
+        and #context.machineScreen.loadMenuOptions()==1
+        and context.machineScreen.loadMenuOptions()[1].palletId=='__generic_stock__')
+    backX,backY=context.machineScreen.loadMenuBackCenter()
+    check('cutter_generic_load_menu_has_touch_back',backX and backY
+        and context.machineScreen.mousepressed(emptyLoad,backX,backY,1)
+        and not context.machineScreen.hasModal())
+
     context.machine.reset(cutterState)
     check("cutter_table_starts_clear", not context.machine.loaded and context.machine.step == "idle")
     context.machineScreen.enter()

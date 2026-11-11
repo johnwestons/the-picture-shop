@@ -27,7 +27,7 @@ function Component.install(Runtime)
     end
     function Runtime.ComputerScreen.homeShopControlCenter(name,index)
         local r=name=="buy" and {x=706,y=298+((index or 1)-1)*58,width=132,height=44} or buttons[name]
-        return r.x+r.width/2,r.y+r.height/2
+        return Runtime.containedPageCoords(r.x+r.width/2,r.y+r.height/2,Runtime.HOME_PAGE_LAYOUT)
     end
     local function products(group)
         local result={};for _,id in ipairs(Catalog.ORDER) do if Catalog.PRODUCTS[id].group==group then result[#result+1]=id end end;return result
@@ -127,7 +127,7 @@ function Component.install(Runtime)
         if Runtime.ComputerScreen.tab=="home_orders" then
             local count=#shop.orders;local pages=math.max(1,math.ceil(count/6));page=(page-1)%pages+1
             text("HOME DELIVERIES / "..address,104,208,730,{1,.86,.41,1})
-            text("Collect ready parcels at your apartment entrance.",104,240,620)
+            text("Collect ready parcels at your apartment entrance. They never block the door.",104,240,720)
             button({x=750,y=250,width=88,height=44},page.."/"..pages.." >",pages>1)
             for i=1,6 do
                 local row=shop.orders[count-(page-1)*6-i+1]
@@ -150,7 +150,7 @@ function Component.install(Runtime)
         local group=Runtime.ComputerScreen.tab;local list=products(group);page=math.max(1,math.min(page,math.ceil(#list/4)))
         text(group=="furniture" and "CRITTERNET HOME & LIVING" or group=="takeout" and "CRITTERNET TAKEOUT" or "CRITTERNET GROCERIES",104,208,500,{1,.86,.41,1})
         text(string.format("Household funds: $%.2f  |  Deliver to: %s",home.balanceCents/100,address),104,239,730)
-        text(("Delivery: %d%% of items, $%.2f minimum. Review before paying."):format(
+        text(("Apartment delivery: %d%% of item value ($%.2f minimum). Review the total before paying."):format(
             Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100),104,267,730)
         for i=1,4 do
             local id=list[(page-1)*4+i];local p=id and Catalog.PRODUCTS[id]

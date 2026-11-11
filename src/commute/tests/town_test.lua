@@ -121,8 +121,11 @@ function Test.run(check)
         local envelope=assert(Protocol.decode(reliable))
         check(crowded and 'town_crowded_reliable_envelope_roundtrips' or 'town_reliable_envelope_roundtrips',
             #reliable<Protocol.packetLimitFor('shop_state') and Schema.validState(envelope.payload.state))
+        local restoredTown=restored and Town.copy(restored.home.town)
+        if restoredTown then restoredTown.name=nil end
         check(crowded and 'town_crowded_snapshot_preserves_frozen_layout' or 'town_snapshot_preserves_frozen_layout',
-            restored and assert(Codec.encode(restored.home.town,limits))==encoded)
+            restoredTown and assert(Codec.encode(restoredTown,limits))==encoded
+            and restored.home.town.name==Town.defaultName(town.seed))
     end
 end
 return Test

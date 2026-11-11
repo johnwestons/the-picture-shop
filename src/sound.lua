@@ -1,7 +1,23 @@
 local Sound = {}
 Sound.__index = Sound
 local MachineFleet = require("src.machine_fleet")
+local Soundscape = require("src.soundscape")
 local PHONE_RING_MAX_SECONDS = 8
+
+local SHOP_SCENES = { warehouse = true, front_left = true, front_right = true }
+
+local function isShopScene(sceneId)
+    -- Older/headless sound contexts without a player represent the shop.
+    return sceneId == nil or SHOP_SCENES[sceneId] == true
+end
+
+local function contextIsInShop(context)
+    local state = context and context.state or {}
+    local screen = state.screen == "options" and state.optionsReturnScreen or state.screen
+    if screen == "title" or screen == "asset_error" then return false end
+    local player = context and context.world and context.world.player
+    return isShopScene(player and player.sceneId)
+end
 
 local CATALOG = {
     ui_click = { path = "assets/audio/sfx/ui_click.wav", volume = 0.55 },
@@ -9,29 +25,29 @@ local CATALOG = {
     ui_error = { path = "assets/audio/sfx/ui_error.wav", volume = 0.62 },
     cash_sale = { path = "assets/audio/sfx/cash_sale.wav", volume = 0.72 },
     job_complete = { path = "assets/audio/sfx/job_complete.wav", volume = 0.78 },
-    loading_door = { path = "assets/audio/sfx/loading_door.wav", volume = 0.72 },
-    truck_arrival = { path = "assets/audio/sfx/truck_arrival.wav", volume = 0.72 },
-    pallet_pickup = { path = "assets/audio/sfx/pallet_pickup.wav", volume = 0.76 },
-    pallet_place = { path = "assets/audio/sfx/pallet_place.wav", volume = 0.78 },
-    cutter_clamp = { path = "assets/audio/sfx/cutter_clamp.wav", volume = 0.72 },
-    cutter_cut = { path = "assets/audio/sfx/cutter_cut.wav", volume = 0.82 },
-    press_start = { path = "assets/audio/sfx/press_start.wav", volume = 0.68 },
+    loading_door = { path = "assets/audio/sfx/loading_door.wav", volume = 0.72, shopOnly = true },
+    truck_arrival = { path = "assets/audio/sfx/truck_arrival.wav", volume = 0.72, shopOnly = true },
+    pallet_pickup = { path = "assets/audio/sfx/pallet_pickup.wav", volume = 0.76, shopOnly = true },
+    pallet_place = { path = "assets/audio/sfx/pallet_place.wav", volume = 0.78, shopOnly = true },
+    cutter_clamp = { path = "assets/audio/sfx/cutter_clamp.wav", volume = 0.72, shopOnly = true },
+    cutter_cut = { path = "assets/audio/sfx/cutter_cut.wav", volume = 0.82, shopOnly = true },
+    press_start = { path = "assets/audio/sfx/press_start.wav", volume = 0.68, shopOnly = true },
     press_running_loop = {
-        path = "assets/audio/sfx/press_running_loop.wav", volume = 0.48, loop = true,
+        path = "assets/audio/sfx/press_running_loop.wav", volume = 0.48, loop = true, shopOnly = true,
     },
     wrapper_cycle = {
-        path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68, loop = true,
+        path = "assets/audio/sfx/wrapper_cycle.wav", volume = 0.68, loop = true, shopOnly = true,
     },
-    maintenance_tool = { path = "assets/audio/sfx/maintenance_tool.wav", volume = 0.72 },
+    maintenance_tool = { path = "assets/audio/sfx/maintenance_tool.wav", volume = 0.72, shopOnly = true },
     warehouse_ambience_loop = {
         path = "assets/audio/sfx/warehouse_ambience_loop.wav", volume = 0.34,
-        loop = true, group = "ambient",
+        loop = true, group = "ambient", shopOnly = true,
     },
 }
 
 local PHONE_CUES = {
-    phone_ring_loop = { volume = 0.58, loop = true },
-    phone_ringback_loop = { volume = 0.38, loop = true },
+    phone_ring_loop = { volume = 0.58, loop = true, shopOnly = true },
+    phone_ringback_loop = { volume = 0.38, loop = true, shopOnly = true },
 }
 
 local function toneEnvelope(time, intervals)
@@ -45,6 +61,11 @@ local function toneEnvelope(time, intervals)
 end
 
 local function makePhoneTone(self, name, duration, intervals)
+    local custom=Soundscape.path('shop-'..name,nil)
+    if custom then
+        local ok,source=pcall(love.audio.newSource,custom,'static')
+        if ok then source:setLooping(true);self.prototypes[name]=source;return end
+    end
     if not love or not love.sound or type(love.sound.newSoundData) ~= "function" then return end
     local sampleRate = 22050
     local sampleCount = math.floor(duration * sampleRate)
@@ -126,6 +147,7 @@ function Sound.new(context)
         prototypes = {},
         generatedAudio = {},
         active = {},
+        activeShop = {},
         loops = {},
         errors = {},
         lastError = nil,
@@ -152,7 +174,7 @@ function Sound:initialize()
         return false, self.errors
     end
     for name, spec in pairs(CATALOG) do
-        local ok, source = pcall(love.audio.newSource, spec.path, "static")
+        local ok, source = pcall(love.audio.newSource, Soundscape.path('shop-'..name,spec.path), "static")
         if ok and source then
             source:setLooping(spec.loop == true)
             self.prototypes[name] = source
@@ -189,6 +211,7 @@ function Sound:volumeFor(name, multiplier)
     if not spec or self.muted then return 0 end
     local group = spec.group == "ambient" and self.ambientVolume or self.sfxVolume
     return self.masterVolume * group * spec.volume * (multiplier or 1)
+        * Soundscape.gain('shop-'..name,spec.group=='ambient' and 'ambience' or 'sfx')
 end
 
 function Sound:play(name, options)
@@ -196,6 +219,7 @@ function Sound:play(name, options)
     if options.loopOwner then return self:startLoop(name, options.loopOwner) end
     local spec, prototype = CATALOG[name], self.prototypes[name]
     if not spec or not prototype or self.paused then return nil end
+    if spec.shopOnly and not contextIsInShop(self.context) then return nil end
     local cooldown = tonumber(options.cooldown) or 0
     local cooldownKey = options.cooldownKey and (name .. ":" .. tostring(options.cooldownKey)) or name
     if cooldown > 0 and self.clock - (self.lastPlayed[cooldownKey] or -math.huge) < cooldown then return nil end
@@ -208,15 +232,17 @@ function Sound:play(name, options)
     source:setVolume(self:volumeFor(name, options.volume))
     source:play()
     self.active[#self.active + 1] = source
+    if spec.shopOnly then self.activeShop[source] = true end
     self.lastPlayed[cooldownKey] = self.clock
     return source
 end
 
 function Sound:startLoop(name, owner)
     owner = owner or name
-    if self.loops[owner] then return self.loops[owner] end
     local spec, prototype = CATALOG[name] or PHONE_CUES[name], self.prototypes[name]
     if not spec or not spec.loop or not prototype or self.paused then return nil end
+    if spec.shopOnly and not contextIsInShop(self.context) then return nil end
+    if self.loops[owner] then return self.loops[owner] end
     local source = cloneSource(prototype)
     if not source then report(self, "Could not clone loop " .. tostring(name)); return nil end
     source:setLooping(true)
@@ -240,8 +266,10 @@ function Sound:syncPhoneAudio(snapshot, dt)
     elseif incomingOwner and not self.paused then
         self.phoneRingElapsed = self.phoneRingElapsed + math.max(0, tonumber(dt) or 0)
     end
-    local incoming = incomingOwner and self.phoneRingElapsed < PHONE_RING_MAX_SECONDS
+    local canHearPhone = activeShop and isShopScene(snapshot.sceneId)
+    local incoming = canHearPhone and incomingOwner and self.phoneRingElapsed < PHONE_RING_MAX_SECONDS
         and incomingOwner or nil
+    if not canHearPhone then ringback = nil end
     for owner, entry in pairs(self.loops) do
         if (entry.name == "phone_ring_loop" and owner ~= incoming)
             or (entry.name == "phone_ringback_loop" and owner ~= ringback)
@@ -331,9 +359,9 @@ end
 
 function Sound:syncPersistentLoops(snapshot)
     local scene=snapshot.sceneId or "warehouse"
-    local shopScene=scene=="warehouse" or scene=="front_left" or scene=="front_right"
+    local inShopScene=isShopScene(scene)
     local inShop = snapshot.screen ~= "title" and snapshot.screen ~= "asset_error"
-        and shopScene
+        and inShopScene
     if inShop then self:startLoop("warehouse_ambience_loop", "warehouse")
     else self:stopLoop("warehouse") end
     if snapshot.presses ~= nil then
@@ -469,10 +497,22 @@ function Sound:update(dt)
         local source = self.active[index]
         if not source:isPlaying() then
             if source.release then pcall(source.release, source) end
+            self.activeShop[source] = nil
             table.remove(self.active, index)
         end
     end
     local current = self:capture()
+    if self.previous and isShopScene(self.previous.sceneId) and not isShopScene(current.sceneId) then
+        for index = #self.active, 1, -1 do
+            local source = self.active[index]
+            if self.activeShop[source] then
+                source:stop()
+                if source.release then pcall(source.release, source) end
+                self.activeShop[source] = nil
+                table.remove(self.active, index)
+            end
+        end
+    end
     if self.previous and not self.paused then self:handleTransitions(self.previous, current) end
     self:syncPersistentLoops(current)
     self:syncPhoneAudio(current, dt)
@@ -523,9 +563,18 @@ function Sound:setPaused(paused)
     if paused then
         for _, entry in pairs(self.loops) do entry.source:pause() end
     else
-        for _, entry in pairs(self.loops) do entry.source:play() end
-        self.previous = self:capture()
+        local snapshot = self:capture()
+        self.previous = snapshot
+        for owner, entry in pairs(self.loops) do
+            local spec = CATALOG[entry.name] or PHONE_CUES[entry.name]
+            if spec and spec.shopOnly and not contextIsInShop(self.context) then
+                self:stopLoop(owner)
+            else
+                entry.source:play()
+            end
+        end
         self:syncPersistentLoops(self.previous)
+        self:syncPhoneAudio(snapshot, 0)
     end
 end
 
@@ -567,6 +616,7 @@ function Sound:shutdown()
         source:stop()
         if source.release then pcall(source.release, source) end
     end
+    self.activeShop = {}
     for _, source in pairs(self.prototypes) do
         source:stop()
         if source.release then pcall(source.release, source) end

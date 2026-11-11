@@ -93,6 +93,10 @@ function Component.install(Runtime)
         end
         require("src.employee_high_five").update(dt)
         if Runtime.pollSaves then Runtime.pollSaves() end
+        if require('src.story_opening').active(Runtime) then
+            require('src.story_opening').update(Runtime,dt)
+            return
+        end
         if not headlessServer then
             Runtime.Assets.pruneCache()
             Runtime.CharacterAssets.pruneCache()
@@ -385,6 +389,14 @@ function Component.install(Runtime)
         if simulationActive then require("src.weekend_runtime").syncUi(Runtime) end
         if Runtime.App.playerFeedback and Runtime.App.playerFeedback:update(dt) then saveNeeded=true end
         if Runtime.App.sound then Runtime.App.sound:update(dt) end
+        if not headlessServer then
+            local sound=Runtime.App.sound;local settings=Runtime.App.settings or{}
+            require('src.dialogue_presentation').update(dt,
+                sound and sound.masterVolume or 1,
+                not sound or not (sound.muted or sound.paused),
+                (settings.dialogueVolume or 100)/100,
+                settings.dialogueVoicesEnabled~=false)
+        end
         if not headlessServer then
             Runtime.syncCamera()
             if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end

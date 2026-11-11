@@ -11,15 +11,7 @@ local pushFacing = {
 }
 
 local function drawLabel(player)
-    local label = tostring(player.name or player.id or "Worker")
-    if #label > 22 then label = label:sub(1, 22) end
-    local font = love.graphics.getFont()
-    local width = math.max(54, font:getWidth(label) + 12)
-    local x, y = player.x - width / 2, player.y - 79
-    love.graphics.setColor(0.025, 0.035, 0.04, 0.86)
-    love.graphics.rectangle("fill", x, y, width, 17, 3, 3)
-    love.graphics.setColor(0.95, 0.82, 0.26, 1)
-    love.graphics.printf(label, x, y + 2, width, "center")
+    require('src.player_profile').drawNameplate(player,player.x,player.y-79)
 end
 
 local function drawPlayer(characterAssets,player,state)

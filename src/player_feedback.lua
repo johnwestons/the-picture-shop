@@ -2,6 +2,12 @@ local Feedback = {}
 Feedback.__index = Feedback
 local Notifications=require('src.notifications')
 local Tutorial=require('src.tutorial')
+local StoryGuide=require('src.story_restoration_guide')
+local function updateTutorial(feedback)
+    local state=feedback.context.state
+    if require('src.warehouse_condition').openForBusiness(state) then Tutorial.update(feedback)
+    else StoryGuide.update(feedback) end
+end
 
 local MENU_SCREENS = { title = true, lan = true, direct = true, asset_error = true }
 local NOTICE_LIMIT = 3
@@ -38,6 +44,10 @@ function Feedback.new(context)
         initialized = false,
         previousScreen = nil,
         previousMoney = 0,
+        previousPaper = 0,
+        previousStatusMessage = nil,
+        statusText = nil,
+        statusTimer = 0,
         customerState = nil,
         vendorState = nil,
         callId = nil,
@@ -52,6 +62,10 @@ end
 function Feedback:seed()
     local state, world = self.context.state, self.context.world
     self.previousMoney = tonumber(state.money) or 0
+    self.previousPaper = tonumber(state.inventory and state.inventory.paper) or 0
+    self.previousStatusMessage = state.message
+    self.statusText = type(state.message)=='string' and state.message or nil
+    self.statusTimer = self.statusText and 5 or 0
     self.customerState = world and world.customer and world.customer.state or nil
     self.vendorState = world and world.vendor and world.vendor.state or nil
     local call = currentCall(state)
@@ -150,6 +164,29 @@ local function updateVisitors(self, world)
     self.customerState, self.vendorState = customerState, vendorState
 end
 
+local function updateWarehouseEvents(self,state)
+    local paper=tonumber(state.inventory and state.inventory.paper) or 0
+    if paper>self.previousPaper then
+        local added=paper-self.previousPaper
+        self:enqueue('supplier','PAPER RECEIVED',
+            ('%d sheets added to shop stock.'):format(added),
+            ('The warehouse received %d sheets of paper. Check the stock count in the shop HUD or inventory.'):format(added))
+    end
+    self.previousPaper=paper
+    for _,job in ipairs(state.jobs and state.jobs.active or {}) do
+        if job.status=='ready_for_pickup' and job.id then
+            local key='shop:ready:'..tostring(job.id)
+            if not Notifications.findKey(state,key) then
+                local customer=job.outboundDelivery and job.outboundDelivery.transport=='customer'
+                self:enqueue('shop',customer and 'CUSTOMER PICKUP READY' or 'JOB READY FOR DELIVERY',
+                    tostring(job.company or job.id)..' · '..tostring(job.id),
+                    customer and 'The finished pallets are ready for the customer pickup truck.'
+                        or 'The finished pallets are ready to load for delivery. Review the job desk or truck manifest.',key)
+            end
+        end
+    end
+end
+
 function Feedback:update(dt)
     local state, world = self.context.state, self.context.world
     local screen = state.screen
@@ -159,14 +196,22 @@ function Feedback:update(dt)
         self:seed()
         self.previousScreen = screen
         if not MENU_SCREENS[screen] then
-            Tutorial.update(self)
+            updateTutorial(self)
             require('src.business_notifications').update(self)
+            updateWarehouseEvents(self,state)
         end
         local dirty=self.dirty;self.dirty=false;return dirty
     end
 
     dt = math.max(0, tonumber(dt) or 0)
     self.cashTimer = math.max(0, self.cashTimer - dt)
+    self.statusTimer = math.max(0,(self.statusTimer or 0)-dt)
+    if state.message~=self.previousStatusMessage then
+        self.previousStatusMessage=state.message
+        if type(state.message)=='string' and state.message~='' then
+            self.statusText=state.message;self.statusTimer=5
+        end
+    end
     if self.notices[1] and screen~='notifications' and screen~='options' then
         self.notices[1].remaining = self.notices[1].remaining - dt
         if self.notices[1].remaining <= 0 then table.remove(self.notices, 1) end
@@ -193,7 +238,8 @@ function Feedback:update(dt)
     updateEmails(self, state)
     updatePhone(self, state)
     updateVisitors(self, world)
-    if screen~='notifications' and screen~='options' then Tutorial.update(self) end
+    updateWarehouseEvents(self,state)
+    if screen~='notifications' and screen~='options' then updateTutorial(self) end
     require('src.business_notifications').update(self)
     self.previousScreen = screen
     local dirty=self.dirty;self.dirty=false;return dirty
@@ -211,10 +257,10 @@ function Feedback:toastRect(bounds,screen)
     bounds=bounds or {left=0,right=960}
     if screen=='commute' then
         local hud=require('src.commute.cockpit')
-        local x=hud.CARD_X+hud.CARD_WIDTH+8
+        local x=(bounds.left or 0)+hud.CARD_X+hud.CARD_WIDTH+8
         local baseWidth=require('src.config').baseWidth
         local mapWidth=math.min(370,math.max(300,baseWidth*.30))
-        local width=math.min(380,baseWidth-mapWidth-30-x)
+        local width=math.min(380,(bounds.right or baseWidth)-mapWidth-30-x)
         if width<200 then x=(bounds.left or 0)+18;width=math.min(380,(bounds.right or 960)-x-18) end
         return {x=x,y=hud.CARD_Y+hud.CARD_HEIGHT+10,width=width,height=80}
     end
@@ -238,6 +284,7 @@ function Feedback:drawToast(bounds, screen)
         supplier = { 0.57, 0.82, 0.61 },
         tutorial = { .55, .92, .63 },
         calendar = { .98, .75, .34 },
+        shop = { .55, .88, .68 },
     }
     local accent = accents[notice.kind] or { 0.72, 0.82, 0.84 }
 

@@ -1,4 +1,7 @@
 {
+  "status": "superseded_by_user_requested_rollback",
+  "current_review_plan": "docs/ui-screen-review.json",
+  "notice": "Historical audit of the rejected UI overhaul. These layout rules are not the current design baseline or approval criteria.",
   "generated_utc": "2026-11-10T09:39:32.058974+00:00",
   "scope": "UI typography, readability, layout and navigation pass in the source workspace",
   "font": {

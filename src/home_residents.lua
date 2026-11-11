@@ -177,6 +177,7 @@ function Residents.bind(state,player,token,players)
     end
     require('src.guest_payroll').ensure(records[id])
     player.homeResidentId=id
+    Residents.setName(state,player,player.name)
     -- Rejoining never inherits an unfinished interaction or a sleep vote, even
     -- if disconnect/reconnect happens before the next simulation cleanup tick.
     records[id].activity=nil
@@ -188,6 +189,14 @@ function Residents.bind(state,player,token,players)
 end
 function Residents.get(state,player)
     return state.home and state.home.residents and state.home.residents[Residents.key(player)]
+end
+function Residents.setName(state,player,name)
+    local resident=Residents.get(state,player)
+    name=require('src.player_profile').cleanName(name)
+    if not resident or name=='' or resident.name==name then return false end
+    resident.name=name;resident.revision=(resident.revision or 0)+1
+    state.home.revision=state.home.revision+1
+    return true
 end
 function Residents.activityEndAt(state,resident,activity)
     return Sleep.endAt(state,resident,activity)

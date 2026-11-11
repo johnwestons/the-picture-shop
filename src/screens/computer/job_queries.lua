@@ -163,7 +163,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.emailPageSize()
-        return Runtime.ComputerScreen.tab == "email" and 5 or Runtime.EMAIL_PAGE_SIZE
+        return Runtime.EMAIL_PAGE_SIZE
     end
 
     function Runtime.emailRowY()
@@ -203,12 +203,12 @@ function Component.install(Runtime)
     function Runtime.currentPageJobs(state)
         local jobs = Runtime.jobsForTab(state, Runtime.ComputerScreen.tab)
         local page = Runtime.ComputerScreen.pages[Runtime.ComputerScreen.tab] or 1
-        local maximumPage = math.max(1, math.ceil(#jobs / Runtime.JOBS_PER_PAGE))
+        local maximumPage = math.max(1, math.ceil(#jobs / Runtime.jobsPerPage()))
         page = math.min(math.max(1, page), maximumPage)
         Runtime.ComputerScreen.pages[Runtime.ComputerScreen.tab] = page
         local visible = {}
-        local first = (page - 1) * Runtime.JOBS_PER_PAGE + 1
-        for index = first, math.min(#jobs, first + Runtime.JOBS_PER_PAGE - 1) do
+        local first = (page - 1) * Runtime.jobsPerPage() + 1
+        for index = first, math.min(#jobs, first + Runtime.jobsPerPage() - 1) do
             visible[#visible + 1] = jobs[index]
         end
         return jobs, visible, page, maximumPage

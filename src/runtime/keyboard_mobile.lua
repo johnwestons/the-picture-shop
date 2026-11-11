@@ -55,7 +55,7 @@ local function mobileActionLabel(Runtime, selected)
         computer = "OPEN", shopClock = "CHECK", vendor = "TALK",
         cutter = "OPERATE", skidWrapper = "WRAP", windmill = "PRINT",
         palletWorkOrder = "READ", palletRack = "STOCK",
-        roomStock = "STOCK",
+        roomStock = "STOCK", restoration = "RESTORE",
     }
     return target.actionLabel or labels[kind] or ""
 end
@@ -150,6 +150,14 @@ function Component.install(Runtime)
                 return true
             end
         end
+        if Runtime.state.screen=="world" and key=="j"
+            and not require('src.story_intro').dialogueOpen(Runtime) then
+            local condition=require('src.warehouse_condition').of(Runtime.state)
+            if condition and condition.mode=="story" and not condition.grandOpened then
+                require('src.shop_room_controls').open(Runtime,"utilities")
+                return true
+            end
+        end
         if require("src.shop_room_controls").keypressed(key,Runtime) then return true end
         if Runtime.warehouseControls:keypressed(key) then return true end
         return Runtime.Input.keypressed(key, Runtime.inputContext)
@@ -189,6 +197,7 @@ function Component.install(Runtime)
             and selected.kind ~= "forklift" and selected.kind ~= "palletRack"
             and selected.kind ~= "breakroom"
             and selected.kind ~= "shopEntrance" and selected.kind ~= "roomStock" and selected.kind ~= "roomRest"
+            and selected.kind ~= "restoration"
             and selected.kind ~= "roomGame" and selected.kind ~= "homeTravel" and selected.kind ~= "homeActivity" and selected.kind ~= "homeDelivery"
             and not Runtime.World.workshopResourceId(selected.kind)
         then
@@ -199,6 +208,8 @@ function Component.install(Runtime)
 
     function Runtime.extraMobileActions()
         local actions = {}
+        local condition=require('src.warehouse_condition').of(Runtime.state)
+        local portable=condition and condition.mode=="story" and not condition.grandOpened
         if require('src.commute.runtime').indoorControlsActive(Runtime) then
             return {{key='escape',label='EXIT'}}
         end
@@ -208,8 +219,11 @@ function Component.install(Runtime)
                 return {{key='z',label='SHIFT DOWN'},{key='x',label='SHIFT UP'}}
             end
             local trip=Runtime.state.home and Runtime.state.home.commute
-            return {{key='g',label='GEAR'},{key='f',label=trip and trip.independent and 'ENTER' or 'BRING ALL'},{key='c',label='CAMERA'}}
+            local result={{key='g',label='GEAR'},{key='f',label=trip and trip.independent and 'ENTER' or 'BRING ALL'},{key='c',label='CAMERA'}}
+            if portable then result[#result+1]={key='j',label='UTILITIES'} end
+            return result
         end
+        if portable then actions[#actions+1]={key='j',label='UTILITIES'} end
         local gear=require('src.commute.outfit').get(Runtime.state,Runtime.World.player)
         if gear and gear.outfit=='geared' then return {{key='g',label='REMOVE GEAR'}} end
         if require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1) then

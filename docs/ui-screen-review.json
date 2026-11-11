@@ -1,0 +1,475 @@
+{
+  "status": "gameplay_ui_review_in_progress",
+  "baseline": "Pre-overhaul presentation from 9c5f8311, retaining subsequent gameplay and independently requested features.",
+  "decision_owner": "user",
+  "rules": [
+    "Show the actual restored screen before proposing changes.",
+    "Discuss top-left, top-right, bottom-left, and bottom-right quadrants and their control groups.",
+    "Offer small, specific options for font, size, spacing, placement, and contrast.",
+    "Keep the established artwork and character of each interface, including CritterNet.",
+    "Keep gameplay visible; do not add large opaque text panels as a default readability treatment.",
+    "Implement only the changes the user chooses for the screen under review.",
+    "Review desktop, phone, and tablet views and control hit targets before finalizing that screen.",
+    "Do not apply a chosen treatment globally without the user's direction."
+  ],
+  "suggested_first_screen": "CritterNet",
+  "screen_queue": [
+    "CritterNet browser frame, toolbar, and navigation",
+    "CritterNet pages: jobs, email, suppliers, finances, calendar, home, receipts",
+    "Warehouse HUD and notifications",
+    "Commute HUD, GPS, map, and vehicle controls",
+    "Home HUD, activities, furniture, and travel planner",
+    "Cutter, press, maintenance, pallet, truck inventory, and delivery paperwork",
+    "Town stores, mechanic, and fuel station",
+    "Title, setup, multiplayer, options, and diagnostics",
+    "Arcade and minigame screens"
+  ],
+  "approved_changes": [
+    {
+      "screen": "CritterNet active jobs and common browser header",
+      "source": "User quadrant-by-quadrant feedback",
+      "changes": [
+        "Use typewriter for PICTURE SHOP JOB DESK and CASH/A-R/REP labels; preserve numeric fonts and colors.",
+        "Preserve the existing sans-serif browser URL and job identifiers.",
+        "Use typewriter for active-job company names, activity labels and information values; preserve sans-serif blue field labels and detail headings.",
+        "Increase text within the existing job layout without crowding; keep long tickets accessible.",
+        "Remove the overlay BACK that exits the computer; make the sprite X close CritterNet.",
+        "Make computer OPTIONS somewhat translucent.",
+        "Fit active-job list, pagination, details and actions inside the browser content frame above its footer.",
+        "Review this screen together before extending page-specific styling to other CritterNet pages."
+      ]
+    },
+    {
+      "screen": "CritterNet active-job final adjustments",
+      "source": "User feedback on revised Q1, Q2, and Q4",
+      "changes": [
+        "Lower CASH, A/R and REP labels a few pixels to fit the green header.",
+        "Extend the green bezel display left without touching CRITTERWORKS CRT-17; include full weekday, month, date, year, and time in a clock font.",
+        "Align the three-paw animation with the browser art across every animation frame."
+      ]
+    },
+    {
+      "screen": "CritterNet Completed Jobs and Deliveries",
+      "source": "User approved carrying similar changes to other CritterNet pages",
+      "changes": [
+        "Reuse the contained job list, paging, detail panel, and mixed typewriter/sans-serif typography.",
+        "Keep the completed-job quality summary and promotion action above the footer.",
+        "Keep delivery tracking fields within the browser content frame.",
+        "Preserve the existing URL, colored balances, and browser navigation."
+      ]
+    },
+    {
+      "screen": "CritterNet analogous page baseline",
+      "source": "User approved carrying completed/deliveries treatment across comparable pages",
+      "changes": [
+        "Keep the CRT sprite, navigation, colors, and page-specific functions.",
+        "Contain comparable content above the browser footer and align click targets.",
+        "Use localized typewriter text for supporting information while retaining sans headings, URL, and colored values.",
+        "Review structurally different pages with captures before changing their flow."
+      ]
+    },
+    {
+      "screen": "Remaining CritterNet pages and alternate states",
+      "source": "User authorized generalized treatment throughout CritterNet, asking only for distinct decisions",
+      "changes": [
+        "Contain Receipts, Financials ledgers and payroll, Hiring, Schedule, Credit, Warehouse, household pages, Radio and machine listings within the browser frame.",
+        "Keep existing page art and colors while placing actions and pagination above the footer.",
+        "Map pointer and drag coordinates to the contained layouts, including warehouse staging.",
+        "Capture populated receipts, player wages, checkout, machine listings, staging and confirmation states for review."
+      ]
+    },
+    {
+      "screen": "Commute overworld phone layout",
+      "source": "User sign-off with specific phone corrections on 2026-11-11",
+      "changes": [
+        "Align the bike fuel card, rescue control, and notifications to the left edge of the wide phone view.",
+        "Align steering to the left and driving buttons and GPS to the right edge.",
+        "Show the gear button near the motorcycle while on foot and keep it to the right of the phone view."
+      ]
+    },
+    {
+      "screen": "Home apartment HUD",
+      "source": "User direction on 2026-11-11",
+      "changes": [
+        "Reuse the authored cash, calendar, and clock sprites for Home and Shop balances, date, and time.",
+        "Use icon buttons for Home Options and HUD visibility, and move the notifications icon to the right edge.",
+        "Use icon-only notification access throughout the world HUDs.",
+        "Replace the plain personal-needs box with a matching sprite, pictogram need icons, live bars, and matching fonts.",
+        "Leave the bottom movement and action controls in place."
+      ]
+    }
+  ],
+  "reviewed_screens": [
+    {
+      "screen": "CritterNet browser and pages",
+      "status": "approved_by_user",
+      "scope": "User signed off the complete CritterNet UI on 2026-11-11."
+    },
+    {
+      "screen": "Warehouse HUD",
+      "status": "approved_by_user",
+      "scope": "User signed off the warehouse HUD on 2026-11-11."
+    },
+    {
+      "screen": "Notification clipboard",
+      "status": "approved_for_now",
+      "scope": "User accepted the clipboard presentation on 2026-11-11."
+    },
+    {
+      "screen": "Commute overworld HUD",
+      "status": "approved_with_phone_edge_adjustments_implemented",
+      "scope": "User signed off the overworld presentation and requested the specific phone edge placement changes. The revised phone capture awaits a final look."
+    }
+  ],
+  "gameplay_ui_review": {
+    "current_screen": "Home HUD, activities, furniture, and travel planner",
+    "notifications": {
+      "status": "approved_for_now",
+      "direction": "User requested a 2D sprite clipboard, legible handwritten notes, and animated page turning at the paper's lower-right corner.",
+      "assets": [
+        "assets/generated/notification-clipboard-v1/clipboard.png",
+        "assets/generated/notification-clipboard-v1/clipboard-wide.png",
+        "assets/generated/notification-clipboard-v1/page-turn.png",
+        "assets/fonts/PatrickHand-Regular.ttf",
+        "assets/fonts/PatrickHand-LICENSE.txt"
+      ],
+      "captures": {
+        "desktop": "output/ui-readability/desktop/notifications-page-turn.png",
+        "phone": "output/ui-readability/phone/notifications-page-turn.png",
+        "tablet": "output/ui-readability/tablet/notifications-page-turn.png"
+      },
+      "verified": "Desktop and Android-simulated UI interaction suites passed 695 checks each, including touch page turning. Desktop, phone, and tablet notification captures rendered; no physical-device validation."
+    },
+    "warehouse_hud": {
+      "status": "approved_by_user",
+      "captures": {
+        "desktop": "output/ui-readability/desktop/warehouse.png",
+        "phone": "output/ui-readability/phone/warehouse.png",
+        "tablet": "output/ui-readability/tablet/warehouse.png",
+        "desktop_interaction": "output/ui-readability/desktop/warehouse-interaction.png",
+        "phone_interaction": "output/ui-readability/phone/warehouse-interaction.png",
+        "tablet_interaction": "output/ui-readability/tablet/warehouse-interaction.png"
+      },
+      "observations": [
+        "Q1 status text is small on the phone; cash has a backing but paper and sample counts do not.",
+        "Q2 date and time can land over the wall clock; Options, Exit, HUD and Notices form a two-row control cluster.",
+        "Q3 movement hints sit at the bottom and shrink on the phone beside the walking stick.",
+        "Q4 has a contextual touch action button; it is blank when no interaction is selected and reads OPEN for the office computer.",
+        "The selected-interaction prompt appears near the lower middle, outside the movement hint and action button, but becomes very small on phone."
+      ]
+    },
+    "commute_hud": {
+      "status": "overworld_approved_phone_edge_adjustments_implemented",
+      "captures": {
+        "desktop": "output/ui-readability/desktop/commute-bike.png",
+        "phone": "output/ui-readability/phone/commute-bike.png",
+        "phone_first_person": "output/ui-readability/phone/commute-first-person.png",
+        "phone_map": "output/ui-readability/phone/commute-map.png",
+        "phone_notice": "output/ui-readability/phone/commute-notification.png",
+        "desktop_map": "output/ui-readability/desktop/commute-map.png",
+        "phone_city_delivery": "output/ui-readability/phone/commute-city-delivery.png",
+        "phone_fuel_truck": "output/ui-readability/phone/commute-fuel-truck.png"
+      },
+      "observations": [
+        "The revised phone capture aligns the vehicle card, rescue button, and notifications to the left edge; steering is left and driving buttons and the minimap are right.",
+        "The on-foot gear button appears near the motorcycle and sits at the right edge of the wide phone view. Drawn controls and hit targets share the full viewport bounds.",
+        "The desktop full map's destination header and first place row overlap. Cause located in route_map.lua: keyRect rows reserve keyHeaderHeight only on mobile, while the desktop header is still drawn at key.y+9. This is a distinct map-layout issue for the later commute review.",
+        "The city-delivery and fuel-truck panels are separate full-screen interfaces with very small phone text, so they need their own review rather than a blanket HUD treatment."
+      ]
+    },
+    "home_hud": {
+      "status": "apartment_hud_reworked_pending_user_review",
+      "captures": {
+        "desktop_apartment": "output/ui-readability/desktop/home-apartment.png",
+        "phone_apartment": "output/ui-readability/phone/home-apartment.png",
+        "phone_routines": "output/ui-readability/phone/home-routines.png",
+        "phone_travel": "output/ui-readability/phone/home_travel.png"
+      },
+      "observations": [
+        "The Home world HUD now uses the authored cash, calendar, and clock sprites with live Home and Shop balances.",
+        "The personal-needs card uses a new sprite and four pictogram icons. Home Options and HUD visibility are icons; the notifications button is an icon at the right edge.",
+        "The bottom movement and action controls retain their existing placement.",
+        "Home routines and the travel planner are separate full-screen overlays with narrow centered panels on phone and need their own quadrant review."
+      ]
+    }
+  },
+  "publication": "Local workspace changes for review; no new release, APK, or GitHub publication.",
+  "validation": {
+    "completed_utc": "2026-11-10T18:38:56.308027+00:00",
+    "runs": {
+      "desktop_layout": {
+        "status": "PASS",
+        "checks": 18,
+        "report": "output/ui-readability/desktop/smoke.rpt",
+        "captures": 99
+      },
+      "phone_layout": {
+        "status": "PASS",
+        "checks": 23,
+        "report": "output/ui-readability/phone/smoke.rpt",
+        "captures": 100
+      },
+      "tablet_layout": {
+        "status": "PASS",
+        "checks": 18,
+        "report": "output/ui-readability/tablet/smoke.rpt",
+        "captures": 99
+      },
+      "ui_desktop": {
+        "status": "PASS",
+        "checks": 647,
+        "report": "output/ui-readability/desktop/regression/smoke.rpt"
+      },
+      "ui_mobile": {
+        "status": "PASS",
+        "checks": 647,
+        "report": "output/ui-readability/phone/regression/smoke.rpt"
+      },
+      "browser_desktop": {
+        "status": "PASS",
+        "checks": 118,
+        "report": "output/critternet-browser/desktop/smoke.rpt"
+      },
+      "browser_mobile": {
+        "status": "PASS",
+        "checks": 118,
+        "report": "output/critternet-browser/mobile/smoke.rpt"
+      },
+      "hud_desktop": {
+        "status": "PASS",
+        "checks": 149,
+        "report": "output/scene-hud-review/desktop/smoke.rpt"
+      },
+      "hud_mobile": {
+        "status": "PASS",
+        "checks": 149,
+        "report": "output/scene-hud-review/mobile/smoke.rpt"
+      },
+      "domain_tail_desktop": {
+        "status": "PASS",
+        "checks": 8689,
+        "report": "output/ui-rollback/domain-tail-desktop/checks.rpt"
+      },
+      "domain_tail_mobile": {
+        "status": "PASS",
+        "checks": 8689,
+        "report": "output/ui-rollback/domain-tail-mobile/checks.rpt"
+      }
+    },
+    "exact_baseline_files": [
+      "src/screens/hud.lua",
+      "src/screens/player_status.lua",
+      "src/screens/title_fonts.lua",
+      "src/screens/shop_budget.lua",
+      "src/screens/computer/home.lua",
+      "src/screens/computer/home_guide.lua"
+    ],
+    "preserved_feature_paths": [
+      "src/net",
+      "src/build_version.lua",
+      "src/player_delivery_loading.lua",
+      "src/commute/delivery_traffic.lua",
+      "src/commute/truck_traffic_recovery.lua",
+      "src/receipt_book.lua",
+      "src/tutorial.lua"
+    ],
+    "device_scope": "Desktop runtime with Android and iOS layout simulation; no physical device install or release publication.",
+    "broad_run_note": "The full desktop attempt reached 9,986 checks before a stale redesigned-text assertion. That assertion was corrected and the remaining domain suite passed in both modes. The duplicate full mobile attempt was cancelled; a fresh complete release gate was not run.",
+    "historical_note": "Rollback validation before this approved revision. Mutable output paths may now contain newer focused review results; see current_review.validation."
+  },
+  "current_review": {
+    "screen": "All CritterNet pages",
+    "status": "approved_by_user",
+    "tab_count": 22,
+    "capture_states_per_mode": 39,
+    "implemented_pages": [
+      "Active Jobs",
+      "Completed Jobs",
+      "Deliveries",
+      "Estimating",
+      "Email",
+      "Reviews",
+      "Shop Clock",
+      "Financials overview",
+      "Bills and Wages",
+      "Staff Payroll",
+      "Player Wages",
+      "Receipts",
+      "Inventory",
+      "Hiring",
+      "Schedule",
+      "Warehouse improvements",
+      "Warehouse staging",
+      "Radio",
+      "WWW suppliers and machines",
+      "Calendar",
+      "Credit",
+      "My Home",
+      "Groceries",
+      "Takeout",
+      "Home Deliveries",
+      "Home and Living"
+    ],
+    "alternate_states": [
+      "Populated and signed receipts",
+      "Three connected player wage rows",
+      "Machine listings",
+      "Cart",
+      "Household checkout",
+      "Calendar day agenda",
+      "Credit confirmation",
+      "Warehouse staging",
+      "Long job ticket"
+    ],
+    "distinct_decisions_needed": [],
+    "captures": {
+      "desktop": {
+        "active": "output/ui-readability/desktop/computer-active.png",
+        "completed": "output/ui-readability/desktop/computer-completed.png",
+        "deliveries": "output/ui-readability/desktop/computer-deliveries.png",
+        "estimating": "output/ui-readability/desktop/computer-estimating.png",
+        "email": "output/ui-readability/desktop/computer-email.png",
+        "reviews": "output/ui-readability/desktop/computer-reviews.png",
+        "clock": "output/ui-readability/desktop/computer-clock.png",
+        "financials": "output/ui-readability/desktop/computer-financials.png",
+        "bills": "output/ui-readability/desktop/computer-bills.png",
+        "receipts": "output/ui-readability/desktop/computer-receipts.png",
+        "player_wages": "output/ui-readability/desktop/computer-player_wages.png",
+        "inventory": "output/ui-readability/desktop/computer-inventory.png",
+        "hiring": "output/ui-readability/desktop/computer-hiring.png",
+        "schedule": "output/ui-readability/desktop/computer-schedule.png",
+        "warehouse": "output/ui-readability/desktop/computer-warehouse.png",
+        "radio": "output/ui-readability/desktop/computer-radio.png",
+        "www": "output/ui-readability/desktop/computer-www.png",
+        "calendar": "output/ui-readability/desktop/computer-calendar.png",
+        "credit": "output/ui-readability/desktop/computer-credit.png",
+        "home": "output/ui-readability/desktop/computer-home.png",
+        "groceries": "output/ui-readability/desktop/computer-groceries.png",
+        "takeout": "output/ui-readability/desktop/computer-takeout.png",
+        "home_orders": "output/ui-readability/desktop/computer-home_orders.png",
+        "furniture": "output/ui-readability/desktop/computer-furniture.png",
+        "financials-staff": "output/ui-readability/desktop/computer-financials-staff.png",
+        "www-cart": "output/ui-readability/desktop/computer-www-cart.png",
+        "www-machines": "output/ui-readability/desktop/computer-www-machines.png",
+        "home-checkout": "output/ui-readability/desktop/computer-home-checkout.png",
+        "calendar-day": "output/ui-readability/desktop/computer-calendar-day.png",
+        "warehouse-staging": "output/ui-readability/desktop/computer-warehouse-staging.png",
+        "receipts-populated": "output/ui-readability/desktop/computer-receipts-populated.png",
+        "receipts-signed": "output/ui-readability/desktop/computer-receipts-signed.png",
+        "player_wages-populated": "output/ui-readability/desktop/computer-player_wages-populated.png",
+        "completed-sample": "output/ui-readability/desktop/computer-completed-sample.png",
+        "deliveries-sample": "output/ui-readability/desktop/computer-deliveries-sample.png",
+        "dropdown": "output/ui-readability/desktop/computer-dropdown.png",
+        "active-long": "output/ui-readability/desktop/computer-active-long.png",
+        "active-long-bottom": "output/ui-readability/desktop/computer-active-long-bottom.png",
+        "credit-confirm": "output/ui-readability/desktop/computer-credit-confirm.png"
+      },
+      "phone": {
+        "active": "output/ui-readability/phone/computer-active.png",
+        "completed": "output/ui-readability/phone/computer-completed.png",
+        "deliveries": "output/ui-readability/phone/computer-deliveries.png",
+        "estimating": "output/ui-readability/phone/computer-estimating.png",
+        "email": "output/ui-readability/phone/computer-email.png",
+        "reviews": "output/ui-readability/phone/computer-reviews.png",
+        "clock": "output/ui-readability/phone/computer-clock.png",
+        "financials": "output/ui-readability/phone/computer-financials.png",
+        "bills": "output/ui-readability/phone/computer-bills.png",
+        "receipts": "output/ui-readability/phone/computer-receipts.png",
+        "player_wages": "output/ui-readability/phone/computer-player_wages.png",
+        "inventory": "output/ui-readability/phone/computer-inventory.png",
+        "hiring": "output/ui-readability/phone/computer-hiring.png",
+        "schedule": "output/ui-readability/phone/computer-schedule.png",
+        "warehouse": "output/ui-readability/phone/computer-warehouse.png",
+        "radio": "output/ui-readability/phone/computer-radio.png",
+        "www": "output/ui-readability/phone/computer-www.png",
+        "calendar": "output/ui-readability/phone/computer-calendar.png",
+        "credit": "output/ui-readability/phone/computer-credit.png",
+        "home": "output/ui-readability/phone/computer-home.png",
+        "groceries": "output/ui-readability/phone/computer-groceries.png",
+        "takeout": "output/ui-readability/phone/computer-takeout.png",
+        "home_orders": "output/ui-readability/phone/computer-home_orders.png",
+        "furniture": "output/ui-readability/phone/computer-furniture.png",
+        "financials-staff": "output/ui-readability/phone/computer-financials-staff.png",
+        "www-cart": "output/ui-readability/phone/computer-www-cart.png",
+        "www-machines": "output/ui-readability/phone/computer-www-machines.png",
+        "home-checkout": "output/ui-readability/phone/computer-home-checkout.png",
+        "calendar-day": "output/ui-readability/phone/computer-calendar-day.png",
+        "warehouse-staging": "output/ui-readability/phone/computer-warehouse-staging.png",
+        "receipts-populated": "output/ui-readability/phone/computer-receipts-populated.png",
+        "receipts-signed": "output/ui-readability/phone/computer-receipts-signed.png",
+        "player_wages-populated": "output/ui-readability/phone/computer-player_wages-populated.png",
+        "completed-sample": "output/ui-readability/phone/computer-completed-sample.png",
+        "deliveries-sample": "output/ui-readability/phone/computer-deliveries-sample.png",
+        "dropdown": "output/ui-readability/phone/computer-dropdown.png",
+        "active-long": "output/ui-readability/phone/computer-active-long.png",
+        "active-long-bottom": "output/ui-readability/phone/computer-active-long-bottom.png",
+        "credit-confirm": "output/ui-readability/phone/computer-credit-confirm.png"
+      },
+      "tablet": {
+        "active": "output/ui-readability/tablet/computer-active.png",
+        "completed": "output/ui-readability/tablet/computer-completed.png",
+        "deliveries": "output/ui-readability/tablet/computer-deliveries.png",
+        "estimating": "output/ui-readability/tablet/computer-estimating.png",
+        "email": "output/ui-readability/tablet/computer-email.png",
+        "reviews": "output/ui-readability/tablet/computer-reviews.png",
+        "clock": "output/ui-readability/tablet/computer-clock.png",
+        "financials": "output/ui-readability/tablet/computer-financials.png",
+        "bills": "output/ui-readability/tablet/computer-bills.png",
+        "receipts": "output/ui-readability/tablet/computer-receipts.png",
+        "player_wages": "output/ui-readability/tablet/computer-player_wages.png",
+        "inventory": "output/ui-readability/tablet/computer-inventory.png",
+        "hiring": "output/ui-readability/tablet/computer-hiring.png",
+        "schedule": "output/ui-readability/tablet/computer-schedule.png",
+        "warehouse": "output/ui-readability/tablet/computer-warehouse.png",
+        "radio": "output/ui-readability/tablet/computer-radio.png",
+        "www": "output/ui-readability/tablet/computer-www.png",
+        "calendar": "output/ui-readability/tablet/computer-calendar.png",
+        "credit": "output/ui-readability/tablet/computer-credit.png",
+        "home": "output/ui-readability/tablet/computer-home.png",
+        "groceries": "output/ui-readability/tablet/computer-groceries.png",
+        "takeout": "output/ui-readability/tablet/computer-takeout.png",
+        "home_orders": "output/ui-readability/tablet/computer-home_orders.png",
+        "furniture": "output/ui-readability/tablet/computer-furniture.png",
+        "financials-staff": "output/ui-readability/tablet/computer-financials-staff.png",
+        "www-cart": "output/ui-readability/tablet/computer-www-cart.png",
+        "www-machines": "output/ui-readability/tablet/computer-www-machines.png",
+        "home-checkout": "output/ui-readability/tablet/computer-home-checkout.png",
+        "calendar-day": "output/ui-readability/tablet/computer-calendar-day.png",
+        "warehouse-staging": "output/ui-readability/tablet/computer-warehouse-staging.png",
+        "receipts-populated": "output/ui-readability/tablet/computer-receipts-populated.png",
+        "receipts-signed": "output/ui-readability/tablet/computer-receipts-signed.png",
+        "player_wages-populated": "output/ui-readability/tablet/computer-player_wages-populated.png",
+        "completed-sample": "output/ui-readability/tablet/computer-completed-sample.png",
+        "deliveries-sample": "output/ui-readability/tablet/computer-deliveries-sample.png",
+        "dropdown": "output/ui-readability/tablet/computer-dropdown.png",
+        "active-long": "output/ui-readability/tablet/computer-active-long.png",
+        "active-long-bottom": "output/ui-readability/tablet/computer-active-long-bottom.png",
+        "credit-confirm": "output/ui-readability/tablet/computer-credit-confirm.png"
+      }
+    },
+    "validation": {
+      "browser_desktop": {
+        "status": "PASS",
+        "checks": 161,
+        "report": "output/critternet-browser/desktop/smoke.rpt"
+      },
+      "browser_mobile": {
+        "status": "PASS",
+        "checks": 161,
+        "report": "output/critternet-browser/mobile/smoke.rpt"
+      },
+      "ui_desktop": {
+        "status": "PASS",
+        "checks": 690,
+        "report": "output/ui-readability/desktop/regression/smoke.rpt"
+      },
+      "ui_phone": {
+        "status": "PASS",
+        "checks": 690,
+        "report": "output/ui-readability/phone/regression/smoke.rpt"
+      },
+      "device_scope": "Desktop LOVE runtime with Android and iOS layout simulation; no physical-device install or publication."
+    },
+    "next_step": "Get user review of the updated Home apartment HUD, then continue to its activities, furniture, and travel planner."
+  }
+}

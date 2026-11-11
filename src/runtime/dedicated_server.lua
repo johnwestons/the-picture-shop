@@ -98,6 +98,7 @@ function Component.install(Runtime)
     Runtime.privateServerReconnect = nil
 
     function Runtime.startPrivateServerClient(inviteCode, playerName)
+        playerName=playerName or require('src.player_profile').name(Runtime.App.settings)
         local invite, reason = require("src.net.direct_invite").parse(inviteCode)
         if not invite then return false, reason end
         if Runtime.privateServerClientRunLimit == 0 then

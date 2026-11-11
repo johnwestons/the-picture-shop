@@ -557,7 +557,9 @@ function Input.mousepressed(x, y, button, context)
     if state.screen == "title" then
         return context.title.mousepressed(x, y, button)
     end
-    if state.screen == "world" and button == 1 and context.hud.hitTest(x, y) == "exit" then
+    if state.screen == "world" and button == 1
+        and not (context.world and context.world.player and context.world.player.sceneId=='warehouse')
+        and context.hud.hitTest(x, y) == "exit" then
         context.returnToTitle()
         return true
     end

@@ -1,9 +1,10 @@
 local Rooms=require("src.shop_rooms")
 local Controls={page=1,selected=1}
+function Controls.isPortableUtilities() return Controls.mode=="utilities" end
 local fonts
 local function setFont(size)
     fonts=fonts or {}
-    fonts[size]=fonts[size] or require('src.screens.typography').get(size)
+    fonts[size]=fonts[size] or love.graphics.newFont(size)
     love.graphics.setFont(fonts[size])
 end
 local function fitted(text,width)
@@ -25,7 +26,7 @@ local function send(Runtime,kind,command)
     local okay,_,message=Runtime.World.performNetworkInteraction(Runtime.World.player,Runtime.state,kind,command)
     Runtime.state.message=message
     Runtime.World.selectedInteraction=nil
-    if okay and (kind=="roomStock" or kind=="roomGame"
+    if okay and (kind=="roomStock" or kind=="restoration" or kind=="roomGame"
         and (command=="basketball:pickup" or command=="basketball:drop")) then Runtime.saveCurrent() end
     return okay
 end
@@ -39,6 +40,49 @@ local function rows(Runtime)
                 detail=entry.stored and ("Shelf "..p.storage.row.." / "..p.storage.column) or "Staged at the warehouse entrance",
                 kind="roomStock",command=(entry.stored and "retrieve:" or "store:")..p.id,enabled=true}
         end
+    elseif Controls.mode=="utilities" then
+        local Condition=require("src.warehouse_condition")
+        local c=Condition.of(Runtime.state)
+        if not c or c.mode~="story" then return result end
+        result[1]={label=c.powerConnected and "DONE  Power service connected" or "CALL POWER COMPANY",
+            detail=("One-time connection fee: $%.2f. Charged to the shop and saved as a receipt."):format(Condition.POWER_FEE_CENTS/100),
+            kind="restoration",command="call_power",enabled=not c.powerConnected}
+        result[2]={label=c.waterConnected and "DONE  Water service connected" or "CALL WATER UTILITY",
+            detail=("One-time connection fee: $%.2f. Charged to the shop and saved as a receipt."):format(Condition.WATER_FEE_CENTS/100),
+            kind="restoration",command="call_water",enabled=not c.waterConnected}
+    elseif Controls.mode=="restoration" then
+        local Condition=require("src.warehouse_condition")
+        local c=Condition.of(Runtime.state)
+        if not c then return result end
+        local function add(label,detail,command,done,blocked)
+            result[#result+1]={label=(done and "DONE  " or "DO  ")..label,detail=detail,
+                kind="restoration",command=command,enabled=not done and not blocked}
+        end
+        if c.mode=="quick" then
+            add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
+                "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
+            return result
+        end
+        add("Reconnect power",("Stage %d/4. One-time fee $%.2f; then repair the breaker."):format(
+            Condition.stage(Runtime.state),Condition.POWER_FEE_CENTS/100),
+            "call_power",c.powerConnected)
+        add("Reconnect water",("One-time fee $%.2f; then clean the damp floor."):format(Condition.WATER_FEE_CENTS/100),
+            "call_water",c.waterConnected)
+        add("Repair breaker","Stand by the west-wall breaker. Service must be connected.","repair_breaker",c.breakerRepaired)
+        for _,region in ipairs({"west","center","east"}) do
+            local prior=region=="center" and "west" or region=="east" and "center" or nil
+            local blocked=prior and not c.cleaned[prior]
+            add("Clean "..region.." floor",blocked and ("Clean the "..prior.." area first.")
+                or "Stand in this floor area to remove dust and stains.","clean_"..region,c.cleaned[region],blocked)
+        end
+        local floorsClean=c.cleaned.west and c.cleaned.center and c.cleaned.east
+        add("Touch up paint",floorsClean and "Stand near the worn wall and shelving."
+            or "Clean all three floor areas first.","repaint",c.repainted,not floorsClean)
+        add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
+            "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
+        local ready,reason=Condition.readyForOpening(Runtime.state)
+        add("Hold grand opening",ready and "Announce that The Picture Shop is open for clients."
+            or reason,"grand_opening",c.grandOpened)
     else
         for _,id in ipairs({"front_left","front_right"}) do
             local bay=Runtime.state.warehouse.bays[id]
@@ -67,6 +111,10 @@ function Controls.open(Runtime,mode)
     Controls.mode,Controls.page,Controls.selected=mode,1,1
     Runtime.state.screen="shop_rooms"
     Runtime.state.message=mode=="stock" and "Stage delivered shop stock at the warehouse entrance. Store or retrieve it here."
+        or mode=="utilities" and "Call the utility providers to reconnect the closed shop."
+        or mode=="restoration" and (require("src.warehouse_condition").of(Runtime.state).mode=="story"
+            and "Call utilities, repair the existing breaker, then clean and repaint the shop."
+            or "Use the wall switch to turn the warehouse lights on or off.")
         or "Choose an available room. Other players stay in their own rooms."
 end
 function Controls.keypressed(key,Runtime)
@@ -106,6 +154,7 @@ function Controls.keypressed(key,Runtime)
         if Rooms.scene(Runtime.World.player)=="warehouse" then Controls.open(Runtime,"rooms")
         else send(Runtime,"shopRoom","warehouse") end
     elseif selected.kind=="roomStock" then Controls.open(Runtime,"stock")
+    elseif selected.kind=="restoration" then Controls.open(Runtime,"restoration")
     elseif selected.kind=="roomRest" then send(Runtime,"roomRest",Runtime.World.player.resting and "stand" or "rest")
     elseif selected.kind=="roomGame" then
         local fixtureId=selected.target and selected.target.fixtureId
@@ -173,13 +222,21 @@ function Controls.draw(Runtime)
     love.graphics.setColor(.34,.54,.59,1);love.graphics.rectangle("line",95,124,770,474,8)
     love.graphics.setColor(.95,.90,.72,1)
     setFont(20)
-    love.graphics.print(fitted(Controls.mode=="stock" and Rooms.name(Runtime.state,Rooms.scene(Runtime.World.player)).." / SHOP STOCK" or "FRONT ENTRANCE / SHOP ROOMS",625),115,151)
+    love.graphics.print(fitted(Controls.mode=="stock" and Rooms.name(Runtime.state,Rooms.scene(Runtime.World.player)).." / SHOP STOCK"
+        or Controls.mode=="utilities" and "PORTABLE PHONE / UTILITIES"
+        or Controls.mode=="restoration" and (require("src.warehouse_condition").of(Runtime.state).mode=="quick"
+            and "WAREHOUSE / LIGHTS" or "WAREHOUSE / RESTORATION")
+        or "FRONT ENTRANCE / SHOP ROOMS",625),115,151)
     love.graphics.setColor(.13,.23,.28,1);love.graphics.rectangle("fill",760,140,85,40,4)
     setFont(16)
     love.graphics.setColor(.95,.97,.94,1);love.graphics.printf("BACK",760,152,85,"center")
     love.graphics.setColor(.79,.87,.88,1)
     love.graphics.printf(Controls.mode=="stock" and "Bring supplies to the warehouse entrance with a pallet jack. Park it and use this room's stock desk. Retrieved stock returns to the entrance."
-        or "Enter to watch construction. Services open when the room is finished. Each player can visit independently.",115,194,730)
+        or Controls.mode=="utilities" and "Choose a provider to reconnect the shop. The quoted fee is charged once; the receipt is kept with your shop records."
+        or Controls.mode=="restoration" and (require("src.warehouse_condition").of(Runtime.state).mode=="quick"
+            and "Switch the warehouse lamps on or off. The machines remain powered."
+            or "Utility calls use shop funds. Repairs and cleaning require you to stand near the work. Completed work is saved for everyone.")
+        or "Enter a room once construction begins to watch the raccoon engineer work. Room services open when construction is complete. Each player can enter and leave independently.",115,194,730)
     local entries=rows(Runtime)
     Controls.page=math.max(1,math.min(Controls.page,math.ceil(#entries/6)))
     Controls.selected=math.max(1,math.min(Controls.selected,#entries))
@@ -196,7 +253,8 @@ function Controls.draw(Runtime)
         end
     end
     if #entries==0 then
-        love.graphics.setColor(.78,.84,.82,1);love.graphics.print("No stock stored here or staged at the warehouse entrance.",127,260)
+        love.graphics.setColor(.78,.84,.82,1);love.graphics.print(Controls.mode=="stock"
+            and "No stock stored here or staged at the warehouse entrance." or "Nothing to show.",127,260)
     end
     if #entries>6 then
         setFont(16)

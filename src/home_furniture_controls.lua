@@ -143,7 +143,7 @@ function Controls.mousepressed(x,y,button,R)
     return true
 end
 function Controls.draw(R)
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(14)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(14)
     local item=editing(R);local data=Furniture.ensure(R.state)
     love.graphics.push("all");love.graphics.setFont(font)
     love.graphics.setColor(.025,.05,.065,.96);love.graphics.rectangle("fill",0,40,960,55)

@@ -241,6 +241,9 @@ function save.newGame(slot,options)
     local home,homeError=require("src.home").new(options)
     if not home then return nil,homeError end
     payload.state.home=home
+    if options and options.startMode=="story" then
+        payload.state.warehouse.condition=require("src.warehouse_condition").new("story",home.town and home.town.seed)
+    end
     payload.state.tutorial=require('src.tutorial').new(options and options.tutorialEnabled)
     payload.state.calendar.secondsPerDay=minutes*60
     payload.state.calendar.elapsed=minutes*60*require('src.business_hours').OPEN_HOUR/24

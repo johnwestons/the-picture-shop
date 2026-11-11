@@ -53,7 +53,9 @@ function Test.run(check)
             for _,x in ipairs({1,w-2}) do
                 for _,y in ipairs({1,math.floor(h/2),h-2}) do
                     local r,green,b,a=background:getPixel(x,y)
-                    edges=edges and a>.99 and r>.2 and green>.2 and b>.2
+                    -- Midnight scenery is intentionally dark; its fully drawn
+                    -- sky should still distinguish every edge from a blank canvas.
+                    edges=edges and a>.99 and r>.05 and green>.08 and b>.12
                 end
             end
             check('cab_world_fills_both_display_edges_'..name,edges)

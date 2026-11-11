@@ -57,10 +57,7 @@ local function contains(rect, x, y)
 end
 
 local function playerLabel()
-    if love.system and love.system.getOS and love.system.getOS() == "Android" then
-        return "Android Worker"
-    end
-    return "PC Worker"
+    return require('src.player_profile').name(DirectScreen.callbacks and DirectScreen.callbacks.settings)
 end
 
 local function clipboardRead()

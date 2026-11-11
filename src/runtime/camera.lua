@@ -105,6 +105,7 @@ function Component.install(Runtime)
             and Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight)
         end
+        if screen == 'world' and Runtime.World.player.sceneId=='home' then screen='home_world' end
         return screen, bounds
     end
 end

@@ -3,7 +3,9 @@ local Test = {}
 
 function Test.run(context, check)
     local title = context.title or require("src.screens.title_screen")
-    local phrases = { "Hello Trevor, welcome back to work.", "Happy Printing", "Have a Great Day",
+    local previousProfile=title.profileSettings
+    title.profileSettings={playerName='Rowan'}
+    local phrases = { "Hello Rowan, welcome back to work.", "Happy Printing", "Have a Great Day",
         "Be a Nice Critter", "Sponsored by The CritterNet" }
     title.enter(nil)
     for index, phrase in ipairs(phrases) do
@@ -111,6 +113,7 @@ function Test.run(context, check)
     check("title_animation_textures_release_after_menu", released)
     context.assets.activatePack("menu")
     title.enter(nil)
+    title.profileSettings=previousProfile
 end
 
 return Test

@@ -4,6 +4,7 @@ local Residents=require('src.home_residents')
 local Gear=require('src.commute.gear')
 local Rider=require('src.commute.rider')
 local TruckService=require('src.commute.truck_service')
+local Town=require('src.commute.town')
 local Free={}
 
 function Free.enter(state,player,world,run,players)
@@ -97,8 +98,10 @@ function Free.leave(state,player,token,destination,world)
     t.participants[id]=nil
     state.home.revision=state.home.revision+1
     -- Retain the shared truck position and town token while interiors are occupied.
+    local townName=state.home.town and state.home.town.name or Town.defaultName(state.home.town and state.home.town.seed)
     return true,{destination=destination,participants={[id]=part},message=destination=='warehouse'
-        and 'Back at the warehouse. Other players can continue their trips.' or 'Welcome to your apartment.'}
+        and ('Welcome back to '..townName..'. You are at the warehouse; other players can continue their trips.')
+        or 'Welcome to your apartment.'}
 end
 
 return Free

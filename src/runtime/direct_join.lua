@@ -23,7 +23,7 @@ function Component.install(Runtime)
         Runtime.directConnection = connection
         Runtime.pendingDirectSession = {
             role = "guest",
-            name = tostring(playerName or "Direct Worker"),
+            name = playerName or require('src.player_profile').name(Runtime.App.settings),
         }
         return true, codeOrError
     end
@@ -38,7 +38,7 @@ function Component.install(Runtime)
         })
         if not transportFactory then return false, endpoint end
         local joined, joinError = Runtime.multiplayer:startClient(endpoint, {
-            name = tostring(playerName or "Direct Worker"),
+            name = playerName or require('src.player_profile').name(Runtime.App.settings),
             character = Runtime.Config.player.character,
             furColorway = Runtime.App.settings and Runtime.App.settings.furColorway or 1,
             overallsColorway = Runtime.App.settings and Runtime.App.settings.overallsColorway or 1,
@@ -161,6 +161,7 @@ function Component.install(Runtime)
         Runtime.state.screen = "direct"
         Runtime.DirectScreen.enter({
             slot = Runtime.lastDirectSlot,
+            settings = Runtime.App.settings,
             host = Runtime.prepareDirectHost,
             hostIpv4 = Runtime.DirectIpv4Runtime.startHostFromScreen,
             hostIpv4Manual = Runtime.DirectIpv4Runtime.startManualHostFromScreen,
@@ -197,6 +198,7 @@ function Component.install(Runtime)
         Runtime.state.screen = "direct"
         Runtime.DirectScreen.enter({
             slot = Runtime.lastDirectSlot,
+            settings = Runtime.App.settings,
             inviteOnly = true,
             host = Runtime.prepareAdditionalDirectHost,
             hostIpv4 = Runtime.DirectIpv4Runtime.prepareAdditionalHost,

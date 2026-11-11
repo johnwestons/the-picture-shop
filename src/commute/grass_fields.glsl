@@ -46,7 +46,8 @@ vec4 effect(vec4 color,Image image,vec2 uv,vec2 pixel) {
     if(fade<.015) discard;
     // LÖVE already includes VertexColor in effect's color argument.
     vec3 surface=seasonTint*color.rgb;
-    if(firstPerson && rideHeadlight) surface=riderLight(surface,fromCameraCenter,surfaceHeight);
+    surface=localLighting(surface,fromCameraCenter,surfaceHeight);
+    surface=riderLight(surface,fromCameraCenter,surfaceHeight);
     return vec4(surface,color.a*fade);
 }
 #endif

@@ -1,6 +1,20 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.106",
+        date = "Nov 11, 2026",
+        title = "Story opening and shop restoration playtest",
+        changes = {
+            "Story start now travels from Millhaven to Grandpa's farm and hands control to the player after the conversation.",
+            "The closed Picture Shop has five visual restoration stages, utility and breaker work, cleanup, and a grand-opening goal.",
+            "The ride HUD and GPS have clearer spacing and a compact layout for narrow screens.",
+            "Receipts, delivery signatures, estimate layouts, cutter menu navigation, and mobile text entry received updates.",
+            "Park and campground paths, terrain lighting, sound playback, and selected character dialogue have new playtest work.",
+            "PC 106 and Android 106 share multiplayer protocol 75. Update every participant before joining together.",
+            "The new-shop multiplayer lobby, synchronized story opening, and grand-opening scene are still in development.",
+        },
+    },
+    {
         version = "0.1.0-android.105",
         date = "Nov 10, 2026",
         title = "Readable interfaces and connected delivery routes",

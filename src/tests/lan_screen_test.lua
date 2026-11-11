@@ -253,6 +253,7 @@ function Test.run(context, check)
     local hostSlot, hostName, joinAddress, joinName, cancellations = nil, nil, nil, nil, 0
     LanScreen.enter({
         slot = 3,
+        settings = {playerName = "Casey"},
         host = function(slot, name)
             hostSlot, hostName = slot, name
             return true
@@ -266,12 +267,13 @@ function Test.run(context, check)
     check("lan_screen_role_copy_allows_android_or_windows_host",
         LanScreen.message:find("host device", 1, true) ~= nil
         and LanScreen.message:find("host PC", 1, true) == nil)
-    check("lan_screen_host_uses_selected_slot_and_platform_worker_name",
+    check("lan_screen_host_uses_selected_slot_and_profile_name",
         LanScreen.keypressed("h") == true and hostSlot == 3
-        and type(hostName) == "string" and hostName:find("Worker", 1, true) ~= nil)
+        and hostName == "Casey")
 
     LanScreen.enter({
         slot = 3,
+        settings = {playerName = "Casey"},
         join = function(address, name)
             joinAddress, joinName = address, name
             return true
@@ -284,7 +286,7 @@ function Test.run(context, check)
     check("lan_screen_manual_ipv4_and_port_enters_connecting_state",
         openedJoin == true and acceptedText == true and startedJoin == true
         and joinAddress == "192.168.1.246:22122"
-        and type(joinName) == "string" and LanScreen.mode == "connecting")
+        and joinName == "Casey" and LanScreen.mode == "connecting")
 
     local cancelled = LanScreen.keypressed("escape")
     check("lan_screen_connecting_cancel_returns_to_role_menu",

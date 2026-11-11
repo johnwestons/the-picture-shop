@@ -18,13 +18,26 @@ function Test.run(R,check,capture)
     local function move(id,x,y) R.App.touchmoved(id,physical(x,y)) end
     local function release(id,x,y) R.App.touchreleased(id,physical(x or 256,y or 250)) end
     local function tap(id)
-        for _,button in ipairs(V.buttons(R)) do
-            if button.id==id then
-                press('toolbar',button.x+button.width/2,button.y+16)
-                release('toolbar',button.x+button.width/2,button.y+16);return
-            end
+        local function target(rect)
+            R.syncCamera()
+            local x,y=rect.x+rect.width/2,rect.y+rect.height/2
+            if R.App.cameraTransformsUi() then x,y=R.App.mobileCamera:worldToScreen(x,y) end
+            local px,py=physical(x,y)
+            R.App.touchpressed('toolbar',px,py)
+            R.App.touchreleased('toolbar',px,py)
         end
-        error('Missing toolbar button: '..id)
+        if id=='hud' then
+            local hud=require('src.screens.warehouse_hud')
+            local menu=hud.layoutFor(R,select(2,R.optionsAccessLayout()))
+            target(menu.menu);target(hud.menuRow(menu,3));return
+        end
+        if id=='lock' then
+            local button=assert(C.cameraButton(R))
+            target(button)
+            target(require('src.commute.camera_menu').row(button,6,C.miniMapRect(R).x))
+            return
+        end
+        error('Unknown HUD action: '..id)
     end
     local function signature()
         local result={}
@@ -66,7 +79,11 @@ function Test.run(R,check,capture)
     tap('lock')
     check('scene_hud_touch_lock_cancels_active_look_and_preserves_held_throttle',V.cameraLocked(R)
         and view.cameraTouches==nil and view.cameraPinch==nil and not view.cameraDrag.mode
-        and B.value(C.bindings(R),'accelerate',C.touch(R))==1)
+        and B.value(C.bindings(R),'accelerate',C.touch(R))==1,
+        ('locked=%s menu=%s touches=%s pinch=%s drag=%s throttle=%s'):format(
+            tostring(V.cameraLocked(R)),tostring(view.cameraMenu),tostring(view.cameraTouches),
+            tostring(view.cameraPinch),tostring(view.cameraDrag.mode),
+            tostring(B.value(C.bindings(R),'accelerate',C.touch(R)))))
     local profile=C.bindings(R);local pan,beam=profile.mouse.pan,profile.mouse.beam
     profile.mouse.pan='';profile.mouse.beam='mouse2'
     local highBeam=part.rider.bike.headlightHighBeam==true
@@ -112,7 +129,7 @@ function Test.run(R,check,capture)
     check('scene_hud_fixed_third_person_unlock_restores_orbit',not V.cameraLocked(R) and signature()~=before)
     R.App.keypressed('f8');C.toggleOutsideCamera(R)
     check('scene_hud_follow_camera_excludes_lock_and_keeps_auto_follow',camera.outsideMode=='follow'
-        and not V.canLockCamera(R) and not V.cameraLocked(R) and #V.buttons(R)==1)
+        and not V.canLockCamera(R) and not V.cameraLocked(R) and #V.buttons(R)==0)
     local yaw=camera.yaw;part.rider.bike.heading=part.rider.bike.heading+.35
     for _=1,30 do R.App.update(1/60) end
     check('scene_hud_follow_camera_continues_tracking_heading',math.abs(camera.yaw-yaw)>.01)

@@ -795,6 +795,13 @@ function Geometry.build(site)
             end
         end
     end
+    -- Exterior entrance fixture shares its anchor with local_lights.lua.
+    local t=d.threshold
+    Geometry.box(m,t.x-.25,t.z+.04,2.55,t.x+.25,t.z+.48,2.76,{.16,.19,.18})
+    Geometry.box(m,t.x-.19,t.z+.15,2.53,t.x+.19,t.z+.50,2.63,{1,.87,.52,.99})
+    if d.style=='farm' then
+        Geometry.box(m,t.x-.06,t.z+.02,0,t.x+.06,t.z+.14,2.6,{.16,.19,.18})
+    end
     return Geometry.finish(m,site)
 end
 return Geometry

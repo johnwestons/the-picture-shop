@@ -111,5 +111,25 @@ function Speech.code(entry)
     end
     return 23
 end
-function Speech.message(code) return messages[code] end
+function Speech.message(code,playerName)
+    local name=require('src.player_profile').cleanName(playerName)
+    if name~='' then
+        if code==1 or code==2 then return 'Hello, '..name..'!' end
+        if code==3 then return 'Goodbye, '..name..'!' end
+        if code==Speech.EMPLOYEE_HIGH_FIVE_REQUEST then return 'Hey, '..name..'! Can I get a high five?' end
+        if code==Speech.EMPLOYEE_HIGH_FIVE_THANKS then return 'Thanks for the high five, '..name..'!' end
+    end
+    return messages[code]
+end
+function Speech.emotion(code)
+    if code==1 or code==2 then return 'greeting' end
+    if code==3 or code==20 then return 'goodbye' end
+    if code==Speech.EMPLOYEE_HIGH_FIVE_THANKS then return 'thanks' end
+    if code==Speech.EMPLOYEE_HIGH_FIVE_REQUEST or code==Speech.APPLICANT_ASK then return 'curious' end
+    if code==Speech.APPLICANT_RESUME_REPLY or code==23 then return 'agreement' end
+    if code==Speech.APPLICANT_DECLINE_REPLY then return 'sad' end
+    if code==Speech.EMPLOYEE_LATE_OPENING or code==17 or code==21 then return 'annoyed' end
+    if code==Speech.EMPLOYEE_BLADE_DULL or code==16 then return 'worried' end
+    return 'neutral'
+end
 return Speech

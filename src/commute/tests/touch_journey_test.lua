@@ -60,6 +60,10 @@ function Test.run(check)
     check('touch_commute_does_not_capture_local_warehouse_player',not C.touchPressed(R,'shop',400,200))
     player.sceneId='commute'
     check('touch_gear_default_button_is_explicit',C.gearTouchButton(R).label=='PUT ON GEAR')
+    local nearbyX,nearbyZ=rider.ped.x,rider.ped.z
+    rider.ped.x,rider.ped.z=rider.bike.x+5,rider.bike.z
+    check('touch_gear_button_only_appears_near_bike',C.gearTouchButton(R)==nil)
+    rider.ped.x,rider.ped.z=nearbyX,nearbyZ
     -- The dock bay is on the far side of the expanded lot, so approach it on
     -- foot before tapping the truck interaction control.
     rider.ped.x,rider.ped.z=state.home.commute.truck.x-4,state.home.commute.truck.z

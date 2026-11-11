@@ -349,11 +349,14 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
     local employeeCountText=Hiring.employeeCountText(state)
     if not financialEmbedded then
         button("applications","APPLICANTS",pointerX,pointerY,false,ui.section=="applications")
-        button("staff","STAFF",pointerX,pointerY,false,ui.section=="staff")
+        button("staff",string.format("STAFF (%d/%d)",employedCount,Employees.MAX_STAFF),
+            pointerX,pointerY,false,ui.section=="staff")
         button("payroll","PAYROLL",pointerX,pointerY,false,ui.section=="payroll")
         button("recruit",e.recruiting and "PAUSE RECRUITING" or "INVITE APPLICANT",pointerX,pointerY,readOnly)
     end
-    line(employeeCountText,100,232,730,payrollFull and {1,.62,.46} or {1,.85,.45})
+    if financialEmbedded or ui.section=="payroll" then
+        line(employeeCountText,100,232,730,payrollFull and {1,.62,.46} or {1,.85,.45})
+    end
     if ui.section=="payroll" then
         if ui.view=="finances" then
             local f=Finances.summary(state)

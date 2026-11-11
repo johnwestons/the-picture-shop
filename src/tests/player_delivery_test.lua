@@ -228,7 +228,8 @@ function Test.run(context,check)
     part.rider.ped.x,part.rider.ped.z,part.rider.ped.speed=home.door.x,home.door.z,0
     C.perform(R,'worldAction')
     check('player_delivery_home_entrance_action_is_restored_after_completion',R._commute.doorTransition
-        and R._commute.doorTransition.action=='arrive' and R._commute.doorTransition.buildingId==state.home.apartmentId)
+        and R._commute.doorTransition.action=='enterhome'
+        and R._commute.doorTransition.buildingId==state.home.apartmentId)
     check('player_delivery_can_go_home_without_returning_truck_to_shop',Free.leave(state,player,t.token,state.home.apartmentId,world))
 
     -- Let the real employee controller collect a skid, drive its pallet jack,

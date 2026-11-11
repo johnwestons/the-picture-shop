@@ -57,6 +57,9 @@ function Component.install(Runtime)
 
     function Runtime.JobService.createNextOffer(state, timestamp)
         if type(state) ~= "table" then return nil, { "shop state is required" } end
+        if not require("src.warehouse_condition").openForBusiness(state) then
+            return nil, { "Hold the grand opening before taking client jobs." }
+        end
         local sequence = Runtime.nextSequence(state)
         local cutterCount = installedCount(state, "polar_115")
         local pressCount = installedCount(state, "heidelberg_10x15")

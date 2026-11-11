@@ -11,7 +11,7 @@ local titles={range='GUN RANGE',stand='LAST STAND',train='TRAIN ATTACK'}
 local assets,fonts
 local heardRound,heardShots,heardEnemies
 local function text(value,x,y,w,size,color)
-    fonts=fonts or {};if not fonts[size] then fonts[size]=require('src.screens.typography').get(size) end
+    fonts=fonts or {};if not fonts[size] then fonts[size]=love.graphics.newFont('assets/fonts/VT323-Regular.ttf',size) end
     love.graphics.setFont(fonts[size]);love.graphics.setColor(unpack(color or {1,.89,.67,1}))
     love.graphics.printf(value,x,y,w,'center')
 end

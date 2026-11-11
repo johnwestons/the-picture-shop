@@ -23,15 +23,25 @@ function Test.run(check)
             and Rider.clear(world,pad.x,pad.z,Bike.RADIUS))
         local mesh=Geometry.build(site);total=total+#mesh.vertices
         local valid=#mesh.vertices>600 and #mesh.vertices%3==0
-        for _,v in ipairs(mesh.vertices) do
-            valid=valid and #v==12
-            for _,n in ipairs(v) do valid=valid and n==n and math.abs(n)<1e9 end
-            valid=valid and near(v[4]^2+v[5]^2+v[6]^2,1) and v[12]==1
+        local reason
+        if not valid then reason='vertex count '..#mesh.vertices end
+        for i,v in ipairs(mesh.vertices) do
+            local vertexOkay=#v==12
+            for _,n in ipairs(v) do vertexOkay=vertexOkay and n==n and math.abs(n)<1e9 end
+            vertexOkay=vertexOkay and near(v[4]^2+v[5]^2+v[6]^2,1)
+                and v[12]>=0 and v[12]<=1
                 and v[1]>=mesh.bounds.minX and v[1]<=mesh.bounds.maxX
                 and v[2]>=mesh.bounds.minZ and v[2]<=mesh.bounds.maxZ
                 and v[3]>=mesh.bounds.minH and v[3]<=mesh.bounds.maxH
+            if not vertexOkay and not reason then
+                reason=('vertex %d length %d, position %.6f %.6f %.6f, normal %.12f, alpha %s, bounds %.6f..%.6f %.6f..%.6f %.6f..%.6f'):
+                    format(i,#v,v[1],v[2],v[3],v[4]^2+v[5]^2+v[6]^2,tostring(v[12]),
+                        mesh.bounds.minX,mesh.bounds.maxX,mesh.bounds.minZ,mesh.bounds.maxZ,
+                        mesh.bounds.minH,mesh.bounds.maxH)
+            end
+            valid=valid and vertexOkay
         end
-        check('structure_finite_normals_bounds_'..site.id,valid)
+        check('structure_finite_normals_bounds_'..site.id,valid,reason)
         check('structure_has_recessed_windows_roof_and_entry_'..site.id,
             mesh.counts.windows>=4 and mesh.counts.roofs>=1 and mesh.counts.entries==1
                 and mesh.features.entrance[1].x==site.threshold.x and mesh.features.entrance[1].z==site.threshold.z)

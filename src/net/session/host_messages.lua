@@ -226,6 +226,10 @@ function Component.install(Runtime)
             player.combatButtons=payload.combatButtons
             player.arcadeInput=payload.arcade
             player.taskAction = payload.taskAction
+            if payload.name and player.name~=payload.name then
+                player.name=payload.name
+                if context and context.updatePlayerProfile then context.updatePlayerProfile(player) end
+            end
             if payload.furColorway then player.furColorway = payload.furColorway end
             if payload.overallsColorway then player.overallsColorway = payload.overallsColorway end
             player.lastInputAt = self.clock()

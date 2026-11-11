@@ -17,7 +17,7 @@ function Component.install(Runtime)
     Runtime.RabbitColorways = require("src.rabbit_colorways")
 
     Runtime.Protocol = {
-        VERSION = 74,
+        VERSION = 75,
         MAX_PACKET_BYTES = 1200,
         MAX_SHOP_SNAPSHOT_BYTES = 1024 * 1024,
         SHOP_COMPRESSION_MAGIC = "TPSL",
@@ -29,7 +29,7 @@ function Component.install(Runtime)
         CHANNEL_STATE = 1,
         CHANNEL_DURABLE = 2,
         CHANNEL_COUNT = 3,
-        MAX_NAME_BYTES = 24,
+        MAX_NAME_BYTES = require('src.player_profile').MAX_NAME_BYTES,
     }
 
     Runtime.Protocol.CHANNELS = {

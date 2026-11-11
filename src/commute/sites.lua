@@ -29,6 +29,9 @@ Sites.designs={
         threshold={x=0,z=5},door={x=0,z=6},parking={x=0,z=9},
         obstacles={rect(5.65,8.40,1.4,5.40)}},
 }
+-- Story-only porch approach, kept outside saved town designs so old seeds
+-- retain the same farm footprint and road placement.
+Sites.farmStory={porch={x=12,z=-5.5},walk={{x=0,z=20},{x=0,z=0},{x=12,z=-5.5}}}
 -- Keep dock routing metadata outside the serialized structure design so old
 -- seeded towns retain their original fingerprints and road layouts.
 Sites.warehouseTruckLayout={

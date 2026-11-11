@@ -318,7 +318,7 @@ local function available(world,path,x,z,margin)
     return world:height(x,z)>.35
 end
 local dimensions={lamp={.14,3.6},mailbox={.22,1.2},stop={.08,2.6},curve={.08,2.6},
-    table={.85,.8},bench={.55,.88},fireRing={.72,.28},tent={1.05,1.48},trailSign={.16,1.65}}
+    table={.85,.8},bench={.55,.88},fireRing={.72,.28},tent={1.05,1.48},trailSign={.16,1.65},townSign={.22,2.8}}
 local function fixture(plan,kind,x,z,fx,fz,roadId)
     local size=dimensions[kind]
     if plan:occupied(x,z,size[1]+.6) then return end
@@ -499,6 +499,27 @@ local function signs(plan,junctions)
         end
     end
 end
+local function townSigns(plan,town,paths)
+    local exit=town.mainlandExit
+    local path=exit and paths[exit.roadId]
+    if not path or path.length<18 then return end
+    local name=town.name or plan.world.townName or 'Town'
+    local entries={{side=1,role='welcome',text='WELCOME TO\n'..name,direction=1},
+        {side=-1,role='exit',text='NOW EXITING\n'..name,direction=-1}}
+    for _,entry in ipairs(entries) do
+        for index=#path.edges,1,-1 do
+            local edge=path.edges[index]
+            if not edge.bridge and edge.length>=4 then
+                local distance=edge.start+edge.length*.5
+                local x,z=offset(path,distance,entry.side,path.width*.5+3.1)
+                if available(plan.world,path,x,z,.55) then
+                    local sign=fixture(plan,'townSign',x,z,edge.dx*entry.direction,edge.dz*entry.direction,path.id)
+                    if sign then sign.signRole=entry.role;sign.signText=entry.text;break end
+                end
+            end
+        end
+    end
+end
 local function recreation(plan,town)
     for _,area in ipairs(town.recreation or {}) do
         if plan.prepareYield then plan.prepareYield()end
@@ -554,6 +575,7 @@ function Infrastructure.new(world,options)
     smoothWalkStations(plan)
     indexWalks(plan)
     signs(plan,junctions)
+    townSigns(plan,town,lookup)
     mailboxes(plan,lookup,town)
     local turnClearancePoints={}
     for _,node in ipairs(junctions) do

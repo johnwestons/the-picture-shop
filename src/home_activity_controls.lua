@@ -8,7 +8,7 @@ local Dining=require("src.home_dining")
 local BikeCargo=require("src.home_bike_cargo")
 local HomeInteractions=require("src.home_interactions")
 local Controls={target="floor",page=1,mode="routines",appliance=nil,appliancePage=1,alarmHour=nil,alarmMinute=nil}
-local font,small,hudRect,alarmLabelFont,hudNeedFont,hudValueFont,hudActionFont
+local font,small,hudRect,alarmLabelFont,hudValueFont,hudActionFont,hudNeedsSprite,hudTitleFont
 local applianceSmall
 local function useTwelveHourTime(R)
     return not (R.App.settings and R.App.settings.twelveHourTime==false)
@@ -301,61 +301,51 @@ local HUD_NEED_COLORS={
     hygiene={.54,.82,.68},
     energy={.88,.76,.39},
 }
-local function drawHudNeeds(resident,x,y,width)
+local function drawHudNeeds(resident,rect)
     if not resident then
         love.graphics.setColor(.68,.75,.74,1)
-        love.graphics.printf("Resident status unavailable",x,y+8,width,"center")
+        love.graphics.printf("--",rect.x+245,rect.y+59,36,"center")
         return
     end
-    local rowHeight=29
     for i,need in ipairs(Residents.NEEDS) do
-        local top=y+(i-1)*rowHeight
+        local top=rect.y+61+(i-1)*30
         local value=math.max(0,math.min(100,tonumber(resident[need]) or 0))
-        local label=need:sub(1,1):upper()..need:sub(2)
         local color=HUD_NEED_COLORS[need] or {.63,.78,.72}
         if value<20 then color={.94,.39,.32}
         elseif value<35 then color={.96,.68,.34} end
-        love.graphics.setFont(hudNeedFont)
-        love.graphics.setColor(.82,.88,.86,1)
-        love.graphics.print(label,x,top)
+        love.graphics.setColor(color[1],color[2],color[3],.94)
+        love.graphics.rectangle('fill',rect.x+59,top-3,177*value/100,6,3)
         love.graphics.setFont(hudValueFont)
         love.graphics.setColor(value<20 and {.98,.52,.43,1} or {.92,.94,.88,1})
-        love.graphics.printf(tostring(math.floor(value)),x,top,width,"right")
-        love.graphics.setColor(.09,.15,.16,1)
-        love.graphics.rectangle("fill",x,top+16,width,7,3)
-        love.graphics.setColor(color[1],color[2],color[3],1)
-        love.graphics.rectangle("fill",x,top+16,width*(value/100),7,3)
+        love.graphics.printf(tostring(math.floor(value)),rect.x+245,top-10,36,'center')
     end
 end
 function Controls.hideHud() hudRect=nil end
-function Controls.drawHud(state,player,left,right,top)
-    small=small or require('src.screens.typography').get(15)
-    hudNeedFont=hudNeedFont or require('src.screens.typography').get(14)
-    hudValueFont=hudValueFont or require('src.screens.typography').get(14)
-    hudActionFont=hudActionFont or require('src.screens.typography').get(10)
-    hudRect={x=left+18,y=top or 120,width=math.max(1,math.min(286,right-left-36)),height=198}
+function Controls.drawHud(state,player,left,right)
+    hudTitleFont=hudTitleFont or love.graphics.newFont('assets/fonts/CourierPrime-Bold.ttf',15)
+    hudValueFont=hudValueFont or love.graphics.newFont('assets/fonts/VT323-Regular.ttf',20)
+    hudActionFont=hudActionFont or love.graphics.newFont('assets/fonts/CourierPrime-Bold.ttf',10)
+    hudNeedsSprite=hudNeedsSprite or love.graphics.newImage('assets/generated/home-needs-hud-v1/personal-needs-panel.png')
+    hudNeedsSprite:setFilter('linear','linear')
+    hudRect={x=left+18,y=120,width=306,height=204}
     love.graphics.push("all")
     local resident=Residents.get(state,player)
-    love.graphics.setColor(.025,.05,.065,.96)
-    love.graphics.rectangle("fill",hudRect.x,hudRect.y,hudRect.width,hudRect.height,7)
-    love.graphics.setColor(.25,.38,.38,.92)
-    love.graphics.setLineWidth(1)
-    love.graphics.rectangle("line",hudRect.x+.5,hudRect.y+.5,hudRect.width-1,hudRect.height-1,7)
-    love.graphics.setFont(small)
-    love.graphics.setColor(.96,.86,.45,1)
-    love.graphics.print("PERSONAL NEEDS",hudRect.x+12,hudRect.y+10)
-    love.graphics.setColor(.34,.47,.46,.7)
-    love.graphics.line(hudRect.x+12,hudRect.y+31,hudRect.x+hudRect.width-12,hudRect.y+31)
-    drawHudNeeds(resident,hudRect.x+12,hudRect.y+38,hudRect.width-24)
+    love.graphics.setColor(1,1,1,1)
+    love.graphics.draw(hudNeedsSprite,hudRect.x,hudRect.y,0,
+        hudRect.width/hudNeedsSprite:getWidth(),hudRect.height/hudNeedsSprite:getHeight())
+    love.graphics.setFont(hudTitleFont)
+    love.graphics.setColor(.96,.88,.57,1)
+    love.graphics.printf('PERSONAL NEEDS',hudRect.x+38,hudRect.y+18,hudRect.width-76,'center')
+    drawHudNeeds(resident,hudRect)
     if resident and resident.dirtyClothes then
         love.graphics.setColor(.98,.67,.37,1)
         love.graphics.setFont(hudActionFont)
-        love.graphics.print("CLOTHES NEED WASH",hudRect.x+12,hudRect.y+153)
+        love.graphics.print('WASH!',hudRect.x+246,hudRect.y+21)
     end
-    love.graphics.setColor(.68,.78,.74,1)
+    love.graphics.setColor(.89,.90,.75,1)
     love.graphics.setFont(hudActionFont)
-    love.graphics.print("H  ROUTINES",hudRect.x+12,hudRect.y+176)
-    love.graphics.printf("M  FURNISH",hudRect.x+hudRect.width-108,hudRect.y+176,96,"right")
+    love.graphics.print("H  ROUTINES",hudRect.x+31,hudRect.y+184)
+    love.graphics.printf("M  FURNISH",hudRect.x+hudRect.width-127,hudRect.y+184,96,"right")
     love.graphics.pop()
 end
 local function drawApplianceRows(R)
@@ -384,8 +374,8 @@ local function drawApplianceRows(R)
     return visible,pages,all
 end
 local function drawAppliance(R)
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15)
-    applianceSmall=applianceSmall or require('src.screens.typography').get(13)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
+    applianceSmall=applianceSmall or love.graphics.newFont(13)
     local Art=require("src.home_appliance_art")
     local item=applianceTarget(R)
     local player=Controls.localPlayer(R)
@@ -466,8 +456,8 @@ local function drawAppliance(R)
     love.graphics.pop()
 end
 local function drawLaundry(R)
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15)
-    applianceSmall=applianceSmall or require('src.screens.typography').get(13)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
+    applianceSmall=applianceSmall or love.graphics.newFont(13)
     local chores=require("src.home_chores").ensure(R.state)
     local laundry=chores.laundry
     local player=Controls.localPlayer(R)
@@ -554,8 +544,8 @@ local function drawLaundry(R)
     love.graphics.pop()
 end
 local function drawBikeCargo(R)
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15)
-    applianceSmall=applianceSmall or require('src.screens.typography').get(13)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
+    applianceSmall=applianceSmall or love.graphics.newFont(13)
     local player=Controls.localPlayer(R);local resident=Residents.get(R.state,player)
     local inventory=resident and BikeCargo.ensure(resident) or BikeCargo.new()
     local used=BikeCargo.used(inventory)
@@ -600,7 +590,7 @@ function Controls.draw(R)
     if Controls.appliance=="laundry" then drawLaundry(R);return end
     if Controls.appliance=="bike" then drawBikeCargo(R);return end
     if Controls.appliance then drawAppliance(R);return end
-    font=font or require('src.screens.typography').get(18);small=small or require('src.screens.typography').get(15)
+    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
     local p=Residents.get(R.state,Controls.localPlayer(R))
     love.graphics.push("all");love.graphics.setColor(.025,.045,.06,.97);love.graphics.rectangle("fill",110,82,740,558,8)
     love.graphics.setFont(font);love.graphics.setColor(.96,.92,.79,1)
@@ -650,7 +640,7 @@ function Controls.draw(R)
         or "Order groceries or takeout on the laptop; collect them by the entrance. Floor rest is always available.",
         140,253,Controls.mode=="sleep" and 470 or 680,"left")
     if Controls.mode=="sleep" then
-        alarmLabelFont=alarmLabelFont or require('src.screens.typography').get(11)
+        alarmLabelFont=alarmLabelFont or love.graphics.newFont(11)
         love.graphics.setFont(alarmLabelFont)
         love.graphics.setColor(.67,.79,.78,1)
         love.graphics.printf("HOUR",140,273,182,"center")

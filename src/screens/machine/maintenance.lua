@@ -15,7 +15,7 @@ local function drawBladeUpgradeCard(rect, label, enabled, pointerX, pointerY)
     love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height, 4)
     love.graphics.setColor(enabled and 0.34 or 0.25, enabled and 0.65 or 0.29, enabled and 0.57 or 0.30, 1)
     love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4)
-    bladeUpgradeFont = bladeUpgradeFont or require('src.screens.typography').get(12)
+    bladeUpgradeFont = bladeUpgradeFont or love.graphics.newFont(12)
     love.graphics.setFont(bladeUpgradeFont)
     love.graphics.setColor(enabled and 0.92 or 0.49, enabled and 0.85 or 0.54, enabled and 0.63 or 0.54, 1)
     love.graphics.printf(label, rect.x + 8, rect.y + 8, rect.width - 16, "center")
@@ -59,19 +59,15 @@ function Component.install(Runtime)
     end
 
     function Runtime.drawMaintenanceCard(rect, title, detail, enabled, pointerX, pointerY)
-        love.graphics.push('all')
         local hovered = enabled and pointerX and Runtime.inside(rect, pointerX, pointerY)
         Runtime.box(rect.x, rect.y, rect.width, rect.height,
             enabled and (hovered and { 0.13, 0.34, 0.31, 1 } or { 0.08, 0.20, 0.20, 1 })
                 or { 0.09, 0.10, 0.11, 1 },
             enabled and { 0.34, 0.65, 0.57, 1 } or { 0.25, 0.29, 0.30, 1 }, 4)
         love.graphics.setColor(enabled and 0.96 or 0.48, enabled and 0.84 or 0.53, enabled and 0.30 or 0.52)
-        love.graphics.setFont(require('src.screens.typography').get(14,'bold'))
-        love.graphics.print(title, rect.x + 18, rect.y + 13)
+        love.graphics.print(title, rect.x + 18, rect.y + 16)
         love.graphics.setColor(enabled and 0.76 or 0.46, enabled and 0.84 or 0.51, enabled and 0.83 or 0.51)
-        love.graphics.setFont(require('src.screens.typography').get(14))
-        love.graphics.printf(detail, rect.x + 18, rect.y + 36, rect.width - 36, "left")
-        love.graphics.pop()
+        love.graphics.printf(detail, rect.x + 18, rect.y + 46, rect.width - 36, "left")
     end
 
     function Runtime.drawMaintenanceHub(state, assets, pointerX, pointerY)
@@ -153,7 +149,7 @@ function Component.install(Runtime)
         end
         Runtime.drawMaintenanceCard(Runtime.weeklyButton, cutter.weeklyTechnician and "WEEKLY SERVICE: ON" or "WEEKLY SERVICE: OFF",
             cutter.weeklyTechnician and "Click to cancel the recurring blade exchange."
-                or "Blade exchange every 7 game days. Delays arrive by email.",
+                or "Mara removes, sleeves and replaces the blade every seven game days. Delays arrive by email.",
             true, pointerX, pointerY)
         Runtime.drawMaintenanceCard(Runtime.maintenanceBack, "RETURN TO CUTTER", "", true, pointerX, pointerY)
         love.graphics.setColor(0.70, 0.78, 0.79)

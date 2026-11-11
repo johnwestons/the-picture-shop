@@ -1,0 +1,56 @@
+{
+  "status": "departure-montage-runtime-ready; additional-grandpa-poses-pending",
+  "generator": "built-in ImageGen",
+  "grandfather": {
+    "file": "grandfather-porch-concept.png",
+    "canvas": [1536, 1024],
+    "grid": [3, 2],
+    "cell": [512, 512],
+    "poses": ["seated_idle", "seated_look", "seated_wave", "seated_talk", "stand_with_cane", "stand_smile"]
+  },
+  "grandfatherRuntime": {
+    "file": "assets/generated/story-intro/grandpa-seated-v1.png",
+    "sourcePrompt": "assets/source/story-intro-v1/grandpa-seated-v1-prompt.txt",
+    "pose": "seated_idle",
+    "background": "transparent"
+  },
+  "packing": {
+    "file": "player-packing-three-poses-concept.png",
+    "canvas": [1329, 443],
+    "grid": [3, 1],
+    "cell": [443, 443],
+    "poses": ["pack_suitcase", "close_suitcase", "lift_suitcase"]
+  },
+  "packingRuntime": {
+    "file": "assets/generated/story-intro/packing-poses-v1.png",
+    "source": "player-packing-three-poses-concept.png",
+    "canvas": [1329, 443],
+    "grid": [3, 1],
+    "cell": [443, 443]
+  },
+  "departureBackgrounds": {
+    "generator": "built-in ImageGen",
+    "sourcePrompts": "assets/source/story-intro-v1/departure-background-prompts.md",
+    "canvas": [1536, 1024],
+    "files": [
+      "assets/generated/story-intro/millhaven-apartment-v1.png",
+      "assets/generated/story-intro/millhaven-street-v1.png",
+      "assets/generated/story-intro/millhaven-bridge-v1.png",
+      "assets/generated/story-intro/miller-farm-road-v1.png"
+    ]
+  },
+  "lettering": {
+    "file": "assets/generated/story-intro/story-lettering-v1.png",
+    "sourceFont": "assets/fonts/BarlowCondensed-SemiBold.ttf",
+    "builder": "tools/build_story_lettering.py",
+    "metrics": "src/story_lettering_data.lua",
+    "glyphs": "ASCII 32-126",
+    "cell": [90, 92],
+    "gridColumns": 16
+  },
+  "reuse": [
+    "assets/Characters/Player/rabbit-worker-idle-v2.png",
+    "assets/commute/bike/parked.png",
+    "existing rider, gear, motorcycle and riding animation assets"
+  ]
+}

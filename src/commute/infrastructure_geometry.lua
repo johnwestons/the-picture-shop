@@ -53,7 +53,7 @@ local function lamp(m)
     G.cylinder(m,0,0,.47,.075,2.53,iron,8)
     G.cylinder(m,0,0,2.92,.14,.14,metal,8)
     box(m,0,0,3.05,.42,.42,.07,iron)
-    box(m,0,0,3.12,.33,.33,.38,{1,.87,.52})
+    box(m,0,0,3.12,.33,.33,.38,{1,.87,.52,.99})
     for _,x in ipairs({-.175,.175}) do for _,z in ipairs({-.175,.175}) do
         box(m,x,z,3.11,.04,.04,.40,iron)
     end end
@@ -125,10 +125,20 @@ local function trailSign(m)
     G.triangle(m,{-.22,.09,1.12},{-.02,.09,1.42},{.18,.09,1.12},white,{0,0,1})
     G.triangle(m,{.015,.091,1.12},{.14,.091,1.32},{.29,.091,1.12},{.78,.78,.62},{0,0,1})
 end
+local function townSign(m)
+    for _,x in ipairs({-1.78,1.78}) do
+        box(m,x,0,0,.14,.17,2.55,cedar)
+        box(m,x,0,.02,.20,.22,.12,planks)
+    end
+    box(m,0,0,1.52,4.28,.22,1.24,cedar)
+    box(m,0,.116,1.62,4.02,.025,1.04,{.13,.25,.20})
+    box(m,0,.132,1.59,4.04,.028,.055,planks)
+    box(m,0,.132,2.65,4.04,.028,.055,planks)
+end
 local templates={}
 local recreation=require('src.commute.recreation_geometry')
 local constructors={stop=stop,lamp=lamp,mailbox=mailbox,table=tableModel,bench=bench,tent=tent,fireRing=fireRing,
-    trailSign=trailSign,curveR=function(m)curve(m,1)end,curveL=function(m)curve(m,-1)end,
+    trailSign=trailSign,townSign=townSign,curveR=function(m)curve(m,1)end,curveL=function(m)curve(m,-1)end,
     pond=recreation.pond,stage=recreation.stage,logSeat=recreation.logSeat,
     rangerHut=recreation.rangerHut,outhouse=recreation.outhouse,
     parkSign=function(m)recreation.parkSign(m,'PARK')end,campSign=function(m)recreation.parkSign(m,'CAMP')end}

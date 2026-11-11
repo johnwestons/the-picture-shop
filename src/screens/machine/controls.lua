@@ -218,6 +218,12 @@ function Component.install(Runtime)
             Runtime.loadMenuRect.y + 68 + (displayIndex - 0.5) * Runtime.loadMenuRect.rowHeight
     end
 
+    function Runtime.Screen.loadMenuBackCenter()
+        if not Runtime.Screen.loadMenu then return nil end
+        local back = Runtime.loadMenuLayout(Runtime.Screen.loadMenu).back
+        return back.x + back.width / 2, back.y + back.height / 2
+    end
+
     function Runtime.Screen.artworkRotation(paper)
         return math.rad(((paper and paper.orientation) or 0) % 360)
     end

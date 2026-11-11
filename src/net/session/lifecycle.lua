@@ -324,9 +324,13 @@ function Component.install(Runtime)
         end
         local parsed, addressError = Runtime.Address.parse(address, options.port)
         if not parsed then return false, addressError end
-        local residentToken,identityError=options.residentToken
-        if not residentToken then residentToken,identityError=require("src.resident_credentials").get() end
+        local residentToken,identityError,identitySource=options.residentToken
+        if not residentToken then residentToken,identityError,identitySource=require("src.resident_credentials").get() end
         if not require("src.resident_credentials").valid(residentToken) then return false,identityError or "Invalid resident identity." end
+        if identitySource and identitySource~='native' and self.connectionNote then
+            self:connectionNote('identity fallback','RECOVERED','Resident identity created with a secure iOS system source',
+                'Saved the identity for future reconnects','network:identity')
+        end
         local transportFactory = options.transportFactory or self.transportFactory
         if type(transportFactory) ~= "table"
             or type(transportFactory.createClient) ~= "function" then
