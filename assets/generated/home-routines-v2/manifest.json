@@ -348,6 +348,18 @@
       "sha256": "46c45104d726ba37bdcc504dfedc6b68311f1f579cb6523832aed659b39c9e29",
       "sourceBytesMatch": true,
       "runtimeSelected": true
+    },
+    {
+      "path": "mop-eight-directions-v1.png",
+      "source": "C:\\Users\\johnw\\.codex\\generated_images\\01a1c9ba-9881-7e62-9aaf-1829e8196588\\exec-7a8411e6-714c-4afe-9393-8f0c44f7e301.png",
+      "copiedWithoutPixelEdits": true,
+      "runtimeSelected": true,
+      "dimensions": [1536, 1024],
+      "alphaRange": [0, 254],
+      "transparentPixels": 1338278,
+      "sha256": "5AEEEEC03AA834D4235A0A2911A450C2A09E13D6A4151A1DB2C2C1EE27B2CC0A",
+      "registration": "src/home_mop_registration.lua",
+      "prompt": "Replace the eight brooms with a practical long-handled wet-floor mop. Preserve the 1536x1024 canvas, 4x2 cell layout, directions, shaft endpoints, grips, scale and floor contacts. Use an off-white cotton/string head, compact gray collar and subtle pale blue damp sheen; match the painterly style and transparent background. No person, backdrop, labels, shadow or other props."
     }
   ],
   "runtimeRenderer": "src/home_sweep_art.lua",

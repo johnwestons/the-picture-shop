@@ -85,8 +85,23 @@ function Test.run(context,check)
             check('story_restoration_'..region..'_checklist_opens_on_action',
                 R.state.screen=='shop_rooms' and Controls.selected==index+3)
             Controls.keypressed('return',R)
+            local MopAction=require('src.warehouse_mop_action')
+            local initialPose=MopAction.pose(R.World.player)
+            check('story_restoration_'..region..'_mop_action_starts_before_cleaning',
+                R.state.screen=='world' and MopAction.active(R.World.player)
+                    and initialPose and initialPose.routine=='mop' and initialPose.frame==1
+                    and initialPose.region==region and not c.cleaned[region])
+            R.World.update(.2,0,0,R.Assets,R.state,nil,nil,0)
+            local movingPose=MopAction.pose(R.World.player)
+            check('story_restoration_'..region..'_mop_uses_sweep_cycle',movingPose
+                and movingPose.frame==2 and pcall(MopAction.draw,R.World.player))
+            for _=1,math.ceil(MopAction.DURATION/.1) do
+                if not MopAction.active(R.World.player) then break end
+                R.World.update(.1,0,0,R.Assets,R.state,nil,nil,0)
+            end
             check('story_restoration_'..region..'_saved_after_cleanup',
-                c.cleaned[region] and Condition.stage(R.state)==index
+                c.cleaned[region] and R.state.screen=='shop_rooms' and not MopAction.active(R.World.player)
+                    and Condition.stage(R.state)==index
                     and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.cleaned[region])
             Controls.keypressed('escape',R)
         end

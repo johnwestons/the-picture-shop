@@ -97,7 +97,8 @@ function Component.install(Runtime)
         local valid, shapeError = Runtime.shape(value, label, Runtime.PLAYER_FIELDS,
             { "furColorway", "overallsColorway", "sceneId", "resting", "taskAction" })
         if not valid then return nil, shapeError end
-        if value.sceneId~=nil and value.sceneId~='commute' and value.sceneId~='grocery' and not require("src.shop_rooms").IDS[value.sceneId] then
+        if value.sceneId~=nil and value.sceneId~='commute' and value.sceneId~='grocery'
+            and value.sceneId~='barn' and not require("src.shop_rooms").IDS[value.sceneId] then
             return nil,label..".sceneId is invalid"
         end
         if value.resting~=nil and type(value.resting)~="boolean" then return nil,label..".resting is invalid" end

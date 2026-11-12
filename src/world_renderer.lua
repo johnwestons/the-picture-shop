@@ -474,6 +474,7 @@ local pushFacing = {
 
 local function drawPlayer(characterAssets,state)
     local player = World.player
+    if require("src.warehouse_mop_action").draw(player) then return end
     if require('src.commute.presentation').indoor(player,state,characterAssets) then return end
     if require("src.basketball_renderer").draw(player,state) then return end
     local character = player.character or Config.player.character

@@ -161,6 +161,35 @@ function Test.run(context,check)
             not R._commute.mapOpen and C.activeWaypoint(R)==chosen)
         click(C.mapButton(R))
         check('route_map_pc_button_opens_map',R._commute.mapOpen==true)
+        local RouteMap=require('src.commute.route_map')
+        local mapRect=C.mapRect(R);local mapButton=C.mapButton(R)
+        local mobile=C.mobileInputEnabled(R)
+        local mapOptions=map:uiOptions(mobile,mapButton.x-8)
+        mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
+        local mapLayout=RouteMap.layout(mapRect,#map.entries,mapOptions)
+        local controls=map:controlRects(mapRect,mapLayout)
+        local beforeZoom=map.mainZoom
+        tap(controls.zoomIn)
+        check('route_map_touch_zoom_control_zooms_full_map',map.mainZoom>beforeZoom)
+        local beforeWheel=map.mainZoom
+        local mapX=mapLayout.map.x+mapLayout.map.width*.5
+        local mapY=mapLayout.map.y+mapLayout.map.height*.5
+        check('route_map_wheel_zoom_changes_full_map_scale',C.mapWheel(R,mapX,mapY,1)
+            and map.mainZoom>beforeWheel)
+        local panPoint
+        for y=mapLayout.map.y+20,mapLayout.map.y+mapLayout.map.height-20,24 do
+            for x=mapLayout.map.x+20,mapLayout.map.x+mapLayout.map.width-20,24 do
+                if not map:hit(mapRect,x,y,observed.actor,mapOptions) then panPoint={x=x,y=y};break end
+            end
+            if panPoint then break end
+        end
+        local oldCenter=map.mainCenter and {x=map.mainCenter.x,z=map.mainCenter.z}
+        local panStarted=panPoint and C.mapPointer(R,panPoint.x,panPoint.y,'route-map-test-pan')
+        local panMoved=panStarted and C.mapPointerMoved(R,panPoint.x+24,panPoint.y+12,'route-map-test-pan')
+        C.finishMainMapPan(R,'route-map-test-pan')
+        check('route_map_drag_pans_zoomed_view_without_stale_drag',panMoved and oldCenter and map.mainCenter
+            and (math.abs(map.mainCenter.x-oldCenter.x)+math.abs(map.mainCenter.z-oldCenter.z)>.01)
+            and R._commute.mainMapDrag==nil)
         tap(C.mapButton(R))
         check('route_map_touch_button_closes_map',not R._commute.mapOpen)
         tap(C.mapButton(R));R.App.keypressed('escape')

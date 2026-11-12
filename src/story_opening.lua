@@ -163,7 +163,7 @@ function Opening.finish(R,skip)
         c.openingSeen=true
         if skip then c.grandpaMet=true end
         R.state.message=skip and 'You have the shop keys. The town is yours to explore.'
-            or 'You have arrived at Miller Farm. Walk to Grandpa on the house porch.'
+            or 'You have arrived at Miller Farm. Walk to the barn and meet Grandpa inside.'
         if R.multiplayer:isHost() then R.multiplayer:markShopDirty(true) end
         if not R.multiplayer:isClient() then
             local saved=R.saveCurrent(true)

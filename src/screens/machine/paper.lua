@@ -16,10 +16,12 @@ function Component.install(Runtime)
             options[#options + 1] = {
                 palletId = candidate.pallet.id,
                 title = candidate.pallet.id .. "  |  " .. tostring(candidate.job.company or candidate.job.id),
-                detail = string.format("%s  |  %d sheets  |  %.0f px from feed zone",
+                detail = string.format("%s  |  %d sheets  |  %d lifts\n%.2f x %.2f -> %.2f x %.2f in",
                     tostring(candidate.paper.artworkKey or "artwork"),
                     candidate.pallet.remainingSheets or candidate.pallet.initialSheets or 0,
-                    math.sqrt(candidate.inputDistance or 0)),
+                    candidate.pallet.requiredLifts or 1,
+                    candidate.paper.sourceSize.width,candidate.paper.sourceSize.height,
+                    candidate.paper.finishedSize.width,candidate.paper.finishedSize.height),
                 x = world.x, y = world.y,
             }
         end

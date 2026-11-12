@@ -18,16 +18,32 @@ Map.bounds=bounds
 function Map.layout(rect,count,options)
     options=options or {}
     local mobile=options.mobile==true
+    local sidePanel=not mobile or (rect.width>=850 and rect.width>=rect.height*1.18)
     local compact=rect.width<740 or (options.headerRight and options.headerRight-(rect.x+172)<320) or false
     local showPlaces=mobile and options.showPlaces==true or (not mobile and options.showPlaces~=false)
     local pad=mobile and 14 or 18
-    local headerHeight=compact and (mobile and 116 or 110) or (mobile and 66 or 62)
+    local headerHeight=sidePanel and 40 or compact and (mobile and 116 or 110) or (mobile and 66 or 62)
     local footerHeight=mobile and 38 or 48
     local contentTop=rect.y+headerHeight
     local footerY=rect.y+rect.height-footerHeight
     local availableHeight=math.max(80,footerY-contentTop-pad)
     local key,map,rows,columns,rowHeight,columnWidth,pageSize,pageCount
-    if mobile then
+    local keyHeaderHeight
+    if sidePanel then
+        local sideWidth=clamp(rect.width*.32,mobile and 300 or 250,mobile and 460 or 390)
+        sideWidth=math.min(sideWidth,rect.width*.42)
+        local gap=pad
+        map={x=rect.x+pad,y=contentTop,
+            width=math.max(80,rect.width-sideWidth-gap-pad*2),height=availableHeight}
+        key={x=map.x+map.width+gap,y=contentTop,width=sideWidth,height=availableHeight}
+        keyHeaderHeight=mobile and 146 or 132
+        local listHeight=math.max(0,key.height-keyHeaderHeight-12)
+        local targetRow=mobile and 60 or 46
+        rows=math.max(1,math.floor(listHeight/targetRow))
+        columns=1;rowHeight=listHeight/rows;columnWidth=key.width
+        pageSize=rows
+        pageCount=showPlaces and math.max(1,math.ceil((count or 0)/pageSize)) or 1
+    elseif mobile then
         local mapHeight=showPlaces and math.max(120,availableHeight*.57) or availableHeight
         mapHeight=math.min(availableHeight,mapHeight)
         map={x=rect.x+pad,y=contentTop,width=rect.width-pad*2,height=mapHeight}
@@ -40,8 +56,10 @@ function Map.layout(rect,count,options)
             columns=2;rowHeight=listHeight/rows;columnWidth=key.width/columns
             pageSize=rows*columns
             pageCount=math.max(1,math.ceil((count or 0)/pageSize))
+            keyHeaderHeight=42
         else
             rows=1;columns=1;rowHeight=0;columnWidth=0;pageSize=0;pageCount=1
+            keyHeaderHeight=42
         end
     else
         local contentHeight=availableHeight
@@ -54,18 +72,45 @@ function Map.layout(rect,count,options)
         rowHeight=math.max(36,contentHeight-46)/rows;columnWidth=keyWidth>0 and keyWidth/columns or 0
         pageSize=options.paginatePlaces and rows*columns or (count or 0)
         pageCount=options.paginatePlaces and math.max(1,math.ceil((count or 0)/pageSize)) or 1
+        keyHeaderHeight=42
     end
     local page=math.max(1,math.min(pageCount,math.floor(options.placesPage or 1)))
     return {panel=rect,map=map,key=key,columns=columns,rows=rows,rowHeight=rowHeight,
         columnWidth=columnWidth,footerY=footerY,footerHeight=footerHeight,
-        headerHeight=headerHeight,mobile=mobile,showPlaces=showPlaces,page=page,
-        pageSize=pageSize,pageCount=pageCount,keyHeaderHeight=42,
+        headerHeight=headerHeight,mobile=mobile,sidePanel=sidePanel,showPlaces=showPlaces,page=page,
+        pageSize=pageSize,pageCount=pageCount,keyHeaderHeight=keyHeaderHeight or 42,
         headerRight=options.headerRight,compact=compact}
 end
 local function fitted(world,rect)
     local b=bounds(world);local scale=math.min(rect.width/(b.x1-b.x0),rect.height/(b.z1-b.z0))
     return {x=rect.x+(rect.width-(b.x1-b.x0)*scale)*.5,y=rect.y+(rect.height-(b.z1-b.z0)*scale)*.5,
         width=(b.x1-b.x0)*scale,height=(b.z1-b.z0)*scale,scale=scale,bounds=b}
+end
+local function boundedCenter(rect,b,scale,center)
+    local halfX=rect.width/(2*scale);local halfZ=rect.height/(2*scale)
+    local centerX=finite(center and center.x,(b.x0+b.x1)*.5)
+    local centerZ=finite(center and center.z,(b.z0+b.z1)*.5)
+    if halfX*2>=b.x1-b.x0 then centerX=(b.x0+b.x1)*.5
+    else centerX=clamp(centerX,b.x0+halfX,b.x1-halfX)end
+    if halfZ*2>=b.z1-b.z0 then centerZ=(b.z0+b.z1)*.5
+    else centerZ=clamp(centerZ,b.z0+halfZ,b.z1-halfZ)end
+    return centerX,centerZ
+end
+local function viewportAt(world,rect,zoom,center)
+    local v=fitted(world,rect)
+    zoom=math.max(1,finite(zoom,1))
+    if zoom<=1 then return v end
+    local b=v.bounds
+    v.scale=v.scale*zoom
+    local centerX,centerZ=boundedCenter(rect,b,v.scale,center)
+    v.width=(b.x1-b.x0)*v.scale;v.height=(b.z1-b.z0)*v.scale
+    v.x=rect.x+rect.width*.5-(centerX-b.x0)*v.scale
+    v.y=rect.y+rect.height*.5-(centerZ-b.z0)*v.scale
+    v.centerX=centerX;v.centerZ=centerZ
+    return v
+end
+local function projectViewport(v,x,z)
+    return v.x+(x-v.bounds.x0)*v.scale,v.y+(z-v.bounds.z0)*v.scale
 end
 function Map.project(world,rect,x,z)
     local v=fitted(world,rect)
@@ -76,7 +121,7 @@ function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/
 function Map.new(world)
     local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
         mapBounds=bounds(world),miniLevel=4,miniFollow=true,miniAuto=true,numbersVisible=true,
-        desktopPlacesOpen=true,mobilePlacesOpen=false,placesPage=1},Map)
+        desktopPlacesOpen=true,mobilePlacesOpen=true,placesPage=1,mainZoom=1,mainCenter=nil},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
         local destination=destinations[site.id]
@@ -95,24 +140,32 @@ end
 function Map:snapshot(rect,actor,options)
     options=options or {};actor=actor or {}
     local layout=Map.layout(rect,#self.entries,options)
-    local x,y,viewport=Map.project(self.world,layout.map,finite(actor.x,0),finite(actor.z,0))
+    local viewport=viewportAt(self.world,layout.map,self.mainZoom,self.mainCenter)
+    local function project(x,z)return projectViewport(viewport,x,z)end
+    local x,y=project(finite(actor.x,0),finite(actor.z,0))
+    x=clamp(x,layout.map.x+12,layout.map.x+layout.map.width-12)
+    y=clamp(y,layout.map.y+12,layout.map.y+layout.map.height-12)
     local heading=finite(actor.heading,0);local dx,dz=math.cos(heading),math.sin(heading)
     local result={layout=layout,viewport=viewport,marker={x=x,y=y,heading=heading,dx=dx,dz=dz,
         tipX=x+dx*13,tipY=y+dz*13,label=Map.headingLabel(heading)},buildings={},recreation={}}
     local placed={}
     local function free(bx,by)
-        if bx<viewport.x+9 or bx>viewport.x+viewport.width-9 or by<viewport.y+9 or by>viewport.y+viewport.height-9 then return false end
+        if bx<layout.map.x+9 or bx>layout.map.x+layout.map.width-9
+            or by<layout.map.y+9 or by>layout.map.y+layout.map.height-9 then return false end
         for _,p in ipairs(placed)do if math.abs(p.x-bx)<20 and math.abs(p.y-by)<20 then return false end end
         return true
     end
     for i,entry in ipairs(self.entries)do
-        local site=entry.site;local ax,ay=Map.project(self.world,layout.map,site.x or site.origin.x,site.z or site.origin.z)
-        local bx,by=clamp(ax,viewport.x+9,viewport.x+viewport.width-9),clamp(ay,viewport.y+9,viewport.y+viewport.height-9)
+        local site=entry.site;local ax,ay=project(site.x or site.origin.x,site.z or site.origin.z)
+        local bx,by=clamp(ax,layout.map.x+9,layout.map.x+layout.map.width-9),
+            clamp(ay,layout.map.y+9,layout.map.y+layout.map.height-9)
         if not free(bx,by)then
             local found=false
             for radius=20,80,20 do
                 for step=0,7 do
                     local angle=step*math.pi/4;local nx,ny=ax+math.cos(angle)*radius,ay+math.sin(angle)*radius
+                    nx,ny=clamp(nx,layout.map.x+9,layout.map.x+layout.map.width-9),
+                        clamp(ny,layout.map.y+9,layout.map.y+layout.map.height-9)
                     if free(nx,ny)then bx,by=nx,ny;found=true;break end
                 end
                 if found then break end
@@ -133,8 +186,8 @@ function Map:snapshot(rect,actor,options)
             column=math.floor((i-1)/layout.rows);row=(i-1)%layout.rows
         end
         local keyRect
-        if layout.key and column and row then
-            local keyY=layout.key.y+(layout.mobile and layout.keyHeaderHeight or 0)
+        if layout.key and layout.showPlaces and column and row then
+            local keyY=layout.key.y+layout.keyHeaderHeight
             keyRect={x=layout.key.x+column*layout.columnWidth+3,
                 y=keyY+row*layout.rowHeight+2,width=layout.columnWidth-6,height=layout.rowHeight-4}
         end
@@ -143,14 +196,38 @@ function Map:snapshot(rect,actor,options)
             keyRect=keyRect}
     end
     if options.bike then
-        local bx,by=Map.project(self.world,layout.map,options.bike.x,options.bike.z)
+        local bx,by=project(options.bike.x,options.bike.z)
         result.bike={x=bx,y=by}
     end
     for _,area in ipairs(self.world.town and self.world.town.recreation or {})do
-        local px,py=Map.project(self.world,layout.map,area.x,area.z)
+        local px,py=project(area.x,area.z)
         result.recreation[#result.recreation+1]={id=area.id,x=px,y=py,kind=area.kind,label=area.label}
     end
     return result
+end
+function Map:zoomMain(direction,actor)
+    local old=self.mainZoom or 1
+    local nextZoom=clamp(old*(direction>0 and 1.5 or 1/1.5),1,6)
+    if old<=1 and nextZoom>1 then
+        local b=self.mapBounds
+        self.mainCenter={x=clamp(finite(actor and actor.x,(b.x0+b.x1)*.5),b.x0,b.x1),
+            z=clamp(finite(actor and actor.z,(b.z0+b.z1)*.5),b.z0,b.z1)}
+    end
+    self.mainZoom=nextZoom
+    if nextZoom<=1 then self.mainZoom=1;self.mainCenter=nil end
+    return self.mainZoom
+end
+function Map:fitMain()
+    self.mainZoom=1;self.mainCenter=nil
+end
+function Map:panMain(dx,dy,rect)
+    local viewport=viewportAt(self.world,rect,self.mainZoom,self.mainCenter)
+    if viewport.scale<=0 then return end
+    local b=viewport.bounds
+    local centerX,centerZ=boundedCenter(rect,b,viewport.scale,{
+        x=viewport.centerX or (b.x0+b.x1)*.5,z=viewport.centerZ or (b.z0+b.z1)*.5})
+    local nextX,nextZ=boundedCenter(rect,b,viewport.scale,{x=centerX-dx/viewport.scale,z=centerZ-dy/viewport.scale})
+    self.mainCenter={x=nextX,z=nextZ}
 end
 function Map:label(id)
     for _,entry in ipairs(self.entries) do if entry.id==id then return entry.label end end
@@ -350,6 +427,27 @@ local function contains(rect,x,y)
 end
 function Map:controlRects(rect,layout)
     local mobile=layout.mobile
+    if layout.sidePanel then
+        local key=layout.key
+        local gap=6
+        local inner=math.max(80,key.width-20)
+        local buttonWidth=(inner-gap)/2
+        local height=mobile and 46 or 42
+        local x=key.x+10
+        local y=key.y+9
+        local controls={labels={x=x,y=y,width=buttonWidth,height=height},
+            places={x=x+buttonWidth+gap,y=y,width=buttonWidth,height=height}}
+        local zoomY=key.y+(mobile and 61 or 57)
+        controls.zoomOut={x=x,y=zoomY,width=42,height=34}
+        controls.zoomIn={x=x+48,y=zoomY,width=42,height=34}
+        controls.fit={x=x+96,y=zoomY,width=66,height=34}
+        if layout.showPlaces and layout.pageCount>1 then
+            local pageY=key.y+(mobile and 104 or 92)
+            controls.previous={x=key.x+key.width-104,y=pageY,width=44,height=34}
+            controls.next={x=key.x+key.width-54,y=pageY,width=44,height=34}
+        end
+        return controls
+    end
     local closeReserve=mobile and 158 or 156
     local firstX=layout.compact and rect.x+16 or rect.x+172
     local lastX=layout.compact and rect.x+rect.width-16
@@ -367,6 +465,13 @@ function Map:controlRects(rect,layout)
     local y=rect.y+(layout.compact and 58 or 9)
     local controls={labels={x=firstX,y=y,width=labelsWidth,height=height},
         places={x=firstX+labelsWidth+gap,y=y,width=placesWidth,height=height}}
+    if mobile then
+        local map=layout.map
+        local zoomY=map.y+map.height-42
+        controls.zoomOut={x=map.x+map.width-142,y=zoomY,width=38,height=34}
+        controls.zoomIn={x=map.x+map.width-98,y=zoomY,width=38,height=34}
+        controls.fit={x=map.x+map.width-54,y=zoomY,width=50,height=34}
+    end
     if layout.key and layout.pageCount>1 then
         local py=layout.key.y+3
         controls.previous={x=layout.key.x+layout.key.width-107,y=py,width=48,height=34}
@@ -374,7 +479,7 @@ function Map:controlRects(rect,layout)
     end
     return controls
 end
-function Map:pressControl(rect,x,y,mobile,headerRight)
+function Map:pressControl(rect,x,y,mobile,headerRight,actor)
     local ui=self:uiOptions(mobile,headerRight)
     local layout=Map.layout(rect,#self.entries,ui)
     local controls=self:controlRects(rect,layout)
@@ -386,6 +491,9 @@ function Map:pressControl(rect,x,y,mobile,headerRight)
         self.placesPage=math.min(self.placesPage,nextLayout.pageCount)
         return true
     end
+    if contains(controls.zoomOut,x,y) then self:zoomMain(-1,actor);return true end
+    if contains(controls.zoomIn,x,y) then self:zoomMain(1,actor);return true end
+    if contains(controls.fit,x,y) then self:fitMain();return true end
     if contains(controls.previous,x,y) then
         self.placesPage=math.max(1,self.placesPage-1);return true
     end
@@ -444,13 +552,36 @@ function Map:draw(rect,actor,options)
         g.setFont(font);g.setColor(.96,.97,.90,1)
         g.printf(label,b.x+4,b.y+(b.height-font:getHeight())/2,b.width-8,'center')
     end
-    button(controls.labels,self.numbersVisible and 'NUMBERS: ON' or 'NUMBERS: OFF',self.numbersVisible)
     local placesOpen=mobile and self.mobilePlacesOpen or (not mobile and self.desktopPlacesOpen)
-    button(controls.places,placesOpen and 'HIDE PLACES' or 'PLACES',placesOpen)
-    if controls.previous then
-        button(controls.previous,'<',s.layout.page>1)
-        button(controls.next,'>',s.layout.page<s.layout.pageCount)
+    local function drawControls()
+        button(controls.labels,self.numbersVisible and 'NUMBERS: ON' or 'NUMBERS: OFF',self.numbersVisible)
+        button(controls.places,placesOpen and 'HIDE PLACES' or 'SHOW PLACES',placesOpen)
+        if s.layout.sidePanel then
+            button(controls.zoomOut,'−',self.mainZoom>1)
+            button(controls.zoomIn,'+',self.mainZoom<6)
+            button(controls.fit,'FIT',self.mainZoom==1)
+            g.setFont(self:font(12));g.setColor(.76,.85,.79,1)
+            g.print(('ZOOM %.1fx'):format(self.mainZoom),s.layout.key.x+174,s.layout.key.y+(mobile and 71 or 67))
+        end
+        if controls.previous then
+            button(controls.previous,'<',s.layout.page>1)
+            button(controls.next,'>',s.layout.page<s.layout.pageCount)
+        end
     end
+    local function drawKeyPanel()
+        if not s.layout.key then return end
+        g.setColor(.035,.065,.06,.98)
+        g.rectangle('fill',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
+        g.setColor(.37,.52,.46,1);g.setLineWidth(1)
+        g.rectangle('line',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
+    end
+    local function clipMap()
+        local x,y=g.transformPoint(s.layout.map.x,s.layout.map.y)
+        local ex,ey=g.transformPoint(s.layout.map.x+s.layout.map.width,s.layout.map.y+s.layout.map.height)
+        g.intersectScissor(x,y,ex-x,ey-y)
+    end
+    if s.layout.sidePanel then drawKeyPanel();drawControls() end
+    clipMap()
     g.setColor(1,1,1);g.draw(self.background,v.x,v.y,0,v.width/512,v.height/512)
     g.setColor(.44,.56,.51,1);g.rectangle('line',v.x,v.y,v.width,v.height)
     if options.route and options.route.points then
@@ -462,15 +593,10 @@ function Map:draw(rect,actor,options)
         if #points>=4 then g.setColor(.98,.65,.20,.9);g.setLineWidth(3);g.line(points)end
     end
     drawTraffic(g,s,options.traffic,false)
-    if s.layout.key then
-        g.setColor(.035,.065,.06,.98);g.rectangle('fill',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
-        g.setColor(.37,.52,.46,1);g.setLineWidth(1);g.rectangle('line',s.layout.key.x,s.layout.key.y,s.layout.key.width,s.layout.key.height,6)
-    end
     local numberFont=self:font(mobile and 15 or 14)
     local labelFont=self:font(mobile and 17 or (s.layout.columns>2 and 14 or 16))
     for _,entry in ipairs(s.buildings)do
         local color=entry.destination and {1,.73,.24,1} or entry.home and {.55,.91,.61,1} or {.81,.89,.85,1}
-        local key=entry.keyRect
         if options.showNumbers~=false then
             g.setColor(color);g.setLineWidth(1.5);g.line(entry.anchorX,entry.anchorY,entry.x,entry.y)
             if entry.destination or entry.home then g.circle('line',entry.anchorX,entry.anchorY,14)end
@@ -480,6 +606,12 @@ function Map:draw(rect,actor,options)
             g.setColor(color);g.circle('fill',entry.anchorX,entry.anchorY,5)
             if entry.destination or entry.home then g.setLineWidth(2);g.circle('line',entry.anchorX,entry.anchorY,11)end
         end
+    end
+    g.setScissor()
+    if s.layout.key and not s.layout.sidePanel then drawKeyPanel() end
+    for _,entry in ipairs(s.buildings)do
+        local color=entry.destination and {1,.73,.24,1} or entry.home and {.55,.91,.61,1} or {.81,.89,.85,1}
+        local key=entry.keyRect
         if key then
             g.setColor(.055,.09,.085,.96);g.rectangle('fill',key.x,key.y,key.width,key.height,4)
             if entry.destination or entry.home then g.setColor(color[1],color[2],color[3],.14);g.rectangle('fill',key.x,key.y,key.width,key.height,4)end
@@ -497,7 +629,14 @@ function Map:draw(rect,actor,options)
     end
     if s.layout.key then
         g.setFont(self:font(mobile and 16 or 17));g.setColor(.94,.90,.75,1)
-        if s.layout.pageCount>1 then
+        if s.layout.sidePanel then
+            local header=placesOpen and (s.layout.pageCount>1
+                and ('PLACES  %d / %d'):format(s.layout.page,s.layout.pageCount) or 'DESTINATIONS') or 'PLACES HIDDEN'
+            local headerY=s.layout.key.y+(mobile and 108 or 96)
+            local headerWidth=s.layout.key.width-(controls.previous and 126 or 20)
+            g.setFont(self:font(mobile and 16 or 15))
+            g.printf(header,s.layout.key.x+12,headerY,headerWidth,'left')
+        elseif s.layout.pageCount>1 then
             g.print(('DESTINATIONS  ·  %d / %d'):format(s.layout.page,s.layout.pageCount),s.layout.key.x+12,s.layout.key.y+8)
         elseif mobile then
             g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+8)
@@ -505,28 +644,33 @@ function Map:draw(rect,actor,options)
             g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+9)
         end
     end
+    clipMap()
     for _,area in ipairs(s.recreation)do
         g.setColor(.055,.15,.09,1);g.circle('fill',area.x,area.y,9)
         g.setColor(.65,.95,.67,1);g.setLineWidth(1.5);g.circle('line',area.x,area.y,9)
         g.setFont(self:font(13));g.printf(area.kind=='camp' and 'C' or 'P',area.x-9,area.y-7,18,'center')
         local label=area.label or (area.kind=='camp' and 'Campsite' or area.kind=='park' and 'Park' or 'Picnic area')
         local font=self:font(13);local width=math.min(180,font:getWidth(label)+12)
-        local x=clamp(area.x+12,v.x+2,v.x+v.width-width-2)
-        local y=clamp(area.y-9,v.y+2,v.y+v.height-20)
+        local x=clamp(area.x+12,s.layout.map.x+2,s.layout.map.x+s.layout.map.width-width-2)
+        local y=clamp(area.y-9,s.layout.map.y+2,s.layout.map.y+s.layout.map.height-20)
         g.setColor(.025,.06,.04,.96);g.rectangle('fill',x,y,width,19,3)
         g.setColor(.75,.95,.70);g.setFont(font);g.printf(label,x+5,y+1,width-10,'left')
     end
     if s.bike then
         g.setColor(.93,.91,.71,1);g.setLineWidth(2);g.rectangle('line',s.bike.x-4,s.bike.y-4,8,8)
-        g.setFont(self:font(13));g.print('BIKE',clamp(s.bike.x-34,v.x+2,v.x+v.width-42),clamp(s.bike.y+9,v.y+2,v.y+v.height-16))
+        g.setFont(self:font(13));g.print('BIKE',clamp(s.bike.x-34,s.layout.map.x+2,s.layout.map.x+s.layout.map.width-42),
+            clamp(s.bike.y+9,s.layout.map.y+2,s.layout.map.y+s.layout.map.height-16))
     end
     local m=s.marker;local points={m.tipX,m.tipY,m.x-m.dx*8-m.dz*7,m.y-m.dz*8+m.dx*7,
         m.x-m.dx*4,m.y-m.dz*4,m.x-m.dx*8+m.dz*7,m.y-m.dz*8-m.dx*7}
     g.setColor(.01,.04,.05,1);g.setLineWidth(4);g.polygon('line',points)
     g.setColor(.24,1,.94,1);g.polygon('fill',points)
-    local lx,ly=clamp(m.x+15,v.x+3,v.x+v.width-42),clamp(m.y-25,v.y+3,v.y+v.height-20)
+    local lx,ly=clamp(m.x+15,s.layout.map.x+3,s.layout.map.x+s.layout.map.width-42),
+        clamp(m.y-25,s.layout.map.y+3,s.layout.map.y+s.layout.map.height-20)
     g.setColor(.02,.06,.06,.95);g.rectangle('fill',lx-3,ly-2,42,20,4)
     g.setColor(.24,1,.94,1);g.setFont(self:font(14));g.print('YOU',lx,ly)
+    g.setScissor()
+    if not s.layout.sidePanel then drawControls() end
     local footerFont=mobile and 15 or 16
     g.setFont(self:font(footerFont));g.setColor(.24,1,.94,1)
     g.print('YOU  ·  Heading '..m.label,rect.x+16,s.layout.footerY)

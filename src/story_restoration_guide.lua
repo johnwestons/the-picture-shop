@@ -17,7 +17,7 @@ local function nextStep(state)
     for _,region in ipairs({"west","center","east"}) do
         if not c.cleaned[region] then return "clean-"..region,"Clean the "..region.." floor",
             "Move through the "..region.." floor area and clean it.",
-            "The mottled grime and old standing water clear region by region. Stand near the area you want to clean, then use the restoration checklist. Dirty and wet footprints fade on their own." end
+            "The mottled grime and old standing water clear region by region. Stand in the area, choose it in the restoration checklist, and the mop will clean it before the floor changes. Dirty and wet footprints fade on their own." end
     end
     if not c.repainted then return "paint","Touch up the shop",
         "Repair the worn wall and shelf paint.",

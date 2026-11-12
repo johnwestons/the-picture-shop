@@ -31,7 +31,7 @@ Sites.designs={
 }
 -- Story-only porch approach, kept outside saved town designs so old seeds
 -- retain the same farm footprint and road placement.
-Sites.farmStory={porch={x=12,z=-5.5},walk={{x=0,z=20},{x=0,z=0},{x=12,z=-5.5}}}
+Sites.farmStory={barnDoor={x=-10.5,z=.5},walk={{x=0,z=20},{x=0,z=0},{x=-10.5,z=.5}}}
 -- Keep dock routing metadata outside the serialized structure design so old
 -- seeded towns retain their original fingerprints and road layouts.
 Sites.warehouseTruckLayout={

@@ -1,6 +1,7 @@
 local Scale=require('src.commute.rider_scale')
 local Config=require('src.config')
 local GearArt=require('src.commute.gear_action_art')
+local Gear=require('src.commute.gear')
 local Test={}
 local function near(a,b) return math.abs(a-b)<.000001 end
 
@@ -66,6 +67,19 @@ function Test.run(check)
             gearOkay=gearOkay and draws[1] and draws[1].image=='gear' and near(draws[1].sy*height,80)
         end
         check('commute_dressing_and_removal_share_road_stature',gearOkay)
+
+        local changing=Gear.new()
+        assert(Gear.begin(changing,'equip',{nearBike=true,moving=false,speed=0}))
+        Gear.update(changing,.6)
+        local staleCutscenePose={pose='normal_idle',progress=0}
+        draws={}
+        P.world(assets,actor,camera,world,changing,appearance,staleCutscenePose)
+        local worldKeepsAction=draws[1] and draws[1].image=='gear' and draws[1].quad=='suit_on'
+        draws={}
+        P.foot(0,0,1,changing,0,0,staleCutscenePose,appearance)
+        local footKeepsAction=draws[1] and draws[1].image=='gear' and draws[1].quad=='suit_on'
+        check('commute_live_gear_animation_overrides_stale_cutscene_pose',
+            worldKeepsAction and footKeepsAction)
 
         Config.player.drawScale=.13;draws={}
         P.world(assets,actor,camera,world,{outfit='geared'},appearance)

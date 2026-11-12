@@ -143,6 +143,60 @@ local services = {'fire-station', 'grocery', 'police', 'mechanic', 'general-stor
 local sideStreetLots = {'courtyard', 'garden', 'brick-walkup', 'corner', 'warehouse', 'residential-1', 'residential-2', 'residential-3'}
 local function gridIndex(row, column) return (row-1)*4+column end
 
+local function countryComponents(gaps)
+    local ordered={}
+    for index in pairs(gaps) do ordered[#ordered+1]=index end
+    table.sort(ordered)
+    local components={}
+    for index,gap in ipairs(ordered) do
+        local stop=ordered[index%#ordered+1]
+        local component={}
+        local node=gap%10+1
+        while true do
+            component[#component+1]=node
+            if node==stop then break end
+            node=node%10+1
+        end
+        components[#components+1]=component
+    end
+    return components
+end
+
+local function dryCenter(rng,plan,frame)
+    local phase=rng(0,math.pi*2)
+    if plan:height(frame.x,frame.z)>.9 then
+        return {Frontage.round(frame.x),Frontage.round(frame.z),Frontage.round(plan:landHeight(frame.x,frame.z))}
+    end
+    for radius=8,104,8 do
+        for step=0,15 do
+            local angle=phase+step*math.pi/8
+            local x,z=frame.x+math.cos(angle)*radius,frame.z+math.sin(angle)*radius
+            if plan:height(x,z)>.9 then
+                return {Frontage.round(x),Frontage.round(z),Frontage.round(plan:landHeight(x,z))}
+            end
+        end
+    end
+    return nil
+end
+
+local function dryRoadJunction(hub,outer,plan,rng,minimum,maximum)
+    minimum,maximum=minimum or .48,maximum or .98
+    local preferred=rng(minimum,maximum)
+    local best,bestScore
+    for step=0,23 do
+        local ratio=minimum+(maximum-minimum)*step/23
+        local x,z=M.lerp(hub[1],outer[1],ratio),M.lerp(hub[2],outer[2],ratio)
+        if plan:height(x,z)>.9 then
+            local score=math.abs(ratio-preferred)
+            if not bestScore or score<bestScore then
+                best={Frontage.round(x),Frontage.round(z),Frontage.round(plan:landHeight(x,z))}
+                bestScore=score
+            end
+        end
+    end
+    return best
+end
+
 local function createNodes(rng, frame, plan, generatorVersion, settings, countryBypass)
     local nodes = {}
     local roads=settings and settings.roads or 2
@@ -155,12 +209,54 @@ local function createNodes(rng, frame, plan, generatorVersion, settings, country
             local dx,dz=math.cos(angle),math.sin(angle)
             local reach=155
             for radius=160,215,5 do
-                if plan:shoreDistance(256+dx*radius,256+dz*radius)>44 then reach=radius else break end
+                if plan:shoreDistance(frame.x+dx*radius,frame.z+dz*radius)>44 then reach=radius else break end
             end
-            local radius=reach-rng(0,38)
-            local x,z=256+dx*radius,256+dz*radius
+            local radius=reach-rng(0,generatorVersion>=13 and 24 or 38)
+            local x,z=frame.x+dx*radius,frame.z+dz*radius
             assert(plan:height(x,z)>.9,'Country road junction touches a waterway')
             nodes[i]={Frontage.round(x),Frontage.round(z),Frontage.round(plan:landHeight(x,z))}
+        end
+        if generatorVersion>=13 then
+            -- Break the old perimeter ring into rural arcs, with uneven arc
+            -- lengths on some seeds so the network does not repeat a circuit.
+            local gaps={}
+            local offset=math.floor(rng(1,10))
+            local gapSteps=rng()<.5 and {0,2,5,7} or {0,2,4,6,8}
+            for _,step in ipairs(gapSteps) do gaps[(offset+step-1)%10+1]=true end
+            local components=countryComponents(gaps)
+            local firstHub=dryCenter(rng,plan,frame)
+            assert(firstHub,'Country road crossroad could not be placed on dry ground')
+            nodes[11]=firstHub
+            local order={}
+            for componentIndex,component in ipairs(components) do
+                local target=nodes[component[math.ceil(#component/2)]]
+                order[#order+1]={index=componentIndex,distance=M.length(target[1]-firstHub[1],target[2]-firstHub[2])}
+            end
+            table.sort(order,function(a,b)
+                if a.distance~=b.distance then return a.distance>b.distance end
+                return a.index<b.index
+            end)
+            local secondHubComponent=order[1].index
+            local secondHubTarget=components[secondHubComponent][math.ceil(#components[secondHubComponent]/2)]
+            local secondHub=dryRoadJunction(firstHub,nodes[secondHubTarget],plan,rng,.38,.74)
+            assert(secondHub,'Country road second crossroads could not be placed on dry ground')
+            nodes[12]=secondHub
+            local firstHubComponents={}
+            for index=3,#order do firstHubComponents[#firstHubComponents+1]=order[index].index end
+            local secondHubComponents={order[1].index,order[2].index}
+            local mids={}
+            if rng()<.5 then
+                local componentIndex=firstHubComponents[1]
+                local component=components[componentIndex]
+                local outer=nodes[component[math.ceil(#component/2)]]
+                local junction=dryRoadJunction(firstHub,outer,plan,rng,.64,.84)
+                assert(junction,'Country road feeder junction touches a waterway')
+                nodes[13]=junction
+                mids[componentIndex]=13
+            end
+            return nodes,{hubs={11,12},gaps=gaps,components=components,
+                firstHubComponents=firstHubComponents,secondHubComponents=secondHubComponents,
+                mids=mids}
         end
         -- Short inward roads use the middle of the island as well as its rim.
         local first=math.floor(rng(2,5))
@@ -217,6 +313,31 @@ end
 
 local function graph(rng, pattern, density, generatorVersion, branches, countryBypass)
     if density==1 then
+        if generatorVersion>=13 then
+            local edges={}
+            for i=1,10 do
+                if not branches.gaps[i] then edges[#edges+1]={a=i,b=i%10+1,main=false} end
+            end
+            local firstHub,secondHub=branches.hubs[1],branches.hubs[2]
+            for _,componentIndex in ipairs(branches.firstHubComponents) do
+                local component=branches.components[componentIndex]
+                local target=component[math.ceil(#component/2)]
+                local middle=branches.mids[componentIndex]
+                if middle then
+                    edges[#edges+1]={a=firstHub,b=middle,main=true}
+                    edges[#edges+1]={a=middle,b=target,main=false}
+                else
+                    edges[#edges+1]={a=firstHub,b=target,main=true}
+                end
+            end
+            for _,componentIndex in ipairs(branches.secondHubComponents) do
+                local component=branches.components[componentIndex]
+                local target=component[math.ceil(#component/2)]
+                edges[#edges+1]={a=secondHub,b=target,main=true}
+            end
+            edges[#edges+1]={a=firstHub,b=secondHub,main=false}
+            return edges,firstHub,0
+        end
         if generatorVersion>=8 then
             local edges={}
             local gap=countryBypass and math.floor(rng(2,10)) or 0
@@ -288,7 +409,10 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw, branches, cou
     local edges, hub, loops = graph(rng,pattern,settings and settings.roads,result.generatorVersion,branches,countryBypass)
     local scenic=result.generatorVersion>=5
     local curveRandom=Terrain.random(result.seed,91)
-    if scenic then Alignment.prepare(nodes,edges,plan,hub,result.generatorVersion>=12) end
+    local countryRoads=settings and settings.roads==1
+    local realistic=result.generatorVersion>=12
+        and not (result.generatorVersion>=13 and countryRoads)
+    if scenic then Alignment.prepare(nodes,edges,plan,hub,realistic) end
     local main = {pattern=pattern,roadIds={},x=nodes[hub][1],z=nodes[hub][2]}
     local bridges=0
     for index,e in ipairs(edges) do
@@ -311,13 +435,14 @@ local function planStreets(result, rng, nodes, plan, pattern, yaw, branches, cou
             -- entire residential street into a twelve-metre-wide boulevard.
             if hasBridge then width=math.max(width,7.6) end
         elseif hasBridge then width=math.max(12,width) end
+        local roadRole=(e.main or result.generatorVersion>=13 and countryRoads) and 'main' or 'local'
         local road = {id=(e.main and 'main-' or 'street-')..index,
-            role=e.main and 'main' or 'local',surface='paved',lanes=lanes,
+            role=roadRole,surface='paved',lanes=lanes,
             oneWay=e.oneWay==true,turnLane=turnLane,sidewalks=e.main or not e.oneWay,
             width=width,
             interpolation='linear',points=points,bridgeEdges=flags}
         result.roads[#result.roads+1]=road
-        if e.main then main.roadIds[#main.roadIds+1]=road.id end
+        if roadRole=='main' then main.roadIds[#main.roadIds+1]=road.id end
     end
     if scenic then assert(Alignment.connectedOnlyAtNodes(result.roads),'Street curves cross outside a junction') end
     result.topology={nodes=#nodes,edges=#edges,cycles=loops,bridges=bridges,
@@ -508,7 +633,9 @@ end
 
 function Planner.generate(seed,options)
     local pattern=Terrain.random(seed,71)()<.5 and 'strip' or 'crossroads'
-    if options.settings and options.settings.roads==1 then pattern='strip' end
+    if options.settings and options.settings.roads==1 then
+        pattern=(options.generatorVersion or 3)>=13 and 'crossroads' or 'strip'
+    end
     local reason
     local attempts=options.validateCandidate and 47 or 23
     for attemptIndex=0,attempts do

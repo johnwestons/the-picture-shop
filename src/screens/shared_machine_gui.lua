@@ -37,6 +37,10 @@ function Gui.new(resource, getView, presentation, send, machineId)
     machine.autoGauge = function() return send("auto_gauge",{}) end
     machine.saveGauge = function() return send("save_gauge",{}) end
     machine.recallGauge = function() return send("recall_gauge",{}) end
+    machine.guardedCut = function() return send("guarded_cut",{}) end
+    machine.rotate = function(_,direction)
+        return send(direction==1 and "rotate_clockwise" or "rotate_counterclockwise",{})
+    end
     machine.keypressed = function(key)
         local action=({g="auto_gauge",m="save_gauge",v="recall_gauge",q="rotate_paper",p="position_paper",
             j="guarded_cut",k="guarded_cut",x="emergency_stop",r="reset_safety",u="return_to_pallet",t="run_next_lift"})[key]
@@ -87,7 +91,7 @@ function Gui.new(resource, getView, presentation, send, machineId)
                 cutter.orderedBladeGrade = view.orderedBladeGrade ~= "none" and view.orderedBladeGrade or nil
             end
             if view.moneyCents then currentState.money = view.moneyCents / 100 end
-            if not gui.screen.gaugeFocused then gui.screen.syncGauge() end
+            if not gui.screen.gaugeFocused and not gui.screen.gaugeDraft then gui.screen.syncGauge() end
         else
             wrapper.step,wrapper.progress,wrapper.cycleTime=view.step or "idle",view.progress or 0,view.cycleTime or 3
             wrapper.selectedPalletId=view.selectedPalletId
@@ -95,6 +99,7 @@ function Gui.new(resource, getView, presentation, send, machineId)
             wrapper.pallet=active and active.pallet
             wrapper.job=active and active.job
         end
+        if not gui.initialized then gui.screen.enter();gui.initialized=true end
         -- An already-granted service remains visible if another worker uses the
         -- last kit. Only the host decides whether final completion can consume it.
         local stock=currentState.inventory and currentState.inventory.stock
@@ -127,6 +132,9 @@ function Gui.new(resource, getView, presentation, send, machineId)
         if resource=="skid_wrapper" then return key=="l" and wrapper.start() or false end
         if gui.screen.hasModal() or gui.screen.gaugeFocused then return false end
         return machine.keypressed(key)
+    end
+    function gui.mousereleased(state,x,y,button)
+        return gui.screen.mousereleased(gui.sync(state),x,y,button)
     end
     function gui.textinput(text) return gui.screen.textinput(currentState,text) end
     return gui

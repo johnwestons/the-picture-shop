@@ -116,12 +116,12 @@ function Component.run(Context)
         return true
     end
 
-    function Context.Machine.rotate(state)
+    function Context.Machine.rotate(state, turnDirection)
         if not Context.Machine.paper or Context.Machine.clamp then return false end
         if Context.Machine.step ~= "loaded" and Context.Machine.step ~= "positioned" then return false end
-        local direction = Context.PaperWork.rotationDirection(Context.Machine.paper) > 0
+        local direction = (turnDirection or Context.PaperWork.rotationDirection(Context.Machine.paper)) > 0
             and "clockwise" or "counterclockwise"
-        if not Context.PaperWork.rotate(Context.Machine.paper) then return false end
+        if not Context.PaperWork.rotate(Context.Machine.paper, turnDirection) then return false end
         Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
         Context.message(state, string.format("Paper rotated %s to %d°. Rotate again if needed, then push it back in.",
             direction, Context.Machine.paper.orientation))

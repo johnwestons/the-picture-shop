@@ -98,6 +98,8 @@ function Component.run(Context)
         { resourceId = "cutter", action = "save_gauge" },
         { resourceId = "cutter", action = "recall_gauge" },
         { resourceId = "cutter", action = "rotate_paper" },
+        { resourceId = "cutter", action = "rotate_clockwise" },
+        { resourceId = "cutter", action = "rotate_counterclockwise" },
         { resourceId = "cutter", action = "position_paper" },
         { resourceId = "cutter", action = "set_clamp", clamp = true },
         { resourceId = "cutter", action = "set_barrier", barrierClear = false },

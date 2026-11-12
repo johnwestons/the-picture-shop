@@ -4,7 +4,7 @@ local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
-local Town={VERSION=1,GENERATOR_VERSION=12,MIN_SEED=1,MAX_SEED=2147483646}
+local Town={VERSION=1,GENERATOR_VERSION=13,MIN_SEED=1,MAX_SEED=2147483646}
 Town.NAMES={'Cedar Bay','Pine Hollow','Maple Crossing','Willow Creek','Harbor Point'}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated destination labels are part of the seed fingerprint. A player's

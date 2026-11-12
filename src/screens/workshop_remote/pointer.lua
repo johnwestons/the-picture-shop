@@ -12,6 +12,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.Screen.mousereleased(state,x,y,button)
+        if Runtime.Screen.sharedMachine then return Runtime.Screen.sharedMachine.mousereleased(state,x,y,button) end
         local computer=Runtime.Screen.sharedComputer
         if computer and computer.mousereleased then
             return computer.mousereleased(Runtime.Screen.guiState or state,x,y,button)

@@ -547,7 +547,8 @@ function Input.mousepressed(x, y, button, context)
     -- Outdoor ride input belongs to its own controls. Global options/HUD have
     -- already handled their hits before this warehouse pointer fallback.
     if state.screen == "world" and context.world and context.world.player
-        and (context.world.player.sceneId == "commute" or context.world.player.sceneId=='grocery') then return true end
+        and (context.world.player.sceneId == "commute" or context.world.player.sceneId=='grocery'
+            or context.world.player.sceneId=='barn') then return true end
     if state.screen=="air_hockey" then
         return require("src.screens.air_hockey_screen").mousepressed(context.airHockeyRuntime,x,y,button)
     end

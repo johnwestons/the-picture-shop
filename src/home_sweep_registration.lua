@@ -24,5 +24,8 @@ R.brooms={
  {74,34,223,315,280,475},{59,34,211,328,265,475},{192,34,192,326,192,475},{310,34,160,326,110,475},
  {302,20,151,312,90,463},{303,22,169,318,104,463},{192,20,192,314,192,463},{76,20,218,310,275,463},
 }
+-- The generated mop atlas preserves the shaft and floor-contact geometry, so
+-- it uses the same frame-specific body grip registration without adjustment.
+R.mops=R.brooms
 for i,d in ipairs(R.order) do local v=R.views[d];v.index=i;v.cols=v.cols or 2;v.w=v.w or 627;v.h=v.h or 627 end
 return R

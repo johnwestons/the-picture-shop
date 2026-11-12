@@ -45,12 +45,13 @@ function Component.install(Runtime)
         end
         local portableUtilities=Runtime.state.screen=='shop_rooms'
             and require('src.shop_room_controls').isPortableUtilities()
-            and Runtime.World.player.sceneId=='commute'
+            and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='barn')
         if (Runtime.state.screen=='world' or portableUtilities)
-            and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery') then
+            and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery'
+                or Runtime.World.player.sceneId=='barn') then
             require('src.commute.runtime').draw(Runtime)
             if portableUtilities then require('src.shop_room_controls').draw(Runtime) end
-            if Runtime.World.player.sceneId=='grocery' then
+            if Runtime.World.player.sceneId=='grocery' or Runtime.World.player.sceneId=='barn' then
                 Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
             end
             if Runtime.controller and showHud then Runtime.controller:draw() end
@@ -58,7 +59,7 @@ function Component.install(Runtime)
             if showHud then
             -- The grocery interior owns its header. Overlaying the outdoor
             -- status card obscures its title/cart and clips on wide phones.
-            if Runtime.World.player.sceneId~='grocery' then
+            if Runtime.World.player.sceneId~='grocery' and Runtime.World.player.sceneId~='barn' then
                 require('src.screens.warehouse_hud').drawTerrainStatus(Runtime.state,
                     Runtime.App.playerFeedback,bounds or {left=0,right=Runtime.Config.baseWidth},
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
@@ -137,6 +138,10 @@ function Component.install(Runtime)
             Runtime.OptionsScreen.draw(mouseX, mouseY)
         else
             local mouseX, mouseY = Runtime.pointerPosition()
+            -- Scene renderers use shaders, stencils, and clips for world art.
+            -- Keep any state they leave behind from affecting phone, utility,
+            -- and other screen overlays drawn immediately after the world.
+            love.graphics.push("all")
             if mobileWorld then
                 local worldX, worldY = Runtime.App.mobileCamera:screenToWorld(mouseX, mouseY)
                 Runtime.App.mobileCamera:beginDraw()
@@ -149,6 +154,7 @@ function Component.install(Runtime)
                     Runtime.state.screen == "world" and mouseY or nil,
                     Runtime.multiplayer:remotePlayers(),Runtime)
             end
+            love.graphics.pop()
             if Runtime.state.screen == "world" then
                 if showHud then
                 Runtime.RuntimeDependencies.Hud.draw(Runtime.state, Runtime.World.prompt(), Runtime.Assets, mouseX, mouseY,

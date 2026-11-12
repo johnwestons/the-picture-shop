@@ -10,6 +10,7 @@ local function create(dependencies)
     require("src.screens.machine.pointer").install(Runtime)
     require("src.screens.machine.controls").install(Runtime)
     require("src.screens.machine.remote_service").install(Runtime)
+    require("src.screens.machine.operator").install(Runtime)
     return Runtime.Screen
 end
 

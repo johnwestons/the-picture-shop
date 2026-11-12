@@ -97,9 +97,10 @@ function PaperWork.rotationDirection(paper)
     return delta > 0 and 1 or -1
 end
 
-function PaperWork.rotate(paper)
+function PaperWork.rotate(paper, direction)
     if not paper or paper.status == "complete" then return false end
-    paper.orientation = ((tonumber(paper.orientation) or 0) + 90 * PaperWork.rotationDirection(paper)) % 360
+    if direction ~= nil and direction ~= 1 and direction ~= -1 then return false end
+    paper.orientation = ((tonumber(paper.orientation) or 0) + 90 * (direction or PaperWork.rotationDirection(paper))) % 360
     return true
 end
 

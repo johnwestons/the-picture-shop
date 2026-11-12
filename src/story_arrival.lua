@@ -7,6 +7,7 @@ local Commute=require('src.commute.runtime')
 local Rider=require('src.commute.rider')
 local Bike=require('src.commute.motorcycle')
 local Sites=require('src.commute.sites')
+local ScheduledDriving=require('src.commute.scheduled_driving')
 local function length(a,b) return math.sqrt((b.x-a.x)^2+(b.z-a.z)^2) end
 local function sample(plan,d)
     d=math.max(0,math.min(plan.length,d))
@@ -43,6 +44,7 @@ function Arrival.plan(world)
     local cumulative={[1]=0}
     for i=2,#points do cumulative[i]=cumulative[i-1]+length(points[i-1],points[i]) end
     if cumulative[#points]<20 then return nil,'The farm route is too short to present.' end
+    route.length=cumulative[#points]
     local walk={}
     for _,point in ipairs(Sites.farmStory.walk) do
         local x,z=farm:toWorld(point.x,point.z,0)
@@ -52,7 +54,7 @@ function Arrival.plan(world)
     for _,point in ipairs(points) do terrainPath[#terrainPath+1]=point end
     for _,point in ipairs(walk) do terrainPath[#terrainPath+1]=point end
     return {points=points,cumulative=cumulative,length=cumulative[#points],walk=walk,
-        terrainPath=terrainPath,farm=farm,crossesBridge=route.crossesBridge}
+        route=route,terrainPath=terrainPath,farm=farm,crossesBridge=route.crossesBridge}
 end
 local function sync(R,part)
     local rider=part.rider
@@ -65,24 +67,24 @@ local function sync(R,part)
         brake=rider.bike.brake or 0,steer=rider.bike.steering or 0}
     Commute.syncPlayer(R.World.player,part)
 end
-local function placeRide(R,arrival,d,dt)
+local function placeRide(R,arrival,pose)
     local rider=Commute.localPart(R).rider
-    local x,z=sample(arrival.plan,d)
-    local ax,az=sample(arrival.plan,math.max(0,d-1.5))
-    local bx,bz=sample(arrival.plan,math.min(arrival.plan.length,d+1.5))
-    local heading=math.atan2(bz-az,bx-ax)
-    local moved=math.max(0,d-arrival.distance)
-    local speed=dt>0 and moved/dt or 0
+    local x,z=pose.x,pose.z
+    local heading=pose.heading
+    local speed=math.max(0,pose.speed or 0)
+    local previousSpeed=arrival.lastSpeed or 0
     local bike=rider.bike
     bike.x,bike.z,bike.heading=x,z,heading
     bike.speed=speed;bike.vx,bike.vz=math.cos(heading)*speed,math.sin(heading)*speed
-    bike.distance=(bike.distance or 0)+moved
-    bike.h=Commute.world(R):supportHeight(x,z)
-    bike.vy=0;bike.grounded=true;bike.throttle=speed>1 and .48 or 0
-    bike.brake=arrival.plan.length-d<15 and .4 or 0
+    bike.distance=(bike.distance or 0)+math.max(0,(pose.distance or arrival.distance)-arrival.distance)
+    bike.h=pose.h or Commute.world(R):supportHeight(x,z)
+    bike.vy=0;bike.grounded=true
+    bike.throttle=speed>previousSpeed+.05 and .42 or speed>1 and .24 or 0
+    bike.brake=speed<previousSpeed-.05 and .45 or 0
     bike.safeX,bike.safeZ,bike.safeHeading=x,z,heading
     rider.ped.x,rider.ped.z,rider.ped.heading=x,z,heading
-    arrival.distance=d
+    arrival.distance=pose.distance or arrival.distance
+    arrival.lastSpeed=speed
     sync(R,Commute.localPart(R))
 end
 function Arrival.begin(R,state)
@@ -91,13 +93,21 @@ function Arrival.begin(R,state)
     local part=Commute.localPart(R)
     if not part then return false,'The Story rider is missing.' end
     local rider=part.rider
+    local vehicle={trafficKind='motorcycle',aiKind='motorcycle',driverSkill=55}
+    local drivePlan=ScheduledDriving.profile(plan.route,Commute.world(R),vehicle)
+    if not drivePlan or drivePlan.duration<=0 then
+        return false,'The Story motorcycle route has no safe driving profile.'
+    end
     rider.gear.outfit='normal';rider.gear.mounted=false;rider.gear.engine=false
     rider.gear.transition=nil;rider.gear.revision=rider.gear.revision+1
     rider.ped.speed=0;rider.ped.vx=0;rider.ped.vz=0
     rider.bike.distance=0;rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0
     rider.bike.throttle=0;rider.bike.brake=0
-    state.arrival={plan=plan,phase='equip',distance=0,elapsed=0,walkIndex=1,stalled=0}
-    placeRide(R,state.arrival,0,0)
+    state.arrival={plan=plan,drivePlan=drivePlan,vehicle=vehicle,phase='equip',
+        distance=0,elapsed=0,walkIndex=1,stalled=0,lastSpeed=0}
+    local initial=ScheduledDriving.sample(plan.route,0,Commute.world(R),vehicle)
+    if not initial then state.arrival=nil;return false,'The Story motorcycle route could not be sampled.' end
+    placeRide(R,state.arrival,initial)
     Bike.resetContact(rider.bike,Commute.world(R))
     local footX,footZ=Rider.footing(rider,Commute.world(R))
     if footX then rider.ped.x,rider.ped.z=footX,footZ end
@@ -132,7 +142,7 @@ function Arrival.update(R,state,dt)
         return false
     end
     if arrival.phase=='equip' or arrival.phase=='mount' or arrival.phase=='ride' then
-        local lookAhead=arrival.phase=='ride' and math.min(arrival.plan.length,arrival.distance+13)
+        local lookAhead=arrival.phase=='ride' and math.min(arrival.drivePlan.length,arrival.distance+13)
             or arrival.distance
         local x,z=sample(arrival.plan,lookAhead)
         if not view.renderer:terrainCoverage(x,z) then
@@ -155,12 +165,11 @@ function Arrival.update(R,state,dt)
         end
         sync(R,part)
     elseif arrival.phase=='ride' then
-        local remaining=arrival.plan.length-arrival.distance
-        local speed=math.min(16,math.sqrt(math.max(0,remaining)*8))
-            *math.min(1,(arrival.elapsed+.4)/2)
-        local distance=math.min(arrival.plan.length,arrival.distance+speed*dt)
-        placeRide(R,arrival,distance,dt)
-        if distance>=arrival.plan.length-.01 then
+        local progress=math.min(1,arrival.elapsed/arrival.drivePlan.duration)
+        local pose=ScheduledDriving.sample(arrival.plan.route,progress,world,arrival.vehicle)
+        if not pose then return nil,'The Story motorcycle route could not be sampled.' end
+        placeRide(R,arrival,pose)
+        if progress>=1 then
             rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0
             rider.gear.engine=false
             Bike.resetContact(rider.bike,world)
@@ -203,7 +212,7 @@ function Arrival.progress(state)
     if not arrival then return 0 end
     if arrival.phase=='equip' then return 0 end
     if arrival.phase=='mount' then return .05 end
-    if arrival.phase=='ride' then return .05+.80*arrival.distance/arrival.plan.length end
+    if arrival.phase=='ride' then return .05+.80*arrival.distance/arrival.drivePlan.length end
     if arrival.phase=='dismount' then return .86 end
     if arrival.phase=='remove' then return .89 end
     return .9+.1*(arrival.walkIndex-1)/#arrival.plan.walk

@@ -127,7 +127,8 @@ function Screen.pointer(R,x,y,button)
     if R.state.screen=='world' and Ui.contains(Screen.buttonRect(bounds,R),x,y) then return Screen.open(R) end
     local toastBounds=R.syncCamera and R.syncCamera() or bounds
     local commute=R.state.screen=='world' and R.World and R.World.player
-        and (R.World.player.sceneId=='commute' or R.World.player.sceneId=='grocery')
+        and (R.World.player.sceneId=='commute' or R.World.player.sceneId=='grocery'
+            or R.World.player.sceneId=='barn')
     local id=feedback and feedback:toastHit(x,y,commute and bounds or toastBounds,commute and 'commute' or R.state.screen)
     if id then return Screen.open(R,id) end
     return false

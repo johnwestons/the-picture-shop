@@ -33,6 +33,10 @@ local function visualPose(gear,presentation,actor)
         local crash=actor.crash
         return 'crash',crash.elapsed/Fall.DURATION
     end
+    -- A live rider transition is authoritative over a cached presentation
+    -- pose. Story cutscenes publish their own pose, and that snapshot can
+    -- outlive the cutscene into the player's next gear action.
+    if gear and gear.transition then return Gear.pose(gear) end
     local pose,progress=Gear.pose(gear)
     if type(presentation)=='table' and type(presentation.pose)=='string' then
         pose,progress=presentation.pose,presentation.progress or 0
@@ -65,7 +69,10 @@ function P.beginFallPose(actor,visual,camera,x,y)
 end
 function P.foot(x,y,zoom,gear,distance,speed,presentation,appearance)
     local g=love.graphics;local pose,progress=Gear.pose(gear)
-    if presentation then pose,progress=presentation.pose,presentation.progress;distance,speed=presentation.distance,presentation.speed end
+    if presentation then
+        if not (gear and gear.transition) then pose,progress=presentation.pose,presentation.progress end
+        distance,speed=presentation.distance,presentation.speed
+    end
     local Config=require('src.config')
     appearance=appearance or {character=Config.player.character}
     if drawGearAction(pose,progress,x,y,RoadScale.base(zoom,GearActionArt.REFERENCE_HEIGHT),appearance) then return end

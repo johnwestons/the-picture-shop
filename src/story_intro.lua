@@ -5,18 +5,21 @@ local Condition=require('src.warehouse_condition')
 local Residents=require('src.home_residents')
 local Rider=require('src.commute.rider')
 local Sites=require('src.commute.sites')
-local IMAGE='assets/generated/story-intro/grandpa-seated-v1.png'
-local portrait
 local function condition(R)
     local c=Condition.of(R.state)
     return c and c.mode=='story' and c or nil
+end
+function Intro.grandpaPresent(R)
+    -- He leaves the barn for the farmhouse when the town's actual daylight ends.
+    return require('src.commute.day_night').sample(R.state.calendar).daylight>=.15
+        or Intro.dialogueOpen(R)==true
 end
 local function anchor(R)
     local world=R._commute and R._commute.world
     local farm=world and world.sites and world.sites.byId.farm
     if not farm then return nil end
-    local porch=Sites.farmStory.porch
-    local x,z,h=farm:toWorld(porch.x,porch.z,0)
+    local door=Sites.farmStory.barnDoor
+    local x,z,h=farm:toWorld(door.x,door.z,0)
     return x,z,world:supportHeight(x,z) or h
 end
 function Intro.spawn(R)
@@ -31,7 +34,7 @@ function Intro.spawn(R)
     if not okay then return false,reason end
     local part=R.state.home.commute.participants[Residents.key(player)]
     if not Intro.parkAtFarm(R,part) then return false,'The farm parking is unavailable.' end
-    R.state.message='You have arrived at Miller Farm. Walk to Grandpa on the house porch.'
+    R.state.message='You have arrived at Miller Farm. Walk to the barn and meet Grandpa inside.'
     return true
 end
 function Intro.parkAtFarm(R,part)
@@ -62,13 +65,20 @@ function Intro.parkAtFarm(R,part)
 end
 function Intro.near(R,part)
     local c=condition(R)
-    if not c or c.openingSeen==false or c.grandpaMet or not part or part.interior then return false end
+    local trip=R.state.home and R.state.home.commute
+    if c and c.openingSeen==false or not trip or not trip.independent
+        or not part or part.interior then return false end
     local rider=part.rider
     if not rider or rider.gear.mounted or rider.gear.transition or rider.vehicle=='truck' then return false end
     local x,z=anchor(R)
     return x and (rider.ped.x-x)^2+(rider.ped.z-z)^2<=3.6^2 or false
 end
 local function lines(R)
+    local c=condition(R)
+    if not c or c.grandpaMet then
+        return {'Good to see you, kid. I spend the daylight hours out here in the barn.',
+            'Take care on the road. You can always stop by for a chat.'}
+    end
     local trip=R.state.home and R.state.home.commute
     local count=0
     for _ in pairs(trip and trip.participants or {}) do count=count+1 end
@@ -81,11 +91,56 @@ local function lines(R)
         'I set aside repair money. The cutter blade is dull and the wrapper needs service; buy kits for both. Then we can hold a grand opening.',
         'Your apartment and the shop are marked on the town map. Your motorcycle is here. I am proud of you, kid.'}
 end
+function Intro.currentLine(R)
+    local view=R._commute
+    local page=view and view.introDialogue
+    local text=page and lines(R)[page]
+    if not text then return nil end
+    local c=condition(R)
+    local emotions=c and not c.grandpaMet and {'greeting','sad','worried','agreement','happy'}
+        or {'greeting','happy'}
+    return require('src.dialogue_presentation').present(view,'grandpa',text,
+        emotions[page] or 'neutral')
+end
 function Intro.open(R)
-    local part=require('src.commute.runtime').localPart(R)
+    local Commute=require('src.commute.runtime')
+    local part=Commute.localPart(R)
+    if not part then return false end
+    if part.interior=='barn' then
+        if not require('src.commute.barn_interior').nearGrandpa(part.interiorPose) then
+            return false
+        end
+        if not Intro.grandpaPresent(R) then
+            R.state.message='Grandpa has gone into the farmhouse for the night. Come back during the day.'
+            return true
+        end
+        R._commute.introDialogue=1
+        R._commute.barnTarget=nil
+        return true
+    end
     if not Intro.near(R,part) then return false end
-    R._commute.introDialogue=1
-    R._commute.mapOpen=false
+    part.interior='barn'
+    local player=R.World.player
+    part.interiorPose={character=player.character,x=480,y=570,intentX=0,intentY=-1,
+        animationDistance=0,idleClock=0,moving=false,velocityX=0,velocityY=0,
+        furColorway=player.furColorway,overallsColorway=player.overallsColorway}
+    R._commute.mapOpen=false;R._commute.barnTarget=nil
+    Commute.syncPlayer(player,part)
+    R.state.message=Intro.grandpaPresent(R) and 'Grandpa is waiting inside the barn.'
+        or 'The barn is empty. Grandpa has gone into the farmhouse for the night.'
+    if not R.multiplayer:isClient() then R.saveCurrent(true) end
+    return true
+end
+function Intro.exitBarn(R)
+    local Commute=require('src.commute.runtime')
+    local part=Commute.localPart(R)
+    if not part or part.interior~='barn' or Intro.dialogueOpen(R) then return false end
+    if not require('src.commute.barn_interior').nearExit(part.interiorPose) then return false end
+    part.interior=nil;part.interiorPose=nil
+    R._commute.barnTarget=nil
+    Commute.syncPlayer(R.World.player,part)
+    R.state.message='You step out of the barn at Miller Farm.'
+    if not R.multiplayer:isClient() then R.saveCurrent(true) end
     return true
 end
 function Intro.advance(R)
@@ -94,6 +149,8 @@ function Intro.advance(R)
     local nextPage=view.introDialogue+1
     if nextPage>#lines(R) then
         view.introDialogue=nil
+        local part=require('src.commute.runtime').localPart(R)
+        if part then part.presentation=nil end
         if R.multiplayer:isClient() then
             R.state.message='Grandpa explained the shop restoration. The host will lead the grand opening.'
             return true
@@ -112,60 +169,52 @@ function Intro.dialogueOpen(R)
     return R._commute and R._commute.introDialogue~=nil
 end
 function Intro.drawWorld(R,camera)
-    if not condition(R) then return end
-    local x,z,h=anchor(R)
-    if not x then return end
-    local bottomX,bottomY=camera:screen(x,z,h)
-    -- Match the established player billboard scale in the outside renderer.
-    -- The seated portrait is shorter than the standing rabbit, but should not
-    -- shrink to the size of a road prop when the camera is pitched down.
-    local _,topY=camera:screen(x,z,h+4.6)
-    local height=math.abs(bottomY-topY)
-    if height<8 or height>500 or bottomX<-100
-        or bottomX>(camera.viewportWidth or 1280)+100 then return end
-    if not portrait then portrait=love.graphics.newImage(IMAGE) end
-    local width=height*portrait:getWidth()/portrait:getHeight()
-    local g=love.graphics
-    g.push('all')
-    g.setShader();g.setColor(1,1,1,1)
-    g.draw(portrait,bottomX-width*.5,bottomY-height,0,width/portrait:getWidth(),height/portrait:getHeight())
-    g.setColor(.04,.08,.07,.85)
-    g.rectangle('fill',bottomX-42,bottomY-height-26,84,21,5)
-    g.setColor(.95,.86,.58);g.printf('GRANDPA',bottomX-42,bottomY-height-24,84,'center')
-    g.pop()
+    -- Grandpa is rendered by the barn scene, not on the farmhouse porch.
+end
+function Intro.advanceButton(R)
+    local width=math.min(238,math.max(0,R.Config.baseWidth-32))
+    local height=48
+    return {x=(R.Config.baseWidth-width)*.5,
+        y=R.Config.baseHeight-height-14,width=width,height=height}
 end
 function Intro.drawHud(R)
-    if not condition(R) then return end
+    local c=condition(R)
+    if not c and not Intro.dialogueOpen(R) then return end
     local g=love.graphics
     local view=R._commute
     local page=view and view.introDialogue
     if not page then
         local part=require('src.commute.runtime').localPart(R)
-        local hint=Intro.near(R,part) and 'TALK TO GRANDPA  ·  ACTION / E'
-            or not condition(R).grandpaMet and 'VISIT GRANDPA AT THE FARM HOUSE'
+        local hint=Intro.near(R,part) and 'ENTER BARN  ·  ACTION / E'
+            or c and not c.grandpaMet and part and part.interior~='barn' and 'VISIT GRANDPA IN THE BARN'
             or nil
         if hint then
-            g.push('all');g.setColor(.02,.04,.04,.9);g.rectangle('fill',360,730,560,48,7)
-            g.setColor(.95,.88,.65);g.printf(hint,370,744,540,'center');g.pop()
+            local width=math.min(560,R.Config.baseWidth-32)
+            local x=(R.Config.baseWidth-width)*.5
+            local y=R.Config.baseHeight-56
+            g.push('all');g.setColor(.02,.04,.04,.9);g.rectangle('fill',x,y,width,42,7)
+            g.setColor(.95,.88,.65);g.printf(hint,x+10,y+12,width-20,'center');g.pop()
         end
         return
     end
-    local text=lines(R)[page]
     local last=page==#lines(R)
+    local button=Intro.advanceButton(R)
     g.push('all')
-    g.setShader();g.setColor(0,0,0,.58);g.rectangle('fill',0,0,R.Config.baseWidth,R.Config.baseHeight)
-    g.setColor(.035,.065,.06,.98);g.rectangle('fill',108,570,1064,243,12)
-    g.setColor(.62,.78,.65);g.rectangle('line',108,570,1064,243,12)
-    g.setColor(.96,.87,.58);g.print('GRANDPA',139,599)
-    local visible=require('src.dialogue_presentation').present(view,'grandpa',text,page==1 and 'greeting' or 'neutral')
-    g.setColor(.95,.95,.88);g.printf(visible or text,139,641,1002,'left')
-    g.setColor(.09,.38,.38);g.rectangle('fill',875,744,255,51,7)
-    g.setColor(.95,.98,.89);g.printf(last and 'TAKE THE KEYS' or 'CONTINUE',880,760,245,'center')
+    g.setShader();g.setColor(.02,.045,.04,.94)
+    g.rectangle('fill',button.x,button.y,button.width,button.height,8)
+    g.setColor(.58,.78,.63,1)
+    g.rectangle('line',button.x,button.y,button.width,button.height,8)
+    g.setColor(.97,.98,.9,1)
+    g.printf(last and 'TAKE THE KEYS  ·  TAP / ENTER' or 'NEXT  ·  TAP / ENTER',
+        button.x+8,button.y+16,button.width-16,'center')
     g.pop()
 end
 function Intro.pointer(R,x,y)
     if not Intro.dialogueOpen(R) then return false end
-    if x>=850 and x<=1150 and y>=720 and y<=820 then Intro.advance(R) end
+    -- With dialogue open, movement controls are paused. Let any pointer/touch
+    -- advance so the conversation remains usable even when a device has a
+    -- different safe-area inset or the button is obscured by system chrome.
+    Intro.advance(R)
     return true
 end
 return Intro

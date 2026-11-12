@@ -87,14 +87,14 @@ function Component.install(Runtime)
         if not Runtime.Screen.gaugeFocused then return false end
         local changed = false
         for character in text:gmatch(".") do
-            if character:match("%d") and #Runtime.Screen.gaugeText < 7 then
+            if character:match("%d") and (Runtime.Screen.gaugeReplaceOnType or #Runtime.Screen.gaugeText < 7) then
                 if Runtime.Screen.gaugeReplaceOnType then
                     Runtime.Screen.gaugeText = ""
                     Runtime.Screen.gaugeReplaceOnType = false
                 end
                 Runtime.Screen.gaugeText = Runtime.Screen.gaugeText .. character
                 changed = true
-            elseif character == "." and not Runtime.Screen.gaugeText:find(".", 1, true) then
+            elseif character == "." and (Runtime.Screen.gaugeReplaceOnType or not Runtime.Screen.gaugeText:find(".", 1, true)) then
                 if Runtime.Screen.gaugeReplaceOnType then
                     Runtime.Screen.gaugeText = "0"
                     Runtime.Screen.gaugeReplaceOnType = false
@@ -103,6 +103,7 @@ function Component.install(Runtime)
                 changed = true
             end
         end
+        if changed then Runtime.Screen.gaugeDraft=true end
         return changed
     end
 

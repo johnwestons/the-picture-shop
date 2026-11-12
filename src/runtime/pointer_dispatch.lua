@@ -18,7 +18,8 @@ function Component.install(Runtime)
                 or Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds)
         end
         if Runtime.OptionsScreen.accessHit(x,y,screen,bounds) then Runtime.openOptions();return true end
-        if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery')
+        if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery'
+            or Runtime.World.player.sceneId=='barn')
             and Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds) then Runtime.returnToTitle();return true end
         return false
     end

@@ -168,7 +168,8 @@ function Component.install(Runtime)
             and Runtime.number(payload.player.x)
             and Runtime.number(payload.player.y)
             and (payload.player.sceneId==nil or payload.player.sceneId=="warehouse" or payload.player.sceneId=="home"
-                or (payload.player.sceneId=='commute' or payload.player.sceneId=='grocery') and payload.state.home and payload.state.home.commute~=nil)
+                or (payload.player.sceneId=='commute' or payload.player.sceneId=='grocery'
+                    or payload.player.sceneId=='barn') and payload.state.home and payload.state.home.commute~=nil)
     end
 
     function Runtime.legacyCore(payload)

@@ -20,6 +20,8 @@ function Test.run(context, check)
     local operations = {
         load_stock = function() return Machine.load(state, "__generic_stock__") end,
         rotate_paper = function() return Machine.rotate(state) end,
+        rotate_clockwise = function() return Machine.rotate(state,1) end,
+        rotate_counterclockwise = function() return Machine.rotate(state,-1) end,
         auto_gauge = function() return Machine.autoGauge(state) end,
         position_paper = function() return Machine.position(state) end,
         set_clamp = function(args) return Machine.setClamp(args.clamp, state) end,
@@ -136,6 +138,13 @@ function Test.run(context, check)
     end
     key("l")
     advance(0.5)
+    local initialAngle=Machine.paper.orientation
+    send('rotate_clockwise',{});host:update(0,hostContext);receive()
+    check('cutter_production_clockwise_intent_round_trips',Machine.paper.orientation==(initialAngle+90)%360
+        and Remote.view.paper.orientation==Machine.paper.orientation)
+    send('rotate_counterclockwise',{});host:update(0,hostContext);receive()
+    check('cutter_production_counterclockwise_intent_round_trips',Machine.paper.orientation==initialAngle
+        and Remote.view.paper.orientation==initialAngle)
     key("g")
     key("p")
     advance(0.5)

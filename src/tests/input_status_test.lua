@@ -8,6 +8,7 @@ local function closeRoute(context, screen, inputKind)
     local closeState = context.State.new()
     closeState.screen = screen
     closeState.machineType = screen == "machine" and "cutter" or nil
+    if screen=='machine' then context.machineScreen.enter() end
     closeState.currentOffer = screen == "job_offer" and { id = "CLOSE-TEST" } or nil
     local result = { customerCancels = 0, vendorCancels = 0, vendorResolves = 0, saves = 0 }
     local closeContext = {
@@ -71,6 +72,10 @@ function Test.run(context, check)
     context.machineScreen.enter()
     check("cutter_screen_does_not_request_keyboard_on_open",
         not context.machineScreen.wantsTextInput())
+    local tabX,tabY=context.machineScreen.buttonCenter('page','cutter')
+    context.machineScreen.mousepressed(keyboardState,tabX,tabY,1)
+    local computerX,computerY=context.machineScreen.buttonCenter('computer')
+    context.machineScreen.mousepressed(keyboardState,computerX,computerY,1)
     local gaugeX, gaugeY = context.machineScreen.gaugeInputCenter()
     context.machineScreen.mousepressed(keyboardState, gaugeX, gaugeY, 1)
     check("cutter_screen_requests_keyboard_after_field_tap",

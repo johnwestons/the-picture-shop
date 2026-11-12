@@ -21,6 +21,7 @@ function Background.unattended(player,remotePlayers)
     local function inShop(p)
         -- Unknown/nil scenes conservatively retain the full simulation.
         return p and p.sceneId~='home' and p.sceneId~='commute' and p.sceneId~='grocery'
+            and p.sceneId~='barn'
     end
     if inShop(player) then return false end
     for _,other in ipairs(remotePlayers or {}) do if inShop(other) then return false end end

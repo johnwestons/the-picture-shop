@@ -577,7 +577,7 @@ function Test.run(context, check, jobs)
     context.machineScreen.enter()
     check('cutter_empty_load_menu_shows_no_false_stock',
         context.machineScreen.keypressed(emptyLoad,'l')
-        and context.machineScreen.hasModal()
+        and context.machineScreen.cutterPage=='pallets'
         and #context.machineScreen.loadMenuOptions()==0)
     local backX,backY=context.machineScreen.loadMenuBackCenter()
     check('cutter_empty_load_menu_has_touch_back',backX and backY
@@ -598,7 +598,7 @@ function Test.run(context, check, jobs)
     check("cutter_table_starts_clear", not context.machine.loaded and context.machine.step == "idle")
     context.machineScreen.enter()
     check("cutter_load_button_opens_pallet_menu", context.machineScreen.keypressed(cutterState, "l")
-        and context.machineScreen.hasModal()
+        and context.machineScreen.cutterPage=='pallets'
         and #context.machineScreen.loadMenuOptions() == 1)
     check("cutter_load_menu_selects_named_pallet", context.machineScreen.keypressed(cutterState, "1")
         and context.machine.pallet == cutterJob.pallets[1])
@@ -607,6 +607,8 @@ function Test.run(context, check, jobs)
     check("cutter_wrong_gauge_is_player_responsibility", context.machine.step == "loaded"
         and not context.PaperWork.gaugeMatches(trackedPaper, context.machine.gauge))
     context.machineScreen.enter()
+    local computerX,computerY=context.machineScreen.buttonCenter('computer')
+    context.machineScreen.mousepressed(cutterState,computerX,computerY,1)
     local gaugeInputX, gaugeInputY = context.machineScreen.gaugeInputCenter()
     check("cutter_gauge_requires_explicit_field_focus",
         not context.machineScreen.wantsTextInput()
@@ -700,10 +702,13 @@ function Test.run(context, check, jobs)
         check("cutter_clamp_" .. cutNumber, context.machine.keypressed("space", cutterState))
         context.machine.update(0.3, cutterState)
         if cutNumber == 1 then
+            local cx,cy=context.machineScreen.buttonCenter('page','cutter')
+            context.machineScreen.mousepressed(cutterState,cx,cy,1)
             local leftX, leftY = context.machineScreen.buttonCenter("cut_left")
             local rightX, rightY = context.machineScreen.buttonCenter("cut_right")
             check("cutter_mouse_left_control", context.machineScreen.mousepressed(cutterState, leftX, leftY, 1))
             context.machineScreen.mousereleased(cutterState, leftX, leftY, 1)
+            check("cutter_one_sprite_button_starts_guarded_cycle",context.machine.step=="armed")
             check("cutter_mouse_right_control", context.machineScreen.mousepressed(cutterState, rightX, rightY, 1))
             context.machineScreen.mousereleased(cutterState, rightX, rightY, 1)
         else

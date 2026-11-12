@@ -241,6 +241,7 @@ local function runJourney(context, check, printing)
         local replacement, claim = originalPallet, 0
         if not printing then
             confirmed("rotate_first_lift",function() key("q") end)
+            click(Remote.sharedMachine.screen.buttonCenter('computer'))
             click(Remote.sharedMachine.screen.gaugeInputCenter()); Remote.textinput("1")
             confirmed("wrong_size_allowed",function() key("return") end)
             click(500,200) -- Leave the numeric field before using machine shortcuts.
@@ -268,6 +269,7 @@ local function runJourney(context, check, printing)
             check("guest_journey_replacement_rotation_matches_cut_"..cut,
                 Remote.view.paper and Remote.view.paper.orientation==targetOrientation)
             local gauge=replacement.paper.cuts[cut].gauge
+            if Remote.sharedMachine.screen.cutterPage~='computer' then click(Remote.sharedMachine.screen.buttonCenter('computer')) end
             click(Remote.sharedMachine.screen.gaugeInputCenter()); Remote.textinput(tostring(gauge))
             confirmed("gauge_replacement_"..cut,function() key("return") end)
             click(500,200)

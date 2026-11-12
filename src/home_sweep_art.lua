@@ -3,15 +3,18 @@ local Preload=require("src.home_art_preload")
 -- Character and prop share a directional frame and registered grip contacts.
 local Registration=require("src.home_sweep_registration")
 local Colorways=require("src.rabbit_colorways")
-local Art={};local cache={};local broom,propShader,bodyShader,propQuads;local use=0
+local Art={};local cache={};local props,propShader,bodyShader={};local use=0
 local root="assets/generated/home-routines-v2/"
+local propPaths={broom="broom-eight-directions-long-shaft.png",mop="mop-eight-directions-v1.png"}
 function Art.frame(seconds)return Registration.sequence[math.floor(math.max(0,seconds)*Registration.fps)%#Registration.sequence+1] end
 local function dispose(a)
     a.image:release();for _,q in ipairs(a.frames) do q:release() end
     for _,hands in ipairs(a.handMeshes) do for _,mesh in ipairs(hands) do mesh:release() end end
 end
-function Art.contact(direction,frame)
-    local v=assert(Registration.views[direction]);local r=assert(v.grips[frame]);local b=Registration.brooms[v.index]
+function Art.contact(direction,frame,tool)
+    local v=assert(Registration.views[direction]);local r=assert(v.grips[frame])
+    local tools=tool=="mop" and Registration.mops or Registration.brooms
+    local b=tools[v.index]
     local hx,hy=(r[3]-r[1])*v.scale,(r[4]-r[2])*v.scale
     local rotation=math.atan2(r[6]-r[4],r[5]-r[3])-math.atan2(b[4]-b[2],b[3]-b[1])
     local c,s=math.cos(rotation),math.sin(rotation);local scale=.17
@@ -50,26 +53,37 @@ local function resource(direction)
     end
     local asset={image=image,frames=frames,handMeshes=handMeshes,used=use};cache[direction]=asset;return asset
 end
-local function extraResources()
-    if not broom then
-        broom=Images.load("sweep",root.."broom-eight-directions-long-shaft.png");if not broom then return false end;propQuads={}
-        for i=1,8 do propQuads[i]=love.graphics.newQuad((i-1)%4*384,math.floor((i-1)/4)*512,384,512,broom:getDimensions()) end
-    end
+local function propResource(kind)
+    kind=kind or "broom"
+    local path=assert(propPaths[kind],"unknown sweeping tool: "..tostring(kind))
+    if props[kind] then return props[kind] end
+    local image=Images.load("sweep",root..path);if not image then return nil end
+    image:setFilter("linear","linear")
+    local quads={}
+    for i=1,8 do quads[i]=love.graphics.newQuad((i-1)%4*384,math.floor((i-1)/4)*512,384,512,image:getDimensions()) end
+    props[kind]={image=image,quads=quads}
+    return props[kind]
+end
+local function extraResources(kind)
+    if not propResource(kind) then return false end
     propShader=propShader or love.graphics.newShader([[vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return p*c;}]])
     bodyShader=bodyShader or love.graphics.newShader(Colorways.blendShaderSource()..[[
 vec4 effect(vec4 c,Image t,vec2 uv,vec2 s){vec4 p=Texel(t,uv);if(p.a<.18)discard;return applyRabbitColorways(p)*c;}]])
  return true
 end
-function Art.prewarm(direction)
+function Art.prewarm(direction,tool)
  local ready=resource(direction)~=nil
- if not extraResources() then ready=false end
+ if not extraResources(tool) then ready=false end
  return ready
 end
-function Art.draw(direction,frame,x,y,player)
- if not Preload.want("sweep",function()return Art.prewarm(direction) end) then return false end
- extraResources()
-    local v=Registration.views[direction];local r=v.grips[frame];local contact=Art.contact(direction,frame)
+function Art.prewarmMop(direction)return Art.prewarm(direction,"mop") end
+function Art.draw(direction,frame,x,y,player,tool)
+ tool=tool or "broom"
+ if not Preload.want("sweep",function()return Art.prewarm(direction,tool) end) then return false end
+ if not extraResources(tool) then return false end
+    local v=Registration.views[direction];local r=v.grips[frame];local contact=Art.contact(direction,frame,tool)
     local asset=resource(direction)
+    local prop=propResource(tool)
 love.graphics.push("all");love.graphics.setColor(1,1,1,1)
     local rear=direction=="north" or direction=="northeast" or direction=="northwest"
     local function drawBody()
@@ -78,7 +92,7 @@ love.graphics.push("all");love.graphics.setColor(1,1,1,1)
     end
     if not rear then drawBody() end
     love.graphics.setShader(propShader)
-    love.graphics.draw(broom,propQuads[v.index],x+contact.x,y+contact.y,contact.rotation,contact.scale,contact.scale,contact.ox,contact.oy)
+    love.graphics.draw(prop.image,prop.quads[v.index],x+contact.x,y+contact.y,contact.rotation,contact.scale,contact.scale,contact.ox,contact.oy)
     if rear then drawBody() else
         love.graphics.setShader(bodyShader)
         for _,mesh in ipairs(asset.handMeshes[frame]) do love.graphics.draw(mesh,x,y,0,v.scale,v.scale,r[1],r[2]) end
@@ -86,10 +100,15 @@ love.graphics.push("all");love.graphics.setColor(1,1,1,1)
     love.graphics.pop()
     return contact
 end
+function Art.drawMop(direction,frame,x,y,player)return Art.draw(direction,frame,x,y,player,"mop") end
 function Art.release()
     Images.release("sweep")
     for _,a in pairs(cache) do dispose(a) end
-    cache={};if broom then broom:release();broom=nil;for _,q in ipairs(propQuads) do q:release() end;propQuads=nil end
+    cache={}
+    for _,prop in pairs(props) do
+        prop.image:release();for _,quad in ipairs(prop.quads) do quad:release() end
+    end
+    props={}
     if propShader then propShader:release();propShader=nil end
     if bodyShader then bodyShader:release();bodyShader=nil end
 end

@@ -147,4 +147,8 @@ function Scheduled.sample(route,progress,world,vehicle)
         distance=a.station+(b.station-a.station)*fraction,duration=plan.duration}
 end
 
+function Scheduled.profile(route,world,vehicle)
+    return profile(route,world,vehicle or {trafficKind='motorcycle'})
+end
+
 return Scheduled

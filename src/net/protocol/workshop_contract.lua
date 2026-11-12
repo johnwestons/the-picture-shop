@@ -74,6 +74,8 @@ function Component.install(Runtime)
             save_gauge = false,
             recall_gauge = false,
             rotate_paper = false,
+            rotate_clockwise = false,
+            rotate_counterclockwise = false,
             position_paper = false,
             set_clamp = "clamp",
             set_barrier = "barrierClear",

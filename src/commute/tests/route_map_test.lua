@@ -41,17 +41,59 @@ function Test.run(check)
     local allFit=true
     for _,size in ipairs({rect,{x=24,y=132,width=1232,height=722}})do
         for _,count in ipairs({5,16,24,32})do
-            local model=Map.new(fixture(count));local snap=model:snapshot(size,{x=0,z=100,heading=1})
-            for _,entry in ipairs(snap.buildings)do
-                local r=entry.keyRect
-                allFit=allFit and entry.label~='' and r.width>90 and r.height>=20
-                    and r.x>=size.x and r.y>=size.y and r.x+r.width<=size.x+size.width
-                    and r.y+r.height<=size.y+size.height-35
+            local model=Map.new(fixture(count));local first=Map.layout(size,count,{showPlaces=true,paginatePlaces=true})
+            local seen={}
+            for page=1,first.pageCount do
+                local snap=model:snapshot(size,{x=0,z=100,heading=1},
+                    {showPlaces=true,paginatePlaces=true,placesPage=page})
+                local visible=0
+                for _,entry in ipairs(snap.buildings)do
+                    local r=entry.keyRect
+                    if r then
+                        visible=visible+1;seen[entry.id]=true
+                        allFit=allFit and entry.label~='' and r.width>90 and r.height>=20
+                            and r.x>=size.x and r.y>=size.y and r.x+r.width<=size.x+size.width
+                            and r.y+r.height<=size.y+size.height-35
+                    end
+                end
+                allFit=allFit and visible==math.min(first.pageSize,count-(page-1)*first.pageSize)
             end
+            for _,entry in ipairs(model.entries)do allFit=allFit and seen[entry.id]==true end
             model:release()
         end
     end
-    check('travel_map_building_key_fits_both_game_and_preview_panels',allFit)
+    local wideRect={x=24,y=132,width=1232,height=722}
+    local wideLayout=Map.layout(wideRect,32,{showPlaces=true,paginatePlaces=true})
+    check('travel_map_large_viewport_keeps_destinations_in_a_side_panel',wideLayout.sidePanel
+        and wideLayout.map.width>=wideRect.width*.60
+        and wideLayout.key.x>=wideLayout.map.x+wideLayout.map.width)
+    check('travel_map_paginated_destination_rows_fit_game_and_preview_panels',allFit)
+    local zoomMap=Map.new(fixture(16));local zoomActor={x=300,z=240,heading=0}
+    local fitSnapshot=zoomMap:snapshot(wideRect,zoomActor,{showPlaces=true,paginatePlaces=true})
+    zoomMap:zoomMain(1,zoomActor)
+    local zoomSnapshot=zoomMap:snapshot(wideRect,zoomActor,{showPlaces=true,paginatePlaces=true})
+    local zoomLayout=zoomSnapshot.layout
+    local fitZoomKeepsActor=zoomSnapshot.viewport.scale>fitSnapshot.viewport.scale
+        and near(zoomSnapshot.marker.x,fitSnapshot.marker.x) and near(zoomSnapshot.marker.y,fitSnapshot.marker.y)
+    zoomMap:panMain(24,12,zoomLayout.map)
+    local panSnapshot=zoomMap:snapshot(wideRect,zoomActor,{showPlaces=true,paginatePlaces=true})
+    check('travel_map_zoom_centers_on_rider_and_pan_moves_map',fitZoomKeepsActor
+        and panSnapshot.marker.x>zoomSnapshot.marker.x)
+    zoomMap:fitMain()
+    check('travel_map_fit_restores_full_town_view',zoomMap.mainZoom==1 and zoomMap.mainCenter==nil)
+    zoomMap:release()
+    local portrait={x=16,y=132,width=360,height=650}
+    local portraitMap=Map.new(fixture(16))
+    local portraitLayout=Map.layout(portrait,#portraitMap.entries,{mobile=true,showPlaces=true})
+    local portraitControls=portraitMap:controlRects(portrait,portraitLayout)
+    portraitMap:pressControl(portrait,portraitControls.zoomIn.x+10,portraitControls.zoomIn.y+10,true,nil,zoomActor)
+    local mobileZoomed=portraitMap.mainZoom>1
+        and portraitControls.zoomIn.x>=portraitLayout.map.x
+        and portraitControls.zoomIn.y+portraitControls.zoomIn.height<=portraitLayout.map.y+portraitLayout.map.height
+    portraitMap:pressControl(portrait,portraitControls.fit.x+10,portraitControls.fit.y+10,true,nil,zoomActor)
+    check('travel_map_portrait_mobile_keeps_zoom_and_fit_controls_on_map',not portraitLayout.sidePanel
+        and mobileZoomed and portraitMap.mainZoom==1)
+    portraitMap:release()
     local oldCalls=0;local oldHeight=world.height
     world.height=function(...)oldCalls=oldCalls+1;return oldHeight(...)end
     map:prepare();local background=map.background;local samples=map.terrainSamples

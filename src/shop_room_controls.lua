@@ -73,7 +73,7 @@ local function rows(Runtime)
             local prior=region=="center" and "west" or region=="east" and "center" or nil
             local blocked=prior and not c.cleaned[prior]
             add("Clean "..region.." floor",blocked and ("Clean the "..prior.." area first.")
-                or "Stand in this floor area to remove dust and stains.","clean_"..region,c.cleaned[region],blocked)
+                or "Stand in this floor area, then mop it clean.","clean_"..region,c.cleaned[region],blocked)
         end
         local floorsClean=c.cleaned.west and c.cleaned.center and c.cleaned.east
         add("Touch up paint",floorsClean and "Stand near the worn wall and shelving."
@@ -103,6 +103,13 @@ end
 local function activate(Runtime,index)
     local row=rows(Runtime)[index]
     if row and row.enabled then
+        local mopRegion=row.kind=="restoration" and row.command:match("^clean_(%a+)$")
+        local character=Runtime.World.player.character or require("src.config").player.character
+        if mopRegion and character=="rabbit-worker" then
+            local okay,message=require("src.warehouse_mop_action").begin(Runtime,row.command)
+            if not okay then Runtime.state.message=message end
+            return
+        end
         local okay=send(Runtime,row.kind,row.command)
         if okay and row.kind=="shopRoom" then Runtime.state.screen="world" end
     end
@@ -127,6 +134,7 @@ function Controls.open(Runtime,mode,action)
         or "Choose an available room. Other players stay in their own rooms."
 end
 function Controls.keypressed(key,Runtime)
+    if require("src.warehouse_mop_action").active(Runtime.World.player) then return true end
     if require("src.home_furniture_controls").keypressed(key,Runtime) then return true end
     if require("src.home_delivery_controls").keypressed(key,Runtime) then return true end
     if require("src.home_activity_controls").keypressed(key,Runtime) then return true end

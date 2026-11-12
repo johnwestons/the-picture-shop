@@ -317,6 +317,20 @@ function Component.install(Runtime)
                                     function() return Runtime.Machine.position(Runtime.state) end, false)
                             end,
                         },
+                        rotate_clockwise = {
+                            normalize = Runtime.cutterNoArguments,
+                            perform = function(_, player)
+                                return Runtime.performCutterAction(player,
+                                    function() return Runtime.Machine.rotate(Runtime.state, 1) end, true)
+                            end,
+                        },
+                        rotate_counterclockwise = {
+                            normalize = Runtime.cutterNoArguments,
+                            perform = function(_, player)
+                                return Runtime.performCutterAction(player,
+                                    function() return Runtime.Machine.rotate(Runtime.state, -1) end, true)
+                            end,
+                        },
                         set_clamp = {
                             normalize = function(arguments)
                                 local clamp = type(arguments) == "table" and arguments.clamp

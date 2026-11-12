@@ -108,6 +108,7 @@ function Component.install(Runtime)
             local px,py=Runtime.toPointerCoordinates(x,y)
             local oldX,oldY=Runtime.toPointerCoordinates(x-(dx or 0),y-(dy or 0))
             if require('src.commute.runtime').miniMapResizeMoved(Runtime,px,py,'mouse') then return true end
+            if require('src.commute.runtime').mapPointerMoved(Runtime,px,py,'mouse') then return true end
             if require('src.commute.runtime').cameraPointerMoved(Runtime,px-oldX,py-oldY) then return true end
         end
         return Runtime.dispatchMouseMoved(x, y)

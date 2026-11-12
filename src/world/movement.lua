@@ -34,6 +34,10 @@ function Component.install(Runtime)
         Runtime.World._state = state
         local player = Runtime.World.player
         local playerStartX, playerStartY = player.x, player.y
+        if require("src.warehouse_mop_action").update(Runtime,dt,state) then
+            Runtime.World.selectedInteraction=nil
+            return Runtime.World.updateSimulation(simulationDt or dt,assets,state,dt)
+        end
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         local localOperatesJack = jack.operating and jack.operatorPlayerId == 1
         local localOperatesForklift = Runtime.Forklift.isOperator(state, Runtime.Config.forklift, tonumber(player.id) or 1)
@@ -118,6 +122,10 @@ function Component.install(Runtime)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
         Runtime.World.placementSelection = nil
+        if require("src.warehouse_mop_action").update(Runtime,dt,state) then
+            Runtime.World.selectedInteraction=nil
+            return true
+        end
         local updated
         local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
         if Runtime.Forklift.isOperator(state, Runtime.Config.forklift, Runtime.World.player.id) then

@@ -148,6 +148,8 @@ function Smoke.start(context)
         elseif focus=='story-intro' then
             require('src.tests.story_intro_test').run(context,check)
             require('src.tests.story_departure_test').run(context,check)
+            require('src.commute.tests.rider_scale_test').run(check)
+            require('src.tests.home_mop_art_test').run(check)
         elseif focus=='commute-day-night' then
             require('src.commute.tests.day_night_test').run(check)
             require('src.commute.tests.terrain_renderer_test').run(check)
@@ -210,6 +212,8 @@ function Smoke.start(context)
             end
         elseif focus=='scene-hud' then
             require('src.tests.scene_hud_runtime_test').run(context,check)
+        elseif focus=='mobile-overlays' then
+            require('src.tests.mobile_overlay_render_test').run(context,check)
         elseif focus=='player-wages' then
             require('src.tests.guest_payroll_test').run(context,check)
         elseif focus=='island-variation' then
@@ -487,6 +491,11 @@ function Smoke.start(context)
                 "pallet_state","placement_precision","machine_relocation_authority","machine_relocation_session",
                 "save_contract","network_protocol"}) do
                 require("src.tests."..name.."_test").run(context,check)
+            end
+        elseif focus=='cutter-operator' then
+            CutterIntegration.run(context,check,context.jobs)
+            for _,name in ipairs({'cutter_operator','machine_motion','cutter_presentation','cutter_production_session','shared_gui','input_status','network_protocol','lua_limits','employees','employee_billing'}) do
+                require('src.tests.'..name..'_test').run(context,check)
             end
         elseif focus=="cut-stock-margin" then
             JobLoopIntegration.run(context,check,context.jobs)

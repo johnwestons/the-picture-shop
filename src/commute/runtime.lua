@@ -56,6 +56,7 @@ function C.touchControlView(R,part)
     if player.sceneId=='warehouse' then return 'warehouse' end
     if player.sceneId=='home' then return 'home' end
     if player.sceneId=='grocery' then return 'grocery' end
+    if player.sceneId=='barn' then return 'walking' end
     if player.sceneId=='station' or player.sceneId=='gas_station' then return 'gas_station' end
     if player.sceneId=='mechanic' or player.sceneId=='mechanic_shop' then return 'mechanic_shop' end
     if player.sceneId=='front_left' or player.sceneId=='front_right' then return 'room' end
@@ -363,7 +364,7 @@ function C.controlContext(R,part,controlsTop)
                 and (not selectedTruck or selectedTruck.model==truck.model) then worldActionLabel='MANIFEST' end
         end
     end
-    if require('src.story_intro').near(R,part) then worldActionLabel='TALK' end
+    if require('src.story_intro').near(R,part) then worldActionLabel='ENTER' end
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
@@ -484,7 +485,7 @@ local function beginDoorTransition(R,kind,token,buildingId)
     if not view or view.doorTransition then return false end
     view.closedDoorNotice=nil
     view.doorTransition=DoorTransition.new(kind,token,buildingId,closedBusinessInfo(R,buildingId))
-    view.mapOpen=false
+    view.mapOpen=false;view.mainMapDrag=nil
     C.cancelCameraDrag(R)
     return true
 end
@@ -513,6 +514,7 @@ function C.toggleMap(R)
     if not visibility.isVisible(R) then visibility.setVisible(R,true) end
     C.cancelCameraDrag(R)
     local view=R._commute
+    if view.mapOpen then view.mainMapDrag=nil end
     view.mapOpen=not view.mapOpen
     if view.mapOpen and not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
     return true
@@ -627,12 +629,20 @@ function C.mapPointer(R,x,y,source)
     if view.mapOpen then
         if part and view.routeMap then
             local mobile=C.mobileInputEnabled(R)
-            if view.routeMap:pressControl(C.mapRect(R),x,y,mobile,button.x-8) then return true end
+            local mapRect=C.mapRect(R)
+            local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
+            if view.routeMap:pressControl(mapRect,x,y,mobile,button.x-8,actor) then return true end
             local mapOptions=view.routeMap:uiOptions(mobile,button.x-8)
             mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
-            local id=view.routeMap:hit(C.mapRect(R),x,y,Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),
-                mapOptions)
+            local id=view.routeMap:hit(mapRect,x,y,actor,mapOptions)
             if id then C.setWaypoint(R,id) end
+            if not id and view.routeMap.mainZoom>1 then
+                local layout=require('src.commute.route_map').layout(mapRect,#view.routeMap.entries,mapOptions)
+                local area=layout.map
+                if x>=area.x and x<=area.x+area.width and y>=area.y and y<=area.y+area.height then
+                    view.mainMapDrag={source=source or 'pointer',x=x,y=y,area=area}
+                end
+            end
         end
         -- The open town map covers the ride controls; consume taps on its background too.
         return true
@@ -660,10 +670,38 @@ function C.mapPointer(R,x,y,source)
     end
     return false
 end
+function C.mapPointerMoved(R,x,y,source)
+    local view=R._commute;local drag=view and view.mainMapDrag
+    if not drag or source~=drag.source or not view.routeMap then return false end
+    view.routeMap:panMain(x-drag.x,y-drag.y,drag.area)
+    drag.x,drag.y=x,y
+    return true
+end
+function C.finishMainMapPan(R,source)
+    local view=R._commute;local drag=view and view.mainMapDrag
+    if not drag or source~=nil and source~=drag.source then return false end
+    view.mainMapDrag=nil
+    return true
+end
 function C.mapWheel(R,x,y,amount)
     local view=R._commute
-    if not view or view.mapOpen or view.miniMapVisible==false or amount==0
-        or not require('src.screens.hud_visibility').isVisible(R) then return false end
+    if not view or amount==0 or not require('src.screens.hud_visibility').isVisible(R) then return false end
+    if view.mapOpen then
+        local part=C.localPart(R)
+        if part then
+            if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
+            local button=C.mapButton(R);local mobile=C.mobileInputEnabled(R)
+            local mapRect=C.mapRect(R)
+            local options=view.routeMap:uiOptions(mobile,button and button.x-8)
+            local area=require('src.commute.route_map').layout(mapRect,#view.routeMap.entries,options).map
+            if x>=area.x and x<=area.x+area.width and y>=area.y and y<=area.y+area.height then
+                local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
+                view.routeMap:zoomMain(amount>0 and 1 or -1,actor)
+            end
+        end
+        return true
+    end
+    if view.miniMapVisible==false then return false end
     local rect=C.miniMapRect(R)
     if x<rect.x or y<rect.y or x>rect.x+rect.width or y>rect.y+rect.height then return false end
     if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
@@ -1211,6 +1249,9 @@ function C.localInput(R)
     if R._commute and R._commute.doorTransition then return 0,0,false end
     local x,y=R.Input.movement();local part=C.localPart(R)
     if part and part.interior then
+        if part.interior=='barn' then
+            return require('src.commute.barn_interior').input(R,part.interiorPose,x,y)
+        end
         local offer=R._commute and R._commute.mechanicOffer
         local view=offer and offer.page=='groceryFloor' and offer.interior
         return view and view.netInputX or 0,view and view.netInputY or 0,false
@@ -1342,6 +1383,7 @@ function C.update(R,dt,x,y,boost,cinematic)
     end
     local part=C.localPart(R)
     if part then
+        if part.interior=='barn' then return dirty end
         if part.interior=='grocery' then
             local view=R._commute or {};R._commute=view
             if not view.mechanicOffer and not view.groceryExiting then
@@ -1472,7 +1514,8 @@ function C.draw(R,cinematic)
     local part=C.localPart(R);local view=R._commute
     if not part or not view then return end
     local showHud=not cinematic and require('src.screens.hud_visibility').isVisible(R)
-    if not showHud then view.mapOpen=false;view.cameraMenu=false end
+    if not showHud then view.mapOpen=false;view.mainMapDrag=nil;view.cameraMenu=false end
+    if part.interior=='barn' then return require('src.commute.barn_interior').draw(R,part) end
     if view.mechanicOffer and C.drawMechanic(R) then return end
     if not view.renderer or view.loading then
         local g=love.graphics
@@ -1624,12 +1667,8 @@ function C.draw(R,cinematic)
                 local visible,fullCaption=require('src.dialogue_presentation').present(
                     'commute-delivery:'..tostring(entry.id),entry.characterId,caption,
                     Speech.emotion(entry.actor.speechCode))
-                local width=love.graphics.getFont():getWidth(fullCaption or caption)+16
-                love.graphics.push('all');love.graphics.setShader();love.graphics.setColor(.035,.045,.045,.92)
-                love.graphics.rectangle('fill',px-width*.5,py-23,width,20,5)
-                love.graphics.setColor(.97,.96,.86,1)
-                love.graphics.printf(visible or caption,px-width*.5+4,py-21,width-8,'center')
-                love.graphics.pop()
+                require('src.speech_bubble').draw(visible or caption,love.graphics.getFont(),
+                    px,py,labelCamera.viewportWidth or 1280,fullCaption or caption)
             end
         end
     end
@@ -1846,6 +1885,19 @@ function C.keypressed(R,key,semantic)
         return false
     end
     local part=C.localPart(R);if not part then return false end
+    if part.interior=='barn' then
+        if key=='escape' or key=='back' then
+            require('src.story_intro').exitBarn(R);return true
+        end
+        if key=='return' or key=='space' or key=='e'
+            or not semantic and (key==C.bindings(R).keyboard.worldAction
+                or key==C.bindings(R).keyboard.interact) then
+            if not require('src.story_intro').open(R) then
+                require('src.story_intro').exitBarn(R)
+            end
+        end
+        return true
+    end
     if R._commute and R._commute.doorTransition then return true end
     if R._commute.cameraMenu and (key=='escape' or key=='back') then R._commute.cameraMenu=false;return true end
     if R._commute and R._commute.loading and not part.interior and key~='escape' and key~='back' and key~='f10' then return true end
@@ -1908,6 +1960,14 @@ end
 function C.perform(R,id)
     if require('src.story_intro').dialogueOpen(R) then
         if id=='interact' or id=='worldAction' then require('src.story_intro').advance(R) end
+        return true
+    end
+    local part=C.localPart(R)
+    if part and part.interior=='barn' then
+        if id=='interact' or id=='worldAction' then
+            return require('src.story_intro').open(R)
+                or require('src.story_intro').exitBarn(R) or true
+        end
         return true
     end
     if id=='steeringMode' then return toggleMobileSteeringMode(R) end
@@ -1990,6 +2050,8 @@ end
 function C.touchPressed(R,id,x,y)
     if R.state.screen~='world' or not C.localPart(R) then return false end
     if require('src.story_intro').dialogueOpen(R) then return require('src.story_intro').pointer(R,x,y) end
+    local part=C.localPart(R)
+    if part.interior=='barn' then return require('src.commute.barn_interior').pointer(R,part,x,y) end
     local view=R._commute
     if view and view.doorTransition then return true end
     if R._commute and R._commute.mechanicOffer then
@@ -2013,6 +2075,7 @@ function C.touchMoved(R,id,x,y)
     local view=R._commute
     if view and view.doorTransition then return true end
     if C.miniMapResizeMoved(R,x,y,id) then return true end
+    if C.mapPointerMoved(R,x,y,id) then return true end
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     local part=C.localPart(R)
     if view and view.touchControls and view.touchControls:move(id,x,y,R.Config.baseWidth,R.Config.baseHeight,
@@ -2023,6 +2086,7 @@ function C.touchReleased(R,id)
     local view=R._commute
     if view and view.doorTransition then return true end
     if C.finishMiniMapResize(R,id) then return true end
+    if C.finishMainMapPan(R,id) then return true end
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     if view and view.touchControls and view.touchControls:release(id) then return true end
     return C.cameraTouchReleased(R,id)
@@ -2030,6 +2094,10 @@ end
 function C.pointer(R,x,y,source)
     if R.state.screen~='world' then return false end
     if require('src.story_intro').dialogueOpen(R) then return require('src.story_intro').pointer(R,x,y) end
+    local part=C.localPart(R)
+    if part and part.interior=='barn' then
+        return require('src.commute.barn_interior').pointer(R,part,x,y)
+    end
     if R._commute and R._commute.doorTransition then return true end
     local offer=R._commute and R._commute.mechanicOffer
     if offer then return require('src.commute.mechanic_shop').pointer(R,x,y) end
@@ -2066,6 +2134,7 @@ function C.pointer(R,x,y,source)
 end
 function C.pointerReleased(R,source)
     if C.finishMiniMapResize(R,source) then return true end
+    if C.finishMainMapPan(R,source) then return true end
     local view=R._commute
     if view and view.pointerAction and (source==nil or source==view.pointerActionSource) then
         local action=view.pointerAction;local touch=view.touchControls
@@ -2180,12 +2249,12 @@ function C.releaseView(R)
 end
 function C.openMechanic(R)
     C.cancelCameraDrag(R)
-    if R._commute then R._commute.mapOpen=false end
+    if R._commute then R._commute.mapOpen=false;R._commute.mainMapDrag=nil end
     return require('src.commute.mechanic_shop').open(R)
 end
 function C.openTownStore(R,storeId)
     C.cancelCameraDrag(R)
-    if R._commute then R._commute.mapOpen=false end
+    if R._commute then R._commute.mapOpen=false;R._commute.mainMapDrag=nil end
     return require('src.commute.mechanic_shop').openTownStore(R,storeId)
 end
 function C.buyUpgrade(R) return require('src.commute.mechanic_shop').confirm(R) end

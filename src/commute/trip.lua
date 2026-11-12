@@ -181,7 +181,7 @@ function Trip.valid(t,home)
             or not integer(p.slot,1,4) or not independent and slots[p.slot] or type(p.arrived)~='boolean'
             or independent and ((p.slot==1)~=(id=='owner') or not Roads.destinations[p.origin]
                 or not Roads.destinations[p.destination]
-                or p.interior~=nil and p.interior~='grocery')
+                or p.interior~=nil and p.interior~='grocery' and p.interior~='barn')
             or p.interior~=nil and (not independent or type(p.interiorPose)~='table'
                 or not M.finite(p.interiorPose.x) or not M.finite(p.interiorPose.y)
                 or not M.finite(p.interiorPose.intentX) or math.abs(p.interiorPose.intentX)>1
@@ -189,7 +189,8 @@ function Trip.valid(t,home)
                 or not M.finite(p.interiorPose.animationDistance) or p.interiorPose.animationDistance<0
                 or p.interiorPose.animationDistance>1e12 or type(p.interiorPose.moving)~='boolean'
                 or p.interiorPose.cartPushing~=nil and type(p.interiorPose.cartPushing)~='boolean'
-                or not require('src.commute.grocery_interior').walkable(p.interiorPose.x,p.interiorPose.y))
+                or not (p.interior=='barn' and require('src.commute.barn_interior').walkable(p.interiorPose.x,p.interiorPose.y)
+                    or p.interior=='grocery' and require('src.commute.grocery_interior').walkable(p.interiorPose.x,p.interiorPose.y)))
             or p.interior==nil and p.interiorPose~=nil
             or type(p.rider)~='table' or not Gear.valid(p.rider.gear)
             or p.interior~=nil and (p.rider.gear.mounted or p.rider.vehicle~=nil)
@@ -615,7 +616,11 @@ function Trip.update(state,player,input,dt,world)
     if not part or part.arrived then return false end
     if part.interior then
         local dx,dz=input.walkX or 0,input.walkZ or 0
-        require('src.commute.grocery_interior').movePose(part.interiorPose,dx,dz,dt,state)
+        if part.interior=='barn' then
+            require('src.commute.barn_interior').movePose(part.interiorPose,dx,dz,dt,state)
+        else
+            require('src.commute.grocery_interior').movePose(part.interiorPose,dx,dz,dt,state)
+        end
         return false
     end
     local run=(not t.independent or t.deliveryDriver==Residents.key(player)) and t.deliveryRun
