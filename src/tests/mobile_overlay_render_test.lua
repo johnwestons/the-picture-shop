@@ -46,9 +46,17 @@ function Test.run(context,check)
         -- Models a scene renderer leaving a restrictive canvas clip behind.
         g.setScissor(0,0,1,1)
     end
-    local function drawCapture(name,sampleX,sampleY)
+    local function drawCapture(name,sampleX,sampleY,staleGraphicsState)
         local canvas=g.newCanvas(width,height)
         g.push('all');g.setCanvas({canvas,stencil=true});g.clear(.04,.05,.07,1)
+        if staleGraphicsState then
+            -- Reproduce a previous scene leaving a tiny clip/stencil and a
+            -- camera transform behind before the next application frame.
+            g.setScissor(0,0,1,1)
+            g.stencil(function()g.rectangle('fill',0,0,1,1)end,'replace',1)
+            g.setStencilTest('greater',0)
+            g.translate(37,23)
+        end
         local okay,reason=xpcall(function()R.App.draw()end,debug.traceback)
         g.pop()
         assert(okay,reason)
@@ -198,8 +206,25 @@ function Test.run(context,check)
             check('mobile_overlay_post_close_touch_release_clears_input',releasedX==0 and releasedY==0
                 and R.mobileControls.touches[postCloseTouch]==nil)
         end
-        drawCapture('world-after-restoration-back',440,400)
+        local worldPixels=drawCapture('world-after-restoration-back',OVERLAY_SAMPLES)
         check('mobile_overlay_restoration_world_renders_after_back',R.state.screen=='world')
+
+        -- The powered warehouse enables additional renderer passes after
+        -- breaker repair. Opening another full-screen interface must still
+        -- reset graphics state left by that scene instead of showing a stale
+        -- warehouse frame over most of the menu.
+        R.state.screen='computer'
+        local computerPixels=drawCapture('computer-after-breaker-repair',OVERLAY_SAMPLES,nil,true)
+        local changed=0
+        for index,pixel in ipairs(computerPixels) do
+            local prior=worldPixels[index]
+            local distance=math.abs(pixel[1]-prior[1])+math.abs(pixel[2]-prior[2])
+                +math.abs(pixel[3]-prior[3])
+            if distance>.18 then changed=changed+1 end
+        end
+        check('mobile_overlay_computer_visible_after_breaker_with_stale_graphics_state',changed>=5,
+            ('changed_screen_samples=%d/%d'):format(changed,#computerPixels))
+        R.state.screen='world'
 
         local phoneTarget=R.Config.interactables.workPhone
         R.World.load({id=1,sceneId='warehouse',x=phoneTarget.x,y=phoneTarget.y,

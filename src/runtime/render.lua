@@ -9,6 +9,16 @@ function Component.install(Runtime)
         else require('src.dock_renderer').selectScene(require('src.shop_rooms').scene(Runtime.World.player),Runtime.state)end
 
         Runtime.CharacterAssets.beginFrame()
+        -- A prior scene pass can leave a clip, stencil test, shader, or camera
+        -- transform active. Reset those before clearing the frame so an old
+        -- warehouse draw cannot remain in the framebuffer behind a new menu.
+        -- Keep the current canvas: automated captures render App.draw into one.
+        love.graphics.origin()
+        love.graphics.setScissor()
+        love.graphics.setStencilTest()
+        love.graphics.setShader()
+        love.graphics.setBlendMode('alpha','alphamultiply')
+        love.graphics.setColor(1,1,1,1)
         love.graphics.clear(0.04, 0.05, 0.07)
         local viewBounds = Runtime.syncCamera()
         local showHud=HudVisibility.isVisible(Runtime)

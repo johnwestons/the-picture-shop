@@ -1,6 +1,16 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.110",
+        date = "Nov 12, 2026",
+        title = "Warehouse restoration menu rendering fix",
+        changes = {
+            "Warehouse menus now render cleanly after repairing the breaker, including when reopening the computer.",
+            "Graphics clipping, stencil, shader, blend, and camera transform state resets at the start of each frame.",
+            "Android 110 keeps multiplayer protocol 75 and is compatible with Android 109.",
+        },
+    },
+    {
         version = "0.1.0-android.107",
         date = "Nov 11, 2026",
         title = "Story mode startup fix",
