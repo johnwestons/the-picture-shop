@@ -5,6 +5,7 @@ local Art=require("src.critter_crisis_art")
 local Inputs=require('src.critter_crisis_inputs')
 local Coop=require('src.screens.critter_crisis_coop')
 local Mobile=require('src.screens.critter_crisis_mobile')
+local DisplayFonts=require('src.screens.reference_display_fonts')
 local Screen={view="menu",aimX=480,aimY=330,mouseFire=false,touches={},cover=false,reload=false}
 local images,fonts={},{}
 local base="assets/generated/critter-crisis-v1/"
@@ -226,6 +227,20 @@ function Screen.draw(runtime)
     love.graphics.push("all")
     love.graphics.setColor(.02,.035,.05,1);love.graphics.rectangle("fill",0,0,960,678)
     drawBackdrop(session)
+    if session and session.phase=="intro" then
+        love.graphics.setColor(.015,.03,.055,.92);love.graphics.rectangle("fill",0,0,960,678)
+        love.graphics.setColor(.93,.69,.30,1);love.graphics.rectangle("fill",132,171,696,3)
+        love.graphics.setColor(.93,.69,.30,1);love.graphics.rectangle("fill",132,509,696,3)
+        local route=Crisis.ROUTES[session.level]
+        local mission=({"MISSION ONE","MISSION TWO","MISSION THREE"})[session.level]
+        love.graphics.setColor(1,.89,.67,1)
+        DisplayFonts.draw("arcadeFlash",route.name,90,244,67,"center",780)
+        love.graphics.setColor(.95,.77,.36,1)
+        DisplayFonts.draw("arcadeFlash",mission,130,355,43,"center",700)
+        love.graphics.setColor(.84,.89,.86,1)
+        label("GET READY",130,460,700,24,{.84,.89,.86,1})
+        love.graphics.pop();return
+    end
     if Screen.connectionHelp then
         love.graphics.setColor(.01,.02,.035,.96);love.graphics.rectangle('fill',30,70,900,570,12)
         label('TWO PHONES / PHONE + COMPUTER',55,104,850,43)
@@ -239,13 +254,17 @@ function Screen.draw(runtime)
         love.graphics.pop();return
     end
     love.graphics.setColor(.012,.02,.03,.98);love.graphics.rectangle("fill",0,0,960,76)
-    if page=="menu" then label("CRITTER CRISIS!",165,14,630,53)
-    else label("CRITTER CRISIS!",143,3,652,40) end
+    if page=="menu" then
+        love.graphics.setColor(1,.89,.67,1);DisplayFonts.draw("arcadeFlash","CRITTER CRISIS",165,15,53,"center",630)
+    else
+        love.graphics.setColor(1,.89,.67,1);DisplayFonts.draw("arcadeFlash","CRITTER CRISIS",143,3,40,"center",652)
+    end
     if page=="menu" then
         love.graphics.setColor(.015,.025,.045,.68);love.graphics.rectangle("fill",35,145,890,463,10)
         label("THREE MISSIONS - ONE SHOT AT A TIME",80,172,800,37)
         for level,route in ipairs(Crisis.ROUTES) do
-            label(level.."  "..route.name,112,236+(level-1)*41,736,30,{.73,.86,.87,1})
+            love.graphics.setColor(.73,.86,.87,1)
+            DisplayFonts.draw("arcadeFlash",level.."  "..route.name,112,236+(level-1)*41,25,"left",736)
         end
         if Mobile.enabled(runtime) then
             for _,entry in ipairs(phoneMenu) do
@@ -325,11 +344,13 @@ function Screen.draw(runtime)
             label('Other device: open this cabinet and choose JOIN CO-OP.',155,350,650,25)
         elseif session.phase=="finished" or session.phase=="failed" then
             love.graphics.setColor(.015,.025,.04,.88);love.graphics.rectangle("fill",130,201,700,365,8)
-            label(session.phase=="finished" and "CRISIS CLEARED!" or "MISSION FAILED",150,247,660,60)
+            love.graphics.setColor(1,.89,.67,1)
+            DisplayFonts.draw("arcadeFlash",session.phase=="finished" and "CRISIS CLEARED" or "MISSION FAILED",150,247,56,"center",660)
             label("FINAL SCORE  "..session.score,180,327,600,42)
             if session.ownerId==activeId(runtime) then drawButton("restart","RESTART") end
         elseif session.transition>0 then
-            label("AREA CLEAR  -  ADVANCING",170,267,620,50)
+            love.graphics.setColor(1,.89,.67,1);DisplayFonts.draw("arcadeFlash","AREA CLEAR",170,267,50,"center",620)
+            label("ADVANCING",170,326,620,28,{.73,.86,.87,1})
         end
         if session.mode=='local' then Coop.drawHud(runtime,session)
         elseif page~="waiting" and session.phase=="playing" then

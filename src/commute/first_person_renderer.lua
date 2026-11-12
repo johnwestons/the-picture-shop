@@ -185,6 +185,9 @@ function View:draw(renderer,camera,actor,actors,highlightStyle)
     if renderer.shadows then renderer.shadows:draw(renderer,camera,actors,light) end
     if renderer.grassFields then renderer:drawGrass(camera,actor) end
     if renderer.tireTracks then renderer.tireTracks:draw(camera,renderer.tireTrackShader,renderer:depthSpan()) end
+    if renderer.footTracks then
+        renderer.footTracks:draw(camera,renderer.tireTrackShader,renderer:depthSpan(),renderer.world,renderer.effectiveRadius)
+    end
     FP.send(camera,self.shader);self.shader:send('sceneryRadius',renderer.effectiveRadius)
     self.shader:send('fogColor',light.horizon);self.spriteShader:send('fogColor',light.horizon)
     self.shader:send('cameraCenter',{camera.centerX,camera.centerZ})

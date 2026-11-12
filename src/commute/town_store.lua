@@ -8,6 +8,7 @@ local TownCharacters=require('src.commute.town_characters')
 local Calendar=require('src.business_calendar')
 local GroceryUiArt=require('src.commute.grocery_ui_art')
 local Fonts=require('src.screens.title_fonts')
+local DisplayFonts=require('src.screens.reference_display_fonts')
 local Store={}
 local stores={
     grocery={name='TOWN GROCERY',subtitle='Fresh staples and pantry food',group='groceries',items={
@@ -454,7 +455,7 @@ local function drawGrocery(v,balanceCents,bikeInventory,revision,width,height)
     GroceryUiArt.drawEmblem(91,98,83)
     local title=v.categoryId=='checkout' and 'REGISTER CHECKOUT'
         or groceryCategories[v.categoryId] and groceryCategories[v.categoryId].label or 'GROCERY AISLE'
-    g.setColor(1,.88,.61,1);g.setFont(Fonts.get('metal',21));g.print('TOWN GROCERY',140,61)
+    g.setColor(1,.88,.61,1);DisplayFonts.draw('groovySlab','TOWN GROCERY',146,57,32,'left',325)
     g.setColor(.99,.96,.85,1);g.setFont(Fonts.get('metal',14));g.print(title,140,92)
     g.setColor(.70,.83,.68,1);g.setFont(Fonts.get('metal',10))
     g.print(v.categoryId=='checkout' and 'A friendly checkout, staffed by our store cat'

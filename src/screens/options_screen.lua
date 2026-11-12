@@ -6,6 +6,7 @@ local CharacterAssets = require("src.character_assets")
 local Ui = require("src.screens.ui")
 local SilhouetteStyle = require("src.commute.silhouette_style")
 local PlayerProfile = require('src.player_profile')
+local DisplayFonts = require("src.screens.reference_display_fonts")
 local PROFILE_NAME={x=250,y=178,width=370,height=40}
 local PROFILE_SAVE={x=634,y=178,width=162,height=40}
 
@@ -1267,7 +1268,7 @@ function OptionsScreen.draw(mouseX, mouseY)
     Ui.panel({ x = 92, y = 66, width = 776, height = 576 },
         { 0.065, 0.085, 0.087, 1 }, { 0.48, 0.55, 0.49, 1 }, 6, 2)
     love.graphics.setColor(0.95, 0.82, 0.26)
-    love.graphics.print("SHOP CONTROL", 116, 28, 0, 1.15, 1.15)
+    DisplayFonts.draw("groovySlab", "SHOP CONTROL", 116, 28, 18, "left", 728)
     love.graphics.setColor(0.66, 0.72, 0.69)
     love.graphics.print("OPTIONS // O KEY OR CONTROLLER START", 116, 49)
     drawButton(CLOSE, OptionsScreen.menuRect() and "RESUME" or "BACK", false, false)

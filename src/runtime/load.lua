@@ -121,7 +121,8 @@ function Component.install(Runtime)
             releaseKey = function(key) Runtime.Input.keyreleased(key, Runtime.inputContext) end,
             pressPointer = function(x,y,button)
                 local commute=require('src.commute.runtime')
-                if Runtime.state.screen=='world' and commute.indoorControlsActive(Runtime) then
+                if Runtime.state.screen=='world' and (commute.indoorControlsActive(Runtime)
+                    or Runtime.World.player.sceneId=='barn') then
                     local px,py=Runtime.toPointerCoordinates(x,y)
                     return commute.pointer(Runtime,px,py,'touch')
                 end
@@ -132,7 +133,8 @@ function Component.install(Runtime)
             gameplayActive = function()
                 local commute=require('src.commute.runtime')
                 return Runtime.state.screen == "world"
-                    and (not commute.active(Runtime) or commute.indoorControlsActive(Runtime))
+                    and (not commute.active(Runtime) or commute.indoorControlsActive(Runtime)
+                        or Runtime.World.player.sceneId=='barn')
             end,
             gestureActive = function()
                 if require('src.commute.runtime').active(Runtime) then return false end

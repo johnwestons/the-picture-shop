@@ -145,6 +145,7 @@ function Smoke.start(context)
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
         if focus=='warehouse-condition' then
             require('src.tests.warehouse_condition_test').run(context,check)
+            require('src.tests.player_footprints_test').run(context,check)
         elseif focus=='story-intro' then
             require('src.tests.story_intro_test').run(context,check)
             require('src.tests.story_departure_test').run(context,check)
@@ -393,6 +394,7 @@ function Smoke.start(context)
             require('src.commute.tests.delivery_traffic_test').run(check)
             require('src.tests.late_game_load_test').run(context,check)
         elseif focus=='commute' then
+            require('src.commute.tests.foot_tracks_test').run(check)
             require('src.commute.tests.truck_multiplayer_test').run(context,check)
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
@@ -471,6 +473,9 @@ function Smoke.start(context)
             for _,name in ipairs({"lua_limits","arcade_mobile_ui","critter_kombat_controls","keyboard_mobile"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
+        elseif focus=="crisis" then
+            require("src.tests.critter_crisis_test").run(context,check)
+            require("src.tests.critter_crisis_controller_test").run(context,check)
         elseif focus=="critter-kombat" then
             for _,name in ipairs({"lua_limits","critter_kombat","critter_kombat_controls","network_protocol","multiplayer_session","keyboard_mobile","save_contract"}) do
                 require("src.tests."..name.."_test").run(context,check)

@@ -532,9 +532,16 @@ end
 function Grocery.draw(view,R)
     local g=love.graphics;g.push('all');g.setShader();g.scale(R.Config.baseWidth/960,R.Config.baseHeight/678)
     view.presented=true;loadLayers(view)
+    local footprints=require('src.player_footprints')
+    local remotePlayers=R.multiplayer and R.multiplayer.remotePlayers and R.multiplayer:remotePlayers() or {}
+    if view.pose then
+        footprints.update(R.state,{x=view.pose.x,y=view.pose.y,moving=view.pose.moving,
+            sceneId='grocery'},remotePlayers,love.timer.getTime())
+    end
     g.setColor(.035,.055,.052,1);g.rectangle('fill',0,0,960,678)
     local sx,sy=960/1536,678/1024
     drawMapImage(g,view.images.floor,0,0,sx,sy)
+    footprints.draw('grocery')
     drawMapImage(g,view.images.walls,0,0,sx,sy)
     if view.ready then
         local cartX,cartY,cartDirection,pushed=Grocery.cartPosition(view)

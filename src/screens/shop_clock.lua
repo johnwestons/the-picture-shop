@@ -1,6 +1,7 @@
 local Calendar=require("src.business_calendar")
 local Config=require("src.config")
 local Ui=require("src.screens.ui")
+local DisplayFonts=require("src.screens.reference_display_fonts")
 local Clock={}
 local close={x=752,y=40,width=150,height=42}
 local SPEED_OPTIONS={1,2,5,10}
@@ -60,7 +61,7 @@ function Clock.closeHit(x,y) return Ui.contains(close,x,y) end
 function Clock.drawPanel(state,rect,digitalOnly,gameSpeed,canChangeSpeed,pointerX,pointerY,drawComputerButton,twelveHourTime)
     local x,y,w,h=rect.x,rect.y,rect.width,rect.height
     Ui.box(x,y,w,h,{.055,.085,.095,.99},{.42,.64,.61,1},5)
-    love.graphics.setColor(.96,.83,.33,1);love.graphics.printf("SHOP CLOCK",x+16,y+16,w-32,"center")
+    love.graphics.setColor(.96,.83,.33,1);DisplayFonts.draw("groovySlab","SHOP CLOCK",x+16,y+16,16,"center",w-32)
     love.graphics.setColor(.84,.91,.87,1);love.graphics.printf(Calendar.dateText(state),x+12,y+40,w-24,"center")
     if digitalOnly then
         love.graphics.setColor(.48,.70,.66,1)

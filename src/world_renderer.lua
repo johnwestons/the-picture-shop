@@ -590,6 +590,8 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     local sameRoomPlayers={}
     for _,p in ipairs(remotePlayers or {}) do if Rooms.sameScene(p,World.player) then sameRoomPlayers[#sameRoomPlayers+1]=p end end
     remotePlayers=sameRoomPlayers
+    local footprints=require("src.player_footprints")
+    footprints.update(state,World.player,remotePlayers)
     if Rooms.scene(World.player)=="home" then
         require("src.home_renderer").draw(World,assets,characterAssets,state,remotePlayers,
             function() drawPlayer(characterAssets,state) end)
@@ -611,9 +613,7 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     drawBackground(assets,state)
     require("src.warehouse_condition_renderer").drawStatic(state)
     WarehouseRenderer.drawFloors(assets, state)
-    local footprints=require("src.warehouse_footprints")
-    footprints.update(state,World.player,remotePlayers)
-    footprints.draw()
+    footprints.draw("warehouse")
     CutterStaging.draw(state)
     drawWorkPhone(assets, state)
     drawWallVentFan(assets)

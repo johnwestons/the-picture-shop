@@ -1,4 +1,5 @@
 local Hockey=require("src.air_hockey")
+local DisplayFonts=require("src.screens.reference_display_fonts")
 local Screen={}
 local RINK={x=205,y=150,scale=.86}
 local STICK={x=121,y=328,radius=60}
@@ -149,7 +150,7 @@ function Screen.draw(runtime)
     love.graphics.setColor(.025,.042,.05,.95)
     love.graphics.rectangle("fill",43,25,872,626,12)
     love.graphics.setColor(.95,.76,.29,1)
-    love.graphics.print("AIR HOCKEY",82,45)
+    DisplayFonts.draw("arcadeFlash", "AIR HOCKEY", 82, 43, 34, "left", 420)
     love.graphics.setColor(.83,.89,.88,1)
     love.graphics.printf(match and string.format("ORANGE %d     :     %d TEAL",match.leftScore,match.rightScore)
         or "FIRST TO SEVEN",300,46,360,"center")

@@ -182,6 +182,14 @@
       "timeoutSeconds": 300, "minChecks": 25
     },
     {
+      "id": "restoration-overlays-desktop", "focus": "mobile-overlays", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 20
+    },
+    {
+      "id": "restoration-overlays-mobile", "focus": "mobile-overlays", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 20
+    },
+    {
       "id": "navigation-desktop", "focus": "route-map", "mobile": false,
       "timeoutSeconds": 300, "minChecks": 20
     },
@@ -244,7 +252,12 @@
     {
       "id": "workshop-restoration", "label": "Closed shop, utilities, visual stages, and grand opening",
       "stages": ["restoration-desktop", "restoration-mobile"],
-      "checks": ["warehouse_condition_closed_selects_crisp_stage_zero", "warehouse_condition_no_job_calls_before_opening", "warehouse_condition_power_reconnect_pays_once", "warehouse_condition_cleanup_has_fixed_order", "warehouse_condition_complete_after_all_work", "warehouse_condition_grand_opening_unlocks_jobs", "warehouse_condition_footprints_fade_quickly"]
+      "checks": ["warehouse_condition_closed_selects_crisp_stage_zero", "warehouse_condition_pending_variant_does_not_reuse_old_plate", "warehouse_condition_no_job_calls_before_opening", "warehouse_condition_power_reconnect_pays_once", "warehouse_condition_cleanup_has_fixed_order", "warehouse_condition_complete_after_all_work", "warehouse_condition_grand_opening_unlocks_jobs", "warehouse_condition_footprints_fade_quickly"]
+    },
+    {
+      "id": "restoration-input-and-rendering", "label": "Restoration overlays, breaker input recovery, and world rendering",
+      "stages": ["restoration-overlays-desktop", "restoration-overlays-mobile"],
+      "checks": ["mobile_overlay_story_utility_box_opens", "mobile_overlay_open_clears_active_touches", "mobile_overlay_power_reconnect_action_completes", "mobile_overlay_utility_back_returns_to_world", "mobile_overlay_restoration_menu_opens", "mobile_overlay_restoration_entry_clears_active_touches", "mobile_overlay_breaker_repair_action_completes", "mobile_overlay_restoration_back_returns_to_world", "mobile_overlay_player_movement_resumes_after_breaker", "mobile_overlay_restoration_world_renders_after_back"]
     },
     {
       "id": "gps-navigation", "label": "Readable map, zoom controls, and live route behavior",

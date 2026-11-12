@@ -328,7 +328,8 @@ function Camera:update(actor, dt, visual)
         local yawSmoothTime=self.outsideMode=='shoulder'
             and Camera.SHOULDER_YAW_SMOOTH_TIME or Camera.FOLLOW_YAW_SMOOTH_TIME
         for _=1,count do
-            local returnDt=math.max(0,yawDt-(self.followOrbitHold or 0))
+            local returnDt=self.persistentFollowOrbit and 0
+                or math.max(0,yawDt-(self.followOrbitHold or 0))
             self.followOrbitHold=math.max(0,(self.followOrbitHold or 0)-yawDt)
             self.followYawOffset=(self.followYawOffset or 0)*math.exp(-returnDt*7)
             local angle,velocity=Damping.angle(self.yaw*rad,

@@ -2,6 +2,7 @@
 local Crisis=require('src.critter_crisis')
 local Enemy=require('src.critter_crisis_enemy')
 local Games=require('src.breakroom_games')
+local Protocol=require('src.net.protocol')
 local Test={}
 local function aimAtVisibleEnemy(session)
     for _,enemy in ipairs(session.enemies) do
@@ -25,6 +26,14 @@ function Test.run(_,check)
         assert(Crisis.command(state,host,'start_'..mode))
         if mode=='coop' then assert(Crisis.command(state,guest,'join')) end
         local session=Crisis.sessions.front_left
+        if mode=='solo' then
+            check('crisis_solo_starts_with_timed_intro',session.phase=='intro' and session.transition>0)
+        else
+            check('crisis_coop_join_starts_with_timed_intro',session.phase=='intro' and session.transition>0)
+        end
+        local packet,packetError=Protocol.encode('crisis_snapshot',{sessionId='CRISISINTRO',serverTick=1,
+            bayId='front_left',session=Crisis.snapshot()[1]})
+        check('crisis_'..mode..'_intro_snapshot_is_network_valid',packet~=nil,packetError)
         local visited={};local stageCount,shots,reloads=0,0,0
         for _=1,60*600 do
             local key=session.level..':'..session.stop
@@ -38,7 +47,7 @@ function Test.run(_,check)
                 end
                 return {buttons=2}
             end)
-            if session.phase~='playing' then break end
+            if session.phase=='finished' or session.phase=='failed' then break end
         end
         for level,route in ipairs(Crisis.ROUTES) do
             local complete=true

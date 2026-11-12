@@ -14,9 +14,12 @@ local bridgePath='assets/generated/story-intro/millhaven-bridge-v1.png'
 local farmRoadPath='assets/generated/story-intro/miller-farm-road-v1.png'
 local art
 local musicSource
+local musicBaseVolume,musicGain=0,0
+local musicFadeOut
 local W,H=960,678
 local function clamp(x,a,b) return math.max(a,math.min(b,x)) end
 local function ease(x) x=clamp(x,0,1);return x*x*(3-2*x) end
+local MUSIC_FADE_IN,MUSIC_FADE_OUT=1.8,1.35
 local function color(r,g,b,a) love.graphics.setColor(r,g,b,a or 1) end
 local function rect(x,y,w,h,radius)
     love.graphics.rectangle('fill',x,y,w,h,radius or 0)
@@ -46,11 +49,20 @@ local function drawBike(image,x,y,scale,alpha)
     color(1,1,1,alpha or 1)
     love.graphics.draw(image,a.bikeQuad,x,y,0,scale,scale)
 end
-local function drawPlate(image,pan,alpha)
+local function drawPlate(image,pan,alpha,overscan)
     local g=love.graphics
-    local scale=math.max(W/image:getWidth(),H/image:getHeight())
+    local scale=math.max(W/image:getWidth(),H/image:getHeight())*(overscan or 1)
     color(1,1,1,alpha or 1)
-    g.draw(image,(W-image:getWidth()*scale)*.5+(pan or 0),0,0,scale,scale)
+    g.draw(image,(W-image:getWidth()*scale)*.5+(pan or 0),
+        (H-image:getHeight()*scale)*.5,0,scale,scale)
+end
+local function drawPlateParallax(image,pan,foregroundPan,horizon,alpha,overscan)
+    drawPlate(image,pan,alpha,overscan)
+    local g=love.graphics
+    g.push('all')
+    g.setScissor(0,horizon,W,H-horizon)
+    drawPlate(image,foregroundPan,alpha,overscan)
+    g.pop()
 end
 local function location(title,subtitle)
     Lettering.draw(title,27,14,650,.38,'left')
@@ -61,10 +73,46 @@ local function caption(text)
 end
 local function stopMusic()
     local source=musicSource
-    musicSource=nil
+    musicSource=nil;musicFadeOut=nil;musicBaseVolume=0;musicGain=0
     if not source then return end
+    pcall(source.setVolume,source,0)
     pcall(source.stop,source)
     if source.release then pcall(source.release,source) end
+end
+local function fadeOutMusic()
+    if not musicSource or musicFadeOut then return false end
+    musicFadeOut={source=musicSource,elapsed=0,duration=MUSIC_FADE_OUT,from=musicGain}
+    return true
+end
+local function updateMusic(R,dt)
+    local source=musicSource
+    if not source then return false end
+    dt=math.max(0,tonumber(dt) or 0)
+    if musicFadeOut then
+        local fade=musicFadeOut
+        if fade.paused then return true end
+        fade.elapsed=fade.elapsed+dt
+        musicGain=fade.from*(1-ease(fade.elapsed/fade.duration))
+        pcall(source.setVolume,source,musicBaseVolume*musicGain)
+        if fade.elapsed>=fade.duration then
+            musicSource=nil;musicFadeOut=nil;musicBaseVolume=0;musicGain=0
+            pcall(source.stop,source)
+            if source.release then pcall(source.release,source) end
+        end
+        return true
+    end
+    local opening=R and R._storyOpening
+    if opening then
+        opening.musicFadeElapsed=math.min(MUSIC_FADE_IN,(opening.musicFadeElapsed or 0)+dt)
+        musicGain=ease(opening.musicFadeElapsed/MUSIC_FADE_IN)
+        pcall(source.setVolume,source,musicBaseVolume*musicGain)
+    end
+    local okay,position=pcall(source.tell,source)
+    local durationOkay,duration=pcall(source.getDuration,source)
+    if okay and durationOkay and type(position)=='number' and type(duration)=='number'
+        and duration>0 and position>=duration-MUSIC_FADE_OUT
+    then fadeOutMusic() end
+    return true
 end
 local function startMusic(R)
     stopMusic()
@@ -79,7 +127,7 @@ local function startMusic(R)
     if sound and sound.muted then volume=0 end
     local started=pcall(function()
         source:setLooping(false)
-        source:setVolume(volume)
+        source:setVolume(0)
         source:play()
         if sound and sound.paused then source:pause() end
     end)
@@ -89,11 +137,13 @@ local function startMusic(R)
         return false
     end
     musicSource=source
+    musicBaseVolume=volume;musicGain=0;musicFadeOut=nil
     return true
 end
 local function interior(t)
     local g=love.graphics
-    drawPlate(art.apartment,14-ease(t/8)*28)
+    local progress=ease(t/8)
+    drawPlateParallax(art.apartment,16-progress*34,24-progress*52,564,1,1.06)
     color(.12,.10,.08,.40);g.ellipse('fill',477,538,219,20)
     local pose=t<3.0 and 1 or t<5.4 and 2 or 3
     local x=320+ease((t-5.8)/2.1)*120
@@ -109,22 +159,28 @@ local function interior(t)
         or 'Grandpa is waiting in the town where it all began.')
 end
 local function street(t)
-    drawPlate(art.street,17-(t-8)*13)
+    local travel=ease((t-8)/2.7)
+    drawPlateParallax(art.street,32-travel*66,44-travel*104,603,1,1.10)
     local walk=ease((t-8)/1.35)
     local mounted=ease((t-9.45)/.42)
-    drawBike(art.parked,562,287,.72,1-mounted)
+    local bikeX=522+ease((t-9.85)/.85)*112
+    drawBike(art.parked,bikeX,287,.72,1-mounted)
     drawPose(3,110+walk*323,257,.53,1-mounted)
-    drawBike(art.bike,562,287+math.sin(t*12)*1.5,.72,mounted)
+    drawBike(art.bike,bikeX,287+math.sin(t*12)*1.5,.72,mounted)
     location('MILLHAVEN CITY','Leaving the apartment behind')
     caption('Packed and ready for the road to Grandpa\'s farm.')
 end
 local function road(t)
     local p=clamp((t-10.7)/7.5,0,1)
     local country=ease((p-.46)/.31)
-    drawPlate(art.bridge,23-p*44)
-    if country>.001 then drawPlate(art.farmRoad,22-p*42,country) end
+    local distantPan=36-p*72
+    local nearPan=47-p*112
+    drawPlateParallax(art.bridge,distantPan,nearPan,596,1,1.10)
+    if country>.001 then
+        drawPlateParallax(art.farmRoad,18-p*58,27-p*92,596,country,1.10)
+    end
     local bob=math.sin(t*25)*2.5
-    drawBike(art.bike,361+math.sin(t*.9)*7,264+bob,.82)
+    drawBike(art.bike,320+ease(p)*270+math.sin(t*.7)*3,264+bob,.82)
     location(p<.28 and 'LEAVING MILLHAVEN' or p<.62 and 'RIVER BRIDGE' or 'THE ROAD TO MILLER FARM',
         p<.28 and 'City streets give way to the highway' or p<.62 and 'Across the river toward home'
         or 'The town and Grandpa are just ahead')
@@ -132,12 +188,19 @@ local function road(t)
         or 'Finally made it. Adventure awaits.')
 end
 function Opening.active(R) return R._storyOpening~=nil end
+function Opening.cameraActive(R)
+    local opening=R and R._storyOpening
+    local arrival=opening and opening.arrival
+    local view=R and R._commute
+    return arrival and arrival.phase=='ride' and view and view.camera and view.renderer
+        and not view.loading or false
+end
 function Opening.begin(R)
     local c=Condition.of(R.state)
     R._storyOpening=nil
     if c and c.mode=='story' and c.openingSeen==false and not c.grandpaMet
         and R.World.player.sceneId=='commute' then
-        R._storyOpening={time=0}
+        R._storyOpening={time=0,musicFadeElapsed=0}
         startMusic(R)
         return true
     end
@@ -146,7 +209,9 @@ end
 function Opening.finish(R,skip)
     if not Opening.active(R) then return false end
     local opening=R._storyOpening
-    stopMusic()
+    fadeOutMusic()
+    Arrival.finishJourneyFuel(R,opening.arrival)
+    require('src.commute.runtime').cancelCameraLook(R)
     if skip then require('src.story_intro').parkAtFarm(R) end
     R._storyOpening=nil
     local camera=R._commute and R._commute.camera
@@ -176,11 +241,13 @@ function Opening.finish(R,skip)
     return true
 end
 function Opening.focus(R,focused)
-    if not Opening.active(R) or not musicSource then return false end
+    if not musicSource then return false end
     if not focused then
+        if musicFadeOut then musicFadeOut.paused=true end
         pcall(musicSource.pause,musicSource)
         return true
     end
+    if musicFadeOut then musicFadeOut.paused=false end
     local okay,position=pcall(musicSource.tell,musicSource)
     local durationOk,duration=pcall(musicSource.getDuration,musicSource)
     if okay and durationOk and type(position)=='number' and type(duration)=='number'
@@ -189,9 +256,10 @@ function Opening.focus(R,focused)
     return true
 end
 function Opening.update(R,dt)
+    dt=math.max(0,math.min(tonumber(dt) or 0,.5))
+    updateMusic(R,dt)
     local state=R._storyOpening
     if not state then return false end
-    dt=math.max(0,math.min(tonumber(dt) or 0,.5))
     if state.arrival then
         local done,reason=Arrival.update(R,state,dt)
         if done==nil then
@@ -217,12 +285,72 @@ function Opening.keypressed(R,key)
     if not Opening.active(R) then return false end
     if key=='escape' or key=='back' or key=='space' or key=='return' or key=='s' then
         Opening.finish(R,true)
+    elseif Opening.cameraActive(R) then
+        local commute=require('src.commute.runtime')
+        local action=require('src.commute.bindings').action(commute.bindings(R),'keyboard',key)
+        if action=='recenter' then R._commute.camera:recenter() end
     end
     return true
 end
+function Opening.gamepadpressed(R,button)
+    if not Opening.active(R) then return false end
+    if Opening.cameraActive(R) then
+        local commute=require('src.commute.runtime')
+        local action=require('src.commute.bindings').action(commute.bindings(R),'controller',button)
+        if action=='recenter' then R._commute.camera:recenter() end
+    end
+    return true
+end
+local function skipHit(x,y)
+    return x>=745 and x<=940 and y>=12 and y<=78
+end
 function Opening.pointer(R,x,y)
     if not Opening.active(R) then return false end
-    if x>=745 and x<=940 and y>=12 and y<=78 then Opening.finish(R,true) end
+    if skipHit(x,y) then Opening.finish(R,true) end
+    return true
+end
+function Opening.mousepressed(R,x,y,button)
+    if not Opening.active(R) then return false end
+    if button==1 and skipHit(x,y) then return Opening.pointer(R,x,y) end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraPointerPressed(R,button,nil,true)
+    end
+    return true
+end
+function Opening.mousereleased(R,button)
+    if not Opening.active(R) then return false end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraPointerReleased(R,button)
+    end
+    return true
+end
+function Opening.mousemoved(R,dx,dy)
+    if not Opening.active(R) then return false end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraPointerMoved(R,dx,dy,true)
+    end
+    return true
+end
+function Opening.touchpressed(R,id,x,y)
+    if not Opening.active(R) then return false end
+    if skipHit(x,y) then return Opening.pointer(R,x,y) end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraTouchPressed(R,id,x,y,true)
+    end
+    return true
+end
+function Opening.touchmoved(R,id,x,y)
+    if not Opening.active(R) then return false end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraTouchMoved(R,id,x,y,true)
+    end
+    return true
+end
+function Opening.touchreleased(R,id)
+    if not Opening.active(R) then return false end
+    if Opening.cameraActive(R) then
+        require('src.commute.runtime').cameraTouchReleased(R,id,true)
+    end
     return true
 end
 function Opening.draw(R)
@@ -242,6 +370,14 @@ function Opening.draw(R)
         if cut>0 then color(.015,.023,.025,cut*.86);rect(-220,0,1400,H) end
         local fade=1-ease(t/.65)+(not state.arrival and ease((t-(Opening.DURATION-.9))/.9) or 0)
         if fade>0 then color(.015,.023,.025,clamp(fade,0,1));rect(-220,0,1400,H) end
+    end
+    if Opening.cameraActive(R) then
+        local mobile=R.mobileControls and R.mobileControls:isEnabled()
+        local hint=mobile and 'DRAG TO ORBIT / TILT'
+            or (require('src.commute.bindings').label(
+                require('src.commute.runtime').bindings(R).mouse.orbit)
+                ..' DRAG / RIGHT STICK TO ORBIT / TILT')
+        Lettering.draw(hint,26,13,690,.31,'left')
     end
     Lettering.draw('SKIP INTRO',752,13,179,.34,'center')
     color(.72,.75,.67,.7);rect(44,658,872,4,2)

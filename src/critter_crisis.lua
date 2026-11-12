@@ -2,6 +2,7 @@
 local Games=require("src.breakroom_games")
 local Enemy=require("src.critter_crisis_enemy")
 local Crisis={sessions={}}
+local INTRO_DURATION=1.8
 Crisis.GAMES={mission=true}
 Crisis.FIRE,Crisis.COVER,Crisis.RELOAD=1,2,4
 Crisis.ROUTES={
@@ -32,13 +33,14 @@ local function stage(session)
 end
 local function newSession(bay,id,mode,game)
     Crisis.nextRound=(Crisis.nextRound or 0)+1
-    local s={bayId=bay,ownerId=id,partnerId=nil,mode=mode,phase=mode=="coop" and "waiting" or "playing",
+    local s={bayId=bay,ownerId=id,partnerId=nil,mode=mode,phase=mode=="coop" and "waiting" or "intro",
         game=game or 'mission',roundId=Crisis.nextRound,
         level=1,stop=1,score=0,elapsed=0,transition=0,flash=0,hit=0,
         players={[id]=playerState(id)}}
     if mode=='local' then s.partnerId=0;s.players[0]=playerState(0) end
     if s.game=='mission' then stage(s)
     else s.enemies={};s.barrels={};s.frontier=require('src.critter_crisis_frontier').new(s.game) end
+    if s.phase=="intro" then s.transition=INTRO_DURATION end
     return s
 end
 function Crisis.startAction(action)
@@ -71,14 +73,17 @@ function Crisis.command(state,player,action)
         if not s or s.phase~="waiting" or s.ownerId==id or s.partnerId then
             return false,"not_joinable","No open co-op mission at this cabinet."
         end
-        s.partnerId=id;s.players[id]=playerState(id);s.phase="playing"
+        s.partnerId=id;s.players[id]=playerState(id);s.phase="intro";s.transition=INTRO_DURATION
         return true,"accepted","Co-op mission started!"
     elseif action=="restart" then
         if not s or s.ownerId~=id or s.phase~="finished" and s.phase~="failed" then
             return false,"not_finished","Only the host player can restart a completed mission."
         end
         local fresh=newSession(bay,id,s.mode,s.game)
-        if s.partnerId then fresh.partnerId=s.partnerId;fresh.players[s.partnerId]=playerState(s.partnerId);fresh.phase="playing" end
+        if s.partnerId then
+            fresh.partnerId=s.partnerId;fresh.players[s.partnerId]=playerState(s.partnerId)
+            fresh.phase="intro";fresh.transition=INTRO_DURATION
+        end
         Crisis.sessions[bay]=fresh
         return true,"accepted","Mission restarted."
     elseif action=="leave" then
@@ -118,16 +123,21 @@ local function shoot(s,p)
     end
 end
 local function advance(s)
+    local nextMission=false
     if s.stop<#Crisis.ROUTES[s.level].stops then s.stop=s.stop+1
-    elseif s.level<#Crisis.ROUTES then s.level=s.level+1;s.stop=1
+    elseif s.level<#Crisis.ROUTES then s.level=s.level+1;s.stop=1;nextMission=true
     else s.phase="finished";s.score=s.score+500;return end
     stage(s)
     for _,p in pairs(s.players) do if p.hp<=0 then p.hp=3;p.ammo=8;p.reload=0 end end
+    if nextMission then s.phase="intro";s.transition=INTRO_DURATION end
 end
 function Crisis.update(dt,inputFor)
     dt=clamp(dt or 0,0,.1)
     for _,s in pairs(Crisis.sessions) do
-        if s.phase=="playing" then
+        if s.phase=="intro" then
+            s.transition=math.max(0,(s.transition or INTRO_DURATION)-dt)
+            if s.transition==0 then s.phase="playing" end
+        elseif s.phase=="playing" then
             if s.game~='mission' and s.frontier then
                 require('src.critter_crisis_frontier').update(s,dt,inputFor)
             else

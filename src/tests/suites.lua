@@ -10,7 +10,11 @@ end
 local DOMAIN_SUITES = {
     require('src.tests.player_profile_test'),
     require('src.tests.warehouse_condition_test'),
-    {run=function(_,check)require('src.commute.tests.day_night_test').run(check)end},
+    require('src.tests.player_footprints_test'),
+    {run=function(_,check)
+        require('src.commute.tests.foot_tracks_test').run(check)
+        require('src.commute.tests.day_night_test').run(check)
+    end},
     {run=function(context,check)
         local receipts=require('src.tests.receipt_book_test').run(context,check)
         require('src.tests.receipt_archive_ui_test').run(context,check,receipts)

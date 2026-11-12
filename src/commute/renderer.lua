@@ -12,6 +12,7 @@ local TruckArt=require('src.commute.truck_art')
 local Structures=require('src.commute.structures')
 local FP=require('src.commute.first_person_camera')
 local TireTracks=require('src.commute.tire_tracks')
+local FootTracks=require('src.commute.foot_tracks')
 local BikeParticles=require('src.commute.bike_particles')
 local GrassFields=require('src.commute.grass_fields')
 local Colorways=require('src.rabbit_colorways')
@@ -100,7 +101,7 @@ function Renderer.new(world,spawn,options)
     local self=setmetatable({world=world,ground=Ground.new({mobile=mobile}),chunks={},radius=64,clock=0,serial=0,
         mobile=mobile,terrainSpacing=terrainSpacing,
         calendar=world.calendar or {month=5,totalDays=0},viewportWidth=1280,viewportHeight=880,
-        tireTracks=TireTracks.new(),bikeParticles=BikeParticles.new(),shadows=Shadows.new(),
+        tireTracks=TireTracks.new(),footTracks=FootTracks.new(),bikeParticles=BikeParticles.new(),shadows=Shadows.new(),
         outsideSpriteShader=love.graphics.newShader(outsideSpriteShader()),
         tireTrackShader=love.graphics.newShader(tireTrackDepthShader()),
         outsideColorwaysShader=love.graphics.newShader(outsideDepthVertex..Colorways.blendShaderSource()..[[
@@ -695,6 +696,9 @@ function Renderer:draw(camera,actor,actors,settings)
     self:drawGrass(camera,actor)
     self.tireTracks:draw(camera,self.tireTrackShader,self:depthSpan())
     local depthSpan=self:depthSpan()
+    if self.footTracks then
+        self.footTracks:draw(camera,self.tireTrackShader,depthSpan,self.world,self.effectiveRadius)
+    end
     local actorX,actorY=camera:screen(actor.x,actor.z,actor.h or self.world:supportHeight(actor.x,actor.z))
     local plantMotion=self.plantMotion
     local plantMotionActive=not plantMotion.hasSway or plantMotion:hasSway()

@@ -93,8 +93,10 @@ function Component.install(Runtime)
         end
         require("src.employee_high_five").update(dt)
         if Runtime.pollSaves then Runtime.pollSaves() end
-        if require('src.story_opening').active(Runtime) then
-            require('src.story_opening').update(Runtime,dt)
+        local storyOpening=require('src.story_opening')
+        local storyOpeningActive=storyOpening.active(Runtime)
+        storyOpening.update(Runtime,dt)
+        if storyOpeningActive then
             return
         end
         local grandOpening=require('src.story_grand_opening')

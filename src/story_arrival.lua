@@ -8,7 +8,13 @@ local Rider=require('src.commute.rider')
 local Bike=require('src.commute.motorcycle')
 local Sites=require('src.commute.sites')
 local ScheduledDriving=require('src.commute.scheduled_driving')
+local BikeService=require('src.commute.bike_service')
+local Residents=require('src.home_residents')
 local function length(a,b) return math.sqrt((b.x-a.x)^2+(b.z-a.z)^2) end
+local function ease(value)
+    value=math.max(0,math.min(1,value))
+    return value*value*(3-2*value)
+end
 local function sample(plan,d)
     d=math.max(0,math.min(plan.length,d))
     for i=2,#plan.points do
@@ -87,6 +93,26 @@ local function placeRide(R,arrival,pose)
     arrival.lastSpeed=speed
     sync(R,Commute.localPart(R))
 end
+function Arrival.finishJourneyFuel(R,arrival)
+    local part=Commute.localPart(R)
+    local rider=part and part.rider
+    if not rider or not rider.bike or not rider.bike.service then return false end
+    local fuel=rider.bike.service.fuel or BikeService.tank
+    local start=arrival and arrival.fuelStart or fuel
+    local low=arrival and arrival.fuelEnd or BikeService.tank*.11
+    rider.bike.service.fuel=math.min(fuel,start,low)
+    if start>low then
+        rider.bike.service.revision=(rider.bike.service.revision or 0)+1
+    end
+    local residents=R.state.home and R.state.home.residents
+    local resident=residents and residents[Residents.key(R.World.player)]
+    if resident then
+        resident.ridingService=BikeService.copy(rider.bike.service)
+        resident.revision=(resident.revision or 0)+1
+        R.state.home.revision=(R.state.home.revision or 0)+1
+    end
+    return true
+end
 function Arrival.begin(R,state)
     local plan,reason=Arrival.plan(Commute.world(R))
     if not plan then return false,reason end
@@ -103,8 +129,10 @@ function Arrival.begin(R,state)
     rider.ped.speed=0;rider.ped.vx=0;rider.ped.vz=0
     rider.bike.distance=0;rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0
     rider.bike.throttle=0;rider.bike.brake=0
+    local fuelStart=rider.bike.service and rider.bike.service.fuel or BikeService.tank
     state.arrival={plan=plan,drivePlan=drivePlan,vehicle=vehicle,phase='equip',
-        distance=0,elapsed=0,walkIndex=1,stalled=0,lastSpeed=0}
+        distance=0,elapsed=0,walkIndex=1,stalled=0,lastSpeed=0,
+        fuelStart=fuelStart,fuelEnd=math.min(fuelStart,BikeService.tank*.11)}
     local initial=ScheduledDriving.sample(plan.route,0,Commute.world(R),vehicle)
     if not initial then state.arrival=nil;return false,'The Story motorcycle route could not be sampled.' end
     placeRide(R,state.arrival,initial)
@@ -114,6 +142,7 @@ function Arrival.begin(R,state)
     local okay,equipReason=Rider.command(rider,'equip',Commute.world(R))
     if not okay then state.arrival=nil;return false,equipReason end
     sync(R,part)
+    state.arrival.visualHeading=initial.heading
     return true
 end
 local function updateRider(rider,world,input,dt)
@@ -168,6 +197,18 @@ function Arrival.update(R,state,dt)
         local progress=math.min(1,arrival.elapsed/arrival.drivePlan.duration)
         local pose=ScheduledDriving.sample(arrival.plan.route,progress,world,arrival.vehicle)
         if not pose then return nil,'The Story motorcycle route could not be sampled.' end
+        if pose.speed>.05 then
+            local distance=pose.distance or arrival.distance
+            local bx,bz=sample(arrival.plan,math.max(0,distance-2.8))
+            local ax,az=sample(arrival.plan,math.min(arrival.plan.length,distance+2.8))
+            if math.sqrt((ax-bx)^2+(az-bz)^2)>.01 then
+                pose.heading=math.atan2(az-bz,ax-bx)
+            end
+            arrival.visualHeading=pose.heading
+        elseif arrival.visualHeading then pose.heading=arrival.visualHeading end
+        local driveProgress=pose.progress or progress
+        rider.bike.service.fuel=arrival.fuelStart
+            +(arrival.fuelEnd-arrival.fuelStart)*ease(driveProgress)
         placeRide(R,arrival,pose)
         if progress>=1 then
             rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0

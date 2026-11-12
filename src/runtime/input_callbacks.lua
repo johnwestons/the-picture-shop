@@ -66,7 +66,8 @@ function Component.install(Runtime)
     function Runtime.App.mousepressed(x, y, button, isTouch)
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
-            return require('src.story_opening').pointer(Runtime,px,py)
+            if isTouch then return true end
+            return require('src.story_opening').mousepressed(Runtime,px,py,button)
         end
         if require('src.story_grand_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
@@ -88,7 +89,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousereleased(x, y, button, isTouch)
-        if require('src.story_opening').active(Runtime) then return true end
+        if require('src.story_opening').active(Runtime) then
+            if isTouch then return true end
+            return require('src.story_opening').mousereleased(Runtime,button)
+        end
         if require('src.story_grand_opening').active(Runtime) then return true end
         if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.state.screen=='notifications' then return true end
@@ -99,7 +103,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousemoved(x, y, dx, dy, isTouch)
-        if require('src.story_opening').active(Runtime) then return true end
+        if require('src.story_opening').active(Runtime) then
+            if isTouch then return true end
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            local oldX,oldY=Runtime.toPointerCoordinates(x-(dx or 0),y-(dy or 0))
+            return require('src.story_opening').mousemoved(Runtime,px-oldX,py-oldY)
+        end
         if require('src.story_grand_opening').active(Runtime) then return true end
         if isTouch and Runtime.state.screen=='delivery_signature' then return true end
         if Runtime.state.screen=='notifications' then return true end
@@ -139,7 +148,7 @@ function Component.install(Runtime)
     function Runtime.App.touchpressed(id, x, y)
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
-            return require('src.story_opening').pointer(Runtime,px,py)
+            return require('src.story_opening').touchpressed(Runtime,id,px,py)
         end
         if require('src.story_grand_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
@@ -164,7 +173,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
-        if require('src.story_opening').active(Runtime) then return true end
+        if require('src.story_opening').active(Runtime) then
+            local px,py=Runtime.toPointerCoordinates(x,y)
+            return require('src.story_opening').touchmoved(Runtime,id,px,py)
+        end
         if require('src.story_grand_opening').active(Runtime) then return true end
         if Runtime.state.screen=='delivery_signature' then
             local px,py=Runtime.toPointerCoordinates(x,y)
@@ -191,7 +203,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchreleased(id, x, y)
-        if require('src.story_opening').active(Runtime) then return true end
+        if require('src.story_opening').active(Runtime) then
+            return require('src.story_opening').touchreleased(Runtime,id)
+        end
         if require('src.story_grand_opening').active(Runtime) then return true end
         if Runtime.state.screen=='delivery_signature' then
             local px,py=Runtime.toPointerCoordinates(x,y)
@@ -217,7 +231,7 @@ function Component.install(Runtime)
             if button=='a' or button=='b' or button=='start' or button=='back' then
                 return require('src.story_opening').finish(Runtime,true)
             end
-            return true
+            return require('src.story_opening').gamepadpressed(Runtime,button)
         end
         if require('src.story_grand_opening').active(Runtime) then
             if button=='a' or button=='b' or button=='start' or button=='back' then

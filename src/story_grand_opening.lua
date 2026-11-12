@@ -2,6 +2,7 @@
 -- unlocks business when its final OPEN card lands. All art is drawn in code.
 local Opening={DURATION=12.8}
 local Condition=require('src.warehouse_condition')
+local DisplayFonts=require('src.screens.reference_display_fonts')
 local W,H=960,678
 local fonts={}
 local colors={
@@ -75,8 +76,8 @@ local function drawBanner(progress,headline)
     color(colors.gold);g.rectangle('fill',left,y, right-left,132,5)
     color(colors.deep);g.rectangle('fill',left+6,y+6,right-left-12,120,3)
     love.graphics.setLineWidth(3);color(colors.cream);g.rectangle('line',left+12,y+12,right-left-24,108,2)
-    font(25);color(colors.gold);g.printf('THE PICTURE SHOP',left+20,y+23,right-left-40,'center')
-    font(43);color(colors.white);g.printf(headline,left+18,y+55,right-left-36,'center')
+    color(colors.gold);DisplayFonts.draw('groovySlab','THE PICTURE SHOP',left+20,y+23,25,'center',right-left-40)
+    color(colors.white);DisplayFonts.draw('groovySlab',headline,left+18,y+55,43,'center',right-left-36)
 end
 local function drawDoorSign(progress)
     local g=love.graphics

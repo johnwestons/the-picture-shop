@@ -163,6 +163,7 @@ end
 function Renderer.drawRoom(world,assets,characters,state,remotePlayers,drawPlayer,drawPallet,drawPalletJack,drawPlacement,drawMachine,physicalPallets,exteriorPlayers,exteriorContext)
     local sceneId=Rooms.scene(world.player)
     Renderer.drawBackground(state,sceneId,assets)
+    require("src.player_footprints").draw(sceneId)
     require("src.room_loading_bay_renderer").draw(world,assets,state,sceneId,characters,exteriorPlayers,exteriorContext)
     if drawPlacement then drawPlacement() end
     Renderer.drawShelves(assets,state,sceneId,drawPallet)

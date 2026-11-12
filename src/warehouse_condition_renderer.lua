@@ -41,7 +41,10 @@ function Renderer.image(state,assets)
             end
         end
     end
-    return images[variant] or images[recent[#recent]] or assets.get("warehouse")
+    -- A different condition plate can still be decoding after power, lighting,
+    -- or cleanup changes. Do not show the most recently cached full-scene image:
+    -- it may depict the previous restoration state for the entire world frame.
+    return images[variant] or assets.get("warehouse")
 end
 local function staticKey(c)
     return table.concat({c.seed,c.powerConnected and 1 or 0,c.breakerRepaired and 1 or 0,

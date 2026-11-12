@@ -85,8 +85,27 @@ function Test.run(context,check)
             R.App.keypressed('e')
         end
     end
-    local function renderOverlay(name)
-        local pixels=drawCapture(name,OVERLAY_SAMPLES)
+    local function touchStick(id,release)
+        local stick=R.mobileControls.joystick
+        local ox,oy,_,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight,
+            R.App.officeUsesSafeArea())
+        local x=ox+(stick.x+stick.radius*.65)*sx
+        local y=oy+stick.y*sy
+        if release then return R.App.touchreleased(id,x,y) end
+        return R.App.touchpressed(id,x,y)
+    end
+    local function closeOverlay()
+        R.App.keypressed(mobile and 'back' or 'escape')
+    end
+    local function renderOverlay(name,spritePanel)
+        local pixels=drawCapture(name,spritePanel and {{480,220}} or OVERLAY_SAMPLES)
+        if spritePanel then
+            local pixel=pixels[1]
+            local greenPanel=pixel[2]>pixel[1]*1.10 and pixel[2]>pixel[3]*1.12 and pixel[2]<.8
+            check('mobile_overlay_'..name..'_sprite_panel_visible_after_world_draw',greenPanel,
+                ('panel_rgb=%.3f,%.3f,%.3f'):format(pixel[1],pixel[2],pixel[3]))
+            return pixels
+        end
         local dark=0
         for _,pixel in ipairs(pixels) do
             if math.max(pixel[1],pixel[2],pixel[3])<.20 then dark=dark+1 end
@@ -115,13 +134,22 @@ function Test.run(context,check)
         R.World._state=R.state
         R.World.update(0,0,0,R.Assets,R.state)
 
+        local heldStick='restoration-held-stick'
+        if mobile then
+            local captured=touchStick(heldStick)
+            local moveX=R.mobileControls:movement()
+            check('mobile_overlay_held_touch_starts_player_input',captured and moveX>.1)
+        end
         R.App.keypressed('j')
         check('mobile_overlay_story_utility_box_opens','shop_rooms'==R.state.screen
             and Controls.mode=='utilities')
-        renderOverlay('utilities-menu')
-        screenTap(300,264,'utility-power')
+        check('mobile_overlay_open_clears_active_touches',not mobile
+            or R.mobileControls.axisX==0 and R.mobileControls.axisY==0
+                and R.mobileControls.touches[heldStick]==nil)
+        renderOverlay('utilities-menu',true)
+        screenTap(300,320,'utility-power')
         check('mobile_overlay_power_reconnect_action_completes',Condition.of(R.state).powerConnected)
-        R.App.keypressed('escape')
+        closeOverlay()
         check('mobile_overlay_utility_back_returns_to_world',R.state.screen=='world')
 
         R.World.load({id=1,sceneId='warehouse',x=218,y=185,
@@ -130,16 +158,48 @@ function Test.run(context,check)
         R.World.update(0,0,0,R.Assets,R.state)
         check('mobile_overlay_restoration_interaction_is_in_range',
             R.World.getInteraction() and R.World.getInteraction().kind=='restoration')
+        if mobile then touchStick(heldStick) end
         interact()
         check('mobile_overlay_restoration_menu_opens','shop_rooms'==R.state.screen
             and Controls.mode=='restoration')
-        renderOverlay('restoration-menu')
-        if mobile then screenTap(300,354,'repair-breaker')
+        check('mobile_overlay_restoration_entry_clears_active_touches',not mobile
+            or R.mobileControls.axisX==0 and R.mobileControls.axisY==0
+                and R.mobileControls.touches[heldStick]==nil)
+        renderOverlay('restoration-menu',true)
+        if mobile then screenTap(270,420,'repair-breaker')
         else R.App.keypressed('down');R.App.keypressed('down');R.App.keypressed('return') end
         check('mobile_overlay_breaker_repair_action_completes',Condition.of(R.state).breakerRepaired)
-        renderOverlay('restoration-after-repair')
-        R.App.keypressed('escape')
+        renderOverlay('restoration-after-repair',true)
+        closeOverlay()
         check('mobile_overlay_restoration_back_returns_to_world',R.state.screen=='world')
+        local player=R.World.player
+        player.x,player.y=475,590
+        local moveX,moveY
+        local postCloseTouch='restoration-post-close-stick'
+        if mobile then
+            touchStick(postCloseTouch)
+            moveX,moveY=R.Input.movement()
+        else
+            local originalIsDown=love.keyboard.isDown
+            love.keyboard.isDown=function(...)
+                for index=1,select('#',...) do if select(index,...)=='d' then return true end end
+                return false
+            end
+            moveX,moveY=R.Input.movement()
+            love.keyboard.isDown=originalIsDown
+        end
+        local beforeX,beforeY=player.x,player.y
+        R.World.update(.25,moveX,moveY,R.Assets,R.state,nil,nil,.25)
+        local moved=math.abs(player.x-beforeX)+math.abs(player.y-beforeY)>1
+        check('mobile_overlay_player_movement_resumes_after_breaker',moved)
+        if mobile then
+            touchStick(postCloseTouch,true)
+            local releasedX,releasedY=R.mobileControls:movement()
+            check('mobile_overlay_post_close_touch_release_clears_input',releasedX==0 and releasedY==0
+                and R.mobileControls.touches[postCloseTouch]==nil)
+        end
+        drawCapture('world-after-restoration-back',440,400)
+        check('mobile_overlay_restoration_world_renders_after_back',R.state.screen=='world')
 
         local phoneTarget=R.Config.interactables.workPhone
         R.World.load({id=1,sceneId='warehouse',x=phoneTarget.x,y=phoneTarget.y,

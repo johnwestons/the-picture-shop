@@ -1452,18 +1452,24 @@ function C.update(R,dt,x,y,boost,cinematic)
         -- Keep the truck cab and outside view on the same optical center on
         -- phones and desktop so the dashboard stays registered to the windshield.
         view.camera.viewCenterY=nil
+        local opening=R._storyOpening
+        local storyRide=cinematic and opening and opening.arrival
+            and opening.arrival.phase=='ride'
         if cinematic then
             if view.camera.firstPerson then view.camera:setFirstPerson(false,actor) end
             view.camera:setOutsideMode('follow',actor,rider.gear.mounted and not rider.gear.transition)
             view.camera.targetZoom=rider.gear.mounted and 1.18 or 1.35
             view.camera.offsetY=rider.gear.mounted and -110 or 0
         else C.applyCameraPreference(R,view.camera,rider) end
+        view.camera.persistentFollowOrbit=storyRide==true
         if not rider.gear.mounted or rider.vehicle=='truck' or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
         view.camera:updateRide(rider,dt,visual)
         C.refreshNavigation(R,part,dt,false)
-        if not cinematic and R.state.screen=='world' and not view.mechanicOffer and not view.loading and not view.mapOpen
-            and not require('src.screens.hud_visibility').cameraLocked(R) then
-            Bindings.camera(C.bindings(R),view.camera,dt,view.touchControls)
+        if (not cinematic or storyRide) and R.state.screen=='world' and not view.mechanicOffer
+            and not view.loading and not view.mapOpen and (storyRide
+                or not require('src.screens.hud_visibility').cameraLocked(R)) then
+            if storyRide then Bindings.camera(C.bindings(R),view.camera,dt)
+            else Bindings.camera(C.bindings(R),view.camera,dt,view.touchControls) end
         end
         if view.mechanicOffer then return dirty end
         if not view.renderer then
@@ -1548,6 +1554,15 @@ function C.draw(R,cinematic)
         local player=p.slot==localId and R.World.player or playersById[p.slot]
         if player and Residents.key(player)~=id then player=nil end
         local r=C.visualRider(p,player,R.state.home.commute.token)
+        if view.renderer and view.renderer.footTracks then
+            local localWalking=p==part and view.controlFeedback and (view.controlFeedback.speed or 0)>.01
+            local walking=player~=nil and player.sceneId=='commute'
+                and (player.moving==true or localWalking) and not p.interior
+                and not r.gear.mounted and r.vehicle~='truck' and not r.gear.transition
+                and not p.arrived and not (r.ped and r.ped.crash)
+            view.renderer.footTracks:update('player:'..tostring(id),r.ped,view.world,walking,
+                love.timer.getTime())
+        end
         if player and p~=part and not p.interior then
             nameplates[#nameplates+1]={player=player,actor=Rider.actor(r),height=r.vehicle=='truck' and 3.9 or 2.1}
         end
@@ -2051,7 +2066,10 @@ function C.touchPressed(R,id,x,y)
     if R.state.screen~='world' or not C.localPart(R) then return false end
     if require('src.story_intro').dialogueOpen(R) then return require('src.story_intro').pointer(R,x,y) end
     local part=C.localPart(R)
-    if part.interior=='barn' then return require('src.commute.barn_interior').pointer(R,part,x,y) end
+    if part.interior=='barn' then
+        if C.mobileInputEnabled(R) then return false end
+        return require('src.commute.barn_interior').pointer(R,part,x,y)
+    end
     local view=R._commute
     if view and view.doorTransition then return true end
     if R._commute and R._commute.mechanicOffer then
@@ -2149,10 +2167,10 @@ function C.pointerReleased(R,source)
     view.touchBoost=false;view.touchBoostSource=nil
     return true
 end
-function C.cameraPointerPressed(R,button,leftAlt)
+function C.cameraPointerPressed(R,button,leftAlt,cinematic)
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) or not view or not view.camera or not view.renderer or view.loading or view.mechanicOffer or view.mapOpen then return false end
-    if require('src.screens.hud_visibility').cameraLocked(R) then
+    if not cinematic and require('src.screens.hud_visibility').cameraLocked(R) then
         local action=Bindings.action(C.bindings(R),'mouse','mouse'..button)
         return action=='orbit' or action=='pan'
     end
@@ -2179,32 +2197,40 @@ function C.cameraPointerReleased(R,button)
     local view=R._commute
     return view and view.cameraDrag and CameraControls.release(view.cameraDrag,button) or false
 end
-function C.cameraPointerMoved(R,dx,dy)
-    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
+function C.cameraPointerMoved(R,dx,dy,cinematic)
+    if not cinematic and require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) then C.cancelCameraDrag(R);return false end
     if not view or not view.cameraDrag then return false end
     local _,_,scaleX,scaleY=sceneTransform(R)
     return CameraControls.move(view.cameraDrag,view.camera,dx,dy,scaleX,scaleY)
 end
-function C.cameraTouchPressed(R,id,x,y)
+function C.cameraTouchPressed(R,id,x,y,cinematic)
     local view=R._commute
     if R.state.screen~='world' or not C.active(R) or not view or not view.camera or not view.renderer
         or view.loading or view.mechanicOffer or view.mapOpen then return false end
-    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
+    if not cinematic and require('src.screens.hud_visibility').cameraLocked(R) then return true end
     view.cameraTouches=view.cameraTouches or {}
     if view.cameraPinch or view.cameraTouches[id] then return true end
     local first=next(view.cameraTouches)
-    view.cameraTouches[id]={x=x,y=y}
+    view.cameraTouches[id]={x=x,y=y,cinematic=cinematic==true}
     if first then view.cameraPinch={first,id} end
     return true
 end
-function C.cameraTouchMoved(R,id,x,y)
-    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
+function C.cameraTouchMoved(R,id,x,y,cinematic)
+    if not cinematic and require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute;local touch=view and view.cameraTouches and view.cameraTouches[id]
     if not touch then return false end
     local pair=view.cameraPinch
-    if not pair then touch.x,touch.y=x,y;return true end
+    if not pair then
+        local dx,dy=x-touch.x,y-touch.y
+        touch.x,touch.y=x,y
+        if touch.cinematic then
+            local _,_,scaleX,scaleY=sceneTransform(R)
+            view.camera:orbit(-dx*.45/scaleX,dy*.25/scaleY)
+        end
+        return true
+    end
     local a,b=view.cameraTouches[pair[1]],view.cameraTouches[pair[2]]
     local oldX,oldY=b.x-a.x,b.y-a.y
     local dx,dy=(x-touch.x)*.5,(y-touch.y)*.5
@@ -2215,15 +2241,15 @@ function C.cameraTouchMoved(R,id,x,y)
     local twist=0
     if d0>=8 and d1>=8 then
         twist=math.deg(math.atan2(oldX*newY-oldY*newX,oldX*newX+oldY*newY))
-        camera:zoomBy(math.log(d1/d0)/.12)
+        if not cinematic then camera:zoomBy(math.log(d1/d0)/.12) end
     end
     local _,_,scaleX,scaleY=sceneTransform(R)
     local sign=camera.firstPerson and -1 or 1
     camera:orbit(sign*(twist-dx*.45/scaleX),sign*dy*.25/scaleY)
     return true
 end
-function C.cameraTouchReleased(R,id)
-    if require('src.screens.hud_visibility').cameraLocked(R) then return true end
+function C.cameraTouchReleased(R,id,cinematic)
+    if not cinematic and require('src.screens.hud_visibility').cameraLocked(R) then return true end
     local view=R._commute
     if not view or not view.cameraTouches or not view.cameraTouches[id] then return false end
     view.cameraTouches[id]=nil

@@ -31,6 +31,14 @@ function Review.run(runtime,Screen,Crisis,Frontier,destination)
     capture('01-menu')
     local s=session()
     check('enemies start concealed',s.enemies[1].mode=='duck' and s.enemies[1].posture==0)
+    if os.getenv('CRISIS_FONT_REVIEW_ONLY')=='1' then
+        check('solo mission starts with timed title card',s.phase=='intro' and s.transition>0)
+        capture('02-stage-intro')
+        for _=1,120 do Crisis.update(1/60,function()return {}end) end
+        check('title card advances to active play',s.phase=='playing' and s.transition==0)
+        capture('03-playing')
+        report:write('COMPLETE '..checks..' checks\n');report:close();return
+    end
     local startY=s.enemies[1].y
     capture('02-behind-cover')
     local modes={};local positions={};local lastTravel=0;local monotonic=true
@@ -79,7 +87,7 @@ function Review.run(runtime,Screen,Crisis,Frontier,destination)
     payload.session.enemies[1].posture=2
     check('snapshot rejects invalid posture',not Protocol.encode('crisis_snapshot',payload))
     capture('05-boat-encounter')
-    s=session();s.enemies[1].posture=1;s.enemies[1].mode='peek'
+    s=session();s.phase='playing';s.transition=0;s.enemies[1].posture=1;s.enemies[1].mode='peek'
     local enemy=s.enemies[1];local targetY=Enemy.body(enemy).top+20
     Crisis.update(0,function()return {x=(enemy.x-480)/480,y=(targetY-339)/339,buttons=Crisis.FIRE} end)
     check('shot kills exposed critter',enemy.hp==0 and s.score==100)
@@ -89,7 +97,7 @@ function Review.run(runtime,Screen,Crisis,Frontier,destination)
     Crisis.update(0,function()return {buttons=Crisis.RELOAD} end)
     for _=1,75 do Crisis.update(1/60,function()return {buttons=Crisis.COVER} end) end
     check('reload completes',s.players[1].ammo==8)
-    s=session()
+    s=session();s.phase='playing';s.transition=0
     local barrel=s.barrels[1]
     Crisis.update(0,function()return {x=(barrel.x-480)/480,y=(barrel.y-339)/339,buttons=Crisis.FIRE} end)
     check('supplied barrel is shootable and explodes',not barrel.alive and s.flash>0 and s.score>=130)

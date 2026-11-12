@@ -5,6 +5,7 @@ local Config=require('src.config')
 local WalkMotion=require('src.player_walk_motion')
 local Loader=require('src.image_loader')
 local Fonts=require('src.screens.title_fonts')
+local DisplayFonts=require('src.screens.reference_display_fonts')
 local Room={}
 local GRID,COLUMNS,ROWS=8,120,85
 local ART='assets/generated/gas-station-interior-v1/'
@@ -235,8 +236,14 @@ end
 function Room.draw(view,R)
     local g=love.graphics;g.push('all');g.setShader();g.scale(R.Config.baseWidth/960,R.Config.baseHeight/678)
     view.presented=true;g.setColor(.035,.055,.052,1);g.rectangle('fill',0,0,960,678)
+    local footprints=require('src.player_footprints')
+    if view.pose then
+        footprints.update(R.state,{x=view.pose.x,y=view.pose.y,moving=view.pose.moving,
+            sceneId='station'},nil,love.timer.getTime())
+    end
     local sx,sy=960/1536,678/1024
-    drawImage(g,view.images.floor,0,0,sx,sy);drawImage(g,view.images.walls,0,0,sx,sy)
+    drawImage(g,view.images.floor,0,0,sx,sy);footprints.draw('station')
+    drawImage(g,view.images.walls,0,0,sx,sy)
     drawCentered(g,view.images.wallShelf,480,225,sx*.43,sy*.43)
     local function drawAisles()
         drawCentered(g,view.images.aisle,300,358,sx*.30,sy*.30)
@@ -270,7 +277,8 @@ function Room.draw(view,R)
         label(view.error and 'Return outside and try again.' or 'Preparing the gas station',180,338,600,16,{.70,.78,.72,1},'center')
     end
     g.setColor(.025,.045,.05,.92);g.rectangle('fill',0,0,960,67)
-    label('GAS STATION  /  CONVENIENCE STORE',24,10,700,25,{1,.85,.49,1})
+    g.setColor(1,.85,.49,1);DisplayFonts.draw('groovySlab','GAS STATION',24,7,34,'left',700)
+    g.setFont(Fonts.get('metal',13));g.print('/ CONVENIENCE STORE',215,27)
     local mobile=R.mobileControls and R.mobileControls:isEnabled()
     local interactHint=require('src.commute.bindings').hint(
         require('src.commute.runtime').bindings(R),'interact')

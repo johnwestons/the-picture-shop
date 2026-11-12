@@ -16,6 +16,7 @@ function Test.run(_,check)
     local runtime={state=state,World={player={id=1,sceneId='front_left',x=f.interactionX,y=f.interactionY}},
         multiplayer={isClient=function()return false end},App={officeFitsScreen=function()return true end}}
     Cabinet.enter(runtime,'front_left');Cabinet.keypressed(runtime,'2');Screen.keypressed(runtime,'1')
+    Crisis.sessions.front_left.phase='playing'
     local pad=controller()
     Cabinet.gamepadaxis(runtime,pad,'rightx',0);Screen.update(.02,runtime)
     local x=Screen.aimX;pad.axes.rightx=1;Screen.update(.1,runtime);pad.axes.rightx=0

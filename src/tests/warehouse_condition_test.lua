@@ -88,6 +88,22 @@ function Test.run(context,check)
     state.warehouse.condition=Condition.new("story",771)
     local c=state.warehouse.condition
     local conditionRenderer=require("src.warehouse_condition_renderer")
+    local imageLoader=require("src.image_loader")
+    local oldImageLoaderEnabled,oldImageLoaderLoad=imageLoader.enabled,imageLoader.load
+    local baseWarehouse={kind="base-warehouse"}
+    local rendererAssets={get=function(name) return name=="warehouse" and baseWarehouse end}
+    conditionRenderer.clear()
+    imageLoader.setEnabled(true)
+    local closedPlate=conditionRenderer.image(state,rendererAssets)
+    imageLoader.load=function() return nil,"pending" end
+    c.powerConnected,c.breakerRepaired=true,true
+    local pendingPlate=conditionRenderer.image(state,rendererAssets)
+    check("warehouse_condition_pending_variant_does_not_reuse_old_plate",
+        closedPlate~=baseWarehouse and pendingPlate==baseWarehouse and pendingPlate~=closedPlate)
+    imageLoader.load=oldImageLoaderLoad
+    imageLoader.setEnabled(oldImageLoaderEnabled)
+    c.powerConnected,c.breakerRepaired=false,false
+    conditionRenderer.clear()
     local overlay=love.graphics.newCanvas(960,678)
     local function overlayAlpha(x,y)
         love.graphics.push("all")

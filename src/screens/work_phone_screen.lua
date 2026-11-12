@@ -2,6 +2,7 @@ local BackButton = require("src.screens.back_button")
 local Ui = require("src.screens.ui")
 local Procurement = require("src.procurement")
 local WorkPhone = require("src.work_phone")
+local DisplayFonts = require("src.screens.reference_display_fonts")
 
 local Screen = {}
 
@@ -109,7 +110,7 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     panel({ x = 54, y = 46, width = 852, height = 60 },
         { 0.72, 0.72, 0.68, 1 }, { 0.92, 0.93, 0.88, 1 })
     love.graphics.setColor(0.04, 0.16, 0.19, 1)
-    love.graphics.print("PICTURE SHOP WORK PHONE", 78, 67)
+    DisplayFonts.draw("groovySlab", "PICTURE SHOP WORK PHONE", 78, 67, 28, "left", 810)
     BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, waiting == true)
 
     panel({ x = 62, y = 120, width = 352, height = 476 },
@@ -186,7 +187,7 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     else
         local lastUpdate = lastJobResponse(phone)
         love.graphics.setColor(0.72, 0.84, 0.86, 1)
-        love.graphics.print("CONTACT DIRECTORY", 458, 145)
+        DisplayFonts.draw("groovySlab", "CONTACT DIRECTORY", 458, 145, 20, "left", 372)
         love.graphics.setColor(0.90, 0.94, 0.92, 1)
         love.graphics.printf("Pick up the receiver and dial a contact.", 458, 170, 372, "left")
         for index, contact in ipairs(WorkPhone.contacts()) do

@@ -18,6 +18,7 @@ local function font(kind,size)
     local key=kind..size
     if not fonts[key] then
         local path=kind=='digital' and 'assets/fonts/VT323-Regular.ttf'
+            or kind=='stencil' and 'assets/fonts/StardosStencil-Bold.ttf'
             or 'assets/fonts/CourierPrime-Bold.ttf'
         fonts[key]=love.graphics.newFont(path,size)
         fonts[key]:setFilter('linear','linear')
@@ -405,4 +406,8 @@ function Hud.menuPointer(R,x,y,button,bounds)
     Hud.menuOpen=false
     return fits(r.menuPanel,x,y)
 end
+-- Restoration and utility menus share these cached HUD sprites and fonts so
+-- the warehouse interface keeps one visual language and one texture copy.
+Hud.sprite=image
+Hud.font=font
 return Hud

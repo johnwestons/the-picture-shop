@@ -33,7 +33,10 @@ function Bootstrap.install()
         return
     end
 
-    if os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
+    if os.getenv("PICTURE_SHOP_CUTSCENE_STUDIO") == "1" then
+        love.filesystem.setIdentity("the-picture-shop-cutscene-studio")
+        require("tools.cutscene_lab.main")
+    elseif os.getenv("PICTURE_SHOP_COMMUTE_RESET") == "1" then
         require("tools.commute_lab.reset_saves")
     elseif os.getenv("PICTURE_SHOP_COMMUTE_PERFORMANCE_PROBE") == "1" then
         require("tools.performance_probe.commute").install()

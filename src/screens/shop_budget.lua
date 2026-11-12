@@ -8,6 +8,7 @@ local green = {0.59, 0.89, 0.67}
 local red = {1, 0.59, 0.50}
 local Chart = require("src.screens.finance_charts")
 local Fonts = require("src.screens.computer.fonts")
+local DisplayFonts = require("src.screens.reference_display_fonts")
 local valueFont
 
 local function money(value)
@@ -56,7 +57,8 @@ function Budget.draw(cash, f, plan)
     -- scaling its type down or changing any of its money/chart colors.
     love.graphics.translate(14, 0)
     love.graphics.scale(0.98, 1)
-    label("SHOP CASH FLOW", 100, 249, 720, amber)
+    love.graphics.setColor(amber)
+    DisplayFonts.draw("groovySlab", "SHOP CASH FLOW", 100, 249, 18, "left", 720)
     card(98, 234, "Available cash today", f.freeCash, f.freeCash < 0 and red or aqua)
     card(339, 242, "Expected income this week", plan.revenue, ink)
     card(588, 250, plan.profit < 0 and "Forecast weekly shortfall" or "Forecast weekly surplus",

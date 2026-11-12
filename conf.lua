@@ -1,4 +1,20 @@
 function love.conf(t)
+    if os.getenv("PICTURE_SHOP_CUTSCENE_STUDIO") == "1" then
+        t.identity = "the-picture-shop-cutscene-studio"
+        t.version = "11.5"
+        t.externalstorage = false
+        t.window.title = "The Picture Shop - Cutscene Studio"
+        t.window.width = 1440
+        t.window.height = 900
+        t.window.minwidth = 1100
+        t.window.minheight = 760
+        t.window.resizable = true
+        t.window.vsync = 1
+        t.modules.physics = false
+        t.modules.joystick = false
+        return
+    end
+
     if os.getenv("PICTURE_SHOP_PRIVATE_SERVER") == "1" then
         -- The private dedicated server has its own persistence namespace and
         -- intentionally starts without window, renderer, audio or input devices.

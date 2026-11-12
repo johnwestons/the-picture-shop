@@ -12,6 +12,12 @@ and simplified test casters. Tab changes scenes, S toggles shadows, O opens Vide
 options, arrow keys change sun time, F changes the outdoor perspective, and moving
 the mouse moves the warehouse worker. `RUN_SHADOW_SMOKE_TEST.bat` checks projection,
 graphics paths, and settings persistence without loading a gameplay save.
+`RUN_CUTSCENE_STUDIO.bat` opens an isolated, in-engine cutscene editor. It uses the
+generated town, motorcycle, roads, camera and renderer without opening a shop save.
+Save editable compositions under `assets/source/cutscene-studio/`, import a scene
+under `assets/generated/cutscenes/`, and record a silent animated GIF playback under
+`output/cutscene-studio/recordings/`. See [Cutscene Studio](docs/cutscene-studio.md)
+for the editing keys and first motorcycle sequence.
 Outdoor static shadow rebuilds run in small time-budgeted steps, keep their previous
 mesh until ready, and do not restart merely because the camera rotates. Terrain
 meshes stay resident when render distance decreases; the option reduces visible work.

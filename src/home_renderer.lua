@@ -210,6 +210,7 @@ function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
     love.graphics.setColor(1,1,1,1);love.graphics.setShader(cleanShader)
     love.graphics.draw(art.floor,Layout.X,Layout.Y,0,Layout.SCALE,Layout.SCALE)
     require("src.home_chores_art").floor(state)
+    require("src.player_footprints").draw("home")
     love.graphics.setShader(wallShader);wallShader:send("overlayPass",false)
     love.graphics.draw(art.wall,Layout.X,Layout.Y,0,Layout.SCALE,Layout.SCALE)
     for _,actor in ipairs(actors) do actor.draw() end

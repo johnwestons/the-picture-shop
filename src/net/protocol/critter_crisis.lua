@@ -31,7 +31,7 @@ function Component.install(Runtime)
         if not ok then return nil,err end
         if s.bayId~=payload.bayId or not ({solo=true,coop=true,['local']=true})[s.mode]
             or not require('src.critter_crisis').GAMES[s.game]
-            or not ({waiting=true,playing=true,finished=true,failed=true})[s.phase] then
+            or not ({waiting=true,intro=true,playing=true,finished=true,failed=true})[s.phase] then
             return nil,"crisis_snapshot session identity is invalid"
         end
         for _,field in ipairs({{"roundId",1,Runtime.UINT32_MAX},{"ownerId",1,Runtime.Protocol.MAX_PLAYERS},{"level",1,3},

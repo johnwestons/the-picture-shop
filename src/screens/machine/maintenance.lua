@@ -2,6 +2,7 @@
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
 local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local DisplayFonts = require("src.screens.reference_display_fonts")
 local bladeUpgradeFont
 
 local function drawBladeUpgradeCard(rect, label, enabled, pointerX, pointerY)
@@ -75,7 +76,7 @@ function Component.install(Runtime)
         local stock = state.inventory and state.inventory.stock or {}
         Runtime.box(18, 18, 924, 642, { 0.035, 0.055, 0.065, 0.995 }, { 0.35, 0.68, 0.61, 1 }, 5)
         love.graphics.setColor(0.96, 0.82, 0.26)
-        love.graphics.print("POLAR 115 MAINTENANCE CENTER", 46, 38)
+        DisplayFonts.draw("groovySlab", "POLAR 115 MAINTENANCE CENTER", 46, 38, 24, "left", 500)
         love.graphics.setColor(0.72, 0.82, 0.82)
         love.graphics.print("Choose a service procedure. Each task opens its own interactive work area.", 46, 68)
         Runtime.drawCondition(state, "polar_115", 580, 36, 310)

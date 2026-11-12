@@ -1,0 +1,28 @@
+[
+  {
+    "name": "groove_slab",
+    "title": "Groovy Slab",
+    "family": "Cooper Black",
+    "style": "slab",
+    "atlas": "groove_slab.png",
+    "specimen": "groove_slab_sheet.png",
+    "width": 7392,
+    "height": 224,
+    "emPixels": 132.0,
+    "glyphOrder": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    "description": "A plump, sun-warmed slab with the friendly curves of a 1970s shop sign."
+  },
+  {
+    "name": "arcade_flash",
+    "title": "Arcade Flash",
+    "family": "Bauhaus 93",
+    "style": "jolt",
+    "atlas": "arcade_flash.png",
+    "specimen": "arcade_flash_sheet.png",
+    "width": 8326,
+    "height": 224,
+    "emPixels": 132.0,
+    "glyphOrder": "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+    "description": "A chunky arcade face with angled color plates and bright 1980s depth."
+  }
+]
