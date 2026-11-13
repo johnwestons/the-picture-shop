@@ -1,4 +1,5 @@
 extern vec3 cleanRegions;
+extern vec2 cleanedPuddles;
 extern float conditionSeed;
 
 float grainNoise(vec2 p) {
@@ -27,8 +28,9 @@ vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
     float mask=max(max(west*cleanRegions.x,center*cleanRegions.y),east*cleanRegions.z);
     float grain=grainNoise(p*.23+31.0)*.60+grainNoise(p*.075+71.0)*.40;
     float dirtAlpha=mask*(.18+.18*grain);
-    float water=max(stain(p,vec2(758.0,493.0),vec2(85.0,23.0),37.0),
-                    stain(p,vec2(813.0,505.0),vec2(43.0,15.0),41.0))*cleanRegions.z;
+    float firstPuddle=stain(p,vec2(758.0,493.0),vec2(85.0,23.0),37.0)*(1.0-cleanedPuddles.x);
+    float secondPuddle=stain(p,vec2(813.0,505.0),vec2(43.0,15.0),41.0)*(1.0-cleanedPuddles.y);
+    float water=max(firstPuddle,secondPuddle);
     float oil=grainNoise(p*.10+83.0)*.65+grainNoise(p*.31+101.0)*.35;
     float gleam=smoothstep(.74,.94,grainNoise(p*.19+47.0))*.48;
     float rim=smoothstep(.05,.36,water)-smoothstep(.54,.86,water);

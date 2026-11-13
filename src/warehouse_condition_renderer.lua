@@ -50,6 +50,7 @@ local function staticKey(c)
     return table.concat({c.seed,c.powerConnected and 1 or 0,c.breakerRepaired and 1 or 0,
         c.waterConnected and 1 or 0,
         c.cleaned.west and 1 or 0,c.cleaned.center and 1 or 0,c.cleaned.east and 1 or 0,
+        c.cleanedPuddles.puddle1 and 1 or 0,c.cleanedPuddles.puddle2 and 1 or 0,
         c.repainted and 1 or 0},":")
 end
 local function build(c)
@@ -63,12 +64,13 @@ local function build(c)
         dirtShader=love.graphics.newShader(source)
     end
     dirtShader:send("cleanRegions",{c.cleaned.west and 0 or 1,c.cleaned.center and 0 or 1,c.cleaned.east and 0 or 1})
+    dirtShader:send("cleanedPuddles",{c.cleanedPuddles.puddle1 and 1 or 0,c.cleanedPuddles.puddle2 and 1 or 0})
     dirtShader:send("conditionSeed",c.seed%10000)
     love.graphics.setShader(dirtShader)
     love.graphics.setColor(1,1,1,1)
     love.graphics.rectangle("fill",0,0,960,678)
     love.graphics.setShader()
-    -- Historic damp staining and standing water share the east cleaning state.
+    -- Floor grime and the two oily puddles keep independent saved states.
     love.graphics.setCanvas()
     love.graphics.pop()
 end

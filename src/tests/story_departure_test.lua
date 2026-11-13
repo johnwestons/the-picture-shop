@@ -105,6 +105,10 @@ function Test.run(context,check)
                     and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.cleaned[region])
             Controls.keypressed('escape',R)
         end
+        for _,puddle in ipairs({'puddle1','puddle2'}) do
+            local point=Condition.anchors[puddle]
+            assert(Condition.perform(R.state,{sceneId='warehouse',x=point.x,y=point.y},'clean_'..puddle))
+        end
         local paint=Condition.anchors.paint
         R.World.player.x,R.World.player.y=paint.x,paint.y
         local selected=R.World.interactionAt(paint.x,paint.y)

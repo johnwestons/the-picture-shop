@@ -214,6 +214,7 @@ function Upgrades.normalize(value)
     -- saves that predate explicit vehicle ownership.
     if normalized.boxTruckOwned==nil then normalized.boxTruckOwned=true end
     if normalized.keiTruckOwned==nil then normalized.keiTruckOwned=true end
+    normalized.condition=Condition.normalize(normalized.condition)
     local valid, reason = Upgrades.validate(normalized)
     if not valid then return nil, reason end
     normalized.condition=normalized.condition or Condition.new("quick")
@@ -224,6 +225,7 @@ function Upgrades.ensure(state)
     if type(state) ~= "table" then return nil, "A shop state is required." end
     if state.warehouse == nil then state.warehouse = Upgrades.defaultState() end
     if state.warehouse.condition==nil then state.warehouse.condition=Condition.new("quick") end
+    state.warehouse.condition=Condition.normalize(state.warehouse.condition)
     if state.warehouse.boxTruckOwned==nil then state.warehouse.boxTruckOwned=true end
     if state.warehouse.keiTruckOwned==nil then state.warehouse.keiTruckOwned=true end
     local valid, reason = Upgrades.validate(state.warehouse)

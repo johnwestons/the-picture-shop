@@ -16,8 +16,8 @@ function Test.run(_,check)
         Prints.surface(story,758,493,"warehouse")=="water"
             and Prints.surface(story,150,383,"warehouse")=="dirt")
     story.warehouse.condition.cleaned.east=true
-    check("player_footprints_cleaning_removes_oily_floor_trace",
-        Prints.surface(story,758,493,"warehouse")=="concrete")
+    check("player_footprints_east_floor_cleaning_keeps_oily_puddle",
+        Prints.surface(story,758,493,"warehouse")=="water")
 
     local barn=require("src.commute.barn_interior")
     local grocery=require("src.commute.grocery_interior")

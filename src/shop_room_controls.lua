@@ -210,7 +210,7 @@ local function drawRestorationMenu(Runtime,entries)
     drawHudFont("typewriter",11);g.setColor(.83,.87,.77,1)
     local subtitle=isUtilities and "Reconnect the shop utilities and record each service receipt."
         or isQuick and "Use the wall switch to change the warehouse lights."
-        or "Complete each repair in order. Stand near the work area to carry it out."
+        or "Clean the floor sections in sequence. Mop up both oily puddles separately. Stand near each task."
     g.print(fitted(subtitle,570),151,202)
 
     Controls.hitRects={}
@@ -263,16 +263,16 @@ local function drawRestorationMenu(Runtime,entries)
         g.printf(("%d / %d TASKS COMPLETE"):format(completed,total),560,216,251,"right")
         drawBanner(137,237,270,30);drawBanner(415,237,408,30)
         drawHudFont("typewriter",12);g.setColor(.96,.84,.51,1)
-        g.print("POWER & SAFETY",155,244);g.print("FLOOR & OPENING",433,244)
+        g.print("POWER & FLOOR",155,244);g.print("FINISHING & OPENING",433,244)
         local leftIndex,rightIndex=0,0
         for index,row in ipairs(entries) do
-            if index<=3 then
+            if index<=6 then
                 leftIndex=leftIndex+1
-                local y=273+(leftIndex-1)*70
-                local rect={x=140,y=y,width=264,height=64}
+                local y=273+(leftIndex-1)*35
+                local rect={x=140,y=y,width=264,height=31}
                 Controls.hitRects[index]=rect
                 local hover=px and py and px>=rect.x and px<=rect.x+rect.width and py>=rect.y and py<=rect.y+rect.height
-                drawTaskCard(row,index,rect.x,rect.y,rect.width,rect.height,false,hover)
+                drawTaskCard(row,index,rect.x,rect.y,rect.width,rect.height,true,hover)
             else
                 rightIndex=rightIndex+1
                 local y=273+(rightIndex-1)*35
@@ -339,7 +339,7 @@ local function rows(Runtime)
         add("Reconnect power",("Stage %d/4. One-time fee $%.2f; then repair the breaker."):format(
             Condition.stage(Runtime.state),Condition.POWER_FEE_CENTS/100),
             "call_power",c.powerConnected)
-        add("Reconnect water",("One-time fee $%.2f; then clean the damp floor."):format(Condition.WATER_FEE_CENTS/100),
+        add("Reconnect water",("One-time fee $%.2f; then clean the floor and oily puddles separately."):format(Condition.WATER_FEE_CENTS/100),
             "call_water",c.waterConnected)
         add("Repair breaker","Stand by the west-wall breaker. Service must be connected.","repair_breaker",c.breakerRepaired)
         for _,region in ipairs({"west","center","east"}) do
@@ -351,6 +351,11 @@ local function rows(Runtime)
         local floorsClean=c.cleaned.west and c.cleaned.center and c.cleaned.east
         add("Touch up paint",floorsClean and "Stand near the worn wall and shelving."
             or "Clean all three floor areas first.","repaint",c.repainted,not floorsClean)
+        for _,puddle in ipairs({"puddle1","puddle2"}) do
+            local label=puddle=="puddle1" and "Clean oily puddle by the racks" or "Clean oily puddle by the office"
+            add(label,"Stand beside the spill and mop it separately from the floor.",
+                "clean_"..puddle,c.cleanedPuddles[puddle])
+        end
         add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
             "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
         local ready,reason=Condition.readyForOpening(Runtime.state)
@@ -376,9 +381,9 @@ end
 local function activate(Runtime,index)
     local row=rows(Runtime)[index]
     if row and row.enabled then
-        local mopRegion=row.kind=="restoration" and row.command:match("^clean_(%a+)$")
+        local mopAction=row.kind=="restoration" and row.command:match("^clean_")
         local character=Runtime.World.player.character or require("src.config").player.character
-        if mopRegion and character=="rabbit-worker" then
+        if mopAction and character=="rabbit-worker" then
             local okay,message=require("src.warehouse_mop_action").begin(Runtime,row.command)
             if not okay then Runtime.state.message=message end
             return
@@ -405,7 +410,7 @@ function Controls.open(Runtime,mode,action)
     Runtime.state.message=mode=="stock" and "Stage delivered shop stock at the warehouse entrance. Store or retrieve it here."
         or mode=="utilities" and "Call the utility providers to reconnect the closed shop."
         or mode=="restoration" and (require("src.warehouse_condition").of(Runtime.state).mode=="story"
-            and "Call utilities, repair the existing breaker, then clean and repaint the shop."
+            and "Call utilities, repair the breaker, clean three floor sections and two oily puddles, then repaint."
             or "Use the wall switch to turn the warehouse lights on or off.")
         or "Choose an available room. Other players stay in their own rooms."
 end
@@ -448,7 +453,14 @@ function Controls.keypressed(key,Runtime)
         else send(Runtime,"shopRoom","warehouse") end
     elseif selected.kind=="roomStock" then Controls.open(Runtime,"stock")
     elseif selected.kind=="restoration" then
-        Controls.open(Runtime,"restoration",selected.target and selected.target.restorationAction)
+        local action=selected.target and selected.target.restorationAction
+        if action and action:match("^clean_puddle%d+$") then
+            local character=Runtime.World.player.character or require("src.config").player.character
+            if character=="rabbit-worker" then
+                local okay,message=require("src.warehouse_mop_action").begin(Runtime,action)
+                if not okay then Runtime.state.message=message end
+            else send(Runtime,"restoration",action) end
+        else Controls.open(Runtime,"restoration",action) end
     elseif selected.kind=="roomRest" then send(Runtime,"roomRest",Runtime.World.player.resting and "stand" or "rest")
     elseif selected.kind=="roomGame" then
         local fixtureId=selected.target and selected.target.fixtureId

@@ -17,11 +17,19 @@ local function nextStep(state)
     for _,region in ipairs({"west","center","east"}) do
         if not c.cleaned[region] then return "clean-"..region,"Clean the "..region.." floor",
             "Move through the "..region.." floor area and clean it.",
-            "The mottled grime and old standing water clear region by region. Stand in the area, choose it in the restoration checklist, and the mop will clean it before the floor changes. Dirty and wet footprints fade on their own." end
+            "The mottled floor grime clears one region at a time. Stand in the area, choose it in the restoration checklist, and the mop will clean it before the floor changes. The oily puddles are separate cleanup tasks." end
     end
     if not c.repainted then return "paint","Touch up the shop",
         "Repair the worn wall and shelf paint.",
         "The shop's neglected surfaces still need attention. Stand near the shelving and repaint before inviting clients inside." end
+    for _,puddle in ipairs({"puddle1","puddle2"}) do
+        if not c.cleanedPuddles[puddle] then
+            local place=puddle=="puddle1" and "by the racks" or "by the office"
+            return "clean-"..puddle,"Clean the oily puddle "..place,
+                "Stand beside the puddle and clean it separately.",
+                "The oil-water spill is a separate cleanup from the three floor areas. Walk up to the puddle and use its interaction prompt to mop it up."
+        end
+    end
     local ready,reason=Condition.readyForOpening(state)
     if not ready then return "machines","Service the production machines",
         reason,

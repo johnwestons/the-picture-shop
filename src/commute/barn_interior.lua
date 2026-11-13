@@ -27,18 +27,24 @@ function Barn.movePose(pose,x,y,dt,state)
 end
 function Barn.input(R,pose,x,y)
     local view=R._commute
-    local target=view and view.barnTarget
-    if math.abs(x)+math.abs(y)>.05 then
-        if view then view.barnTarget=nil end
-        return x,y
+    if view then view.barnTarget=nil end
+    return x,y
+end
+function Barn.mobileAction(R,part)
+    if require('src.story_intro').dialogueOpen(R) then return 'e','NEXT' end
+    local pose=part and part.interiorPose
+    if Barn.nearExit(pose) then return 'e','EXIT' end
+    if Barn.nearGrandpa(pose) and require('src.story_intro').grandpaPresent(R) then
+        return 'e','TALK'
     end
-    if target then
-        local dx,dy=target.x-pose.x,target.y-pose.y
-        local distance=math.sqrt(dx*dx+dy*dy)
-        if distance<13 then view.barnTarget=nil;return 0,0 end
-        return dx/distance,dy/distance
-    end
-    return 0,0
+    return 'e',''
+end
+function Barn.interact(R,part)
+    local Intro=require('src.story_intro')
+    local pose=part and part.interiorPose
+    if Barn.nearGrandpa(pose) then return Intro.open(R) end
+    if Barn.nearExit(pose) then return Intro.exitBarn(R) end
+    return false
 end
 local function drawPlayer(R,pose)
     local assets=R.CharacterAssets
@@ -105,15 +111,15 @@ function Barn.draw(R,part)
     g.setColor(.96,.85,.59);DisplayFonts.draw('groovySlab','MILLER FARM',22,7,31,'left',270)
     g.setColor(.96,.85,.59);g.printf('/  BARN',245,15,180,'left')
     local pose=part.interiorPose
-    local hint=Barn.nearExit(pose) and 'LEAVE BARN  ·  E / TAP'
+    local hint=Barn.nearExit(pose) and 'LEAVE BARN  ·  E'
         or not Intro.grandpaPresent(R) and 'GRANDPA IS IN THE FARMHOUSE FOR THE NIGHT'
-        or Barn.nearGrandpa(pose) and 'TALK TO GRANDPA  ·  E / TAP'
-        or 'WALK TO GRANDPA  ·  WASD / TAP THE FLOOR'
+        or Barn.nearGrandpa(pose) and 'TALK TO GRANDPA  ·  E'
+        or 'WALK TO GRANDPA  ·  WASD TO MOVE'
     if mobile and not Intro.dialogueOpen(R) then
-        hint=Barn.nearExit(pose) and 'MOVE WITH THUMBSTICK  ·  USE EXIT TO LEAVE'
+        hint=Barn.nearExit(pose) and 'MOVE WITH THUMBSTICK  ·  PRESS EXIT'
             or not Intro.grandpaPresent(R) and 'MOVE WITH THUMBSTICK  ·  GRANDPA IS IN THE FARMHOUSE'
-            or Barn.nearGrandpa(pose) and 'MOVE WITH THUMBSTICK  ·  TALK TO GRANDPA'
-            or 'MOVE WITH THUMBSTICK  ·  TAP THE FLOOR TO WALK'
+            or Barn.nearGrandpa(pose) and 'MOVE WITH THUMBSTICK  ·  PRESS TALK'
+            or 'MOVE WITH THUMBSTICK  ·  WALK TO GRANDPA'
         g.setColor(.80,.87,.81);g.printf(hint,18,39,924,'left')
     end
     if not Intro.dialogueOpen(R) then
@@ -128,18 +134,8 @@ function Barn.draw(R,part)
     return true
 end
 function Barn.pointer(R,part,x,y)
-    x=x*960/R.Config.baseWidth;y=y*678/R.Config.baseHeight
-    if y>610 and Barn.nearGrandpa(part.interiorPose) then return require('src.story_intro').open(R) end
-    if y>610 and Barn.nearExit(part.interiorPose) then return require('src.story_intro').exitBarn(R) end
-    if (x-GRANDPA_X)^2+(y-GRANDPA_Y)^2<95^2 then
-        if Barn.nearGrandpa(part.interiorPose) then return require('src.story_intro').open(R) end
-        R._commute.barnTarget={x=570,y=455};return true
-    end
-    if y>590 and math.abs(x-480)<100 then
-        if Barn.nearExit(part.interiorPose) then return require('src.story_intro').exitBarn(R) end
-        R._commute.barnTarget={x=480,y=570};return true
-    end
-    if Barn.walkable(x,y) then R._commute.barnTarget={x=x,y=y};return true end
+    -- World taps do not move the character or activate Grandpa; use the
+    -- directional controls and contextual action button instead.
     return true
 end
 return Barn

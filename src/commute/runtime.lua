@@ -1907,9 +1907,7 @@ function C.keypressed(R,key,semantic)
         if key=='return' or key=='space' or key=='e'
             or not semantic and (key==C.bindings(R).keyboard.worldAction
                 or key==C.bindings(R).keyboard.interact) then
-            if not require('src.story_intro').open(R) then
-                require('src.story_intro').exitBarn(R)
-            end
+            require('src.commute.barn_interior').interact(R,part)
         end
         return true
     end
@@ -1980,8 +1978,8 @@ function C.perform(R,id)
     local part=C.localPart(R)
     if part and part.interior=='barn' then
         if id=='interact' or id=='worldAction' then
-            return require('src.story_intro').open(R)
-                or require('src.story_intro').exitBarn(R) or true
+            require('src.commute.barn_interior').interact(R,part)
+            return true
         end
         return true
     end

@@ -1,6 +1,17 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.111",
+        date = "Nov 12, 2026",
+        title = "Warehouse restoration and barn controls update",
+        changes = {
+            "Warehouse menus render cleanly after breaker repair, including after reloading the repaired save.",
+            "The two oily warehouse puddles are separate, persistent mop tasks alongside the three floor-cleaning stages.",
+            "Barn movement and Grandpa/exit actions use clearer contextual controls on desktop and mobile.",
+            "Android 111 keeps multiplayer protocol 75 and is compatible with Android 109 and 110.",
+        },
+    },
+    {
         version = "0.1.0-android.110",
         date = "Nov 12, 2026",
         title = "Warehouse restoration menu rendering fix",

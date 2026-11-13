@@ -1,10 +1,11 @@
 -- Saved visual and utility condition of the original warehouse. Quick Start and
 -- migrated shops use the clean state; the story opening explicitly selects closed.
-local Condition={VERSION=1,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
+local Condition={VERSION=2,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
 Condition.ACTIONS={call_power=true,call_water=true,repair_breaker=true,
     clean_west=true,clean_center=true,clean_east=true,repaint=true,lights_on=true,lights_off=true,
-    grand_opening=true}
+    clean_puddle1=true,clean_puddle2=true,grand_opening=true}
 local regions={"west","center","east"}
+local puddles={"puddle1","puddle2"}
 local function integer(n) return type(n)=="number" and n==math.floor(n) and n>=0 and n<=2147483647 end
 function Condition.new(mode,seed)
     local closed=mode=="story"
@@ -14,14 +15,26 @@ function Condition.new(mode,seed)
         grandpaAllowanceGranted=not closed,
         grandpaMet=not closed,openingSeen=not closed,
         visitedApartment=not closed,visitedShop=not closed,
-        cleaned={west=not closed,center=not closed,east=not closed}}
+        cleaned={west=not closed,center=not closed,east=not closed},
+        cleanedPuddles={puddle1=not closed,puddle2=not closed}}
+end
+-- Version 1 tied the oily puddles to the east floor segment. Preserve the
+-- visible result when upgrading an existing save: old east-clean saves already
+-- had no puddles, while unfinished restoration saves still have both.
+function Condition.normalize(c)
+    if type(c)=="table" and c.version==1 and c.cleanedPuddles==nil then
+        local finished=c.mode~="story" or type(c.cleaned)=="table" and c.cleaned.east==true
+        c.cleanedPuddles={puddle1=finished,puddle2=finished}
+        c.version=Condition.VERSION
+    end
+    return c
 end
 function Condition.valid(c)
     if type(c)~="table" or c.version~=Condition.VERSION or (c.mode~="story" and c.mode~="quick")
         or not integer(c.seed) or type(c.cleaned)~="table" then return false end
     local fields={version=true,mode=true,seed=true,powerConnected=true,waterConnected=true,
         breakerRepaired=true,repainted=true,lightsOn=true,grandOpened=true,grandpaMet=true,openingSeen=true,
-        visitedApartment=true,visitedShop=true,firstDestination=true,cleaned=true}
+        visitedApartment=true,visitedShop=true,firstDestination=true,cleaned=true,cleanedPuddles=true}
     fields.grandpaAllowanceGranted=true
     for key in pairs(c) do if not fields[key] then return false end end
     for _,key in ipairs({"powerConnected","waterConnected","breakerRepaired","repainted","lightsOn","grandOpened"}) do
@@ -39,13 +52,22 @@ function Condition.valid(c)
         count=count+1
     end
     if count~=3 then return false end
+    if type(c.cleanedPuddles)~="table" then return false end
+    count=0
+    for key,value in pairs(c.cleanedPuddles) do
+        if key~="puddle1" and key~="puddle2" or type(value)~="boolean" then return false end
+        count=count+1
+    end
+    if count~=2 then return false end
     if c.mode=="quick" then
         if not (c.powerConnected and c.waterConnected and c.breakerRepaired and c.repainted and c.grandOpened) then return false end
         for _,region in ipairs(regions) do if not c.cleaned[region] then return false end end
+        for _,puddle in ipairs(puddles) do if not c.cleanedPuddles[puddle] then return false end end
     end
     if c.grandOpened then
         if not (c.powerConnected and c.waterConnected and c.breakerRepaired and c.repainted) then return false end
         for _,region in ipairs(regions) do if not c.cleaned[region] then return false end end
+        for _,puddle in ipairs(puddles) do if not c.cleanedPuddles[puddle] then return false end end
     end
     return true
 end
@@ -89,6 +111,7 @@ function Condition.complete(state)
     if not c or c.mode=="quick" then return true end
     if not (Condition.powered(state) and Condition.waterReady(state) and c.repainted) then return false end
     for _,region in ipairs(regions) do if not c.cleaned[region] then return false end end
+    for _,puddle in ipairs(puddles) do if not c.cleanedPuddles[puddle] then return false end end
     return true
 end
 function Condition.openForBusiness(state)
@@ -99,7 +122,7 @@ function Condition.readyForOpening(state)
     local c=Condition.of(state)
     if not c or c.mode=="quick" then return true end
     if c.grandpaMet==false then return false,"Visit Grandpa at the farm before opening the shop." end
-    if not Condition.complete(state) then return false,"Restore utilities, repair the breaker, clean all floors, and repaint first." end
+    if not Condition.complete(state) then return false,"Restore utilities, repair the breaker, clean all three floor areas and both oily puddles, and repaint first." end
     local fleet=require("src.machine_fleet")
     local cutter=fleet.installed(state,"polar_115")
     local wrapper=fleet.installed(state,"skid_wrapper")
@@ -114,7 +137,9 @@ function Condition.readyForOpening(state)
 end
 local anchors={breaker={x=218,y=185,radius=66,hoverX=218,hoverY=114},
     west={x=145,y=510,radius=155},center={x=475,y=495,radius=155},
-    east={x=760,y=495,radius=155},paint={x=470,y=245,radius=160}}
+    east={x=760,y=495,radius=155},paint={x=470,y=245,radius=160},
+    puddle1={x=738,y=493,radius=34,hoverX=738,hoverY=493,hoverRadius=24},
+    puddle2={x=813,y=505,radius=30,hoverX=813,hoverY=505,hoverRadius=22}}
 Condition.anchors=anchors
 local function near(player,point)
     return type(player)=="table" and player.sceneId=="warehouse"
@@ -154,7 +179,7 @@ function Condition.perform(state,player,action)
             power and "power_reconnection" or "water_reconnection")
         if not okay then return false,"insufficient_funds",("%s costs $%.2f. The shop needs more funds."):format(label,fee/100) end
         c[field]=true
-        return true,"accepted",label.." paid. "..(power and "Inspect the damaged breaker before using the lights." or "Water service is restored. Clean the old damp area.")
+        return true,"accepted",label.." paid. "..(power and "Inspect the damaged breaker before using the lights." or "Water service is restored. Clean the oily puddles separately from the floor areas.")
     end
     if action=="repair_breaker" then
         if not c.powerConnected then return false,"no_service","There is no power at the meter. Call the utility first." end
@@ -175,6 +200,15 @@ function Condition.perform(state,player,action)
         if not near(player,anchors[region]) then return false,"out_of_range","Move into this floor region before cleaning." end
         c.cleaned[region]=true
         return true,"accepted","Floor cleaned: "..region.."."
+    end
+    local puddle=type(action)=="string" and action:match("^clean_(puddle%d+)$")
+    if puddle and c.cleanedPuddles[puddle]~=nil then
+        if c.cleanedPuddles[puddle] then return true,"already_applied","This oily puddle is already clean." end
+        if not near(player,anchors[puddle]) then
+            return false,"out_of_range","Move beside the oily puddle before cleaning it."
+        end
+        c.cleanedPuddles[puddle]=true
+        return true,"accepted","Oily puddle cleaned."
     end
     if action=="repaint" then
         if c.repainted then return true,"already_applied","The wall and shelves are already repainted." end

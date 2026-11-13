@@ -1,5 +1,5 @@
--- A short, transient story restoration task. The saved floor state changes
--- only after the registered mop animation finishes.
+-- A short, transient story restoration task. Saved floor and puddle states
+-- change only after the registered mop animation finishes.
 local Condition=require("src.warehouse_condition")
 local Animation=require("src.character_animation")
 local Mop=require("src.home_mop_art")
@@ -14,19 +14,25 @@ end
 
 local function reasonFor(state,player,command)
     local region=type(command)=="string" and command:match("^clean_(%a+)$")
+    local puddle=type(command)=="string" and command:match("^clean_(puddle%d+)$")
     local c=Condition.of(state)
-    if not region or not Condition.valid(c) or c.mode~="story" then
-        return nil,"This floor cannot be mopped right now."
+    if not Condition.valid(c) or c.mode~="story" or not region and not puddle then
+        return nil,nil,"This restoration cleanup is not available right now."
     end
-    if c.cleaned[region] then return nil,"This floor region is already clean." end
-    if region=="center" and not c.cleaned.west then return nil,"Clean the west area first." end
-    if region=="east" and not c.cleaned.center then return nil,"Clean the center area first." end
-    local point=Condition.anchors[region]
+    if region then
+        if c.cleaned[region] then return nil,nil,"This floor region is already clean." end
+        if region=="center" and not c.cleaned.west then return nil,nil,"Clean the west area first." end
+        if region=="east" and not c.cleaned.center then return nil,nil,"Clean the center area first." end
+    elseif c.cleanedPuddles[puddle] then
+        return nil,nil,"This oily puddle is already clean."
+    end
+    local point=Condition.anchors[region or puddle]
     if not point or player.sceneId~="warehouse"
         or (player.x-point.x)^2+(player.y-point.y)^2>point.radius^2 then
-        return nil,"Move into this floor area before mopping."
+        return nil,nil,region and "Move into this floor area before mopping."
+            or "Move beside the oily puddle before mopping."
     end
-    return region
+    return region,puddle
 end
 
 function Action.active(player)
@@ -36,8 +42,8 @@ end
 function Action.begin(Runtime,command)
     local player=Runtime.World.player
     if Action.active(player) then return false,"Finish mopping this floor area first." end
-    local region,reason=reasonFor(Runtime.state,player,command)
-    if not region then return false,reason end
+    local region,puddle,reason=reasonFor(Runtime.state,player,command)
+    if not region and not puddle then return false,reason end
     if player.character~="rabbit-worker" then
         return false,"This mop animation is authored for the rabbit worker."
     end
@@ -49,12 +55,13 @@ function Action.begin(Runtime,command)
         and Runtime.Forklift.isOperator(Runtime.state,Runtime.Config.forklift,tonumber(player.id) or 1) then
         return false,"Park the forklift before cleaning the floor."
     end
-    player._warehouseMopAction={command=command,region=region,direction=selectedDirection(player),elapsed=0,
+    player._warehouseMopAction={command=command,region=region,puddle=puddle,
+        direction=selectedDirection(player),elapsed=0,
         runtime=Runtime}
     player.moving=false;player.velocityX=0;player.velocityY=0
     Runtime.World.selectedInteraction=nil
     Runtime.state.screen="world"
-    Runtime.state.message="Mopping the "..region.." floor..."
+    Runtime.state.message=puddle and "Mopping up the oily puddle..." or "Mopping the "..region.." floor..."
     return true
 end
 
@@ -62,7 +69,7 @@ function Action.pose(player)
     local task=player and player._warehouseMopAction
     if not task then return nil end
     return {routine="mop",direction=task.direction,frame=Mop.frame(task.elapsed),
-        elapsed=task.elapsed,duration=Action.DURATION,region=task.region}
+        elapsed=task.elapsed,duration=Action.DURATION,region=task.region,puddle=task.puddle}
 end
 
 function Action.draw(player)
@@ -86,7 +93,8 @@ local function finish(Runtime,task,state)
     end
     local Controls=require("src.shop_room_controls")
     Controls.open(Runtime,"restoration",task.command)
-    Runtime.state.message=message or (okay and "Floor cleaned: "..task.region.."." or "The floor could not be cleaned.")
+    Runtime.state.message=message or (okay and (task.puddle and "Oily puddle cleaned." or "Floor cleaned: "..task.region..".")
+        or "The restoration cleanup could not be completed.")
     Runtime.World.selectedInteraction=nil
     if okay and not (multiplayer and multiplayer:isClient()) then Runtime.saveCurrent() end
     Mop.release()

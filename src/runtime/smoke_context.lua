@@ -15,6 +15,7 @@ function Component.install(Runtime)
                 if review=="clean-off" then
                     c.powerConnected,c.breakerRepaired,c.repainted,c.lightsOn=true,true,true,false
                     c.cleaned.west,c.cleaned.center,c.cleaned.east=true,true,true
+                    c.cleanedPuddles.puddle1,c.cleanedPuddles.puddle2=true,true
                 end
                 local stage,lighting
                 if type(review)=="string" then

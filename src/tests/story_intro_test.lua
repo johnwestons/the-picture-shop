@@ -145,7 +145,8 @@ function Test.run(context,check)
     assert(barn.pointer(R,part,580*R.Config.baseWidth/960,470*R.Config.baseHeight/678))
     local startingX=part.interiorPose.x
     for _=1,24 do R.App.update(1/60) end
-    check('story_intro_barn_floor_is_walkable',part.interiorPose.x>startingX+1
+    check('story_intro_barn_floor_taps_do_not_move_player',part.interiorPose.x==startingX
+        and R._commute.barnTarget==nil
         and Trip.valid(R.state.home.commute,R.state.home))
     part.interiorPose.x,part.interiorPose.y=580,470
     Commute.syncPlayer(R.World.player,part)

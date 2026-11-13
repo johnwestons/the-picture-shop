@@ -36,7 +36,8 @@ function Prints.surface(state,x,y,sceneId)
     if sceneId=="warehouse" then
         local c=Condition.of(state)
         if not c or c.mode~="story" then return "concrete" end
-        if not c.cleaned.east and (inside(x,y,758,493,100,32) or inside(x,y,813,505,52,23)) then
+        if (not c.cleanedPuddles.puddle1 and inside(x,y,758,493,100,32))
+            or (not c.cleanedPuddles.puddle2 and inside(x,y,813,505,52,23)) then
             return "water"
         end
         if not c.cleaned.west and (inside(x,y,150,383,100,35) or inside(x,y,217,497,73,28))

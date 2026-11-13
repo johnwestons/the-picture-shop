@@ -192,8 +192,12 @@ function Test.run(context,check)
             check("warehouse_condition_west_patch_clears_without_erasing_water",
                 overlayAlpha(150,383)<.005 and overlayAlpha(758,493)>.05)
         elseif stage==3 then
-            check("warehouse_condition_east_cleanup_removes_old_water",overlayAlpha(758,493)<.005)
+            check("warehouse_condition_east_cleanup_keeps_separate_puddles",overlayAlpha(758,493)>.05)
         end
+    end
+    for _,puddle in ipairs({"puddle1","puddle2"}) do
+        local point=Condition.anchors[puddle]
+        assert(Condition.perform(state,{sceneId="warehouse",x=point.x,y=point.y},"clean_"..puddle))
     end
     check("warehouse_condition_final_paint_is_stage_four_only",Condition.stage(state)==3)
     local paintPlayer={sceneId="warehouse",x=470,y=245}

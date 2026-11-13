@@ -209,15 +209,36 @@ function Test.run(context,check)
         local worldPixels=drawCapture('world-after-restoration-back',OVERLAY_SAMPLES)
         check('mobile_overlay_restoration_world_renders_after_back',R.state.screen=='world')
 
+        -- The reported failure returns after restarting from the same save.
+        -- Persist the repaired breaker state, reload it through the normal
+        -- game startup path, and clear process-local warehouse render caches.
+        -- This covers the saved-state trigger as well as the fresh-process
+        -- rendering path before opening another interface.
+        Condition.of(R.state).openingSeen=true
+        local saved,saveReason=R.Save.save(3,R.state,R.World.snapshot())
+        check('mobile_overlay_repaired_breaker_save_commits',saved,tostring(saveReason))
+        local restored,restoreStatus=R.Save.load(3)
+        local restoredCondition=restored and Condition.of(restored.state)
+        check('mobile_overlay_repaired_breaker_save_reloads',restoredCondition
+            and restoredCondition.powerConnected and restoredCondition.breakerRepaired,
+            tostring(restoreStatus))
+        assert(restoredCondition and restoredCondition.powerConnected
+            and restoredCondition.breakerRepaired,'repaired breaker save did not reload')
+        require('src.warehouse_condition_renderer').clear()
+        local restarted,restartReason=R.startGame(restored,'load')
+        check('mobile_overlay_repaired_breaker_save_restarts',restarted,tostring(restartReason))
+        assert(restarted,restartReason)
+        R.state.screen='world'
+        local reloadedWorldPixels=drawCapture('world-after-restoration-reload',OVERLAY_SAMPLES)
+
         -- The powered warehouse enables additional renderer passes after
-        -- breaker repair. Opening another full-screen interface must still
-        -- reset graphics state left by that scene instead of showing a stale
-        -- warehouse frame over most of the menu.
+        -- breaker repair. Opening another full-screen interface from the
+        -- reloaded save must not show the warehouse over the menu.
         R.state.screen='computer'
         local computerPixels=drawCapture('computer-after-breaker-repair',OVERLAY_SAMPLES,nil,true)
         local changed=0
         for index,pixel in ipairs(computerPixels) do
-            local prior=worldPixels[index]
+            local prior=reloadedWorldPixels[index]
             local distance=math.abs(pixel[1]-prior[1])+math.abs(pixel[2]-prior[2])
                 +math.abs(pixel[3]-prior[3])
             if distance>.18 then changed=changed+1 end

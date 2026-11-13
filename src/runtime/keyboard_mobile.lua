@@ -164,8 +164,13 @@ function Component.install(Runtime)
     end
 
     function Runtime.primaryMobileAction()
+        local commute=require('src.commute.runtime')
+        local part=commute.localPart(Runtime)
+        if part and part.interior=='barn' then
+            return require('src.commute.barn_interior').mobileAction(Runtime,part)
+        end
         if require('src.commute.runtime').indoorControlsActive(Runtime) then return 'e','INTERACT' end
-        if Runtime.World.player.sceneId=='barn' then return 'e','TALK / EXIT' end
+        if Runtime.World.player.sceneId=='barn' then return 'e','' end
         if Runtime.World.player.sceneId=='commute' then return 'e','BIKE / DOOR' end
         if Runtime.state.screen=="world" and require("src.basketball").heldBy(
             Runtime.state,tonumber(Runtime.World.player.id) or 1) then
@@ -215,7 +220,8 @@ function Component.install(Runtime)
             return {{key='escape',label='EXIT'}}
         end
         if Runtime.World.player.sceneId=='barn' then
-            local result={{key='back',label='EXIT'}}
+            if require('src.story_intro').dialogueOpen(Runtime) then return {} end
+            local result={}
             if portable then result[#result+1]={key='j',label='UTILITIES'} end
             return result
         end

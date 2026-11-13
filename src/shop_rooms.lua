@@ -203,6 +203,16 @@ function Rooms.targets(player,state)
                 hoverX=point.hoverX,hoverY=point.hoverY,hoverRadius=25,
                 prompt=condition.mode=="story" and "E: inspect closed-shop restoration" or "E: warehouse light switch"}
             if condition.mode=="story" and not condition.grandOpened then
+                for _,puddle in ipairs({"puddle1","puddle2"}) do
+                    if not condition.cleanedPuddles[puddle] then
+                        point=anchors[puddle]
+                        local label=puddle=="puddle1" and "oily puddle by the racks" or "oily puddle by the office"
+                        targets["restoration_"..puddle]={kind="restoration",x=point.x,y=point.y,
+                            radius=point.radius,hoverX=point.hoverX,hoverY=point.hoverY,
+                            hoverRadius=point.hoverRadius,restorationAction="clean_"..puddle,
+                            prompt="E: clean "..label}
+                    end
+                end
                 local action,label
                 for _,region in ipairs({"west","center","east"}) do
                     if not condition.cleaned[region] then
@@ -216,6 +226,8 @@ function Rooms.targets(player,state)
                     point=anchors.paint
                 end
                 if action then
+                    point=anchors[action:match("^clean_(%a+)$") or "paint"]
+                    if action=="repaint" then point=anchors.paint end
                     targets.restorationWork={kind="restoration",x=point.x,y=point.y,radius=point.radius,
                         restorationAction=action,prompt="E: "..label}
                 end

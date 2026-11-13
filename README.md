@@ -199,12 +199,13 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest published test installers are [Android 110](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.110/ThePictureShop-0.1.0-android.110-Install.apk)
+The latest Android test installer candidate is [Android 111](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.111/ThePictureShop-0.1.0-android.111-Install.apk)
 and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
-Android 110 uses multiplayer protocol **75**. It fixes menu rendering after the
-warehouse breaker restoration step. Install the same Android version on every
-multiplayer participant; protocol 74 and 75 builds cannot join each other.
-See the [Android 110 release notes](docs/android_110_release.md) for checksums,
+Android 111 uses multiplayer protocol **75**. It includes the warehouse breaker
+menu rendering fix, separate oily-puddle restoration tasks, and barn control
+updates. Install the same Android version on every multiplayer participant;
+protocol 74 and 75 builds cannot join each other.
+See the [Android 111 release notes](docs/android_111_release.md) for checksums,
 installation guidance, and validation results.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
