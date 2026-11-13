@@ -1,27 +1,19 @@
 # The Picture Shop for Android
 
-## Current source build
+## Current test build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.68` (`versionCode` 68)
-- Multiplayer protocol: 47; host and guests need matching current code.
-- Build command: `./BUILD_ANDROID.ps1` (or `PACK_ANDROID.bat` for a share folder)
-- Local installer: `output/android-share/0.1.0-android.68/ThePictureShop-0.1.0-android.68-Install.apk`
-- The development APK uses the shared gameplay and art source as Windows. This
-  update fixes machine travel through expansion-room doors. The cutter, skid
-  wrapper, and printing press can be moved into an extra room and back out;
-  doorway interaction and clearance account for the attached machine's size.
-  Machines remain assigned to the correct room, and mobile pallet-jack move
-  controls are available inside those rooms. It also includes
-  room-specific warehouse loading bays, expanded-room pallet staging and
-  output areas, print-press jobs, independent machine audio, and late-game
-  simulation/rendering and save/image-loading improvements. The player can
-  take an employee-operated pallet jack; the employee resumes its assigned
-  task. In online play, the host performs the takeover.
-- The package ID and signing certificate remain compatible with the previous
-  Android build, so installing over it preserves existing saves.
-- Build verification and package details are recorded in
-  [the Android 68 release notes](docs/android_68_release.md).
+- Version: `0.1.0-android.114` (`versionCode` 114); Windows build: `0.1.0-test.114`.
+- Multiplayer protocol: 75; host and guests need matching current code.
+- Build command: `./BUILD_ANDROID.ps1`.
+- Local APK: `output/mobile/ThePictureShop-0.1.0-android.114-debug.apk`.
+- Remote APK: [download Android 114](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.114/ThePictureShop-0.1.0-android.114-Install.apk).
+- The update uses the restored warehouse artwork as the base, adds matching
+  lights-on/off states, and replaces floor repaint/region selection with two
+  persistent spills that fade under the moving mop. The wall phone works with
+  the building power off and can reconnect both power and water; breaker and
+  light switching are direct in-world actions.
+- Build and validation details: [Android 114 release notes](docs/android_114_release.md).
 - This is a private development build. Physical-device play and multiplayer
   acceptance remain separate from package verification; use the device
   checklist below before a public release.

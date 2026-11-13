@@ -84,11 +84,9 @@ function Hud.layout(bounds,terrain)
     if right-left<760 then return {
         narrow=true,
         cash={x=left+8,y=8,width=165,height=52},
-        paper={x=left+183,y=19,width=90,height=28},
-        samples={x=left+281,y=19,width=90,height=28},
-        calendar={x=left+379,y=3,width=80,height=76},
-        week={x=left+463,y=33,width=28,height=24},
-        clock={x=left+496,y=12,width=92,height=56},
+        calendar={x=left+183,y=3,width=80,height=76},
+        week={x=left+267,y=33,width=28,height=24},
+        clock={x=left+300,y=12,width=92,height=56},
         noticeIcon={x=left+8,y=84,width=38,height=38},
         noticeToggle={x=left+50,y=89,width=28,height=28},
         noticePanel={x=left+89,y=83,width=220,height=60},
@@ -98,11 +96,9 @@ function Hud.layout(bounds,terrain)
     if wide then return {
         wide=true,
         cash={x=left+14,y=7,width=230,height=64},
-        paper={x=left+270,y=19,width=170,height=37},
-        samples={x=left+462,y=19,width=178,height=37},
-        calendar={x=left+665,y=3,width=133,height=101},
-        week={x=left+811,y=39,width=48,height=33},
-        clock={x=left+869,y=11,width=171,height=79},
+        calendar={x=left+270,y=3,width=133,height=101},
+        week={x=left+416,y=39,width=48,height=33},
+        clock={x=left+474,y=11,width=171,height=79},
         noticeIcon={x=left+18,y=111,width=48,height=48},
         noticeToggle={x=left+72,y=118,width=34,height=34},
         noticePanel={x=left+115,y=110,width=760,height=78},
@@ -111,11 +107,9 @@ function Hud.layout(bounds,terrain)
     } end
     return {
         cash={x=left+14,y=8,width=177,height=52},
-        paper={x=left+207,y=19,width=109,height=28},
-        samples={x=left+322,y=19,width=109,height=28},
-        calendar={x=left+441,y=3,width=94,height=76},
-        week={x=left+543,y=33,width=36,height=24},
-        clock={x=left+579,y=12,width=116,height=56},
+        calendar={x=left+207,y=3,width=94,height=76},
+        week={x=left+309,y=33,width=36,height=24},
+        clock={x=left+345,y=12,width=116,height=56},
         noticeIcon={x=left+18,y=84,width=38,height=38},
         noticeToggle={x=left+60,y=89,width=28,height=28},
         noticePanel={x=left+94,y=83,width=520,height=60},
@@ -171,8 +165,6 @@ end
 function Hud.drawStatus(state,feedback,bounds,twelveHour)
     local g=love.graphics;local r=Hud.layout(bounds)
     local cash=Ui.money(state.money or 0)
-    local paper='Paper: '..tostring(state.inventory and state.inventory.paper or 0)
-    local samples='Samples: '..tostring(state.inventory and state.inventory.prints or 0)
     local date=Calendar.ensure(state)
     g.push('all');g.setShader()
     drawImage('cash-display',r.cash)
@@ -183,10 +175,6 @@ function Hud.drawStatus(state,feedback,bounds,twelveHour)
     g.printf(cash,r.cash.x+18+2,cashY+3,r.cash.width-36,'center')
     g.setColor(.99,.84,.28,1)
     g.printf(cash,r.cash.x+18,cashY,r.cash.width-36,'center')
-    g.setFont(fitFont('typewriter',paper,r.wide and 27 or 19,r.paper.width,r.wide and 19 or 14))
-    deepText(paper,r.paper.x,r.paper.y,{.94,.95,.91,1})
-    g.setFont(fitFont('typewriter',samples,r.wide and 27 or 19,r.samples.width,r.wide and 19 or 14))
-    deepText(samples,r.samples.x,r.samples.y,{.94,.95,.91,1})
     drawImage('calendar',r.calendar)
     local month=Calendar.monthName(date.month):sub(1,3):upper()..' '..date.year
     g.setFont(fitFont('typewriter',month,r.wide and 19 or 14,r.calendar.width-12,10))

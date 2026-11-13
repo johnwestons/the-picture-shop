@@ -34,10 +34,6 @@ function Component.install(Runtime)
         Runtime.World._state = state
         local player = Runtime.World.player
         local playerStartX, playerStartY = player.x, player.y
-        if require("src.warehouse_mop_action").update(Runtime,dt,state) then
-            Runtime.World.selectedInteraction=nil
-            return Runtime.World.updateSimulation(simulationDt or dt,assets,state,dt)
-        end
         local jack = Runtime.PalletJack.ensure(state, Runtime.Config.palletJack)
         local localOperatesJack = jack.operating and jack.operatorPlayerId == 1
         local localOperatesForklift = Runtime.Forklift.isOperator(state, Runtime.Config.forklift, tonumber(player.id) or 1)
@@ -65,11 +61,12 @@ function Component.install(Runtime)
         else
             Runtime.updateWalkingPlayer(player, dt, directionX, directionY, assets, state)
         end
+        local mopping=require("src.warehouse_mop_action").update(Runtime,dt,state)
         if externalMovement and not localOperatesForklift then
             Runtime.PlayerController.observeExternalMove(player, playerStartX, playerStartY, player.moving, dt)
         end
         local saveNeeded = Runtime.World.updateSimulation(simulationDt or dt, assets, state, dt)
-        Runtime.World.selectedInteraction = Runtime.selectInteractionFor(
+        Runtime.World.selectedInteraction = mopping and nil or Runtime.selectInteractionFor(
             player, Runtime.World.selectedInteraction, cursorX, cursorY)
         return saveNeeded
     end
@@ -122,10 +119,6 @@ function Component.install(Runtime)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
         Runtime.World.placementSelection = nil
-        if require("src.warehouse_mop_action").update(Runtime,dt,state) then
-            Runtime.World.selectedInteraction=nil
-            return true
-        end
         local updated
         local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
         if Runtime.Forklift.isOperator(state, Runtime.Config.forklift, Runtime.World.player.id) then
@@ -134,7 +127,8 @@ function Component.install(Runtime)
             updated = Runtime.World.updateNetworkPalletJack(Runtime.World.player,dt,directionX,directionY,
                 assets,state,cursorX,cursorY)
         else updated = Runtime.updateWalkingPlayer(Runtime.World.player, dt, directionX, directionY, assets, state) end
-        Runtime.World.selectedInteraction = Runtime.selectNetworkInteractionFor(
+        local mopping=require("src.warehouse_mop_action").update(Runtime,dt,state)
+        Runtime.World.selectedInteraction = mopping and nil or Runtime.selectNetworkInteractionFor(
             Runtime.World.player, Runtime.World.selectedInteraction, cursorX, cursorY)
         return updated
     end

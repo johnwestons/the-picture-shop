@@ -124,25 +124,23 @@ function Arrival.begin(R,state)
     if not drivePlan or drivePlan.duration<=0 then
         return false,'The Story motorcycle route has no safe driving profile.'
     end
-    rider.gear.outfit='normal';rider.gear.mounted=false;rider.gear.engine=false
+    -- The illustrated departure already showed the rider geared and mounted;
+    -- resume that state as the route enters Millhaven.
+    rider.gear.outfit='geared';rider.gear.mounted=true;rider.gear.engine=true
     rider.gear.transition=nil;rider.gear.revision=rider.gear.revision+1
     rider.ped.speed=0;rider.ped.vx=0;rider.ped.vz=0
     rider.bike.distance=0;rider.bike.speed=0;rider.bike.vx=0;rider.bike.vz=0
     rider.bike.throttle=0;rider.bike.brake=0
     local fuelStart=rider.bike.service and rider.bike.service.fuel or BikeService.tank
-    state.arrival={plan=plan,drivePlan=drivePlan,vehicle=vehicle,phase='equip',
+    state.arrival={plan=plan,drivePlan=drivePlan,vehicle=vehicle,phase='ride',
         distance=0,elapsed=0,walkIndex=1,stalled=0,lastSpeed=0,
         fuelStart=fuelStart,fuelEnd=math.min(fuelStart,BikeService.tank*.11)}
     local initial=ScheduledDriving.sample(plan.route,0,Commute.world(R),vehicle)
     if not initial then state.arrival=nil;return false,'The Story motorcycle route could not be sampled.' end
     placeRide(R,state.arrival,initial)
     Bike.resetContact(rider.bike,Commute.world(R))
-    local footX,footZ=Rider.footing(rider,Commute.world(R))
-    if footX then rider.ped.x,rider.ped.z=footX,footZ end
-    local okay,equipReason=Rider.command(rider,'equip',Commute.world(R))
-    if not okay then state.arrival=nil;return false,equipReason end
-    sync(R,part)
     state.arrival.visualHeading=initial.heading
+    sync(R,part)
     return true
 end
 local function updateRider(rider,world,input,dt)
@@ -170,9 +168,8 @@ function Arrival.update(R,state,dt)
         Commute.update(R,dt,0,0,false,true)
         return false
     end
-    if arrival.phase=='equip' or arrival.phase=='mount' or arrival.phase=='ride' then
-        local lookAhead=arrival.phase=='ride' and math.min(arrival.drivePlan.length,arrival.distance+13)
-            or arrival.distance
+    if arrival.phase=='ride' then
+        local lookAhead=math.min(arrival.drivePlan.length,arrival.distance+13)
         local x,z=sample(arrival.plan,lookAhead)
         if not view.renderer:terrainCoverage(x,z) then
             Commute.update(R,dt,0,0,false,true)
@@ -180,20 +177,7 @@ function Arrival.update(R,state,dt)
         end
     end
     arrival.elapsed=arrival.elapsed+dt
-    if arrival.phase=='equip' or arrival.phase=='mount' then
-        updateRider(rider,world,{},dt)
-        if not rider.gear.transition then
-            if arrival.phase=='equip' then
-                local okay,reason=Rider.command(rider,'mount',world)
-                if not okay then return nil,reason or 'The rider could not mount the motorcycle.' end
-                arrival.phase='mount'
-            else
-                rider.gear.engine=true;rider.gear.revision=rider.gear.revision+1
-                arrival.phase='ride';arrival.elapsed=0
-            end
-        end
-        sync(R,part)
-    elseif arrival.phase=='ride' then
+    if arrival.phase=='ride' then
         local progress=math.min(1,arrival.elapsed/arrival.drivePlan.duration)
         local pose=ScheduledDriving.sample(arrival.plan.route,progress,world,arrival.vehicle)
         if not pose then return nil,'The Story motorcycle route could not be sampled.' end
@@ -251,8 +235,6 @@ end
 function Arrival.progress(state)
     local arrival=state.arrival
     if not arrival then return 0 end
-    if arrival.phase=='equip' then return 0 end
-    if arrival.phase=='mount' then return .05 end
     if arrival.phase=='ride' then return .05+.80*arrival.distance/arrival.drivePlan.length end
     if arrival.phase=='dismount' then return .86 end
     if arrival.phase=='remove' then return .89 end

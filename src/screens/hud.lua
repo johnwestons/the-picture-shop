@@ -87,18 +87,12 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
         love.graphics.print(changeText, cashX + 9, cashY + 33 - math.min(cashAge, 0.42) * 14)
         love.graphics.pop()
     end
-    local statFont=Typography.get(mobile and 20 or 17)
-    love.graphics.setFont(statFont)
-    local paperText="Paper: " .. state.inventory.paper
-    local samplesText="Samples: " .. state.inventory.prints
-    local paperX = left + math.max(160, cashWidth + 34)
-    local samplesX=paperX+math.max(98,statFont:getWidth(paperText)+17)
-    local dateX=samplesX+math.max(100,statFont:getWidth(samplesText)+17)
+    local infoX = left + math.max(160, cashWidth + 34)
+    local dateX = infoX
     if atHome then
-        shadowedPrint(require("src.home_catalog").APARTMENTS[state.home.apartmentId].name,paperX,20,{.88,.92,.94})
-    else
-        shadowedPrint(paperText, paperX, 18, { 0.88, 0.92, 0.94 })
-        shadowedPrint(samplesText, samplesX, 18, { 0.88, 0.92, 0.94 })
+        local apartmentName = require("src.home_catalog").APARTMENTS[state.home.apartmentId].name
+        shadowedPrint(apartmentName, infoX, 20, { .88, .92, .94 })
+        dateX = infoX + math.max(150, love.graphics.getFont():getWidth(apartmentName) + 18)
     end
     love.graphics.setFont(originalFont)
     local date = BusinessCalendar.ensure(state)

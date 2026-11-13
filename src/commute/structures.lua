@@ -33,8 +33,12 @@ local function townSignMesh(f)
     local function point(x,height,front)
         return {f.x+f.fz*x+f.fx*front,f.z-f.fx*x+f.fz*front,f.h+height}
     end
+    local firstVertex=#m.vertices+1
     Geometry.quad(m,point(-1.92,1.68,.14),point(1.92,1.68,.14),
         point(1.92,2.62,.14),point(-1.92,2.62,.14),{1,1,1,1},{f.fx,0,f.fz})
+    -- World height increases upward; flip the image V coordinate so the
+    -- generated town name reads upright on the vertical sign face.
+    for i=firstVertex,#m.vertices do m.vertices[i][8]=1-m.vertices[i][8] end
     return m
 end
 local function radius(bounds,x,z)

@@ -57,71 +57,94 @@ function Test.run(context,check)
         local c=R.state.warehouse.condition
         check('story_free_roam_shop_stays_closed_'..label,not Condition.openForBusiness(R.state)
             and not c.powerConnected and not c.breakerRepaired)
-        Controls.open(R,'restoration')
+        R.App.keypressed('u')
+        Controls.selected=1;Controls.keypressed('return',R)
+        check('story_checklist_cannot_reconnect_power_'..label,not c.powerConnected
+            and #R.state.receipts.entries==0)
+        Controls.keypressed('escape',R)
+        R.App.keypressed('j')
         Controls.selected=1;Controls.keypressed('return',R)
         check('story_free_roam_power_paid_'..label,c.powerConnected
             and #R.state.receipts.entries==1)
-        R.World.player.x,R.World.player.y=Condition.anchors.breaker.x,Condition.anchors.breaker.y
-        Controls.selected=3;Controls.keypressed('return',R)
-        check('story_free_roam_breaker_repaired_'..label,c.breakerRepaired
-            and Condition.powered(R.state) and Condition.stage(R.state)==0)
         Controls.keypressed('escape',R)
+        R.World.player.x,R.World.player.y=Condition.anchors.breaker.x,Condition.anchors.breaker.y
+        R.App.keypressed('u')
+        Controls.selected=3;Controls.keypressed('return',R)
+        check('story_checklist_cannot_repair_breaker_'..label,not c.breakerRepaired)
+        Controls.keypressed('escape',R)
+        R.World.update(0,0,0,R.Assets,R.state,nil,nil,0)
+        local breaker=R.World.getInteraction()
+        check('story_breaker_is_direct_world_action_'..label,
+            breaker and breaker.target.restorationAction=='repair_breaker')
+        Controls.keypressed('e',R)
+        check('story_free_roam_breaker_repaired_'..label,c.breakerRepaired
+            and Condition.powered(R.state) and not c.lightsOn and Condition.stage(R.state)==0)
+        R.World.update(0,0,0,R.Assets,R.state,nil,nil,0)
+        Controls.keypressed('e',R)
+        check('story_breaker_switches_lights_on_'..label,c.lightsOn and Condition.lit(R.state))
         check('story_free_roam_repair_persisted_'..label,
             assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.breakerRepaired)
     end
     local function cleanShopFloors()
         local c=R.state.warehouse.condition
-        Controls.open(R,'restoration')
+        R.App.keypressed('u')
+        Controls.selected=2;Controls.keypressed('return',R)
+        check('story_checklist_cannot_reconnect_water',not c.waterConnected
+            and #R.state.receipts.entries==1)
+        Controls.keypressed('escape',R)
+        R.App.keypressed('j')
         Controls.selected=2;Controls.keypressed('return',R)
         check('story_restoration_water_paid_in_shop',c.waterConnected and #R.state.receipts.entries==2)
         Controls.keypressed('escape',R)
-        for index,region in ipairs({'west','center','east'}) do
-            local point=Condition.anchors[region]
-            R.World.player.x,R.World.player.y=point.x,point.y
-            local selected=R.World.interactionAt(point.x,point.y)
-            check('story_restoration_'..region..'_floor_prompt',selected and selected.kind=='restoration'
-                and selected.target.restorationAction=='clean_'..region)
-            assert(Controls.keypressed('e',R))
-            check('story_restoration_'..region..'_checklist_opens_on_action',
-                R.state.screen=='shop_rooms' and Controls.selected==index+3)
-            Controls.keypressed('return',R)
-            local MopAction=require('src.warehouse_mop_action')
-            local initialPose=MopAction.pose(R.World.player)
-            check('story_restoration_'..region..'_mop_action_starts_before_cleaning',
-                R.state.screen=='world' and MopAction.active(R.World.player)
-                    and initialPose and initialPose.routine=='mop' and initialPose.frame==1
-                    and initialPose.region==region and not c.cleaned[region])
-            R.World.update(.2,0,0,R.Assets,R.state,nil,nil,0)
-            local movingPose=MopAction.pose(R.World.player)
-            check('story_restoration_'..region..'_mop_uses_sweep_cycle',movingPose
-                and movingPose.frame==2 and pcall(MopAction.draw,R.World.player))
-            for _=1,math.ceil(MopAction.DURATION/.1) do
-                if not MopAction.active(R.World.player) then break end
-                R.World.update(.1,0,0,R.Assets,R.state,nil,nil,0)
-            end
-            check('story_restoration_'..region..'_saved_after_cleanup',
-                c.cleaned[region] and R.state.screen=='shop_rooms' and not MopAction.active(R.World.player)
-                    and Condition.stage(R.state)==index
-                    and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.cleaned[region])
-            Controls.keypressed('escape',R)
-        end
-        for _,puddle in ipairs({'puddle1','puddle2'}) do
+        local MopAction=require('src.warehouse_mop_action')
+        for index,puddle in ipairs({'puddle1','puddle2'}) do
             local point=Condition.anchors[puddle]
-            assert(Condition.perform(R.state,{sceneId='warehouse',x=point.x,y=point.y},'clean_'..puddle))
+            R.World.player.x,R.World.player.y=point.x,point.y
+            R.World.update(0,0,0,R.Assets,R.state,nil,nil,0)
+            local selected=R.World.interactionAt(point.x,point.y)
+            check('story_restoration_'..puddle..'_world_prompt',selected and selected.kind=='restoration'
+                and selected.target.restorationAction=='clean_'..puddle)
+            assert(MopAction.begin(R,'clean_'..puddle))
+            local initialPose=MopAction.pose(R.World.player)
+            check('story_restoration_'..puddle..'_mop_starts_in_world',
+                R.state.screen=='world' and MopAction.active(R.World.player)
+                    and initialPose and initialPose.routine=='mop'
+                    and initialPose.puddle==puddle and not c.cleanedPuddles[puddle])
+            local startX=R.World.player.x
+            R.World.update(.2,1,0,R.Assets,R.state,nil,nil,0)
+            local partial=Condition.puddleProgress(R.state,puddle)
+            check('story_restoration_'..puddle..'_moves_and_erases_progressively',
+                R.World.player.x>startX and MopAction.active(R.World.player)
+                    and partial>0 and partial<1
+                    and pcall(MopAction.draw,R.World.player))
+            if index==1 then
+                MopAction.stop(R)
+                local persisted=assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition
+                check('story_restoration_partial_mop_progress_survives_save',
+                    #persisted.puddleStrokes.puddle1>0 and not persisted.cleanedPuddles.puddle1)
+                assert(MopAction.begin(R,'clean_'..puddle))
+            end
+            for _=1,3 do
+                for y=point.y-point.visualRadiusY-30,point.y+point.visualRadiusY+30,12 do
+                    for x=point.x-point.visualRadiusX-40,point.x+point.visualRadiusX+40,24 do
+                        if not MopAction.active(R.World.player) then break end
+                        R.World.player.x,R.World.player.y=x,y
+                        R.World.update(.17,0,0,R.Assets,R.state,nil,nil,0)
+                    end
+                    if not MopAction.active(R.World.player) then break end
+                end
+                if not MopAction.active(R.World.player) then break end
+            end
+            local savedSpill=assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.cleanedPuddles[puddle]
+            check('story_restoration_'..puddle..'_saved_after_mopping',
+                c.cleanedPuddles[puddle] and not MopAction.active(R.World.player) and savedSpill,
+                ('clean=%s active=%s saved=%s faded=%.2f contact_stamps=%d'):format(
+                    tostring(c.cleanedPuddles[puddle]),tostring(MopAction.active(R.World.player)),
+                    tostring(savedSpill),Condition.puddleProgress(R.state,puddle),
+                    #(c.puddleStrokes[puddle] or {})))
         end
-        local paint=Condition.anchors.paint
-        R.World.player.x,R.World.player.y=paint.x,paint.y
-        local selected=R.World.interactionAt(paint.x,paint.y)
-        check('story_restoration_paint_prompt_after_cleanup',selected and selected.kind=='restoration'
-            and selected.target.restorationAction=='repaint')
-        assert(Controls.keypressed('e',R))
-        check('story_restoration_paint_checklist_opens_on_action',
-            R.state.screen=='shop_rooms' and Controls.selected==7 and Controls.page==2)
-        Controls.keypressed('return',R)
-        check('story_restoration_repaint_persists_without_opening_early',
-            c.repainted and Condition.complete(R.state) and not Condition.openForBusiness(R.state)
-                and assert(R.Save.load(R.state.activeSlot)).state.warehouse.condition.repainted)
-        Controls.keypressed('escape',R)
+        check('story_restoration_floor_complete_without_paint',
+            Condition.complete(R.state) and c.repainted and not Condition.openForBusiness(R.state))
     end
 
     -- From the farm, either entrance works without selecting a route.

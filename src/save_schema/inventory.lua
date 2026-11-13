@@ -11,6 +11,7 @@ function Component.install(Runtime)
         service_order = true,
         construction_notice = true,
         outgoing_power = true,
+        outgoing_water = true,
         outgoing_supplier = true,
     }
 
@@ -44,6 +45,7 @@ function Component.install(Runtime)
             and (value.kind ~= "outgoing_supplier" or (value.direction == "outgoing"
                 and Runtime.integer(value.categoryIndex) and value.categoryIndex >= 1 and value.categoryIndex <= 4))
             and (value.kind ~= "outgoing_power" or value.direction == "outgoing")
+            and (value.kind ~= "outgoing_water" or value.direction == "outgoing")
             and Runtime.optionalPositiveInteger(value.itemIndex)
             and Runtime.optionalPositiveInteger(value.pendingItemIndex)
             and Runtime.optionalBoolean(value.checkoutReady)

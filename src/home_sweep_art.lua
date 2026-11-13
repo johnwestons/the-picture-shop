@@ -23,7 +23,10 @@ function Art.contact(direction,frame,tool)
     local dx,dy=b[3]-b[1],b[4]-b[2]
     local t=(ry(b[5]-b[1],b[6]-b[2])+(hy-ground)/scale)/ry(dx,dy)
     local lower=t+math.sqrt((r[5]-r[3])^2+(r[6]-r[4])^2)*v.scale/scale/math.sqrt(dx*dx+dy*dy)
+    local headX,headY=b[5]-(b[1]+dx*t),b[6]-(b[2]+dy*t)
+    local floorX=hx+(headX*c-headY*s)*scale
     return {x=hx,y=hy,rotation=rotation,scale=scale,ox=b[1]+dx*t,oy=b[2]+dy*t,
+        floorX=floorX,floorY=ground,floorAngle=rotation+math.pi/2,
         upper=t,lower=lower,ground=ground,valid=t>=0 and lower<=1.06}
 end
 local function resource(direction)

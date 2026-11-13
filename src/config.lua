@@ -669,7 +669,7 @@ Config.warehouse.roomScenes=true
 Config.characterActionFrameSizes["rabbit-worker"].sit=1254
 Config.warehouse.provisionalArt=true
 Config.warehouseScene.enabled=false
-Config.paths.warehouse="assets/generated/warehouse-lobby-seating-v5-three-tier.png"
+Config.paths.warehouse="assets/generated/warehouse-condition-v2/stage3-on.png"
 local registration=require("src.warehouse_registration")
 Config.interactables.computer=registration.computer
 for _,pair in ipairs({{"workPhone",registration.phone},{"shopClock",registration.clock}}) do

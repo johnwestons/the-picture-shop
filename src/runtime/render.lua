@@ -28,10 +28,13 @@ function Component.install(Runtime)
         local wideCommute=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
             and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
             and Runtime.World.player.sceneId=='commute'
+        local wideBarn=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
+            and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
+            and Runtime.World.player.sceneId=='barn'
         local wideNotifications=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
             and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='notifications'
         Runtime.Viewport.beginDraw(Runtime.Config.baseWidth, Runtime.Config.baseHeight,
-            not (mobileWorld or mobileUi or wideCommute or wideNotifications), Runtime.App.officeUsesSafeArea())
+            not (mobileWorld or mobileUi or wideCommute or wideBarn or wideNotifications), Runtime.App.officeUsesSafeArea())
         if require('src.story_opening').active(Runtime) then
             require('src.story_opening').draw(Runtime)
             Runtime.CharacterAssets.endFrame()
@@ -81,6 +84,7 @@ function Component.install(Runtime)
             require('src.screens.notifications_screen').drawAccess(Runtime,bounds)
             end
             HudVisibility.draw(Runtime)
+            if Runtime.mobileControls and showHud then Runtime.mobileControls:draw() end
             if showHud and Runtime.App.playerFeedback
                 and not require('src.screens.warehouse_hud').active(Runtime) then
                 Runtime.App.playerFeedback:drawToast(bounds,'commute')

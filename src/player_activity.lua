@@ -24,6 +24,10 @@ end
 
 function Activity.forState(state, remoteScreen, player)
     if type(state) ~= "table" then return nil end
+    local mop=player and player._warehouseMopAction
+    if mop and (mop.puddle=="puddle1" or mop.puddle=="puddle2") then
+        return "mop_"..mop.puddle
+    end
     local screen = state.screen
     if screen == "machine" then
         local machineType = state.machineType

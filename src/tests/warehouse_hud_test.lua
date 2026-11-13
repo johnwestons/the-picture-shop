@@ -45,8 +45,9 @@ function Test.run(_,check)
     Screen.close(R)
 
     local wide=Hud.layout({left=-254,right=1214})
-    check('warehouse_wide_header_keeps_calendar_clock_and_menu_separate',
-        wide.samples.x+wide.samples.width<wide.calendar.x
+    check('warehouse_wide_header_hides_stock_counts_and_keeps_calendar_clock_menu_separate',
+        wide.paper==nil and wide.samples==nil
+        and wide.cash.x+wide.cash.width<wide.calendar.x
         and wide.calendar.x+wide.calendar.width<wide.week.x
         and wide.clock.x+wide.clock.width<wide.menu.x
         and wide.noticePanel.x+wide.noticePanel.width<wide.menuPanel.x)

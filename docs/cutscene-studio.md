@@ -27,7 +27,8 @@ identity and never opens a gameplay slot or writes a game save.
   **A / D** steer, **Shift** boosts, **T** toggles automatic/manual transmission,
   and **Z / X** shift down/up in manual mode. On foot, **WASD / arrows** move and
   **Shift** runs. Press **Esc** or **Stop & Keep Take** to finish; **R** restarts
-  from the clear road starting point. Takes are sampled at 30 fps.
+  from the clear road starting point. Drag the preview to orbit the camera and
+  scroll to zoom while driving or walking. Takes are sampled at 30 fps.
 - A recorded take becomes the active rider performance for the actor and route
   where it was captured. Play it back, add or adjust camera cues and dialogue,
   and set the trim range around the part you want. Changing routes keeps the old
@@ -36,6 +37,11 @@ identity and never opens a gameplay slot or writes a game save.
 - **Add Shot** places a camera cut at the playhead. Choose from rear chase, side,
   front, overhead and wide angle presets. Select a camera marker to adjust yaw,
   tilt and zoom.
+- **Record Camera Pass** replays the selected trim range while leaving the camera
+  under your control. Drag the preview to orbit and scroll to zoom; press **Space**
+  to pause, then resume to continue. At the end, choose **Keep Camera Pass &
+  Preview** to replay the scene with those angles, or discard the pass and keep the
+  previous camera track. Save the composition to keep the new camera track.
 - **Add Action** places a boost, shift, brake, jump, turn or tuck cue. The player
   rides in the existing geared motorcycle art; speed cues also drive the existing
   lean and high-speed tuck presentation.

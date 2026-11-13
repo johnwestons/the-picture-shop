@@ -83,6 +83,8 @@ function Component.install(Runtime)
         operate_forklift = true,
         use_computer = true,
         answer_phone = true,
+        mop_puddle1 = true,
+        mop_puddle2 = true,
     }
 
     function Runtime.normalizeTaskAction(value, label)

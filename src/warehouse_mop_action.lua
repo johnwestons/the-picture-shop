@@ -1,9 +1,11 @@
--- A short, transient story restoration task. Saved floor and puddle states
--- change only after the registered mop animation finishes.
+-- The worker keeps walking while the authored mop pose loops. Each step
+-- removes a saved patch from the spill beneath the mop rather than completing
+-- a timed, stationary animation.
 local Condition=require("src.warehouse_condition")
 local Animation=require("src.character_animation")
 local Mop=require("src.home_mop_art")
-local Action={DURATION=6}
+local Motion=require("src.warehouse_mop_motion")
+local Action={DURATION=Mop.duration}
 
 local function selectedDirection(player)
     local x=tonumber(player.intentX) or tonumber(player.facing) or 1
@@ -12,56 +14,39 @@ local function selectedDirection(player)
     return Animation.authoredDirection(x,y)
 end
 
-local function reasonFor(state,player,command)
-    local region=type(command)=="string" and command:match("^clean_(%a+)$")
-    local puddle=type(command)=="string" and command:match("^clean_(puddle%d+)$")
-    local c=Condition.of(state)
-    if not Condition.valid(c) or c.mode~="story" or not region and not puddle then
-        return nil,nil,"This restoration cleanup is not available right now."
-    end
-    if region then
-        if c.cleaned[region] then return nil,nil,"This floor region is already clean." end
-        if region=="center" and not c.cleaned.west then return nil,nil,"Clean the west area first." end
-        if region=="east" and not c.cleaned.center then return nil,nil,"Clean the center area first." end
-    elseif c.cleanedPuddles[puddle] then
-        return nil,nil,"This oily puddle is already clean."
-    end
-    local point=Condition.anchors[region or puddle]
-    if not point or player.sceneId~="warehouse"
-        or (player.x-point.x)^2+(player.y-point.y)^2>point.radius^2 then
-        return nil,nil,region and "Move into this floor area before mopping."
-            or "Move beside the oily puddle before mopping."
-    end
-    return region,puddle
-end
-
 function Action.active(player)
     return type(player)=="table" and type(player._warehouseMopAction)=="table"
 end
 
 function Action.begin(Runtime,command)
     local player=Runtime.World.player
-    if Action.active(player) then return false,"Finish mopping this floor area first." end
-    local region,puddle,reason=reasonFor(Runtime.state,player,command)
-    if not region and not puddle then return false,reason end
+    if Action.active(player) then return false,"Stop mopping before starting another spill." end
+    local name=type(command)=="string" and command:match("^clean_(puddle%d+)$")
+    local c=Condition.of(Runtime.state)
+    local point=name and Condition.anchors[name]
+    if not point or not Condition.valid(c) or c.mode~="story" or c.cleanedPuddles[name] then
+        return false,"This floor spill is already clean or unavailable."
+    end
+    if player.sceneId~="warehouse"
+        or not Condition.spillFootprint(name,player.x,player.y) then
+        return false,"Stand in the oily puddle before starting to mop."
+    end
     if player.character~="rabbit-worker" then
         return false,"This mop animation is authored for the rabbit worker."
     end
     local jack=Runtime.state.palletJack
     if jack and jack.operating and jack.operatorPlayerId==(tonumber(player.id) or 1) then
-        return false,"Park the pallet jack before cleaning the floor."
+        return false,"Park the pallet jack before mopping."
     end
     if Runtime.Forklift and Runtime.Forklift.isOperator
         and Runtime.Forklift.isOperator(Runtime.state,Runtime.Config.forklift,tonumber(player.id) or 1) then
-        return false,"Park the forklift before cleaning the floor."
+        return false,"Park the forklift before mopping."
     end
-    player._warehouseMopAction={command=command,region=region,puddle=puddle,
-        direction=selectedDirection(player),elapsed=0,
-        runtime=Runtime}
-    player.moving=false;player.velocityX=0;player.velocityY=0
+    player._warehouseMopAction={puddle=name,direction=selectedDirection(player),elapsed=0,
+        lastX=player.x,lastY=player.y,stampsSinceSave=0,runtime=Runtime}
     Runtime.World.selectedInteraction=nil
     Runtime.state.screen="world"
-    Runtime.state.message=puddle and "Mopping up the oily puddle..." or "Mopping the "..region.." floor..."
+    Runtime.state.message="Move the mop across the spill. Repeated passes fade the water away."
     return true
 end
 
@@ -69,7 +54,7 @@ function Action.pose(player)
     local task=player and player._warehouseMopAction
     if not task then return nil end
     return {routine="mop",direction=task.direction,frame=Mop.frame(task.elapsed),
-        elapsed=task.elapsed,duration=Action.DURATION,region=task.region,puddle=task.puddle}
+        elapsed=task.elapsed,duration=Mop.duration,puddle=task.puddle}
 end
 
 function Action.draw(player)
@@ -78,40 +63,50 @@ function Action.draw(player)
     return Mop.draw(pose.direction,pose.frame,player.x,player.y,player)~=false
 end
 
-local function finish(Runtime,task,state)
-    Runtime=task.runtime or Runtime
-    state=state or Runtime.state
-    if state and not Runtime.state then Runtime.state=state end
+function Action.stop(Runtime,finished,state)
     local player=Runtime.World.player
-    local okay,code,message
-    local multiplayer=Runtime.multiplayer
-    if multiplayer and multiplayer:isClient() then
-        okay,message=multiplayer:requestInteraction("restoration",task.command)
-    else
-        okay,code,message=Runtime.World.performNetworkInteraction(player,Runtime.state,
-            "restoration",task.command)
+    if not Action.active(player) then return false end
+    local task=player._warehouseMopAction
+    local app=task.runtime or Runtime
+    state=state or app.state
+    local name=task.puddle
+    player._warehouseMopAction=nil
+    app.World.selectedInteraction=nil
+    state.message=finished and "Floor spill cleaned."
+        or "Mopping paused. The faded water stays where you wiped it; return to finish the spill."
+    if app.saveCurrent and not (app.multiplayer and app.multiplayer:isClient()) then
+        app.saveCurrent(true)
     end
-    local Controls=require("src.shop_room_controls")
-    Controls.open(Runtime,"restoration",task.command)
-    Runtime.state.message=message or (okay and (task.puddle and "Oily puddle cleaned." or "Floor cleaned: "..task.region..".")
-        or "The restoration cleanup could not be completed.")
-    Runtime.World.selectedInteraction=nil
-    if okay and not (multiplayer and multiplayer:isClient()) then Runtime.saveCurrent() end
     Mop.release()
-    return okay,code
+    return true
 end
 
 function Action.update(Runtime,dt,state)
     local player=Runtime.World.player
     local task=player and player._warehouseMopAction
     if not task then return false end
-    task.elapsed=math.min(Action.DURATION,task.elapsed+math.max(0,tonumber(dt) or 0))
-    player.moving=false;player.velocityX=0;player.velocityY=0
-    Runtime.World.selectedInteraction=nil
-    if task.elapsed>=Action.DURATION then
-        player._warehouseMopAction=nil
-        finish(Runtime,task,state)
+    local app=task.runtime or Runtime
+    local condition=Condition.of(state or app.state)
+    if condition and condition.cleanedPuddles[task.puddle] then
+        Action.stop(Runtime,true,state)
+        return true
     end
+    local guest=app.multiplayer and app.multiplayer:isClient()
+    if player.moving then task.direction=selectedDirection(player) end
+    local startX,startY=task.lastX,task.lastY
+    local changed,done=Motion.advance(state or app.state,task,player,dt,startX,startY,
+        player.x,player.y,guest)
+    task.stampsSinceSave=task.stampsSinceSave+changed
+    if done then Action.stop(Runtime,true,state);return true end
+    task.lastX,task.lastY=player.x,player.y
+    if task.stampsSinceSave>=8 then
+        task.stampsSinceSave=0
+        local app=task.runtime or Runtime
+        if app.saveCurrent and not (app.multiplayer and app.multiplayer:isClient()) then
+            app.saveCurrent()
+        end
+    end
+    Runtime.World.selectedInteraction=nil
     return true
 end
 

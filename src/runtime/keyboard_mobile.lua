@@ -151,6 +151,7 @@ function Component.install(Runtime)
             end
         end
         if Runtime.state.screen=="world" and key=="j"
+            and not require("src.warehouse_mop_action").active(Runtime.World.player)
             and not require('src.story_intro').dialogueOpen(Runtime) then
             local condition=require('src.warehouse_condition').of(Runtime.state)
             if condition and condition.mode=="story" and not condition.grandOpened then
@@ -158,12 +159,21 @@ function Component.install(Runtime)
                 return true
             end
         end
+        if Runtime.state.screen=="world" and key=="u"
+            and not require("src.warehouse_mop_action").active(Runtime.World.player)
+            and require("src.shop_rooms").scene(Runtime.World.player)=="warehouse" then
+            require("src.shop_room_controls").open(Runtime,"restoration")
+            return true
+        end
         if require("src.shop_room_controls").keypressed(key,Runtime) then return true end
         if Runtime.warehouseControls:keypressed(key) then return true end
         return Runtime.Input.keypressed(key, Runtime.inputContext)
     end
 
     function Runtime.primaryMobileAction()
+        if require('src.warehouse_mop_action').active(Runtime.World.player) then
+            return 'e','STOP MOP'
+        end
         local commute=require('src.commute.runtime')
         local part=commute.localPart(Runtime)
         if part and part.interior=='barn' then
@@ -213,6 +223,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.extraMobileActions()
+        if require('src.warehouse_mop_action').active(Runtime.World.player) then return {} end
         local actions = {}
         local condition=require('src.warehouse_condition').of(Runtime.state)
         local portable=condition and condition.mode=="story" and not condition.grandOpened
@@ -236,6 +247,9 @@ function Component.install(Runtime)
             return result
         end
         if portable then actions[#actions+1]={key='j',label='UTILITIES'} end
+        if Runtime.World.player.sceneId=='warehouse' and condition then
+            actions[#actions+1]={key='u',label='TASKS'}
+        end
         local gear=require('src.commute.outfit').get(Runtime.state,Runtime.World.player)
         if gear and gear.outfit=='geared' then return {{key='g',label='REMOVE GEAR'}} end
         if require("src.basketball").heldBy(Runtime.state,tonumber(Runtime.World.player.id) or 1) then

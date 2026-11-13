@@ -186,8 +186,16 @@ function Test.run(context,check)
         R.World.update(0,0,0,R.Assets,R.state)
         check('mobile_overlay_restoration_interaction_is_in_range',
             R.World.getInteraction() and R.World.getInteraction().kind=='restoration')
-        if mobile then touchStick(heldStick) end
+        check('mobile_overlay_breaker_is_direct_repair',
+            R.World.getInteraction() and R.World.getInteraction().target.restorationAction=='repair_breaker')
         interact()
+        check('mobile_overlay_breaker_repair_action_completes',Condition.of(R.state).breakerRepaired
+            and not Condition.of(R.state).lightsOn and R.state.screen=='world')
+        R.World.update(0,0,0,R.Assets,R.state)
+        interact()
+        check('mobile_overlay_breaker_switches_lights_on',Condition.of(R.state).lightsOn)
+        if mobile then touchStick(heldStick) end
+        R.App.keypressed('u')
         check('mobile_overlay_restoration_menu_opens','shop_rooms'==R.state.screen
             and Controls.mode=='restoration')
         check('mobile_overlay_restoration_entry_clears_active_touches',not mobile
@@ -196,9 +204,10 @@ function Test.run(context,check)
         renderOverlay('restoration-menu',true)
         if mobile then
             local breaker=assert(Controls.hitRects and Controls.hitRects[3])
-            screenTap(breaker.x+breaker.width/2,breaker.y+breaker.height/2,'repair-breaker')
+            screenTap(breaker.x+breaker.width/2,breaker.y+breaker.height/2,'read-only-breaker')
         else R.App.keypressed('down');R.App.keypressed('down');R.App.keypressed('return') end
-        check('mobile_overlay_breaker_repair_action_completes',Condition.of(R.state).breakerRepaired)
+        check('mobile_overlay_checklist_is_read_only',Condition.of(R.state).breakerRepaired
+            and R.state.screen=='shop_rooms')
         -- Match the S25 slot that exposed the bug: the powered breaker is
         -- repaired and all three floor sections are clean, but water is off.
         local condition=Condition.of(R.state)
@@ -277,6 +286,8 @@ function Test.run(context,check)
             ('changed_screen_samples=%d/%d'):format(changed,#computerPixels))
         R.state.screen='world'
 
+        -- Landline service is independent of the warehouse electrical service.
+        Condition.of(R.state).powerConnected=false
         local phoneTarget=R.Config.interactables.workPhone
         R.World.load({id=1,sceneId='warehouse',x=phoneTarget.x,y=phoneTarget.y,
             character=R.World.player.character})
@@ -307,6 +318,8 @@ function Test.run(context,check)
             ('target=%.1f,%.1f player=%.1f,%.1f scene=%s selected=%s'):format(
                 phoneTarget.x,phoneTarget.y,R.World.player.x,R.World.player.y,
                 tostring(R.World.player.sceneId),tostring(phoneInteraction and phoneInteraction.kind)))
+        check('mobile_overlay_wall_phone_works_without_building_power',
+            phoneInteraction and phoneInteraction.target.actionLabel=='ANSWER')
         interact()
         check('mobile_overlay_wall_phone_screen_opens',R.state.screen=='work_phone')
         renderOverlay('work-phone-ringing')

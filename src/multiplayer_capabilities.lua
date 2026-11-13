@@ -22,7 +22,7 @@ Capabilities.INTERACTIONS = {
     shopEntrance = {label="Shop room entrance",mode="full",supported={"enter_room","leave_room"}},
     roomStock = {label="Storage room stock",mode="full",supported={"store_stock","retrieve_stock"}},
     roomRest = {label="Break room seating",mode="full",supported={"rest","stand"}},
-    restoration = {label="Warehouse restoration",mode="full",supported={"utility_reconnection","repair","clean","repaint","lights","grand_opening"}},
+    restoration = {label="Warehouse restoration",mode="full",supported={"utility_phone","breaker_repair","light_switch","progressive_mopping","grand_opening"}},
     roomGame = {label="Break room game",mode="candidate",supported={"play","join","leave"}},
     shopClock = { label="Shop wall clock",mode="read_only",supported={"inspect_shop_time"} },
     computer = {

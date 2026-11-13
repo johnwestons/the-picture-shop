@@ -85,7 +85,6 @@ local function iconKind(command)
     if command=="call_water" then return "water" end
     if command=="repair_breaker" then return "breaker" end
     if command and command:match("^clean_") then return "clean" end
-    if command=="repaint" then return "paint" end
     if command=="lights_on" or command=="lights_off" then return "lights" end
     if command=="grand_opening" then return "opening" end
     return "service"
@@ -110,9 +109,6 @@ local function drawTaskIcon(kind,x,y,size,color)
         g.line(cx-size*.13,cy-size*.27,cx+size*.10,cy+size*.08)
         g.line(cx+size*.10,cy+size*.08,cx-size*.02,cy+size*.26)
         g.line(cx-size*.21,cy+size*.26,cx+size*.14,cy+size*.26)
-    elseif kind=="paint" then
-        g.rectangle("line",cx-size*.22,cy-size*.25,size*.36,size*.17,2)
-        g.line(cx+size*.06,cy-size*.16,cx+size*.16,cy+size*.02,cx+size*.02,cy+size*.25)
     elseif kind=="lights" then
         g.circle("line",cx,cy-size*.06,size*.16)
         g.line(cx-size*.09,cy+size*.14,cx+size*.09,cy+size*.14)
@@ -138,6 +134,7 @@ local function drawTaskIcon(kind,x,y,size,color)
 end
 local function statusFor(row)
     if row.done then return "DONE",{.35,.68,.48,1} end
+    if row.physical then return row.physical,{.72,.68,.42,1} end
     if row.blocked then return "LOCKED",{.52,.58,.53,1} end
     if row.enabled then return "READY",{.82,.64,.31,1} end
     return "WAIT",{.52,.58,.53,1}
@@ -153,7 +150,7 @@ local function drawTaskCard(row,index,x,y,width,height,compact,hovered)
     local g=love.graphics
     local status,statusColor=statusFor(row)
     local selected=Controls.selected==index
-    local ready=row.enabled or row.done
+    local ready=row.enabled or row.done or row.physical
     if hovered or selected then
         g.setColor(.14,.17,.105,.98)
     else
@@ -198,7 +195,7 @@ local function drawRestorationMenu(Runtime,entries)
     g.setColor(1,1,1,.98);drawNineSlice("menu-panel",panel.x,panel.y,panel.width,panel.height,nil,145,150,100,50)
     drawBanner(128,143,704,50)
     drawHudFont("stencil",23);g.setColor(.97,.85,.53,1)
-    local title=isUtilities and "UTILITY SERVICE DESK"
+    local title=isUtilities and "PORTABLE UTILITIES PHONE"
         or isQuick and "WAREHOUSE LIGHTING"
         or "WAREHOUSE RESTORATION"
     g.print(title,151,151)
@@ -208,9 +205,9 @@ local function drawRestorationMenu(Runtime,entries)
     g.line(back.x+23,back.y+18,back.x+13,back.y+18,back.x+18,back.y+13)
     g.line(back.x+13,back.y+18,back.x+18,back.y+23)
     drawHudFont("typewriter",11);g.setColor(.83,.87,.77,1)
-    local subtitle=isUtilities and "Reconnect the shop utilities and record each service receipt."
+    local subtitle=isUtilities and "Call the power or water company and pay the reconnection fee."
         or isQuick and "Use the wall switch to change the warehouse lights."
-        or "Clean the floor sections in sequence. Mop up both oily puddles separately. Stand near each task."
+        or "Move through both puddles while mopping. Each pass clears part of the spill."
     g.print(fitted(subtitle,570),151,202)
 
     Controls.hitRects={}
@@ -249,24 +246,18 @@ local function drawRestorationMenu(Runtime,entries)
         drawHudFont("typewriter",11);g.setColor(.82,.86,.76,1)
         g.print("Warehouse equipment remains powered while the lamps are off.",161,430)
     else
-        local stage=require("src.warehouse_condition").stage(Runtime.state)
         local completed,total=0,#entries
         for _,row in ipairs(entries) do if row.done then completed=completed+1 end end
-        drawHudFont("digital",14);g.setColor(.91,.80,.49,1)
-        g.print(("STAGE %d / 4"):format(stage),151,216)
-        g.setColor(.18,.25,.18,1);g.rectangle("fill",253,219,128,9,3)
-        for part=1,4 do
-            g.setColor(part<=stage and {.82,.67,.36,1} or {.24,.34,.25,1})
-            g.rectangle("fill",255+(part-1)*31,221,27,5,2)
-        end
+        drawHudFont("digital",13);g.setColor(.91,.80,.49,1)
+        g.print("MOP PUDDLES IN THE WORLD",151,216)
         drawHudFont("digital",13);g.setColor(.82,.87,.76,1)
         g.printf(("%d / %d TASKS COMPLETE"):format(completed,total),560,216,251,"right")
         drawBanner(137,237,270,30);drawBanner(415,237,408,30)
         drawHudFont("typewriter",12);g.setColor(.96,.84,.51,1)
-        g.print("POWER & FLOOR",155,244);g.print("FINISHING & OPENING",433,244)
+        g.print("POWER & CLEANUP",155,244);g.print("LIGHTS & OPENING",433,244)
         local leftIndex,rightIndex=0,0
         for index,row in ipairs(entries) do
-            if index<=6 then
+            if index<=5 then
                 leftIndex=leftIndex+1
                 local y=273+(leftIndex-1)*35
                 local rect={x=140,y=y,width=264,height=31}
@@ -319,45 +310,36 @@ local function rows(Runtime)
         result[1]={label=c.powerConnected and "DONE  Power service connected" or "CALL POWER COMPANY",
             detail=("One-time connection fee: $%.2f. Charged to the shop and saved as a receipt."):format(Condition.POWER_FEE_CENTS/100),
             kind="restoration",command="call_power",enabled=not c.powerConnected,done=c.powerConnected}
-        result[2]={label=c.waterConnected and "DONE  Water service connected" or "CALL WATER UTILITY",
+        result[2]={label=c.waterConnected and "DONE  Water service connected" or "CALL WATER COMPANY",
             detail=("One-time connection fee: $%.2f. Charged to the shop and saved as a receipt."):format(Condition.WATER_FEE_CENTS/100),
             kind="restoration",command="call_water",enabled=not c.waterConnected,done=c.waterConnected}
     elseif Controls.mode=="restoration" then
         local Condition=require("src.warehouse_condition")
         local c=Condition.of(Runtime.state)
         if not c then return result end
-        local function add(label,detail,command,done,blocked)
+        local function add(label,detail,command,done,blocked,physical)
             result[#result+1]={label=(done and "DONE  " or "DO  ")..label,detail=detail,
-                kind="restoration",command=command,enabled=not done and not blocked,
-                done=done,blocked=blocked}
+                kind="restoration",command=command,enabled=not done and not blocked and not physical,
+                done=done,blocked=blocked,physical=physical}
         end
         if c.mode=="quick" then
             add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
-                "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
+                "Use the breaker box on the west wall.",c.lightsOn and "lights_off" or "lights_on",false,false,"WORLD")
             return result
         end
-        add("Reconnect power",("Stage %d/4. One-time fee $%.2f; then repair the breaker."):format(
-            Condition.stage(Runtime.state),Condition.POWER_FEE_CENTS/100),
-            "call_power",c.powerConnected)
-        add("Reconnect water",("One-time fee $%.2f; then clean the floor and oily puddles separately."):format(Condition.WATER_FEE_CENTS/100),
-            "call_water",c.waterConnected)
-        add("Repair breaker","Stand by the west-wall breaker. Service must be connected.","repair_breaker",c.breakerRepaired)
-        for _,region in ipairs({"west","center","east"}) do
-            local prior=region=="center" and "west" or region=="east" and "center" or nil
-            local blocked=prior and not c.cleaned[prior]
-            add("Clean "..region.." floor",blocked and ("Clean the "..prior.." area first.")
-                or "Stand in this floor area, then mop it clean.","clean_"..region,c.cleaned[region],blocked)
-        end
-        local floorsClean=c.cleaned.west and c.cleaned.center and c.cleaned.east
-        add("Touch up paint",floorsClean and "Stand near the worn wall and shelving."
-            or "Clean all three floor areas first.","repaint",c.repainted,not floorsClean)
+        add("Reconnect power","Use the wall phone to call and pay the power company.",
+            "call_power",c.powerConnected,false,"PHONE")
+        add("Reconnect water","Use the wall phone to call and pay the water utility.",
+            "call_water",c.waterConnected,false,"PHONE")
+        add("Repair breaker","Use the damaged box on the west wall after service returns.",
+            "repair_breaker",c.breakerRepaired,false,"WORLD")
         for _,puddle in ipairs({"puddle1","puddle2"}) do
-            local label=puddle=="puddle1" and "Clean oily puddle by the racks" or "Clean oily puddle by the office"
-            add(label,"Stand beside the spill and mop it separately from the floor.",
-                "clean_"..puddle,c.cleanedPuddles[puddle])
+            local label=puddle=="puddle1" and "Clean left oily puddle" or "Clean right oily puddle"
+            add(label,"Mop directly across the visible water; each pass fades it further.",
+                "clean_"..puddle,c.cleanedPuddles[puddle],false,"WORLD")
         end
-        add(c.lightsOn and "Switch warehouse lights off" or "Switch warehouse lights on",
-            "The shop remains powered while the lights are off.",c.lightsOn and "lights_off" or "lights_on",false)
+        add("Switch warehouse lights on","Use the repaired wall breaker; lamps start off.",
+            "lights_on",c.lightsOn,false,"WORLD")
         local ready,reason=Condition.readyForOpening(Runtime.state)
         add("Hold grand opening",ready and "Start the celebration. Clients can call when it ends."
             or reason,"grand_opening",c.grandOpened,not ready)
@@ -410,12 +392,15 @@ function Controls.open(Runtime,mode,action)
     Runtime.state.message=mode=="stock" and "Stage delivered shop stock at the warehouse entrance. Store or retrieve it here."
         or mode=="utilities" and "Call the utility providers to reconnect the closed shop."
         or mode=="restoration" and (require("src.warehouse_condition").of(Runtime.state).mode=="story"
-            and "Call utilities, repair the breaker, clean three floor sections and two oily puddles, then repaint."
+            and "Use the wall phone, breaker box, and mop. This list updates as you work."
             or "Use the wall switch to turn the warehouse lights on or off.")
         or "Choose an available room. Other players stay in their own rooms."
 end
 function Controls.keypressed(key,Runtime)
-    if require("src.warehouse_mop_action").active(Runtime.World.player) then return true end
+    if require("src.warehouse_mop_action").active(Runtime.World.player) then
+        if key=="e" or key=="back" then require("src.warehouse_mop_action").stop(Runtime) end
+        return true
+    end
     if require("src.home_furniture_controls").keypressed(key,Runtime) then return true end
     if require("src.home_delivery_controls").keypressed(key,Runtime) then return true end
     if require("src.home_activity_controls").keypressed(key,Runtime) then return true end
@@ -436,6 +421,10 @@ function Controls.keypressed(key,Runtime)
         if key=="space" then return require("src.basketball_controls").start(Runtime) end
     end
     local sceneId=Rooms.scene(Runtime.World.player)
+    if key=="u" and sceneId=="warehouse" then
+        Controls.open(Runtime,"restoration")
+        return true
+    end
     local storageRoom=sceneId~="warehouse" and Rooms.isComplete(Runtime.state,sceneId)
         and Rooms.definition(Runtime.state,sceneId)=="storage"
     local vehicleKey=({f=true,l=true,q=true,m=true})[key]
@@ -460,7 +449,8 @@ function Controls.keypressed(key,Runtime)
                 local okay,message=require("src.warehouse_mop_action").begin(Runtime,action)
                 if not okay then Runtime.state.message=message end
             else send(Runtime,"restoration",action) end
-        else Controls.open(Runtime,"restoration",action) end
+        elseif action then send(Runtime,"restoration",action)
+        else Controls.open(Runtime,"restoration") end
     elseif selected.kind=="roomRest" then send(Runtime,"roomRest",Runtime.World.player.resting and "stand" or "rest")
     elseif selected.kind=="roomGame" then
         local fixtureId=selected.target and selected.target.fixtureId

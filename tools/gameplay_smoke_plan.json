@@ -252,9 +252,9 @@
       "checks": ["story_arrival_motorcycle_moves_on_generated_route", "story_intro_handoff_opens_control_and_marks_met", "story_free_roam_continue_has_no_forced_route", "story_free_roam_shop_first_visits_both", "story_free_roam_apartment_first_visits_both", "story_free_roam_optional_gps_survives_continue"]
     },
     {
-      "id": "workshop-restoration", "label": "Closed shop, utilities, visual stages, and grand opening",
+      "id": "workshop-restoration", "label": "Closed shop, utilities, progressive spill cleanup, and grand opening",
       "stages": ["restoration-desktop", "restoration-mobile"],
-      "checks": ["warehouse_condition_closed_selects_crisp_stage_zero", "warehouse_condition_pending_variant_does_not_reuse_old_plate", "warehouse_condition_no_job_calls_before_opening", "warehouse_condition_power_reconnect_pays_once", "warehouse_condition_cleanup_has_fixed_order", "warehouse_condition_complete_after_all_work", "warehouse_condition_grand_opening_unlocks_jobs", "warehouse_condition_footprints_fade_quickly"]
+      "checks": ["warehouse_condition_closed_selects_crisp_stage_zero", "warehouse_condition_pending_variant_does_not_reuse_old_plate", "warehouse_condition_no_job_calls_before_opening", "warehouse_condition_power_reconnect_pays_once", "warehouse_condition_puddle1_first_pass_eraser_is_partial", "warehouse_condition_puddle2_can_be_mopped_progressively", "warehouse_condition_complete_after_all_work", "warehouse_condition_grand_opening_unlocks_jobs", "warehouse_condition_footprints_fade_quickly"]
     },
     {
       "id": "restoration-input-and-rendering", "label": "Restoration overlays, breaker input recovery, and world rendering",

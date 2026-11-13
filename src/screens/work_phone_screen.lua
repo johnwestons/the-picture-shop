@@ -87,7 +87,7 @@ local function canAct(call)
     if not call then return false end
     if call.connecting then return false end
     if call.direction ~= "outgoing" then return true end
-    if call.kind == "outgoing_power" then return not call.response end
+    if call.kind == "outgoing_power" or call.kind == "outgoing_water" then return not call.response end
     return call.kind == "outgoing_supplier" and call.pendingItemIndex ~= nil and not call.orderId
 end
 
@@ -124,7 +124,7 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
         or call.answered and "LINE CONNECTED" or "INCOMING CALL")
         or "DIAL TONE • LINE CLEAR", 116, 472, 262, "left")
     drawLegend(88, 516, COLORS.customer, "CUSTOMER / NEW ORDER")
-    drawLegend(88, 540, COLORS.service, "SUPPLIER DELIVERY UPDATE")
+    drawLegend(88, 540, COLORS.service, "UTILITY / SUPPLIER")
     drawLegend(88, 564, COLORS.urgent, "URGENT JOB QUESTION")
 
     panel({ x = 432, y = 120, width = 426, height = 342 },
@@ -134,8 +134,8 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
     if call then
         love.graphics.setColor(lamp)
         local reviewingOrder = call.pendingItemIndex ~= nil and not call.orderId
-        local heading = call.connecting and (call.kind == "outgoing_power"
-            and "CALLING POWER COMPANY" or "CALLING SUPPLIER")
+        local heading = call.connecting and (call.kind == "outgoing_power" and "CALLING POWER COMPANY"
+            or call.kind == "outgoing_water" and "CALLING WATER COMPANY" or "CALLING SUPPLIER")
             or call.checkoutReady and "CHECKOUT REVIEW"
             or reviewingOrder and "SUPPLY SELECTED"
             or (outgoing and "OUTGOING CALL" or (answered and call.role or "INCOMING CALL"))
@@ -176,9 +176,10 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
                 love.graphics.setColor(0.96, 0.83, 0.30, 1)
                 love.graphics.printf("$" .. tostring(item.price or 0), row.x + 286, row.y + 6, 75, "right")
             end
-        elseif outgoing and call.kind == "outgoing_power" and not call.response then
+        elseif outgoing and (call.kind == "outgoing_power" or call.kind == "outgoing_water")
+            and not call.response then
             love.graphics.setColor(0.60, 0.70, 0.72, 1)
-            love.graphics.printf("Ask whether a tree outage or an unpaid power bill is causing trouble.",
+            love.graphics.printf("Choose the service restoration action to pay the reconnection fee.",
                 458, 396, 372, "left")
         elseif call.direction ~= "outgoing" and not answered then
             love.graphics.setColor(0.60, 0.70, 0.72, 1)

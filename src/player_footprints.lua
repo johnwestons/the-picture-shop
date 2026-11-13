@@ -13,11 +13,6 @@ local materials={
     wood={life=8,alpha=.065,color={.24,.17,.105},width=2.8,length=4.2},
 }
 
-local function inside(x,y,cx,cy,rx,ry)
-    local dx,dy=(x-cx)/rx,(y-cy)/ry
-    return dx*dx+dy*dy<=1
-end
-
 local function homeSurface(state,x,y)
     local Layout=require("src.home_layouts")
     local id=state and state.home and state.home.apartmentId
@@ -36,17 +31,10 @@ function Prints.surface(state,x,y,sceneId)
     if sceneId=="warehouse" then
         local c=Condition.of(state)
         if not c or c.mode~="story" then return "concrete" end
-        if (not c.cleanedPuddles.puddle1 and inside(x,y,758,493,100,32))
-            or (not c.cleanedPuddles.puddle2 and inside(x,y,813,505,52,23)) then
+        if Condition.puddleAt(state,"puddle1",x,y) or Condition.puddleAt(state,"puddle2",x,y) then
             return "water"
         end
-        if not c.cleaned.west and (inside(x,y,150,383,100,35) or inside(x,y,217,497,73,28))
-            or not c.cleaned.center and (inside(x,y,433,426,90,35) or inside(x,y,605,260,62,25))
-            or not c.cleaned.east and inside(x,y,846,363,64,25) then
-            return "dirt"
-        end
-        -- The sealed slab keeps only a faint powder trace; contaminated patches
-        -- leave stronger prints that carry a few steps beyond their edges.
+        -- The fixed slab changes only where a saved mop stroke clears a spill.
         return "concrete"
     end
 

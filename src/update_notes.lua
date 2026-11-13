@@ -1,6 +1,18 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.114",
+        date = "Nov 13, 2026",
+        title = "Progressive shop restoration update",
+        changes = {
+            "The shop floor is cleaned by steering the animated mop over two large spills; each pass visibly fades the water and saves progress.",
+            "The restoration checklist tracks spill cleanup automatically. Breaker repair, lights, and utility calls are direct actions, and wall repainting is removed.",
+            "The shop landline works without building power. Call the power and water utilities to restore service, then use the repaired breaker to switch on the lights.",
+            "The selected restored warehouse image is now the base artwork, with a matching lights-off version.",
+            "Windows and Android share release 114 and multiplayer protocol 75.",
+        },
+    },
+    {
         version = "0.1.0-android.111",
         date = "Nov 12, 2026",
         title = "Warehouse restoration and barn controls update",

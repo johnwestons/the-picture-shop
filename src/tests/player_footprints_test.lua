@@ -12,12 +12,12 @@ function Test.run(_,check)
 
     local story=State.new()
     story.warehouse.condition=Condition.new("story",912)
-    check("player_footprints_warehouse_oil_and_dirt_change_material",
-        Prints.surface(story,758,493,"warehouse")=="water"
-            and Prints.surface(story,150,383,"warehouse")=="dirt")
+    check("player_footprints_warehouse_spill_changes_material",
+        Prints.surface(story,Condition.anchors.puddle1.x,Condition.anchors.puddle1.y,"warehouse")=="water"
+            and Prints.surface(story,150,383,"warehouse")=="concrete")
     story.warehouse.condition.cleaned.east=true
     check("player_footprints_east_floor_cleaning_keeps_oily_puddle",
-        Prints.surface(story,758,493,"warehouse")=="water")
+        Prints.surface(story,Condition.anchors.puddle1.x,Condition.anchors.puddle1.y,"warehouse")=="water")
 
     local barn=require("src.commute.barn_interior")
     local grocery=require("src.commute.grocery_interior")

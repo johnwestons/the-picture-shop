@@ -22,6 +22,7 @@ local VALID_KINDS = {
     service_order = true,
     construction_notice = true,
     outgoing_power = true,
+    outgoing_water = true,
     outgoing_supplier = true,
 }
 
@@ -34,18 +35,26 @@ local LIGHTS = {
     customer_status = 4,
     customer_complaint = 4,
     outgoing_power = 3,
+    outgoing_water = 3,
     outgoing_supplier = 3,
 }
 
 local POWER_CONTACT = {
     id = "power_company",
     name = "CritterNet Power & Light",
-    description = "Outage reports and power account",
+    description = "Power service reconnection",
     kind = "outgoing_power",
 }
+local WATER_CONTACT = {
+    id = "water_company",
+    name = "Critter Water Utility",
+    description = "Water service reconnection",
+    kind = "outgoing_water",
+}
+local UTILITY_ACTIONS = { outgoing_power = "call_power", outgoing_water = "call_water" }
 
 local function contactList()
-    local contacts = { POWER_CONTACT }
+    local contacts = { POWER_CONTACT, WATER_CONTACT }
     for categoryIndex = 1, 4 do
         local category = Procurement.category(categoryIndex)
         contacts[#contacts + 1] = {
@@ -302,21 +311,31 @@ function WorkPhone.placeCall(state, contactId)
     if phone.incoming then return false, "The line is busy. Hang up before dialing another contact." end
     local contact = WorkPhone.contact(contactId)
     if not contact then return false, "Choose a contact from the phone directory." end
-    if contact.kind~='outgoing_power' and not BusinessCalendar.isBusinessOpen(state) then
+    if not UTILITY_ACTIONS[contact.kind] and not BusinessCalendar.isBusinessOpen(state) then
         return false,'Supplier offices are open Monday-Friday, 09:00-20:00. Call during business hours.'
     end
     local number = phone.nextCallId
     phone.nextCallId = number + 1
     local power = contact.kind == "outgoing_power"
+    local water = contact.kind == "outgoing_water"
+    local utility = power or water
+    local fee = power and require("src.warehouse_condition").POWER_FEE_CENTS
+        or water and require("src.warehouse_condition").WATER_FEE_CENTS
+    local message
+    if power then
+        message = string.format("Thanks for calling CritterNet Power & Light. Reconnect service for $%.2f.",fee/100)
+    elseif water then
+        message = string.format("Thanks for calling Critter Water Utility. Reconnect service for $%.2f.",fee/100)
+    else
+        message = string.format("Thanks for calling %s. Choose an item and we will send it to the loading dock.",contact.name)
+    end
     phone.incoming = {
         id = string.format("CALL-%04d", number),
         kind = contact.kind,
         caller = contact.name,
-        role = power and "POWER COMPANY" or "SUPPLIER",
-        subject = power and "OUTAGE OR ACCOUNT STATUS" or "SUPPLY ORDER",
-        message = power
-            and "Thanks for calling CritterNet Power & Light. We can check your account and local outage reports."
-            or string.format("Thanks for calling %s. Choose an item and we will send it to the loading dock.", contact.name),
+        role = power and "POWER COMPANY" or water and "WATER COMPANY" or "SUPPLIER",
+        subject = utility and "SERVICE RECONNECTION" or "SUPPLY ORDER",
+        message = message,
         categoryIndex = contact.categoryIndex,
         direction = "outgoing",
         receivedAtHours = BusinessCalendar.absoluteHours(state),
@@ -365,22 +384,6 @@ function WorkPhone.answer(state)
     if call.direction == "outgoing" then return false, "This outgoing call is already connected." end
     call.answered = true
     return true, call
-end
-
-local function powerCompanyResponse(state)
-    local _, bills = BusinessCalendar.ensure(state)
-    for _, invoice in ipairs(bills.ledger or {}) do
-        if invoice.status == "unpaid" then
-            for _, charge in ipairs(invoice.charges or {}) do
-                if charge.id == "power" then
-                    return string.format(
-                        "Your account has an unpaid power charge of $%d on %s. If service was suspended, pay the shop bills on the office computer and call us back.",
-                        math.floor(tonumber(charge.amount) or 0), invoice.id)
-                end
-            end
-        end
-    end
-    return "Your power account is current. The outage board shows a tree down across the line near the shop; a crew estimates restoration in 2 game hours."
 end
 
 function WorkPhone.orderSupply(state, itemIndex)
@@ -498,6 +501,7 @@ function WorkPhone.respond(state)
     if call.connecting then return false, "The supplier is still picking up." end
     if not call.answered then return false, "Answer the phone before responding." end
     local response
+    local utilityAction=UTILITY_ACTIONS[call.kind]
     if call.direction == "outgoing" then
         if call.kind == "outgoing_supplier" then
             if call.orderId then return false, "This phone call already placed an order." end
@@ -530,12 +534,17 @@ function WorkPhone.respond(state)
             response = string.format(
                 "%s placed by phone for $%d. Dock delivery is arranged.",
                 orderOrError.productName, orderOrError.price)
-        elseif call.kind ~= "outgoing_power" then
+        elseif not utilityAction then
             return false, "Choose an item from the supplier catalog to place an order."
         end
-        if call.kind == "outgoing_power" then
-            if call.response then return false, "The power company has already checked this account." end
-            response = powerCompanyResponse(state)
+        if utilityAction then
+            if call.response then return false, "This utility call has already been completed." end
+            local okay,_,message=require("src.warehouse_condition").perform(state,nil,utilityAction)
+            if not okay then
+                state.message=message
+                return false,message
+            end
+            response = message
             call.response = response
             state.message = response
             return true, response
@@ -667,8 +676,9 @@ function WorkPhone.actionLabel(state)
     if not call then return "" end
     if call.direction == "outgoing" then
         if call.connecting then return "CALLING..." end
-        if call.kind == "outgoing_power" then
-            return call.response and "ACCOUNT CHECKED" or "ASK WHAT'S UP?!"
+        if UTILITY_ACTIONS[call.kind] then
+            if call.response then return "SERVICE RESTORED" end
+            return call.kind=="outgoing_power" and "RESTORE POWER" or "RESTORE WATER"
         end
         if call.orderId then return "ORDER PLACED" end
         if not call.pendingItemIndex then return "CHOOSE A SUPPLY ABOVE" end

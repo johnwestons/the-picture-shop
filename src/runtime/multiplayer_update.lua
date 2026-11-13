@@ -2,6 +2,8 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local PlayerActivity = require("src.player_activity")
+local MopMotion = require("src.warehouse_mop_motion")
+local CharacterAnimation = require("src.character_animation")
 
 local function updateTaskVisual(player, action, dt, now)
     if not player then return end
@@ -22,6 +24,8 @@ local function updateTaskVisual(player, action, dt, now)
 end
 
 function Component.install(Runtime)
+    local remoteMopStamps=0
+    local remoteMopTasks={}
     function Runtime.performWorkshopRequest(player, operation, payload)
         if not Runtime.workshopAuthority then
             return {
@@ -149,7 +153,41 @@ function Component.install(Runtime)
                 if trip and trip.participants[require('src.home_residents').key(player)] then return end
                 if require('src.story_grand_opening').active(Runtime) then moveX,moveY=0,0 end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
+                local startX,startY=player.x,player.y
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
+                local puddle=type(player.taskAction)=="string"
+                    and player.taskAction:match("^mop_(puddle[12])$")
+                local id=tonumber(player.id) or 1
+                local jack=Runtime.state.palletJack
+                local lift=Runtime.state.forklift
+                local mounted=jack and jack.operating and jack.operatorPlayerId==id
+                    or lift and lift.operating and lift.operatorPlayerId==id
+                if puddle and player.sceneId=="warehouse" and player.character=="rabbit-worker" and not mounted then
+                    local task=remoteMopTasks[id]
+                    if not task or task.puddle~=puddle then
+                        task={puddle=puddle,elapsed=0,direction=CharacterAnimation.authoredDirection(
+                            player.intentX or player.facing or 1,player.intentY or 0)}
+                        remoteMopTasks[id]=task
+                    elseif player.moving then
+                        task.direction=CharacterAnimation.authoredDirection(
+                            player.intentX or player.facing or 1,player.intentY or 0)
+                    end
+                    if not task.done then
+                        local stamps,done=MopMotion.advance(Runtime.state,task,player,moveDt,
+                            startX,startY,player.x,player.y,false)
+                        player._warehouseMopElapsed=task.elapsed
+                        remoteMopStamps=remoteMopStamps+stamps
+                        if done then task.done=true end
+                        if done or remoteMopStamps>=8 then
+                            remoteMopStamps=0
+                            Runtime.multiplayer:markShopDirty(true)
+                            Runtime.saveCurrent(done)
+                        end
+                    end
+                else
+                    remoteMopTasks[id]=nil
+                    player._warehouseMopElapsed=nil
+                end
             end,
             bindResident = function(player,token,players)
                 local id,reason=require("src.home_residents").bind(Runtime.state,player,token,players)

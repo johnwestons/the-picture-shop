@@ -37,9 +37,12 @@ local speedDistance, speedDistanceTotal = {}, 0
 local soundsMuted = false
 local fonts = {}
 local actorAssist, actorAssistElapsed, actorAssistAccumulator, actorAssistTicks = false, 0, 0, 0
+local cameraPass, cameraReview, cameraDraft, cameraPassOriginal = false, false, nil, nil
+local cameraPassNextSample, cameraDrag = 0, nil
 local takeFrames = {}
 local TAKE_FPS, TAKE_STEP, PHYSICS_STEP = 30, 1 / 30, 1 / 60
-local updateViewport, startRecording
+local CAMERA_CAPTURE_STEP = .2
+local updateViewport, startRecording, sampleProject
 local actions = { 'boost', 'shift', 'brake', 'jump', 'turn', 'tuck' }
 local presets = {
     { label = 'Low rear chase', yaw = 0, tilt = 31, zoom = 1.05 },
@@ -132,6 +135,10 @@ local function findProjects()
     if #projects == 0 then projects[1] = 'high-octane-return' end
 end
 local function saveProject(publish)
+    if actorAssist or cameraPass or cameraReview then
+        status = 'Finish the take or keep/discard the camera pass before saving.'
+        return false
+    end
     local valid, reason = validateAndSort(project)
     if not valid then status = reason; return false end
     local folder = publish and gameFolder or sourceFolder
@@ -248,6 +255,10 @@ local function resetAssistRider()
     Rider.update(rider, {}, 0, world)
     camera = Camera.new(actor, world)
     camera.outsideMode = 'fixed'
+    local shot = Scene.cameraAt(project, cursor)
+    camera.yaw = (-math.deg(actor.heading) - 90 + shot.yaw) % 360
+    camera.fixedYaw = camera.yaw
+    camera.tilt, camera.targetZoom, camera.zoom = shot.tilt, shot.zoom, shot.zoom
     updateViewport()
 end
 local function takeMatchesCurrentScene(take)
@@ -318,10 +329,13 @@ end
 local function presentActor(time, dt)
     local bike = rider.bike
     actor = Rider.actor(rider)
-    local shot = Scene.cameraAt(project, time)
     camera.outsideMode = 'fixed'
-    camera.yaw = (-math.deg(actor.heading) - 90 + shot.yaw) % 360
-    camera.tilt, camera.targetZoom = shot.tilt, shot.zoom
+    if not actorAssist and not cameraPass then
+        local shot = Scene.cameraAt(project, time)
+        camera.yaw = (-math.deg(actor.heading) - 90 + shot.yaw) % 360
+        camera.fixedYaw = camera.yaw
+        camera.tilt, camera.targetZoom = shot.tilt, shot.zoom
+    end
     camera:updateRide(rider, dt, actor)
     renderer:prepare(camera, dt)
     if rider.gear.mounted then renderer:updateTireTracks('cutscene-studio', bike, world, dt) end
@@ -551,6 +565,78 @@ local function cloneData(value)
     for key, item in pairs(value) do copy[key] = cloneData(item) end
     return copy
 end
+local function captureCameraCue(time)
+    local heading = actor and actor.heading or 0
+    local baseYaw = -math.deg(heading) - 90
+    local yaw = ((camera.yaw - baseYaw + 180) % 360) - 180
+    return { time = clamp(time, project.trimIn, project.trimOut), label = 'Camera pass',
+        yaw = yaw, tilt = clamp(camera.tilt, 6, 89), zoom = clamp(camera.targetZoom, .55, 4) }
+end
+local function recordCameraCue(time)
+    if not cameraPass or not cameraDraft then return end
+    local cue = captureCameraCue(time)
+    local previous = cameraDraft[#cameraDraft]
+    if previous and math.abs(previous.time - cue.time) < .001 then
+        cameraDraft[#cameraDraft] = cue
+    else
+        cameraDraft[#cameraDraft + 1] = cue
+    end
+end
+local function finishCameraPass()
+    if not cameraPass then return false end
+    recordCameraCue(cursor)
+    cameraPass = false
+    playing = false
+    cameraReview = true
+    cameraDrag = nil
+    status = ('Camera pass ready with %d angle keys. Keep it to preview, or discard it.'):format(#cameraDraft)
+    return true
+end
+local function beginCameraPass()
+    if actorAssist or cameraPass or cameraReview or recording then return false end
+    cameraPassOriginal = cloneData(project.camera)
+    cameraDraft = {}
+    cursor = project.trimIn
+    sampleProject(cursor, 0)
+    cameraPass = true
+    cameraReview = false
+    cameraPassNextSample = cursor + CAMERA_CAPTURE_STEP
+    recordCameraCue(cursor)
+    playing = true
+    looping = false
+    status = 'Replay started. Drag in the preview to orbit; scroll to zoom. The camera will be captured as you go.'
+    return true
+end
+local function keepCameraPass()
+    if not cameraReview or not cameraDraft or #cameraDraft < 2 then
+        status = 'The camera pass needs at least two angle keys.'
+        return false
+    end
+    local merged = {}
+    for _, cue in ipairs(cameraPassOriginal or project.camera) do
+        if cue.time < project.trimIn - .0001 or cue.time > project.trimOut + .0001 then
+            merged[#merged + 1] = cue
+        end
+    end
+    for _, cue in ipairs(cameraDraft) do merged[#merged + 1] = cue end
+    project.camera = merged
+    sortCues(project.camera)
+    cameraPass, cameraReview, cameraDraft, cameraPassOriginal = false, false, nil, nil
+    cameraDrag, selection = nil, nil
+    cursor, playing, looping = project.trimIn, true, false
+    sampleProject(cursor, 0)
+    status = 'Camera pass kept. Previewing its camera track; save the composition to keep it.'
+    return true
+end
+local function discardCameraPass()
+    if not cameraReview then return false end
+    cameraPass, cameraReview, cameraDraft, cameraPassOriginal = false, false, nil, nil
+    cameraDrag = nil
+    cursor, playing = project.trimIn, false
+    sampleProject(cursor, 0)
+    status = 'Camera pass discarded. The previous camera track is restored.'
+    return true
+end
 local function generatedSceneId()
     local base = 'high-octane-' .. os.date('%Y%m%d-%H%M%S') .. '-' .. love.math.random(1000, 9999)
     local id, suffix = base, 1
@@ -633,7 +719,7 @@ local function generateHighOctaneScene()
     status = ('Generated %d s high-octane scene: %s to %s. Add dialogue or record a take, then save when ready.')
         :format(duration, routeLabel(choice.from), routeLabel(choice.to))
 end
-local function sampleProject(time, dt)
+sampleProject = function(time, dt)
     if actorAssist then
         presentActor(time, dt)
         return
@@ -725,7 +811,7 @@ local function drawPreview()
             shiftTime = actor.shiftTime, acceleration = actor.acceleration }, localPlayer = true } })
     if actorAssist then
         local g = love.graphics
-        g.setColor(.02, .03, .025, .86); g.rectangle('fill', 18, 18, 500, 72, 7, 7)
+        g.setColor(.02, .03, .025, .86); g.rectangle('fill', 18, 18, 520, 91, 7, 7)
         g.setColor(.95, .82, .57); g.setFont(fonts.small)
         g.print(('ACTOR ASSIST  ·  TAKE %0.1f s  ·  %02.0f mph')
             :format(actorAssistElapsed, (actor.speed or 0) * 2.236936), 30, 28)
@@ -739,6 +825,21 @@ local function drawPreview()
         else
             g.print('Esc keeps the take', 30, 69)
         end
+        g.print('Drag preview to orbit  ·  scroll to zoom', 30, 85)
+    elseif cameraPass then
+        local g = love.graphics
+        g.setColor(.02, .03, .025, .86); g.rectangle('fill', 18, 18, 520, 54, 7, 7)
+        g.setColor(.95, .82, .57); g.setFont(fonts.small)
+        g.print('CAMERA PASS  ·  DRAG TO ORBIT  ·  SCROLL TO ZOOM  ·  SPACE PAUSES  ·  ESC ENDS', 30, 28)
+        g.setColor(.94, .94, .87)
+        g.print(('PLAYBACK %0.1f / %0.1f s'):format(cursor, project.trimOut), 30, 49)
+    elseif cameraReview then
+        local g = love.graphics
+        g.setColor(.02, .03, .025, .86); g.rectangle('fill', 18, 18, 520, 54, 7, 7)
+        g.setColor(.95, .82, .57); g.setFont(fonts.small)
+        g.print('CAMERA PASS READY  ·  KEEP TO PREVIEW  ·  DISCARD TO RESTORE', 30, 28)
+        g.setColor(.94, .94, .87)
+        g.print(('%d angle keys captured'):format(#(cameraDraft or {})), 30, 49)
     end
     local cue = dialogueCue(cursor)
     if cue then
@@ -840,6 +941,20 @@ local function rightPanel()
         takeMatchesCurrentScene(project.take) and 'ACTIVE' or 'KEPT')
         or 'NO RECORDED TAKE  ·  USE THE ROUTE PREVIEW', left, row)
     row = row + 22
+    if cameraReview then
+        label(('CAMERA PASS READY  ·  %d ANGLE KEYS'):format(#(cameraDraft or {})), left, row,
+            {.93, .89, .72})
+        button('KEEP CAMERA PASS & PREVIEW', left, row + 17, content,
+            keepCameraPass, 'primary')
+        row = row + 55
+        button('DISCARD CAMERA PASS', left, row, content, discardCameraPass)
+        row = row + 38
+    else
+        button(cameraPass and 'STOP CAMERA PASS' or 'RECORD CAMERA PASS', left, row, content,
+            function() if cameraPass then finishCameraPass() else beginCameraPass() end end,
+            cameraPass and 'active' or 'primary')
+        row = row + 38
+    end
     button('SAVE COMPOSITION', left, row, content, function() saveProject(false) end)
     row = row + 38
     button('IMPORT TO GAME', left, row, content, function() if saveProject(false) then saveProject(true) end end, 'primary')
@@ -975,7 +1090,11 @@ local function timeline()
         label(info[2], 24, y + 3)
         g.setColor(.16, .20, .17); g.rectangle('fill', left, y + 9, width, 2)
         local cues = project[info[1]]
-        for index, cue in ipairs(cues) do marker(cue.time, info[1], index, info[3], y + 13) end
+        local stride = info[1] == 'camera' and math.max(1, math.ceil(#cues / 96)) or 1
+        for index, cue in ipairs(cues) do
+            local selected = selection and selection.track == info[1] and selection.index == index
+            if index % stride == 1 or selected then marker(cue.time, info[1], index, info[3], y + 13) end
+        end
         if info[1] == 'speed' then
             local previous
             for _, cue in ipairs(cues) do
@@ -1069,6 +1188,234 @@ local function addAction()
     for index, value in ipairs(project.actions) do if value == cue then setSelection('actions', index) end end
 end
 
+-- Keep LÖVE callbacks at module scope. Defining them inside Studio.load makes
+-- that closure capture every editor local used by the callbacks, exceeding the
+-- 60-upvalue limit in LuaJIT.
+local function studioUpdate(dt)
+    if recording then
+        if captureCount == 0 and not captureWaiting then captureDue = true end
+        if not captureDue and not captureWaiting then
+            captureAccumulator = captureAccumulator + math.min(dt, .1)
+            if captureAccumulator >= FRAME_STEP then
+                captureAccumulator = captureAccumulator - FRAME_STEP
+                cursor = math.min(project.trimOut, project.trimIn + captureCount * FRAME_STEP)
+                captureDue = true
+            end
+        end
+        sampleProject(cursor, FRAME_STEP)
+        renderer:prepare(camera, FRAME_STEP)
+        return
+    end
+    if actorAssist then
+        updateActorAssist(dt)
+        return
+    end
+    dt = math.min(dt, .1)
+    if cameraPass then
+        if playing then cursor = math.min(project.trimOut, cursor + dt) end
+        sampleProject(cursor, dt)
+        if playing and cursor >= cameraPassNextSample then
+            recordCameraCue(cursor)
+            cameraPassNextSample = cursor + CAMERA_CAPTURE_STEP
+        end
+        if playing and cursor >= project.trimOut then finishCameraPass() end
+        return
+    end
+    if playing then
+        cursor = cursor + dt
+        if cursor >= project.trimOut then
+            if looping then cursor = project.trimIn + (cursor - project.trimOut)
+            else cursor = project.trimOut; playing = false end
+        end
+    end
+    sampleProject(cursor, dt)
+end
+
+local function studioDraw()
+    love.graphics.clear(.015, .025, .021, 1)
+    drawPreview()
+    if not recording then
+        buttons = {}
+        rightPanel()
+        timeline()
+        if textEntry then
+            local g = love.graphics
+            g.setColor(.02, .03, .025, .94); g.rectangle('fill', viewportWidth * .12, viewportHeight * .38,
+                viewportWidth * .76, 118, 9, 9)
+            g.setColor(.92, .84, .62); g.setFont(fonts.body)
+            local prompt = textEntry.kind == 'title' and 'Composition title' or 'Dialogue line'
+            g.printf(prompt .. '  ·  Enter saves  ·  Esc cancels', viewportWidth * .15,
+                viewportHeight * .38 + 14, viewportWidth * .70, 'center')
+            g.setColor(.96, .95, .88); g.printf(textEntry.value .. '▏', viewportWidth * .16,
+                viewportHeight * .38 + 52, viewportWidth * .68, 'center')
+        end
+        captureFrame()
+    else
+        captureFrame()
+    end
+end
+
+local function studioResize() updateViewport() end
+
+local function studioKeypressed(key)
+    if recording and key ~= 'escape' then return end
+    if textEntry then
+        if key == 'escape' then textEntry = nil; love.keyboard.setTextInput(false)
+        elseif key == 'return' or key == 'kpenter' then
+            local entry = textEntry; textEntry = nil; love.keyboard.setTextInput(false)
+            local value = cleanText(entry.value, entry.kind == 'title' and 96 or 240)
+            if entry.kind == 'title' then
+                project.title = value ~= '' and value or 'Untitled Cutscene'
+                status = 'Composition title updated.'
+            elseif value ~= '' then
+                if entry.cue then entry.cue.text = value
+                else
+                    local cue = { time = entry.time, speaker = dialogueSpeaker, text = value, duration = 2.8 }
+                    project.dialogue[#project.dialogue + 1] = cue; sortCues(project.dialogue)
+                    for index, current in ipairs(project.dialogue) do if current == cue then setSelection('dialogue', index) end end
+                end
+                status = 'Dialogue cue updated.'
+            end
+        elseif key == 'backspace' then textEntry.value = textEntry.value:sub(1, -2) end
+        return
+    end
+    if key == 'escape' then
+        if recording then
+            recording, captureDue = false, false
+            if recorder then recorder:finish(); recorder = nil end
+            updateViewport(); status = 'Recording cancelled.'
+        elseif cameraPass then finishCameraPass()
+        elseif cameraReview then discardCameraPass()
+        elseif actorAssist then finishActorTake()
+        else love.event.quit() end
+    elseif actorAssist then
+        if key == 'r' then beginActorTake()
+        elseif key == 't' and project.actor.kind == 'motorcycle-rider' then
+            local command = rider.bike.transmission == 'manual' and 'automatic' or 'manual'
+            local okay, message = Rider.command(rider, command, world); status = message
+        elseif key == 'z' and project.actor.kind == 'motorcycle-rider' and rider.bike.transmission == 'manual' then
+            local _, message = Rider.command(rider, 'shiftdown', world); status = message or 'Shifted down.'
+        elseif key == 'x' and project.actor.kind == 'motorcycle-rider' and rider.bike.transmission == 'manual' then
+            local _, message = Rider.command(rider, 'shiftup', world); status = message or 'Shifted up.'
+        end
+        return
+    elseif cameraPass then
+        if key == 'space' then
+            playing = not playing
+            status = playing and 'Camera pass resumed.' or 'Camera pass paused. Drag or scroll to set the shot.'
+        end
+        return
+    elseif cameraReview then
+        return
+    elseif key == 'space' then playing = not playing
+    elseif key == 'left' then cursor = clamp(cursor - .25, 0, project.duration)
+    elseif key == 'right' then cursor = clamp(cursor + .25, 0, project.duration)
+    elseif key == 'i' then project.trimIn = math.min(cursor, project.trimOut - .25)
+    elseif key == 'o' then project.trimOut = math.max(cursor, project.trimIn + .25)
+    elseif key == 'c' then addCamera()
+    elseif key == 'a' then addAction()
+    elseif key == 'd' then editDialogue()
+    elseif key == 'delete' or key == 'backspace' then
+        if selection then table.remove(project[selection.track], selection.index); selection = nil end
+    elseif key == 's' and love.keyboard.isDown('lctrl', 'rctrl') then saveProject(false)
+    elseif key == 'r' and love.keyboard.isDown('lctrl', 'rctrl') then if saveProject(false) then saveProject(true) end
+    elseif key == 'return' then playing = not playing
+    elseif key == 'm' then soundsMuted = not soundsMuted; if audio then audio:setMuted(soundsMuted) end
+    elseif key == '1' or key == '2' or key == '3' or key == '4' or key == '5' or key == '6' then
+        cameraChoice = tonumber(key)
+    end
+end
+
+local function studioTextinput(value)
+    if textEntry then textEntry.value = (textEntry.value .. value):sub(1, 300) end
+end
+
+local function studioMousepressed(x, y, buttonNumber)
+    if recording then return end
+    for index = #buttons, 1, -1 do
+        local item = buttons[index]
+        if x >= item.x and x <= item.x + item.w and y >= item.y and y <= item.y + item.h then
+            if actorAssist and item.label ~= 'STOP & KEEP TAKE' then return end
+            if cameraPass and item.label ~= 'STOP CAMERA PASS' then return end
+            if cameraReview and item.label ~= 'KEEP CAMERA PASS & PREVIEW'
+                and item.label ~= 'DISCARD CAMERA PASS' then return end
+            item.fn(); return
+        end
+    end
+    if actorAssist or cameraPass or cameraReview then
+        if (actorAssist or cameraPass) and buttonNumber == 1
+            and x >= 0 and x < viewportWidth and y >= 0 and y < viewportHeight then
+            cameraDrag = { x = x, y = y }
+        end
+        return
+    end
+    local base = windowHeight - 170
+    if y >= base + 27 then
+        local left, right = 142, windowWidth - 24
+        local t = clamp((x - left) / (right - left), 0, 1) * project.duration
+        cursor = t
+        local trackNames = { 'camera', 'actions', 'dialogue', 'speed' }
+        local selectedTrack
+        for _, track in ipairs(trackNames) do
+            if math.abs(y - timelineY(track)) < 15 then selectedTrack = track end
+        end
+        if selectedTrack then
+            local cues = project[selectedTrack]
+            local chosen, nearest
+            for index, cue in ipairs(cues) do
+                local distance = math.abs(cue.time - t)
+                if not nearest or distance < nearest then chosen, nearest = index, distance end
+            end
+            if chosen and nearest < math.max(.24, project.duration * 7 / (right - left)) then setSelection(selectedTrack, chosen)
+            else selection = nil end
+        end
+    end
+end
+
+local function studioMousemoved(x, y, dx, dy)
+    if not cameraDrag then return end
+    cameraDrag.x, cameraDrag.y = x, y
+    camera:orbit((dx or 0) * .32, -(dy or 0) * .32)
+    if cameraPass then camera.targetZoom = clamp(camera.targetZoom, .55, 4) end
+end
+
+local function studioMousereleased()
+    if not cameraDrag then return end
+    cameraDrag = nil
+    if cameraPass then recordCameraCue(cursor) end
+end
+
+local function studioWheelmoved(_, y)
+    if y == 0 or recording then return end
+    local mouseX, mouseY = love.mouse.getPosition()
+    if cameraReview then
+        if mouseX >= viewportWidth and mouseY < windowHeight - 170 then
+            panelScroll = clamp(panelScroll - y * 72, 0,
+                math.max(0, panelContentHeight - (windowHeight - 170)))
+        end
+        return
+    end
+    if (actorAssist or cameraPass) and mouseX < viewportWidth and mouseY < viewportHeight then
+        camera:zoomBy(y * .8)
+        if cameraPass then
+            camera.targetZoom = clamp(camera.targetZoom, .55, 4)
+            recordCameraCue(cursor)
+        end
+        return
+    end
+    if mouseX >= viewportWidth and mouseY < windowHeight - 170 then
+        panelScroll = clamp(panelScroll - y * 72, 0, math.max(0, panelContentHeight - (windowHeight - 170)))
+    else
+        cursor = clamp(cursor + (y > 0 and -.5 or .5), 0, project.duration)
+    end
+end
+
+local function studioQuit()
+    if audio then audio:release() end
+    if renderer then renderer:release() end
+    return false
+end
+
 function Studio.load()
     fonts = { heading = love.graphics.newFont(24), body = love.graphics.newFont(15), small = love.graphics.newFont(12) }
     love.window.setMode(1440, 900, { resizable = true, vsync = 1 })
@@ -1093,168 +1440,17 @@ function Studio.load()
     audio = Audio.new(); audio:setLevels(.72, .85, .42)
     updateViewport()
     sampleProject(cursor, 0)
-    love.update = function(dt)
-        if recording then
-            if captureCount == 0 and not captureWaiting then captureDue = true end
-            if not captureDue and not captureWaiting then
-                captureAccumulator = captureAccumulator + math.min(dt, .1)
-                if captureAccumulator >= FRAME_STEP then
-                    captureAccumulator = captureAccumulator - FRAME_STEP
-                    cursor = math.min(project.trimOut, project.trimIn + captureCount * FRAME_STEP)
-                    captureDue = true
-                end
-            end
-            sampleProject(cursor, FRAME_STEP)
-            renderer:prepare(camera, FRAME_STEP)
-            return
-        end
-        if actorAssist then
-            updateActorAssist(dt)
-            return
-        end
-        dt = math.min(dt, .1)
-        if playing then
-            cursor = cursor + dt
-            if cursor >= project.trimOut then
-                if looping then cursor = project.trimIn + (cursor - project.trimOut)
-                else cursor = project.trimOut; playing = false end
-            end
-        end
-        sampleProject(cursor, dt)
-    end
-    love.draw = function()
-        love.graphics.clear(.015, .025, .021, 1)
-        drawPreview()
-        if not recording then
-            buttons = {}
-            rightPanel()
-            timeline()
-            if textEntry then
-                local g = love.graphics
-                g.setColor(.02, .03, .025, .94); g.rectangle('fill', viewportWidth * .12, viewportHeight * .38,
-                    viewportWidth * .76, 118, 9, 9)
-                g.setColor(.92, .84, .62); g.setFont(fonts.body)
-                local prompt = textEntry.kind == 'title' and 'Composition title' or 'Dialogue line'
-                g.printf(prompt .. '  ·  Enter saves  ·  Esc cancels', viewportWidth * .15,
-                    viewportHeight * .38 + 14, viewportWidth * .70, 'center')
-                g.setColor(.96, .95, .88); g.printf(textEntry.value .. '▏', viewportWidth * .16,
-                    viewportHeight * .38 + 52, viewportWidth * .68, 'center')
-            end
-            captureFrame()
-        else
-            captureFrame()
-        end
-    end
-    love.resize = function() updateViewport() end
-    love.keypressed = function(key)
-        if recording and key ~= 'escape' then return end
-        if textEntry then
-            if key == 'escape' then textEntry = nil; love.keyboard.setTextInput(false)
-            elseif key == 'return' or key == 'kpenter' then
-                local entry = textEntry; textEntry = nil; love.keyboard.setTextInput(false)
-                local value = cleanText(entry.value, entry.kind == 'title' and 96 or 240)
-                if entry.kind == 'title' then
-                    project.title = value ~= '' and value or 'Untitled Cutscene'
-                    status = 'Composition title updated.'
-                elseif value ~= '' then
-                    if entry.cue then entry.cue.text = value
-                    else
-                        local cue = { time = entry.time, speaker = dialogueSpeaker, text = value, duration = 2.8 }
-                        project.dialogue[#project.dialogue + 1] = cue; sortCues(project.dialogue)
-                        for index, current in ipairs(project.dialogue) do if current == cue then setSelection('dialogue', index) end end
-                    end
-                    status = 'Dialogue cue updated.'
-                end
-            elseif key == 'backspace' then textEntry.value = textEntry.value:sub(1, -2) end
-            return
-        end
-        if key == 'escape' then
-            if recording then
-                recording, captureDue = false, false
-                if recorder then recorder:finish(); recorder = nil end
-                updateViewport(); status = 'Recording cancelled.'
-            elseif actorAssist then finishActorTake()
-            else love.event.quit() end
-        elseif actorAssist then
-            if key == 'r' then beginActorTake()
-            elseif key == 't' and project.actor.kind == 'motorcycle-rider' then
-                local command = rider.bike.transmission == 'manual' and 'automatic' or 'manual'
-                local okay, message = Rider.command(rider, command, world); status = message
-            elseif key == 'z' and project.actor.kind == 'motorcycle-rider' and rider.bike.transmission == 'manual' then
-                local _, message = Rider.command(rider, 'shiftdown', world); status = message or 'Shifted down.'
-            elseif key == 'x' and project.actor.kind == 'motorcycle-rider' and rider.bike.transmission == 'manual' then
-                local _, message = Rider.command(rider, 'shiftup', world); status = message or 'Shifted up.'
-            end
-            return
-        elseif key == 'space' then playing = not playing
-        elseif key == 'left' then cursor = clamp(cursor - .25, 0, project.duration)
-        elseif key == 'right' then cursor = clamp(cursor + .25, 0, project.duration)
-        elseif key == 'i' then project.trimIn = math.min(cursor, project.trimOut - .25)
-        elseif key == 'o' then project.trimOut = math.max(cursor, project.trimIn + .25)
-        elseif key == 'c' then addCamera()
-        elseif key == 'a' then addAction()
-        elseif key == 'd' then editDialogue()
-        elseif key == 'delete' or key == 'backspace' then
-            if selection then table.remove(project[selection.track], selection.index); selection = nil end
-        elseif key == 's' and love.keyboard.isDown('lctrl', 'rctrl') then saveProject(false)
-        elseif key == 'r' and love.keyboard.isDown('lctrl', 'rctrl') then if saveProject(false) then saveProject(true) end
-        elseif key == 'return' then playing = not playing
-        elseif key == 'm' then soundsMuted = not soundsMuted; if audio then audio:setMuted(soundsMuted) end
-        elseif key == '1' or key == '2' or key == '3' or key == '4' or key == '5' or key == '6' then
-            cameraChoice = tonumber(key)
-        end
-    end
-    love.textinput = function(value)
-        if textEntry then textEntry.value = (textEntry.value .. value):sub(1, 300) end
-    end
-    love.mousepressed = function(x, y, buttonNumber)
-        if recording then return end
-        for index = #buttons, 1, -1 do
-            local item = buttons[index]
-            if x >= item.x and x <= item.x + item.w and y >= item.y and y <= item.y + item.h then
-                if actorAssist and item.label ~= 'STOP & KEEP TAKE' then return end
-                item.fn(); return
-            end
-        end
-        if actorAssist then return end
-        local base = windowHeight - 170
-        if y >= base + 27 then
-            local left, right = 142, windowWidth - 24
-            local t = clamp((x - left) / (right - left), 0, 1) * project.duration
-            cursor = t
-            local trackNames = { 'camera', 'actions', 'dialogue', 'speed' }
-            local selectedTrack
-            for _, track in ipairs(trackNames) do
-                if math.abs(y - timelineY(track)) < 15 then selectedTrack = track end
-            end
-            if selectedTrack then
-                local cues = project[selectedTrack]
-                local chosen, nearest
-                for index, cue in ipairs(cues) do
-                    local distance = math.abs(cue.time - t)
-                    if not nearest or distance < nearest then chosen, nearest = index, distance end
-                end
-                if chosen and nearest < math.max(.24, project.duration * 7 / (right - left)) then setSelection(selectedTrack, chosen)
-                else selection = nil end
-            end
-        end
-    end
-    love.wheelmoved = function(_, y)
-        if y == 0 or recording then return end
-        local mouseX, mouseY = love.mouse.getPosition()
-        if mouseX >= viewportWidth and mouseY < windowHeight - 170 then
-            panelScroll = clamp(panelScroll - y * 72, 0, math.max(0, panelContentHeight - (windowHeight - 170)))
-        else
-            cursor = clamp(cursor + (y > 0 and -.5 or .5), 0, project.duration)
-        end
-    end
-    love.quit = function()
-        if audio then audio:release() end
-        if renderer then renderer:release() end
-        return false
-    end
+    love.update = studioUpdate
+    love.draw = studioDraw
+    love.resize = studioResize
+    love.keypressed = studioKeypressed
+    love.textinput = studioTextinput
+    love.mousepressed = studioMousepressed
+    love.mousemoved = studioMousemoved
+    love.mousereleased = studioMousereleased
+    love.wheelmoved = studioWheelmoved
+    love.quit = studioQuit
 end
-
 function Studio.install()
     love.load = function() Studio.load() end
 end

@@ -171,7 +171,7 @@ local function street(t)
     caption('Packed and ready for the road to Grandpa\'s farm.')
 end
 local function road(t)
-    local p=clamp((t-10.7)/7.5,0,1)
+    local p=clamp((t-10.7)/(Opening.DURATION-10.7),0,1)
     local country=ease((p-.46)/.31)
     local distantPan=36-p*72
     local nearPan=47-p*112
@@ -180,7 +180,15 @@ local function road(t)
         drawPlateParallax(art.farmRoad,18-p*58,27-p*92,596,country,1.10)
     end
     local bob=math.sin(t*25)*2.5
-    drawBike(art.bike,320+ease(p)*270+math.sin(t*.7)*3,264+bob,.82)
+    local bikeX
+    if p<.30 then
+        bikeX=-300+ease(p/.30)*660
+    elseif p<.42 then
+        bikeX=360
+    else
+        bikeX=360+ease((p-.42)/.40)*730
+    end
+    drawBike(art.bike,bikeX,264+bob,.82)
     location(p<.28 and 'LEAVING MILLHAVEN' or p<.62 and 'RIVER BRIDGE' or 'THE ROAD TO MILLER FARM',
         p<.28 and 'City streets give way to the highway' or p<.62 and 'Across the river toward home'
         or 'The town and Grandpa are just ahead')

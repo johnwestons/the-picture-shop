@@ -32,6 +32,17 @@ local function drawPlayer(characterAssets,player,state)
         drawLabel(player)
         return
     end
+    if character=="rabbit-worker" and player.sceneId=="warehouse"
+        and (player.taskAction=="mop_puddle1" or player.taskAction=="mop_puddle2") then
+        local direction=CharacterAnimation.authoredDirection(player.intentX or player.facing or 1,
+            player.intentY or 0)
+        local Mop=require("src.home_mop_art")
+        if Mop.draw(direction,Mop.frame(player._warehouseMopElapsed or player.taskClock or 0),
+            player.x,player.y,player) then
+            drawLabel(player)
+            return
+        end
+    end
     local action = resting and "sit" or player.moving and "walk" or "idle"
     local directionScale = player.facing or 1
     local pushArtwork=false

@@ -61,7 +61,9 @@ function Cutscene.validate(project)
         or project.actor.kind == "player-character" and ((project.actor.outfit ~= "normal" and project.actor.outfit ~= "geared") or project.actor.mounted ~= false) then
         return false, "Choose a geared motorcycle rider or an on-foot player character."
     end
-    local okay, reason = cueList(project, "camera", 96, function(cue)
+    -- A 5 Hz camera pass across the full 300-second limit needs about 1,501
+    -- keys; leave room for extra keys captured when the user drags the camera.
+    local okay, reason = cueList(project, "camera", 2048, function(cue)
         if type(cue.label) ~= "string" or #cue.label > 48
             or not finite(cue.yaw) or math.abs(cue.yaw) > 720
             or not finite(cue.tilt) or cue.tilt < 6 or cue.tilt > 89

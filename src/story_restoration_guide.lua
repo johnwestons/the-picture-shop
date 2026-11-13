@@ -7,27 +7,22 @@ local function nextStep(state)
     if not c or c.mode~="story" or c.grandOpened then return nil end
     if not c.powerConnected then return "power","Reconnect the shop power",
         "Call the power company and pay the one-time connection fee.",
-        "Grandpa says the building is sound, but the shop has been closed too long to have active service. Use the portable utilities phone from the farm, apartment, or shop, or the restoration checklist at the breaker box." end
+        "Grandpa says the building is sound, but the shop has been closed too long to have active service. Use the wall phone in the shop to call the power company; the phone works while the building power is off." end
     if not c.breakerRepaired then return "breaker","Repair the wall breaker",
         "Inspect the existing breaker box at the upper-left wall.",
         "Power reaches the meter now, but the breaker is damaged. Move to the original wall box and repair it before using the lights and machines." end
+    if not c.lightsOn then return "lights","Turn on the warehouse lights",
+        "Use the repaired breaker box on the west wall.",
+        "The breaker is repaired and power reaches the shop. Use the box again to switch on the warehouse lights." end
     if not c.waterConnected then return "water","Reconnect the shop water",
         "Call the water utility and pay the one-time connection fee.",
         "Water service has been off since the shop closed. Reconnect it before the grand opening. The old water on the floor is a cleanup task, not an active pipe leak." end
-    for _,region in ipairs({"west","center","east"}) do
-        if not c.cleaned[region] then return "clean-"..region,"Clean the "..region.." floor",
-            "Move through the "..region.." floor area and clean it.",
-            "The mottled floor grime clears one region at a time. Stand in the area, choose it in the restoration checklist, and the mop will clean it before the floor changes. The oily puddles are separate cleanup tasks." end
-    end
-    if not c.repainted then return "paint","Touch up the shop",
-        "Repair the worn wall and shelf paint.",
-        "The shop's neglected surfaces still need attention. Stand near the shelving and repaint before inviting clients inside." end
     for _,puddle in ipairs({"puddle1","puddle2"}) do
         if not c.cleanedPuddles[puddle] then
-            local place=puddle=="puddle1" and "by the racks" or "by the office"
+            local place=puddle=="puddle1" and "on the middle-left floor" or "on the middle-right floor"
             return "clean-"..puddle,"Clean the oily puddle "..place,
-                "Stand beside the puddle and clean it separately.",
-                "The oil-water spill is a separate cleanup from the three floor areas. Walk up to the puddle and use its interaction prompt to mop it up."
+                "Start mopping at the puddle, then walk through it to erase it.",
+                "The two spills are the floor cleanup. Use the interaction prompt while standing in a puddle, then steer your worker across the oil. Each pass clears part of it and saves progress."
         end
     end
     local ready,reason=Condition.readyForOpening(state)

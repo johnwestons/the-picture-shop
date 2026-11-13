@@ -170,7 +170,7 @@ local function updateWarehouseEvents(self,state)
         local added=paper-self.previousPaper
         self:enqueue('supplier','PAPER RECEIVED',
             ('%d sheets added to shop stock.'):format(added),
-            ('The warehouse received %d sheets of paper. Check the stock count in the shop HUD or inventory.'):format(added))
+            ('The warehouse received %d sheets of paper. Check Inventory on the shop computer for the updated count.'):format(added))
     end
     self.previousPaper=paper
     for _,job in ipairs(state.jobs and state.jobs.active or {}) do
