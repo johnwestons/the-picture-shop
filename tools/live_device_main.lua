@@ -22,7 +22,11 @@ if config.mode=='smoke' then
         PICTURE_SHOP_TEST_IDENTITY='the-picture-shop-test-device-'..config.id,
         PICTURE_SHOP_SMOKE_FOCUS=config.focus or 'full',
         PICTURE_SHOP_SMOKE_REPORT=root..'/live-'..config.id..'.rpt',
-        PICTURE_SHOP_GAMEPLAY_SEED=config.seed and tostring(config.seed) or nil}
+        PICTURE_SHOP_GAMEPLAY_SEED=config.seed and tostring(config.seed) or nil,
+        PICTURE_SHOP_UI_MODE=config.focus=='mobile-overlays' and 'phone' or nil,
+        PICTURE_SHOP_HUD_OUTPUT=config.focus=='scene-hud' and root..'/output' or nil,
+        PICTURE_SHOP_OVERLAY_OUTPUT=config.focus=='mobile-overlays' and root..'/output' or nil,
+        PICTURE_SHOP_DELIVERY_ROUTE_SEED=config.routeSeed and tostring(config.routeSeed) or nil}
     os.getenv=function(name)
         if name:match('^PICTURE_SHOP_') then return values[name] end
         return originalGetenv(name)

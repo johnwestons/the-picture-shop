@@ -73,8 +73,12 @@ function Test.run(R,check,capture)
 
     -- Locking must cancel an in-progress gesture without cancelling the throttle.
     local go
-    for _,button in ipairs(require('src.commute.touch_controls').actionButtons(640,480,C.bindings(R),
-        C.controlContext(R),{mobile=true,camera=camera})) do if button.action=='accelerate' then go=button end end
+    for _,button in ipairs(require('src.commute.touch_controls').actionButtons(640,480,
+        C.touchProfile(R,part),C.controlContext(R,part),
+        {mobile=true,camera=camera,bounds=C.worldUiBounds(R),
+            hiddenHud=not V.isVisible(R)})) do
+        if button.action=='accelerate' then go=button end
+    end
     press('gas',go.x,go.y);press('old-look',256,250);move('old-look',270,255)
     tap('lock')
     check('scene_hud_touch_lock_cancels_active_look_and_preserves_held_throttle',V.cameraLocked(R)
@@ -103,8 +107,10 @@ function Test.run(R,check,capture)
     before=signature();held=gestures()
     check('scene_hud_hidden_first_person_lock_still_blocks_camera_gestures',held and signature()==before)
     capture('bike-first-person-hidden-locked',640,480,false)
-    local stick=C.bindings(R).layout.stick
-    press('steer',stick.x*640,stick.y*480);move('steer',stick.x*640+36,stick.y*480-12)
+    local stick=C.touchProfile(R,part).layout.stick
+    local bounds=C.worldUiBounds(R)
+    local stickX=bounds and bounds.left+stick.x*(bounds.right-bounds.left) or stick.x*640
+    press('steer',stickX,stick.y*480);move('steer',stickX+36,stick.y*480-12)
     local steer,drive=B.drive(C.bindings(R),C.touch(R),camera,part.rider.bike)
     check('scene_hud_locked_hidden_controls_still_steer_and_accelerate',steer>.1 and drive<0,
         ('steer=%s drive=%s stick=%s throttle=%s firstPerson=%s'):format(steer,drive,C.touch(R).x,

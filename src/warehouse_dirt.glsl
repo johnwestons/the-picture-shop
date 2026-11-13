@@ -1,3 +1,10 @@
+#ifdef GL_ES
+precision highp float;
+#define EFFECT_IO_PRECISION mediump
+#else
+#define EFFECT_IO_PRECISION
+#endif
+
 extern vec3 cleanRegions;
 extern vec2 cleanedPuddles;
 extern float conditionSeed;
@@ -17,7 +24,8 @@ float stain(vec2 p,vec2 center,vec2 radius,float offset) {
     float rough=grainNoise(p*.055+offset)*.35+grainNoise(p*.14+offset*2.0)*.12;
     return smoothstep(-.12,.34,shape+rough-.23);
 }
-vec4 effect(vec4 color,Image texture,vec2 uv,vec2 pixel) {
+vec4 effect(EFFECT_IO_PRECISION vec4 color,Image texture,
+            EFFECT_IO_PRECISION vec2 uv,EFFECT_IO_PRECISION vec2 pixel) {
     vec2 p=pixel;
     float west=max(stain(p,vec2(150.0,383.0),vec2(90.0,25.0),3.0),
                    stain(p,vec2(217.0,497.0),vec2(61.0,18.0),7.0));

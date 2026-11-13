@@ -113,8 +113,12 @@ function Test.run(context,check)
     check('commute_runtime_save_retains_manual_transmission',C.localPart(R).rider.bike.transmission=='manual' and C.localPart(R).rider.bike.gear==2)
     check('commute_runtime_transmission_preference_saved_on_resident',R.state.home.residents.owner.ridingTransmission=='manual')
     local transmissionButton
-    for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,C.bindings(R),
-        C.controlContext(R,C.localPart(R)),{mobile=C.mobileInputEnabled(R)})) do
+    local currentPart=C.localPart(R)
+    for _,button in ipairs(Touch.actionButtons(R.Config.baseWidth,R.Config.baseHeight,
+        C.touchProfile(R,currentPart),C.controlContext(R,currentPart),
+        {mobile=C.mobileInputEnabled(R),camera=R._commute and R._commute.camera,
+            bounds=C.worldUiBounds(R),
+            hiddenHud=not require('src.screens.hud_visibility').isVisible(R)})) do
         if button.action=='transmission' then transmissionButton=button end
     end
     assert(transmissionButton and C.pointer(R,transmissionButton.x,transmissionButton.y));ticks(20)

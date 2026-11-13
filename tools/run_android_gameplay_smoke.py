@@ -26,8 +26,9 @@ def run(serial, output, selected, overrides=()):
     for index,stage in enumerate(stages):
         start=time.monotonic();identifier='a'+str(time.time_ns())
         config=output/(stage['id']+'.config.lua')
-        config.write_text("return {version=1,mode='smoke',id='%s',focus='%s',seed=%s,diagnostic=%s,overrides={%s}}"%
+        config.write_text("return {version=1,mode='smoke',id='%s',focus='%s',seed=%s,routeSeed=%s,diagnostic=%s,overrides={%s}}"%
                           (identifier,stage['focus'],stage.get('seed','nil'),
+                           stage.get('androidRouteSeed','nil'),
                            'true' if overrides else 'false',','.join(overlay_entries)),encoding='utf-8')
         adb(serial,'shell','am','force-stop',PACKAGE)
         put(serial,config,'live-device-config.lua')
@@ -87,12 +88,15 @@ def run(serial, output, selected, overrides=()):
         (output/(stage['id']+'.rpt')).write_text(report,encoding='utf-8')
         lines=report.splitlines();checks=[v[5:] for v in lines if v.startswith('PASS ')]
         required={c for f in plan['features'] if stage['id'] in f['stages'] for c in f['checks']}
+        if stage.get('androidRouteSeed'):
+            required={c for c in required if not c.startswith('delivery_truck_follows_live_gate_to_warehouse_route_')
+                      or c.endswith('_'+str(stage['androidRouteSeed']))}
         problems=[v for v in lines if v.startswith(('FAIL ','SMOKE_REPORT_ERROR'))]
         if timed_out: problems.append('Device stage timed out')
         if process_exited: problems.append('Android process exited before completion; see exit-info report')
         if device_unavailable: problems.append('Android device disconnected or became unreachable; reconnect and rerun this stage')
         if len(checks)!=len(set(checks)): problems.append('Duplicate checks')
-        if len(checks)<stage['minChecks']: problems.append('Insufficient checks')
+        if len(checks)<stage.get('androidMinChecks',stage['minChecks']): problems.append('Insufficient checks')
         for marker in ('CHECKS_COMPLETE','PASS render_three_frames','SMOKE_OK'):
             if lines.count(marker)!=1: problems.append('Missing/repeated '+marker)
         expected='SMOKE_CONFIG focus=%s mobile=1 seed=%s identity=the-picture-shop-test-device-%s'%(

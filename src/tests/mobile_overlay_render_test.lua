@@ -20,10 +20,15 @@ end
 local function pixelAtVirtual(data,R,x,y)
     local ox,oy,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight,
         R.App.officeUsesSafeArea())
-    local px=math.max(0,math.min(data:getWidth()-1,math.floor(ox+x*sx)))
-    local py=math.max(0,math.min(data:getHeight()-1,math.floor(oy+y*sy)))
+    -- Canvas ImageData is in device pixels; viewport math uses LÖVE's logical
+    -- window coordinates on high-DPI Android displays.
+    local width,height=love.graphics.getDimensions()
+    local px=math.max(0,math.min(data:getWidth()-1,
+        math.floor((ox+x*sx)*data:getWidth()/width)))
+    local py=math.max(0,math.min(data:getHeight()-1,
+        math.floor((oy+y*sy)*data:getHeight()/height)))
     local red,green,blue=data:getPixel(px,py)
-    return {red,green,blue}
+    return {red,green,blue,px,py,data:getWidth(),data:getHeight()}
 end
 
 function Test.run(context,check)
@@ -34,6 +39,9 @@ function Test.run(context,check)
     local output=assert(os.getenv('PICTURE_SHOP_OVERLAY_OUTPUT'))
     local width,height=mobile and 832 or 960,mobile and 384 or 678
     assert(love.window.setMode(width,height,{resizable=true,minwidth=1,minheight=1,vsync=0}))
+    -- Android keeps its physical window size when setMode is requested. Match
+    -- the capture canvas to the viewport that App.draw actually uses.
+    width,height=g.getDimensions()
     local originalOS=love.system.getOS
     if mobile then love.system.getOS=function()return 'Android' end end
 
@@ -111,7 +119,8 @@ function Test.run(context,check)
             local pixel=pixels[1]
             local greenPanel=pixel[2]>pixel[1]*1.10 and pixel[2]>pixel[3]*1.12 and pixel[2]<.8
             check('mobile_overlay_'..name..'_sprite_panel_visible_after_world_draw',greenPanel,
-                ('panel_rgb=%.3f,%.3f,%.3f'):format(pixel[1],pixel[2],pixel[3]))
+                ('panel_rgb=%.3f,%.3f,%.3f pixel=%d,%d canvas=%dx%d'):format(
+                    pixel[1],pixel[2],pixel[3],pixel[4],pixel[5],pixel[6],pixel[7]))
             return pixels
         end
         local dark=0
@@ -174,7 +183,9 @@ function Test.run(context,check)
             or R.mobileControls.axisX==0 and R.mobileControls.axisY==0
                 and R.mobileControls.touches[heldStick]==nil)
         renderOverlay('restoration-menu',true)
-        if mobile then screenTap(270,420,'repair-breaker')
+        if mobile then
+            local breaker=assert(Controls.hitRects and Controls.hitRects[3])
+            screenTap(breaker.x+breaker.width/2,breaker.y+breaker.height/2,'repair-breaker')
         else R.App.keypressed('down');R.App.keypressed('down');R.App.keypressed('return') end
         check('mobile_overlay_breaker_repair_action_completes',Condition.of(R.state).breakerRepaired)
         renderOverlay('restoration-after-repair',true)

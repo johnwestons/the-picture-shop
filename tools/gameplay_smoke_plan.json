@@ -97,7 +97,9 @@
       "focus": "delivery-route-smoke",
       "mobile": false,
       "timeoutSeconds": 1200,
-      "minChecks": 6
+      "minChecks": 6,
+      "androidRouteSeed": 712345,
+      "androidMinChecks": 4
     },
     {
       "id": "services-desktop",
@@ -692,7 +694,7 @@
     },
     {
       "id": "physical-delivery",
-      "label": "All ordered town routes across three seeds",
+      "label": "All ordered town routes across three desktop seeds and one physical Android seed",
       "stages": [
         "delivery-routes"
       ],
