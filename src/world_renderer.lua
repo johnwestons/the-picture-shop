@@ -835,9 +835,15 @@ function Renderer.draw(world, assets, characterAssets, state, mouseX, mouseY, re
     for _,machine in pairs({firstCutter,firstWrapper,firstWindmill})do
         if machine and not machine.world then shadowMachines[#shadowMachines+1]=machine end
     end
-    require('src.warehouse_shadows').scene(World,state,remotePlayers,employeeEntries,physicalPallets,
-        shadowMachines,{
-            polar_115=cutter,skid_wrapper=wrapper,heidelberg_10x15=windmill,_jack=jack})
+    -- The world is still drawn behind full-screen menus. On Android, painting
+    -- the powered shadow stencil in that pass can mask the menu drawn next.
+    -- Shadows are only visible during world play, so leave that pass out of
+    -- menu frames while keeping the normal warehouse lighting intact.
+    if state.screen=='world' then
+        require('src.warehouse_shadows').scene(World,state,remotePlayers,employeeEntries,physicalPallets,
+            shadowMachines,{
+                polar_115=cutter,skid_wrapper=wrapper,heidelberg_10x15=windmill,_jack=jack})
+    end
     InteractionBeacon.drawUnderlay(World.getInteraction(), World.player.interactionClock, {
         player = World.player,
     })

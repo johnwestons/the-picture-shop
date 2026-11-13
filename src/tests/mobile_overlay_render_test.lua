@@ -5,6 +5,8 @@ local Test={}
 local Condition=require('src.warehouse_condition')
 local Calendar=require('src.business_calendar')
 local Controls=require('src.shop_room_controls')
+local Shadows=require('src.warehouse_shadows')
+local Video=require('src.video_settings')
 -- These points sit in the left/right margins of each overlay panel, away from
 -- labels and row controls, so their pixels should remain dark over any scene.
 local OVERLAY_SAMPLES={{100,180},{850,180},{100,350},{850,350},{100,550},{850,550}}
@@ -49,6 +51,14 @@ function Test.run(context,check)
     local originalSave=R.saveCurrent
     local originalQueue=R.Save.queue
     local oldHud=R.App.settings.hudVisible
+    local oldDynamicShadows=Video.current.dynamicShadows
+    local originalShadowScene=Shadows.scene
+    local worldShadowCalls,menuShadowCalls=0,0
+    Shadows.scene=function(world,state,...)
+        if state.screen=='world' then worldShadowCalls=worldShadowCalls+1
+        else menuShadowCalls=menuShadowCalls+1 end
+        return originalShadowScene(world,state,...)
+    end
     local function drawWithClippedState(...)
         originalDraw(...)
         -- Models a scene renderer leaving a restrictive canvas clip behind.
@@ -134,6 +144,7 @@ function Test.run(context,check)
 
     local okay,reason=xpcall(function()
         require('src.image_loader').enabled=false
+        Video.current.dynamicShadows=true
         local payload=assert(R.Save.newGame(3))
         assert(R.startGame(payload,'smoke'))
         R.saveCurrent=function()return true end
@@ -188,7 +199,13 @@ function Test.run(context,check)
             screenTap(breaker.x+breaker.width/2,breaker.y+breaker.height/2,'repair-breaker')
         else R.App.keypressed('down');R.App.keypressed('down');R.App.keypressed('return') end
         check('mobile_overlay_breaker_repair_action_completes',Condition.of(R.state).breakerRepaired)
+        -- Match the S25 slot that exposed the bug: the powered breaker is
+        -- repaired and all three floor sections are clean, but water is off.
+        local condition=Condition.of(R.state)
+        condition.cleaned.west,condition.cleaned.center,condition.cleaned.east=true,true,true
         renderOverlay('restoration-after-repair',true)
+        check('mobile_overlay_powered_menu_skips_shadow_stencil',menuShadowCalls==0,
+            ('menu_shadow_calls=%d'):format(menuShadowCalls))
         closeOverlay()
         check('mobile_overlay_restoration_back_returns_to_world',R.state.screen=='world')
         local player=R.World.player
@@ -219,6 +236,8 @@ function Test.run(context,check)
         end
         local worldPixels=drawCapture('world-after-restoration-back',OVERLAY_SAMPLES)
         check('mobile_overlay_restoration_world_renders_after_back',R.state.screen=='world')
+        check('mobile_overlay_powered_world_keeps_shadows',worldShadowCalls>0,
+            ('world_shadow_calls=%d'):format(worldShadowCalls))
 
         -- The reported failure returns after restarting from the same save.
         -- Persist the repaired breaker state, reload it through the normal
@@ -302,6 +321,8 @@ function Test.run(context,check)
     end,debug.traceback)
 
     R.World.draw=originalDraw
+    Shadows.scene=originalShadowScene
+    Video.current.dynamicShadows=oldDynamicShadows
     R.saveCurrent=originalSave
     R.Save.queue=originalQueue
     R.App.settings.hudVisible=oldHud
