@@ -53,7 +53,7 @@ if (-not $UseConfiguredVersion) {
     [System.IO.File]::WriteAllText($configPath, ($config | ConvertTo-Json) + "`n", $utf8)
 }
 
-& $buildShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $projectRoot 'BUILD_ANDROID.ps1')
+& $buildShell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $projectRoot 'BUILD_ANDROID.ps1') -ReuseVerifiedNativeCryptoArtifacts
 if ($LASTEXITCODE -ne 0) { throw 'Android build failed; no share package created.' }
 $report = Get-Content -Raw -LiteralPath (Join-Path $mobileRoot 'apk-report.json') | ConvertFrom-Json
 $package = Get-Content -Raw -LiteralPath (Join-Path $mobileRoot 'build-report.json') | ConvertFrom-Json

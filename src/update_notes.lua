@@ -1,6 +1,17 @@
 -- Keep player-facing release notes here, newest version first.
 return {
     {
+        version = "0.1.0-android.115",
+        date = "Nov 14, 2026",
+        title = "Delivery and mobile usability update",
+        changes = {
+            "Receiving deliveries now lets employees sign between queued tasks and walk over to meet the driver; the unloading menu confirms when the truck is empty and ready to close.",
+            "The work phone directory, bike cargo access, and mobile action controls have been restored and refined.",
+            "Vehicle fuel use, delivery mileage, and commute movement and animation speeds have been tuned.",
+            "Android 115 carries the delivery, phone, bike cargo, commute, and warehouse improvements in this update.",
+        },
+    },
+    {
         version = "0.1.0-android.114",
         date = "Nov 13, 2026",
         title = "Progressive shop restoration update",

@@ -2,6 +2,7 @@
 param(
     [switch]$PackageOnly,
     [switch]$Install,
+    [switch]$ReuseVerifiedNativeCryptoArtifacts,
     [string]$DeviceSerial
 )
 
@@ -98,6 +99,7 @@ if (Test-Path -LiteralPath $loveExecutable) {
 if (-not $PackageOnly) {
     $arguments = @{ PackagePath = $report.package }
     if ($Install) { $arguments.Install = $true }
+    if ($ReuseVerifiedNativeCryptoArtifacts) { $arguments.ReuseVerifiedNativeCryptoArtifacts = $true }
     if ($DeviceSerial) { $arguments.DeviceSerial = $DeviceSerial }
     & (Join-Path $projectRoot 'tools\build_android_apk.ps1') @arguments
 }
