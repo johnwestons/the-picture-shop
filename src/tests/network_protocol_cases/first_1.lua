@@ -161,7 +161,7 @@ function Component.run(Context)
             and envelope.version == Context.Protocol.VERSION and envelope.type == message[1]
             and #packet <= packetLimit
     end
-    Context.check("network_protocol_all_v13_envelopes_round_trip", Context.roundTrips)
+    Context.check("network_protocol_all_v76_envelopes_round_trip", Context.roundTrips)
 
     Context.runShardedPlayerProtocolRegression(Context.check)
 

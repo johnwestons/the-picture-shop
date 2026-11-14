@@ -134,12 +134,9 @@ function Component.install(Runtime)
             end
         end
         if incoming.paper ~= nil then
-            merged.candidates, merged.genericSheets = nil, nil
+            merged.candidates = nil
         elseif incoming.loaded == false then
             merged.paper = nil
-            if incoming.candidates ~= nil and incoming.genericSheets == nil then
-                merged.genericSheets = nil
-            end
         end
         Runtime.Screen.view = merged
         Runtime.Screen.cutterPresentation:accept(merged)

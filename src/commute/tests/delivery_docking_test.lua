@@ -88,6 +88,34 @@ function Test.run(check)
         and (follower.x-front.x)^2+(follower.z-front.z)^2<1,queueTrace)
 
     state,town,world,truck,delivery,site=fixture(712345)
+    truck.x,truck.z=site:toWorld(0,0,0)
+    truck.phase='waiting_bay';truck.pathTarget='waiting-2';truck.pathIndex=2
+    Network.simulate(state,town,.1,epoch+.1,world)
+    local misplaced=false
+    for _,event in ipairs(Watchdog.snapshot(state).events) do
+        if event.issueId=='delivery-park-position:DOCK-TEST'
+            and event.reason=='Truck was marked parked away from its assigned dock or queue position' then
+            misplaced=true
+        end
+    end
+    check('delivery_watchdog_replans_truck_parked_off_its_assigned_stop',misplaced
+        and truck.phase~='waiting_bay',truck.phase..'/'..tostring(truck.pathTarget))
+
+    state,town,world,truck,delivery,site=fixture(712345)
+    truck.x,truck.z=site:toWorld(0,0,0)
+    truck.phase='waiting_bay';truck.pathTarget='waiting-2'
+    local issueId='delivery-park-position:DOCK-TEST'
+    Watchdog.note(state,issueId,{status='RECOVERING',system='Shop driveway',subject='DOCK-TEST',
+        stage='rejoin_dock',reason='Test driveway report',action='Replan to assigned stop'})
+    local panel=require('src.screens.ai_watchdog_panel')
+    local selected=panel.unstickEvent(Watchdog.snapshot(state),state)
+    local callOkay,operationOkay,result=pcall(Network.debugUnstick,state,issueId)
+    check('watchdog_exposes_one_click_driveway_unstick_for_active_trucks',selected~=nil
+        and panel.hitTest(120,580)=='unstick')
+    check('watchdog_unstick_resets_parked_delivery_for_safe_replanning',callOkay and operationOkay
+        and truck.phase=='approaching' and truck.replanRoute==true,tostring(result))
+
+    state,town,world,truck,delivery,site=fixture(712345)
     -- Reproduce an obstruction halfway down the reversing aisle, away from
     -- the dock occupancy sensor. Monitor offscreen simulation as well.
     truck.x,truck.z=site:toWorld(20,0,0);truck.heading=site.yaw;truck.visible=false

@@ -4,7 +4,33 @@ local Component = {}
 
 function Component.run(Context)
     function Context.Machine.unload(state)
-        if not Context.Machine.paper or Context.Machine.paper.status ~= "complete" or Context.Machine.step ~= "cut_complete" then return false end
+        local paper, pallet, step = Context.Machine.paper, Context.Machine.pallet, Context.Machine.step
+        if not paper or not pallet then return false end
+        local remainingLifts = (tonumber(pallet.remainingSheets) or 0) > 0
+            and (tonumber(pallet.completedLifts) or 0) < (tonumber(pallet.requiredLifts) or 1)
+        if paper.status ~= "complete" or (step == "repeat_ready" and remainingLifts) then
+            if step ~= "loaded" and step ~= "positioned" and step ~= "repeat_ready" then return false end
+            if step == "repeat_ready" and not remainingLifts then return false end
+            if Context.Machine.clamp then
+                Context.message(state, "Raise the clamp before unloading the unfinished paper.")
+                return false
+            end
+            if not Context.Machine.outputResolver then
+                Context.message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
+                return false
+            end
+            local output, outputError = Context.Machine.outputResolver(state, pallet,
+                Context.machineId or "MCH-0001")
+            if not output then Context.message(state, outputError); return false end
+            Context.Machine.pendingOutput = output
+            Context.Machine.unloadResumeStep = step
+            Context.Machine.step, Context.Machine.progress = "unloading_partial", 0
+            Context.Machine.loaded = true
+            Context.message(state, "Returning the unfinished pallet to a clear floor zone with its cut progress saved.")
+            Context.bumpRevision()
+            return true
+        end
+        if step ~= "cut_complete" then return false end
         if Context.Machine.pallet and Context.Machine.pallet.discardAfterSpoil
             and (Context.Machine.pallet.remainingSheets or 0) == 0
             and (Context.Machine.pallet.finishedSheets or 0) == 0
@@ -27,16 +53,15 @@ function Component.run(Context)
             Context.bumpRevision()
             return true
         end
-        if Context.Machine.pallet then
-            if not Context.Machine.outputResolver then
-                Context.message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
-                return false
-            end
-            local output, outputError = Context.Machine.outputResolver(state, Context.Machine.pallet,
-                Context.machineId or "MCH-0001")
-            if not output then Context.message(state, outputError); return false end
-            Context.Machine.pendingOutput = output
+        if not Context.Machine.outputResolver then
+            Context.message(state, "Cutter output safety is unavailable. Return to the warehouse and reopen the console.")
+            return false
         end
+        local output, outputError = Context.Machine.outputResolver(state, pallet,
+            Context.machineId or "MCH-0001")
+        if not output then Context.message(state, outputError); return false end
+        Context.Machine.pendingOutput = output
+        Context.Machine.unloadResumeStep = nil
         Context.Machine.step, Context.Machine.progress = "unloading", 0
         Context.message(state, "Pulling finished paper from the bed and returning it to its pallet.")
         Context.bumpRevision()
@@ -213,7 +238,7 @@ function Component.run(Context)
 
     function Context.spoilLift(state, result)
         local pallet = Context.Machine.pallet
-        if Context.Machine.legacyPaper or not pallet then
+        if not pallet then
             Context.Machine.step = "cut_complete"
             Context.message(state, string.format("OFF-SIZE CUT: %.2f in instead of %.2f in. The stock was spoiled.",
                 result.actualGauge or Context.Machine.gauge, result.expectedGauge or 0))

@@ -6,7 +6,8 @@ local Truck=require('src.commute.delivery_truck')
 local Fall=require('src.commute.rider_fall')
 local M=require('src.commute.vendor.mathx')
 local Service=require('src.commute.bike_service')
-local Rider={WALK_SPEED=2.3,SPRINT_MULTIPLIER=1.5,RADIUS=.32,FRAME_DISTANCE=.13}
+local Rider={WALK_SPEED=4.6,SPRINT_MULTIPLIER=1.5,RADIUS=.32,
+    FRAME_DISTANCE=.13,WALK_ANIMATION_FRAME_DISTANCE=.26}
 local speedCurve={.96,.94,1.04,1.06,.96,.94,1.04,1.06}
 local accelerationCurve={.92,.90,1.08,1.10,.92,.90,1.08,1.10}
 local function gait(values,distance)

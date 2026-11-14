@@ -62,6 +62,10 @@ function Component.run(Context)
         clamp = true,
     })
     Context.invalidWindmillCommands = {}
+    Context.removedCutterStockCommand = Context.Protocol.encode("workshop_command", {
+        sessionId = "session-001", commandId = 1, leaseId = "lease-1",
+        resourceId = "cutter", action = "load_stock", expectedRevision = 0,
+    })
     Context.invalidWindmillCommands.missingPallet = Context.Protocol.encode("workshop_command", {
         sessionId = "session-001", commandId = 1, leaseId = "lease-1",
         resourceId = "windmill", action = "load_pallet", expectedRevision = 0,
@@ -108,7 +112,8 @@ function Component.run(Context)
         resourceId = "cutter", action = "toggle_motor", expectedRevision = 0,
     })
     Context.check("network_protocol_workshop_commands_use_closed_resource_action_scalar_unions",
-        Context.workshopCommandsValid and Context.wrongResourceAction == nil and Context.missingActionArgument == nil
+        Context.workshopCommandsValid and Context.removedCutterStockCommand == nil
+        and Context.wrongResourceAction == nil and Context.missingActionArgument == nil
         and Context.invalidCutterCommands.missingVendorItem == nil
         and Context.invalidCutterCommands.clientVendorPrice == nil
         and Context.missingLiftPallet == nil and Context.missingLowerPallet == nil
@@ -198,7 +203,6 @@ function Component.run(Context)
         runtimeRevision = 4294967295,
         memoryCentiInch = Context.Codec.array({ 2500, 2500, 2500 }),
         candidates = Context.Codec.array(Context.maximumCutterCandidates),
-        genericSheets = 100000,
     })
     Context.maximumCutterGrantPacket = Context.Protocol.encode("workshop_grant", {
         sessionId = string.rep("S", 64), requestId = 4294967295,

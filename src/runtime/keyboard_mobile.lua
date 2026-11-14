@@ -268,21 +268,21 @@ function Component.install(Runtime)
             if info and info.resourceId == "pallet_jack" then
                 local movingMachine = Runtime.World.movingMachine(Runtime.state)
                 if movingMachine then
-                    actions[#actions + 1] = { key = "q", label = "TURN" }
+                    table.insert(actions, 1, { key = "q", label = "TURN" })
                 else
                     local carryingPallet = Runtime.state.palletJack
                         and Runtime.state.palletJack.carriedPalletId ~= nil
                     if carryingPallet then
-                        actions[#actions + 1] = { key = "l", label = "LOWER" }
+                        table.insert(actions, 1, { key = "l", label = "LOWER" })
                     else
-                        actions[#actions + 1] = { key = "f", label = "PARK" }
                         local selected = Runtime.World.getInteraction()
                         local canRelocate = selected and (selected.kind == "cutter"
                             or selected.kind == "skidWrapper" or selected.kind == "windmill")
                         canRelocate = canRelocate or Runtime.World.nearbyMachineMove(Runtime.state) ~= nil
                         if canRelocate then
-                            actions[#actions + 1] = { key = "m", label = "MOVE" }
+                            table.insert(actions, 1, { key = "m", label = "MOVE" })
                         end
+                        table.insert(actions, canRelocate and 2 or 1, { key = "f", label = "PARK" })
                     end
                 end
             end
@@ -290,7 +290,7 @@ function Component.install(Runtime)
         end
         if Runtime.World.movingMachine(Runtime.state)
         then
-            actions[#actions + 1] = { key = "q", label = "TURN" }
+            table.insert(actions, 1, { key = "q", label = "TURN" })
             return actions
         end
         if Runtime.state.palletJack and Runtime.state.palletJack.operating
@@ -298,14 +298,16 @@ function Component.install(Runtime)
         then
             local carryingPallet = Runtime.state.palletJack.carriedPalletId ~= nil
             if carryingPallet then
-                actions[#actions + 1] = { key = "l", label = "LOWER" }
+                table.insert(actions, 1, { key = "l", label = "LOWER" })
             else
-                actions[#actions + 1] = { key = "f", label = "PARK" }
                 local selected = Runtime.World.getInteraction()
                 local canRelocate = selected and (selected.kind == "cutter"
                     or selected.kind == "skidWrapper" or selected.kind == "windmill")
                 canRelocate = canRelocate or Runtime.World.nearbyMachineMove(Runtime.state) ~= nil
-                if canRelocate then actions[#actions + 1] = { key = "m", label = "MOVE" } end
+                if canRelocate then
+                    table.insert(actions, 1, { key = "m", label = "MOVE" })
+                end
+                table.insert(actions, canRelocate and 2 or 1, { key = "f", label = "PARK" })
             end
         end
         return actions

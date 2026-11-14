@@ -241,13 +241,6 @@ function Component.install(Runtime)
                                     function() return Runtime.Machine.load(Runtime.state, arguments.palletId) end, true)
                             end,
                         },
-                        load_stock = {
-                            normalize = Runtime.cutterNoArguments,
-                            perform = function(_, player)
-                                return Runtime.performCutterAction(player,
-                                    function() return Runtime.Machine.load(Runtime.state, "__generic_stock__") end, false)
-                            end,
-                        },
                         select_program = {
                             normalize = function(arguments)
                                 local index = type(arguments) == "table" and arguments.programIndex

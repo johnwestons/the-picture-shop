@@ -1,6 +1,6 @@
 local Condition=require("src.warehouse_condition")
 local Renderer={}
-local canvas,eraseCanvas,overlayKey,maskSeed
+local canvas,eraseCanvas,overlayKey,maskSeed,maskCondition
 local rendered={puddle1=0,puddle2=0}
 local dirtShader
 local images={}
@@ -63,8 +63,13 @@ local function ensureResources()
     end
 end
 local function overlaySignature(c)
-    return table.concat({c.seed,c.cleanedPuddles.puddle1 and 1 or 0,
+    local left,right=Condition.anchors.puddle1,Condition.anchors.puddle2
+    return table.concat({c.seed,left.x,left.y,right.x,right.y,c.cleanedPuddles.puddle1 and 1 or 0,
         c.cleanedPuddles.puddle2 and 1 or 0},":")
+end
+local function spillMaskSignature(c)
+    local left,right=Condition.anchors.puddle1,Condition.anchors.puddle2
+    return table.concat({c.version,c.seed,left.x,left.y,right.x,right.y},":")
 end
 local function rebuildOverlay(c)
     love.graphics.setCanvas(canvas)
@@ -88,13 +93,14 @@ local function sync(state)
     ensureResources()
     local counts={puddle1=#(c.puddleStrokes and c.puddleStrokes.puddle1 or {}),
         puddle2=#(c.puddleStrokes and c.puddleStrokes.puddle2 or {})}
-    local reset=maskSeed~=c.seed or counts.puddle1<rendered.puddle1
+    local currentMask=spillMaskSignature(c)
+    local reset=maskCondition~=c or maskSeed~=currentMask or counts.puddle1<rendered.puddle1
         or counts.puddle2<rendered.puddle2
     love.graphics.push("all")
     local changed=false
     if reset then
         love.graphics.setCanvas(eraseCanvas);love.graphics.clear(0,0,0,0)
-        rendered={puddle1=0,puddle2=0};maskSeed=c.seed
+        rendered={puddle1=0,puddle2=0};maskSeed=currentMask;maskCondition=c
         changed=true
     end
     for _,name in ipairs({"puddle1","puddle2"}) do
@@ -140,7 +146,7 @@ function Renderer.clear()
     if dirtShader and dirtShader.release then dirtShader:release() end
     dirtShader=nil
     for variant,image in pairs(images) do if image.release then image:release() end;images[variant]=nil end
-    canvas,eraseCanvas,overlayKey,maskSeed=nil,nil,nil,nil
+    canvas,eraseCanvas,overlayKey,maskSeed,maskCondition=nil,nil,nil,nil,nil
     rendered={puddle1=0,puddle2=0}
     recent={}
 end

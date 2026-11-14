@@ -136,37 +136,28 @@ function Component.run(Context)
         and Context.context.procurement.paperAvailable(paperSupplyState) == 1000
         and paperSupplyState.inventory.stock.house_sheets == 1000)
     Context.context.machine.reset(paperSupplyState)
-    Context.check("vendor_paper_loads_sample_cutter", Context.context.machine.load(paperSupplyState))
-    Context.context.machine.update(Context.context.machine.transferTime + 0.01, paperSupplyState)
-    for cutNumber = 1, 4 do
-        Context.context.machine.selectProgram(cutNumber, paperSupplyState)
-        local targetOrientation = Context.context.machine.paper.cuts[cutNumber].orientation
-        for _ = 1, 4 do
-            if Context.context.machine.paper.orientation == targetOrientation then break end
-            Context.context.machine.keypressed("q", paperSupplyState)
-        end
-        Context.check("vendor_paper_sample_rotation_matches_cut_" .. cutNumber,
-            Context.context.machine.paper.orientation == targetOrientation)
-        Context.context.machine.setGauge(Context.context.machine.paper.cuts[cutNumber].gauge, paperSupplyState)
-        Context.context.machine.saveGauge(paperSupplyState)
-        Context.context.machine.autoGauge(paperSupplyState)
-        Context.context.machine.position(paperSupplyState)
-        Context.context.machine.update(Context.context.machine.transferTime + 0.01, paperSupplyState)
-        Context.context.machine.toggleClamp(paperSupplyState)
-        Context.context.machine.keypressed("j", paperSupplyState)
-        Context.context.machine.keypressed("k", paperSupplyState)
-        Context.context.machine.keyreleased("j")
-        Context.context.machine.keyreleased("k")
-        Context.context.machine.update(0.01, paperSupplyState)
-        Context.context.machine.update(Context.context.machine.cycleTime + 0.05, paperSupplyState)
-    end
-    Context.check("vendor_paper_sample_cut_complete", Context.context.machine.step == "cut_complete")
-    Context.context.machine.keypressed("u", paperSupplyState)
-    Context.context.machine.update(Context.context.machine.transferTime + 0.01, paperSupplyState)
-    Context.check("sample_cutter_consumes_delivered_paper", paperSupplyState.inventory.stock.house_sheets == 999
-        and paperSupplyState.inventory.paper == 0
-        and paperSupplyState.inventory.prints == 1)
-    Context.context.machine.reset(paperSupplyState)
+    Context.check("bulk_vendor_stock_does_not_bypass_physical_cutter_pallets",
+        not Context.context.machine.load(paperSupplyState)
+        and Context.context.machine.step == "idle"
+        and paperSupplyState.inventory.stock.house_sheets == 1000)
+    local housePrintOffer = Context.context.jobs.createOffer({
+        id = "HOUSE-STOCK-PRINT-TEST", company = "House Stock Test Client",
+        sourceSize = { width = 10, height = 15 }, finishedSize = { width = 5, height = 7 },
+        sheetCounts = { 525 }, artworkKey = "ad-photos",
+        artwork = { key = "ad-photos", displayName = "House Stock Test", fileName = "house-stock-test.png",
+            suppliedBy = "client", orientation = "portrait" },
+        stockSpec = { suppliedBy = "house", grade = "text", weight = 20, finish = "uncoated",
+            color = "white", grain = "long", description = "20 lb house paper" },
+        press = { colors = 1, coverage = 0.4, artworkSize = { width = 4, height = 6 },
+            colorSequence = { "Black" }, requestedCopies = { 500 } },
+    })
+    local housePrintAccepted = housePrintOffer
+        and Context.context.jobService.acceptOffer(paperSupplyState, housePrintOffer, 100)
+    Context.check("vendor_paper_reserves_for_house_supplied_print_job", housePrintAccepted
+        and housePrintOffer.housePaperReserved
+        and housePrintOffer.housePaperReservedSheets == 525
+        and paperSupplyState.inventory.stock.house_sheets == 475
+        and Context.context.procurement.paperAvailable(paperSupplyState) == 475)
     end
     Context.verifyVendorInventory()
 

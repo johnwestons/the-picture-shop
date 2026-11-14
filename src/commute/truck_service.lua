@@ -2,8 +2,10 @@
 -- AI traffic trucks do not receive this record.
 local M=require('src.commute.vendor.mathx')
 local Service={MAX_REVISION=1000000000000,UPGRADE_MAX=3}
-local limits={oilMiles=28,oilFilterMiles=40,airFilterMiles=48,sparkPlugMiles=64,
-    coolantMiles=110,tireMiles=36,brakeMiles=32}
+-- These are service intervals in odometer miles. They leave room for the new
+-- 50-mile city route legs without requiring service after a single delivery.
+local limits={oilMiles=280,oilFilterMiles=400,airFilterMiles=480,sparkPlugMiles=640,
+    coolantMiles=1100,tireMiles=360,brakeMiles=320}
 Service.MAINTENANCE={
     {id='oil',name='Engine oil change',price=6800,interval=limits.oilMiles},
     {id='oil_filter',name='Oil filter',price=3600,interval=limits.oilFilterMiles},
@@ -167,6 +169,15 @@ function Service.run(vehicle,meters,dt)
         newlyFailed=true
     end
     return true,newlyFailed
+end
+function Service.runFleet(home,model,meters,dt)
+    if not home or (model~='box' and model~='kei') then return false end
+    home.truckFleet=Service.normalizeFleet(home.truckFleet)
+    local vehicle={model=model}
+    Service.apply(vehicle,home.truckFleet[model])
+    local wore,failed=Service.run(vehicle,meters,dt)
+    if wore then home.truckFleet[model]=Service.record(vehicle) end
+    return wore==true,failed==true
 end
 function Service.maintenance(id)
     for _,item in ipairs(Service.MAINTENANCE) do if item.id==id then return item end end

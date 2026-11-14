@@ -81,7 +81,7 @@ function Component.run(Context)
     Context.economy.screen = "world"
     Context.startingMoney = Context.economy.money
     Context.check("shop_buy", Context.context.shop.buyPaper(Context.economy))
-    Context.check("shop_buy_balance", Context.economy.money == Context.startingMoney - 25 and Context.economy.inventory.paper == 65)
+    Context.check("shop_buy_balance", Context.economy.money == Context.startingMoney - 25 and Context.economy.inventory.paper == 25)
     Context.economy.inventory.prints = 1
     Context.check("shop_sell", Context.context.shop.sellPrint(Context.economy))
     Context.check("shop_sell_balance", Context.economy.money == Context.startingMoney - 13 and Context.economy.inventory.prints == 0)

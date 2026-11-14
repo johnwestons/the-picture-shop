@@ -204,7 +204,6 @@ local function cutterView(overrides)
         candidates = Codec.array({
             { palletId = "JOB-0001-P01", distancePixels = 32 },
         }),
-        genericSheets = 2500,
     }
     for key, value in pairs(overrides or {}) do view[key] = value end
     return view

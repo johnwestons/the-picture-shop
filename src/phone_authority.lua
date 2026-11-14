@@ -7,7 +7,8 @@ function Phone.resource(options)
     local commands = {}
     for action, operation in pairs({ phone_answer = WorkPhone.answer,
         phone_respond = WorkPhone.respond, phone_dismiss = WorkPhone.dismiss }) do
-        commands[action] = {
+        local commandAction, commandOperation = action, operation
+        commands[commandAction] = {
             normalize = function(args)
                 if type(args) ~= "table" or type(args.callId) ~= "string"
                     or not args.callId:match("^CALL%-%d+$") or #args.callId > 64 then
@@ -23,10 +24,10 @@ function Phone.resource(options)
                 if not call or call.id ~= args.callId then
                     return false, "call_changed", "That call has ended. Check the current phone line.", {}
                 end
-                if action == "phone_answer" and call.answered then
+                if commandAction == "phone_answer" and call.answered then
                     return false, "already_answered", "This call is already connected.", {}
                 end
-                local ok, result, phase = operation(state)
+                local ok, result, phase = commandOperation(state)
                 if ok then options.save() end
                 if phase == "checkout" then
                     result = "Checkout is ready. Review the quantity and total before confirming; no charge has been made."

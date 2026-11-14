@@ -198,8 +198,11 @@ function Screen.draw(state, world, assets, pointerX, pointerY, remoteView)
     love.graphics.setColor(0.68, 0.75, 0.77)
     local instruction = machineDelivery
         and "Click Unload to receive this machine, then release the empty flatbed."
-        or (pickup and "Load wrapped pallets using this manifest or let employees use their jacks."
-            or "Click a manifest row to place that pallet outside the truck.")
+        or (pickup
+            and (ready and "All pickup pallets are loaded. Close the cargo door to finish."
+                or "Load wrapped pallets using this manifest or let employees use their jacks.")
+            or (ready and "All pallets are unloaded. Close the cargo door to finish receiving."
+                or "Click a manifest row to place that pallet outside the truck."))
     love.graphics.printf(instruction, 82, 572, 548, 'left')
     if not pickup and not machineDelivery then
         love.graphics.print(string.format("Receiving lanes: %d / %d open", receiving.open, receiving.total), 82, 608)
@@ -257,6 +260,9 @@ function Screen.mousepressed(state, world, x, y, button)
                     or "Unload every pallet before closing the truck cargo door.")
             return { action = "blocked" }
         end
+        local doorReady=machineDelivery and snapshot.state=="parked_closed"
+            or not machineDelivery and snapshot.state=="cargo_open"
+        if not doorReady then return {action="blocked"} end
         if world.closeTruckAfterUnload(state) then
             return { action = machineDelivery and "truck_departing" or "door_closing" }
         end

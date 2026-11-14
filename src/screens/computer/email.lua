@@ -54,7 +54,11 @@ function Component.install(Runtime)
             local firstLine = math.max(1, #lines - visibleLines + 1)
             local textX, textY = input.x + 10, input.y + 10
             local previousScissorX, previousScissorY, previousScissorWidth, previousScissorHeight = love.graphics.getScissor()
-            love.graphics.setScissor(input.x + 1, input.y + 1, input.width - 2, input.height - 2)
+            local offsetX, offsetY, _, scaleX, scaleY = Runtime.Viewport.transform(
+                Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
+            love.graphics.setScissor(offsetX + (input.x + 1) * scaleX,
+                offsetY + (input.y + 1) * scaleY,
+                (input.width - 2) * scaleX, (input.height - 2) * scaleY)
             if firstLine > 1 then
                 love.graphics.print("…", textX, textY)
                 textY = textY + lineHeight

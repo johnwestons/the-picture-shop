@@ -403,7 +403,7 @@ function Test.run(context, check, economy, jobs)
             and fresh.version == context.save.VERSION
             and fresh.slot == slot
             and fresh.state.money == 180
-            and fresh.state.inventory.paper == 40
+            and fresh.state.inventory.paper == 0
             and fresh.state.inventory.plasticWrapRolls == 1
             and fresh.state.inventory.plasticWrapUses == 11
             and fresh.state.inventory.stock.shipping_cartons == 20

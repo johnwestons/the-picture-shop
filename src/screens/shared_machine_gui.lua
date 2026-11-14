@@ -26,7 +26,8 @@ function Gui.new(resource, getView, presentation, send, machineId)
         return rows
     end
     machine.load = function(_,id)
-        return id and id~="__generic_stock__" and send("load_pallet",{palletId=id}) or send("load_stock",{})
+        if type(id) ~= "string" or id == "" then return false end
+        return send("load_pallet",{palletId=id})
     end
     machine.selectProgram = function(index) return send("select_program",{programIndex=math.max(1,math.min(4,index))}) end
     machine.setGauge = function(value)

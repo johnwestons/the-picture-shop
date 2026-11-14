@@ -63,16 +63,24 @@ function Cargo.target(player,state)
 end
 function Cargo.rows(state,player)
     local resident=residentFor(state,player)
-    if not resident or resident.bikeParkedAtHome~=true then return {} end
+    if not resident then return {} end
+    local canUnload=player.sceneId=='home' and resident.bikeParkedAtHome==true
+        and not (state.home.commute and not state.home.commute.independent)
+        and require('src.weekend_flow').atHome(state)
     local inventory=Cargo.ensure(resident);local result={}
     for _,id in ipairs(Catalog.ORDER) do
         local quantity=inventory.items[id] or 0
         if quantity>0 then
             local product=Catalog.PRODUCTS[id]
-            result[#result+1]={label=('%d × %s'):format(quantity,product.name),command=('bike:%s:%d'):format(id,inventory.revision)}
+            result[#result+1]={productId=id,quantity=quantity,name=product.name,
+                label=('%d × %s'):format(quantity,product.name),
+                command=canUnload and ('bike:%s:%d'):format(id,inventory.revision) or nil}
         end
     end
-    if #result>1 then result[#result+1]={label='UNLOAD ALL BIKE CARGO TO HOME STORAGE',command=('bike:all:%d'):format(inventory.revision)} end
+    if canUnload and #result>1 then
+        result[#result+1]={productId='all',label='UNLOAD ALL BIKE CARGO TO HOME STORAGE',
+            command=('bike:all:%d'):format(inventory.revision)}
+    end
     return result
 end
 local function unloadItems(inventory,productId)

@@ -7,6 +7,7 @@ local CARD={x=116,width=728,height=101}
 local OLDER={x=735,y=577,width=108,height=23}
 local NEWER={x=619,y=577,width=108,height=23}
 local LATEST={x=503,y=577,width=108,height=23}
+local UNSTICK={x=116,y=577,width=375,height=23}
 local colors={
     RECOVERING={.97,.77,.32,1},STALLED={1,.40,.34,1},RESOLVED={.47,.88,.69,1},
     RECOVERED={.47,.88,.69,1},CLEARED={.47,.88,.69,1},
@@ -53,7 +54,16 @@ function Panel.hitTest(x,y)
     if hit(NEWER) then return 'newer' end
     if hit(LATEST) then return 'latest' end
     if hit(OLDER) then return 'older' end
+    if hit(UNSTICK) then return 'unstick' end
     return nil
+end
+
+function Panel.unstickEvent(snapshot,state)
+    if type(snapshot)~='table' or type(snapshot.active)~='table' then return nil end
+    local Network=require('src.commute.delivery_traffic')
+    for _,event in ipairs(snapshot.active) do
+        if Network.debugUnstickAvailable(state,event.issueId) then return event end
+    end
 end
 
 local function drawEvent(g,event,y,now)
@@ -208,12 +218,14 @@ function Panel.drawOptions(state,environment,offset)
             if event then drawEvent(g,event,350+(row-1)*107,now) end
         end
     end
+    local unstick=Panel.unstickEvent(snapshot,state)
+    drawButton(g,UNSTICK,unstick and 'UNSTICK LATEST ACTIVE TRUCK' or 'NO ACTIVE DRIVEWAY TRUCK TO UNSTICK',unstick~=nil)
     drawButton(g,NEWER,'NEWER',offset>0)
     drawButton(g,LATEST,'LATEST',offset>0)
     drawButton(g,OLDER,'OLDER',offset<Panel.maxOffset(snapshot))
     g.setFont(smallFont);g.setColor(.58,.68,.64,1)
     g.pop()
-    return {snapshot=snapshot,offset=offset,maxOffset=Panel.maxOffset(snapshot)}
+    return {snapshot=snapshot,offset=offset,maxOffset=Panel.maxOffset(snapshot),unstickEvent=unstick}
 end
 
 return Panel

@@ -21,7 +21,8 @@ local trainingHoursPerPoint=.16
 local states={visiting=true,resume_requested=true,resume_received=true,negotiating=true,
     offer_accepted=true,hired=true,declined=true,withdrawn=true,expired=true}
 local phases={hidden=true,entering=true,waiting=true,leaving=true,idle=true,walking=true,
-    working=true,pushing=true,break_walk=true,["break"]=true}
+    working=true,pushing=true,break_walk=true,["break"]=true,
+    delivery_talking=true,delivery_signing=true}
 local function finite(n) return type(n)=="number" and n==n and math.abs(n)<1e12 end
 local function number(n,low,high) return finite(n) and n>=low and n<=high end
 local function int(n,low,high) return number(n,low,high) and n==math.floor(n) end

@@ -91,7 +91,6 @@ function Component.run(Context)
         { resourceId = "pallet_jack", action = "lower_pallet", palletId = "JOB-0001-P01" },
         { resourceId = "pallet_jack", action = "park_jack" },
         { resourceId = "cutter", action = "load_pallet", palletId = "JOB-0001-P01" },
-        { resourceId = "cutter", action = "load_stock" },
         { resourceId = "cutter", action = "select_program", programIndex = 4 },
         { resourceId = "cutter", action = "set_gauge", gaugeCentiInch = 625 },
         { resourceId = "cutter", action = "auto_gauge" },

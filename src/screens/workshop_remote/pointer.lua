@@ -325,15 +325,6 @@ function Component.install(Runtime)
                         return true
                     end
                 end
-                if Runtime.contains(Runtime.CUTTER_UNLOADED_CONTROLS.load_stock, x, y) then
-                    Runtime.Screen.gaugeFocused = false
-                    if not Runtime.cutterButtonEnabled("load_stock") then return true end
-                    if (tonumber(view.genericSheets) or 0) <= 0 then
-                        Runtime.Screen.status = "No generic production stock is available on the host device."
-                        return true
-                    end
-                    return Runtime.request(sendCommand, "load_stock", {})
-                end
                 if Runtime.contains(Runtime.CUTTER_UNLOADED_CONTROLS.set_barrier, x, y) then
                     return Runtime.cutterButtonEnabled("set_barrier")
                         and Runtime.request(sendCommand, "set_barrier", { barrierClear = view.barrierClear ~= true }) or true
@@ -343,6 +334,9 @@ function Component.install(Runtime)
                 elseif Runtime.contains(Runtime.CUTTER_UNLOADED_CONTROLS.run_next_lift, x, y) then
                     return Runtime.cutterButtonEnabled("run_next_lift")
                         and Runtime.request(sendCommand, "run_next_lift", {}) or true
+                elseif Runtime.contains(Runtime.CUTTER_UNLOADED_CONTROLS.return_to_pallet, x, y) then
+                    return Runtime.cutterButtonEnabled("return_to_pallet")
+                        and Runtime.request(sendCommand, "return_to_pallet", {}) or true
                 elseif Runtime.contains(Runtime.CUTTER_UNLOADED_CONTROLS.emergency_stop, x, y) then
                     return Runtime.cutterButtonEnabled("emergency_stop")
                         and Runtime.request(sendCommand, "emergency_stop", {}) or true

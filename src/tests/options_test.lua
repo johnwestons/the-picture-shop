@@ -99,6 +99,7 @@ function Test.run(context, check)
         saveCurrent = function() saveCalls = saveCalls + 1; return true end,
         isNetworkClient = function() return false end,
     }
+    local paperBeforeFailedEdit = state.inventory.paper
     local edited, value = context.SaveEditor.editSlot(editorContext, 1, "money", 123456)
     check("options_cheats_edit_live_cash_and_save_immediately",
         edited and value == 123456 and state.money == 123456 and saveCalls == 1)
@@ -106,7 +107,7 @@ function Test.run(context, check)
     editorContext.saveCurrent = function() return false end
     local rolledBack = not context.SaveEditor.editSlot(editorContext, 1, "paper", 999)
     check("options_cheats_roll_back_failed_live_save",
-        rolledBack and state.inventory.paper == 40)
+        rolledBack and state.inventory.paper == paperBeforeFailedEdit)
 
     editorContext.isNetworkClient = function() return true end
     local guestBlocked, guestMessage = context.SaveEditor.editSlot(

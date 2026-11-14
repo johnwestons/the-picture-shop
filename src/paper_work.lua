@@ -1,6 +1,8 @@
 local PaperWork = {}
 local BladeProfiles = require("src.machine.cutter.blade_profiles")
 
+-- Kept for isolated animation and presentation tooling; the live cutter only
+-- accepts physical job pallets from the workshop floor.
 function PaperWork.createStockPaper()
     local job = { id = "STOCK", sourceSize = { width = 13, height = 10 },
         finishedSize = { width = 12, height = 9 } }

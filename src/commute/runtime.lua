@@ -331,6 +331,8 @@ function C.controlContext(R,part,controlsTop)
     local world=C.world(R)
     local gearNearBike=rider and not gear.mounted and rider.vehicle~='truck'
         and rider.bike and M.length(rider.ped.x-rider.bike.x,rider.ped.z-rider.bike.z)<=3.2 or false
+    local bikeInventoryAvailable=gearNearBike and part and not part.interior and not part.arrived
+        and not gear.transition and not rider.ped.crash or false
     local nearBike=gearNearBike and not gear.transition
     local atFuelPump=rider and Station.pumpMode(rider,truck,world)~=nil or false
     local worldActionLabel
@@ -369,6 +371,7 @@ function C.controlContext(R,part,controlsTop)
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
         vehicle=rider and rider.vehicle,nearTruck=nearTruck,nearBike=nearBike,gearNearBike=gearNearBike,
+        bikeInventoryAvailable=bikeInventoryAvailable,
         cardX=C.cardX(R),
         vehicleActionLabel=vehicleActionLabel,worldActionLabel=worldActionLabel,atFuelPump=atFuelPump,
         engine=isTruck and truck.engine~=false or not isTruck and gear.engine==true,gearOutfit=gear.outfit,
@@ -1869,6 +1872,20 @@ local function performWorldAction(R)
     return true
 end
 
+local function openBikeCargo(R)
+    local part=R.state.screen=='world' and C.localPart(R) or nil
+    local rider=part and part.rider
+    if not part or part.interior or part.arrived or not rider or not rider.bike or not rider.gear
+        or rider.gear.mounted or rider.gear.transition or rider.vehicle=='truck'
+        or rider.ped.crash
+        or M.length(rider.ped.x-rider.bike.x,rider.ped.z-rider.bike.z)>3.2 then
+        R.state.message='Stand beside your motorcycle to view its cargo.'
+        return true
+    end
+    C.cancelCameraDrag(R)
+    return require('src.home_activity_controls').openBikeCargo(R)
+end
+
 function C.keypressed(R,key,semantic)
     if R.state.screen~='world' then return false end
     if require('src.story_intro').dialogueOpen(R) then
@@ -1994,6 +2011,8 @@ function C.perform(R,id)
             return require('src.commute.mechanic_shop').keypressed(R,'e')
         end
         return performWorldAction(R)
+    elseif id=='bikeInventory' then
+        return openBikeCargo(R)
     end
     if id=='mountBike' then
         local trip=C.localTrip(R)

@@ -116,7 +116,7 @@ local function specs(calls)
         },
     }
     for _, action in ipairs({
-        "load_stock", "auto_gauge", "save_gauge", "recall_gauge", "rotate_paper",
+        "auto_gauge", "save_gauge", "recall_gauge", "rotate_paper",
         "position_paper", "guarded_cut", "emergency_stop", "reset_safety",
         "return_to_pallet", "run_next_lift",
     }) do
@@ -431,7 +431,7 @@ function Test.run(_, check)
         acquire = { reception_customer = 0, cutter = 0, windmill = 0 },
         command = {
             submit_quote = 0, decline = 0, request_pickup = 0,
-            load_pallet = 0, load_stock = 0, select_program = 0, set_gauge = 0,
+            load_pallet = 0, select_program = 0, set_gauge = 0,
             auto_gauge = 0, save_gauge = 0, recall_gauge = 0, rotate_paper = 0,
             position_paper = 0, set_clamp = 0, set_barrier = 0, guarded_cut = 0,
             emergency_stop = 0, reset_safety = 0, return_to_pallet = 0,

@@ -232,6 +232,9 @@ function Touch.actionButtons(width,height,p,context,options)
     elseif not mounted and not context.arrived and context.gearNearBike then
         local label=context.gearTransition and 'WAIT' or context.gearOutfit=='geared' and 'REMOVE' or 'GEAR'
         utilities={{'gear',label,'helmet',context.gearOutfit=='geared',not context.gearTransition}}
+        if context.bikeInventoryAvailable then
+            utilities[#utilities+1]={'bikeInventory','CARGO','more',false,not context.pedCrash}
+        end
     end
     if mounted and #utilities>0 then
         addGearButtons(buttons,utilities,width,height,utilityRadius,left,right,screenLeft,screenRight)

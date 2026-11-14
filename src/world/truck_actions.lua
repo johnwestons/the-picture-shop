@@ -213,7 +213,8 @@ function Component.install(Runtime)
         )
         if state then
             state.message = succeeded
-                and string.format("Unloaded %s. %d pallet(s) remain in the truck.", pallet.id, remaining)
+                and (remaining==0 and "All pallets are unloaded. Close the cargo door to finish receiving."
+                    or string.format("Unloaded %s. %d pallet(s) remain in the truck.", pallet.id, remaining))
                 or tostring(pallet)
         end
         return succeeded, pallet, remaining

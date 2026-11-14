@@ -182,7 +182,7 @@ local function drawSuitedRoadWalker(characterAssets,actor,camera,world,visual,cl
     local Rider=require('src.commute.rider')
     local Animation=require('src.character_animation')
     local Config=require('src.config')
-    local frame=Animation.frameForPlayerAction(action,count or 1,distance/Rider.FRAME_DISTANCE,
+    local frame=Animation.frameForPlayerAction(action,count or 1,distance/Rider.WALK_ANIMATION_FRAME_DISTANCE,
         clock or 0,1,Config.player.idleAnimationRate)
     local image,quad=characterAssets.get(character,action,frame)
     if not image or not quad then return false end

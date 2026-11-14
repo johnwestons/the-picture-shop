@@ -339,7 +339,7 @@
         "guest_journey_reconnect_gets_fresh_lease_and_paper",
         "guest_journey_disconnect_does_not_repeat_cut",
         "cutter_empty_load_menu_has_touch_back",
-        "cutter_generic_load_menu_has_touch_back"
+        "cutter_bulk_stock_load_menu_has_touch_back"
       ]
     },
     {
@@ -442,7 +442,7 @@
       "checks": [
         "vendor_catalog_purchase",
         "vendor_wrapper_consumes_delivered_supplies",
-        "sample_cutter_consumes_delivered_paper"
+        "vendor_paper_reserves_for_house_supplied_print_job"
       ]
     },
     {

@@ -50,7 +50,7 @@ function Component.run(Context)
 
         if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
             or Context.Machine.step == "retracting" or Context.Machine.step == "unloading"
-            or Context.Machine.step == "lift_returning"
+            or Context.Machine.step == "unloading_partial" or Context.Machine.step == "lift_returning"
         then
             Context.Machine.progress = Context.Machine.progress + dt
             Context.Machine.paperTravel = math.min(1, Context.Machine.progress / Context.Machine.transferTime)
@@ -71,31 +71,47 @@ function Component.run(Context)
                         Context.Machine.pallet.activeLift, Context.Machine.pallet.requiredLifts))
                     return true
                 else
-                    if Context.Machine.legacyPaper and state and state.inventory then
-                        local consumed, consumeError = Context.Procurement.consumePaper(state, 1)
-                        if not consumed then
-                            Context.enterBlocked(state,
-                                consumeError or "Production paper is no longer available.", "cut_complete")
-                            return false
-                        end
-                        state.inventory.prints = (state.inventory.prints or 0) + 1
-                    elseif Context.Machine.pallet then
+                    local partialUnload = Context.Machine.step == "unloading_partial"
+                    if Context.Machine.pallet then
                         local output = Context.Machine.pendingOutput
                         if not output then
-                            Context.enterBlocked(state,
-                                "Could not return the pallet: the reserved output zone was lost.",
-                                "cut_complete")
+                            if partialUnload then
+                                local resumeStep = Context.Machine.unloadResumeStep or "loaded"
+                                Context.Machine.unloadResumeStep = nil
+                                Context.Machine.step, Context.Machine.progress = resumeStep, 0
+                                Context.Machine.loaded = resumeStep ~= "repeat_ready"
+                                Context.Machine.paperTravel = resumeStep == "positioned" and 1 or 0.35
+                                Context.message(state, "Could not return the unfinished pallet: the reserved output zone was lost.")
+                                Context.bumpRevision()
+                            else
+                                Context.enterBlocked(state,
+                                    "Could not return the pallet: the reserved output zone was lost.",
+                                    "cut_complete")
+                            end
                             return false
                         end
                         -- A player can move stock into a reserved space while the
                         -- return animation runs. Revalidate against real floor
                         -- stock and other cutters before creating an output pallet.
-                        local checked,outputError=Context.Machine.outputResolver(state,Context.Machine.pallet,
-                            Context.machineId or "MCH-0001")
+                        local checked, outputError
+                        if Context.Machine.outputResolver then
+                            checked, outputError = Context.Machine.outputResolver(state, Context.Machine.pallet,
+                                Context.machineId or "MCH-0001")
+                        else
+                            outputError = "Cutter output safety is unavailable."
+                        end
                         if not checked then
                             Context.Machine.pendingOutput=nil
-                            Context.Machine.step,Context.Machine.progress="cut_complete",0
-                            Context.message(state,outputError or "Clear the finished-pallet staging area.")
+                            local resumeStep = partialUnload
+                                and (Context.Machine.unloadResumeStep or "loaded") or "cut_complete"
+                            Context.Machine.step,Context.Machine.progress=resumeStep,0
+                            if partialUnload then Context.Machine.loaded = resumeStep ~= "repeat_ready" end
+                            Context.Machine.paperTravel = partialUnload
+                                and (resumeStep == "positioned" and 1 or 0.35) or 1
+                            Context.Machine.unloadResumeStep = nil
+                            Context.message(state,outputError or (partialUnload
+                                and "Clear the unfinished-pallet staging area."
+                                or "Clear the finished-pallet staging area."))
                             Context.bumpRevision()
                             return false
                         end
@@ -108,17 +124,29 @@ function Component.run(Context)
                         world.fromX, world.fromY = output.x, output.y
                         world.spawnProgress = 1
                         local transitioned, transitionError = Context.PalletState.transition(state, Context.Machine.pallet, "cutter_output", {
-                            status = "cut",
+                            status = partialUnload and "in_process" or "cut",
                             world = world,
                         })
                         if not transitioned then
+                            local resumeStep = partialUnload and (Context.Machine.unloadResumeStep or "loaded") or nil
+                            Context.Machine.pendingOutput=nil
+                            Context.Machine.unloadResumeStep = nil
+                            if partialUnload then
+                                Context.Machine.step, Context.Machine.progress = resumeStep, 0
+                                Context.Machine.loaded = resumeStep ~= "repeat_ready"
+                                Context.Machine.paperTravel = resumeStep == "positioned" and 1 or 0.35
+                                Context.message(state, "Could not return the unfinished pallet: " .. tostring(transitionError))
+                                Context.bumpRevision()
+                                return false
+                            end
                             Context.enterBlocked(state,
                                 "Could not return the pallet: " .. tostring(transitionError),
                                 "cut_complete")
                             return false
                         end
                         Context.Machine.pendingOutput = nil
-                        if state and state.inventory then
+                        Context.Machine.unloadResumeStep = nil
+                        if not partialUnload and state and state.inventory then
                             -- Printed work remains in process after cutting; it is
                             -- only finished after the final Windmill color pass.
                             if not (Context.Machine.job and Context.Machine.job.press) then
@@ -129,9 +157,11 @@ function Component.run(Context)
                         end
                     end
                     Context.Machine.loaded, Context.Machine.step, Context.Machine.paperTravel = false, "finished", 0
-                    Context.message(state, Context.Machine.job and Context.Machine.job.press
-                        and "Cut client stock returned to its pallet. Stage it beside the Windmill for printing."
-                        or "Finished paper returned to its pallet. Reset for the next batch.")
+                    Context.message(state, partialUnload
+                        and "Unfinished paper returned to its pallet with its cut program preserved. Stage the pallet beside the cutter to continue."
+                        or (Context.Machine.job and Context.Machine.job.press
+                            and "Cut client stock returned to its pallet. Stage it beside the Windmill for printing."
+                            or "Finished paper returned to its pallet. Reset for the next batch."))
                     return true
                 end
             end
@@ -160,6 +190,8 @@ function Component.run(Context)
                     Context.Machine._resetResume, Context.Machine._blockedResume = nil, nil
                     Context.message(state, resume == "repeat_ready"
                         and "Safety controls reset. Run the next verified lift when ready."
+                        or resume == "unloading_partial"
+                            and "Safety controls reset. The unfinished pallet return is ready to resume."
                         or resume == "cut_complete"
                             and "Safety controls reset. Return the completed lift to its pallet."
                             or "Safety controls reset. Reposition the paper before cutting.")
@@ -179,7 +211,8 @@ function Component.run(Context)
         local duration = 1
         if Context.Machine.step == "loading" or Context.Machine.step == "positioning"
             or Context.Machine.step == "retracting"
-            or Context.Machine.step == "unloading" or Context.Machine.step == "lift_returning"
+            or Context.Machine.step == "unloading" or Context.Machine.step == "unloading_partial"
+            or Context.Machine.step == "lift_returning"
         then
             duration = Context.Machine.transferTime
         elseif Context.Machine.step == "armed" or Context.Machine.step == "cutting" then
@@ -255,12 +288,6 @@ function Component.run(Context)
                 if #candidates >= 3 then break end
             end
             view.candidates = candidates
-            if #candidates == 0 and not Context.PalletState.hasUnfinishedCustomerPaper(state) then
-                local genericSheets = Context.Procurement.paperAvailable(state)
-                if genericSheets > 0 then
-                    view.genericSheets = math.min(100000, math.floor(genericSheets))
-                end
-            end
         end
         return view
     end

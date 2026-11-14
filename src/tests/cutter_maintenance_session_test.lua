@@ -19,7 +19,7 @@ local function cutterView()
         runtimeRevision = 1, step = "idle", phasePermille = 0,
         loaded = false, clamp = false, clampPermille = 0, bladePermille = 0,
         barrierClear = true, emergencyStopped = false, gaugeCentiInch = 0,
-        programIndex = 1, memoryCentiInch = {}, candidates = {}, genericSheets = 1000,
+        programIndex = 1, memoryCentiInch = {}, candidates = {},
     }
 end
 

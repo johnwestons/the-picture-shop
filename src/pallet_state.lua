@@ -67,6 +67,13 @@ end
 
 function PalletState.items(state) return allPallets(state) end
 
+local function palletHasUnfinishedCut(pallet)
+    if not pallet or not pallet.paper then return false end
+    if pallet.paper.status ~= "complete" then return true end
+    return (tonumber(pallet.remainingSheets) or 0) > 0
+        and (tonumber(pallet.completedLifts) or 0) < (tonumber(pallet.requiredLifts) or 1)
+end
+
 local function validWorld(world)
     return type(world) == "table" and type(world.x) == "number" and type(world.y) == "number"
         and (world.sceneId==nil or world.sceneId=="warehouse"
@@ -266,7 +273,7 @@ function PalletState.cutterCandidates(state, radius)
                 and palletOwner(pallet, "at_cutter", state) == ownerId(state, "polar_115")
                 and sameScene(state,pallet,"polar_115") then
                 owned[#owned + 1] = candidate
-            elseif paper.status ~= "complete" and pallet.location == "warehouse"
+            elseif palletHasUnfinishedCut(pallet) and pallet.location == "warehouse"
                 and sameScene(state,pallet,"polar_115")
                 and not PalletStorage.isSupporting(state,pallet.id) and nearCutter(state, pallet, radius)
             then
@@ -288,7 +295,7 @@ end
 
 function PalletState.hasUnfinishedCustomerPaper(state)
     for _, item in ipairs(allPallets(state)) do
-        if not item.vendor and item.pallet.paper and item.pallet.paper.status ~= "complete"
+        if not item.vendor and palletHasUnfinishedCut(item.pallet)
             and item.pallet.location ~= "awaiting_delivery" and item.pallet.location ~= "none"
         then
             return true

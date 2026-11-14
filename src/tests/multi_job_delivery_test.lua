@@ -163,7 +163,11 @@ local function employeeRun(context,check,town,world)
     local run=company.deliveryRun
     check('multi_job_employee_dispatch_batches_ten_pallets_from_three_clients',run and run.palletCount==10
         and #run.jobIds==3 and run.stops[1].id=='grocery' and #run.stops==3
-        and company.vehicleModel=='box' and select(1,Run.loadingProgress(state,run))==10)
+        and company.vehicleModel=='box' and select(1,Run.loadingProgress(state,run))==10,
+        ('run=%s status=%s pending=%s activity=%s shift=%.2f-%.2f message=%s'):
+            format(tostring(run and run.palletCount),tostring(company.status),
+                tostring(company.pendingDriverEmployeeId),tostring(worker.activity),
+                worker.contract.startHour,worker.contract.endHour,tostring(state.message)))
     check('multi_job_employee_leaves_overflow_player_jobs_and_customer_pickups',overflow.status=='ready_for_pickup'
         and customer.status=='ready_for_pickup' and player.status=='ready_for_pickup'
         and overflow.pallets[1].location=='warehouse' and customer.pallets[1].location=='warehouse')

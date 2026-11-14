@@ -142,7 +142,12 @@ function Component.install(Runtime)
         Runtime.addButton("position", "PUSH / POS", 158, 478, 100, 34, "p")
         Runtime.addButton("rotate", "ROTATE CCW", 266, 478, 100, 34, "q")
         Runtime.addButton("clamp", "CLAMP", 374, 478, 84, 34, "space")
-        Runtime.addButton("unload", "TO PALLET", 466, 478, 96, 34, "u")
+        local canPausePallet = Runtime.Machine.step == "repeat_ready" and Runtime.Machine.pallet
+            and (tonumber(Runtime.Machine.pallet.remainingSheets) or 0) > 0
+        local unloadLabel = Runtime.Machine.paper
+            and (Runtime.Machine.paper.status ~= "complete" or canPausePallet)
+            and "UNLOAD" or "TO PALLET"
+        Runtime.addButton("unload", unloadLabel, 466, 478, 96, 34, "u")
         Runtime.addButton("barrier", "BARRIER", 570, 478, 86, 34, "b")
         Runtime.addButton("reset", "RESET", 664, 478, 72, 34, "r")
         Runtime.addButton("estop", "E-STOP", 752, 470, 74, 74, "x")

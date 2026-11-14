@@ -1,6 +1,8 @@
 -- Saved visual and utility condition of the original warehouse. Quick Start and
 -- migrated shops use the clean state; the story opening explicitly selects closed.
-local Condition={VERSION=2,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
+local Condition={VERSION=3,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
+local anchors,legacyAnchors
+local WarehouseMap=require("src.warehouse_registration")
 Condition.ACTIONS={call_power=true,call_water=true,repair_breaker=true,lights_on=true,lights_off=true,
     clean_puddle1=true,clean_puddle2=true,grand_opening=true}
 local regions={"west","center","east"}
@@ -18,17 +20,31 @@ function Condition.new(mode,seed)
         cleanedPuddles={puddle1=not closed,puddle2=not closed},
         puddleStrokes={puddle1={},puddle2={}}}
 end
--- Version 1 tied the oily puddles to the east floor segment. Preserve the
--- visible result when upgrading an existing save: old east-clean saves already
--- had no puddles, while unfinished restoration saves still have both.
+-- Version 1 tied the oily puddles to the east floor segment. Preserve that
+-- visible result, then move saved mop marks with the safer puddle placements.
 function Condition.normalize(c)
-    if type(c)=="table" and c.version==1 and c.cleanedPuddles==nil then
-        local finished=c.mode~="story" or type(c.cleaned)=="table" and c.cleaned.east==true
-        c.cleanedPuddles={puddle1=finished,puddle2=finished}
-        c.version=Condition.VERSION
+    if type(c)=="table" and c.version==1 then
+        if c.cleanedPuddles==nil then
+            local finished=c.mode~="story" or type(c.cleaned)=="table" and c.cleaned.east==true
+            c.cleanedPuddles={puddle1=finished,puddle2=finished}
+        end
+        c.version=2
     end
     if type(c)=="table" and c.puddleStrokes==nil then
         c.puddleStrokes={puddle1={},puddle2={}}
+    end
+    if type(c)=="table" and c.version==2 and type(c.puddleStrokes)=="table" then
+        for _,name in ipairs(puddles) do
+            local old,new=legacyAnchors[name],anchors[name]
+            local dx,dy=new.x-old.x,new.y-old.y
+            for _,point in ipairs(c.puddleStrokes[name] or {}) do
+                if type(point)=="table" and type(point.x)=="number" and type(point.y)=="number" then
+                    point.x=math.max(0,math.min(960,point.x+dx))
+                    point.y=math.max(0,math.min(678,point.y+dy))
+                end
+            end
+        end
+        c.version=Condition.VERSION
     end
     if type(c)=="table" and type(c.puddleStrokes)=="table" then
         for _,name in ipairs(puddles) do
@@ -166,13 +182,94 @@ function Condition.readyForOpening(state)
     end
     return true
 end
-local anchors={breaker={x=218,y=185,radius=66,hoverX=218,hoverY=114},
-    -- Spill art, footsteps, interaction prompts, and mop range all use these
-    -- floor contacts. Keep them clear of the story machines and each other.
-    puddle1={x=295,y=490,radius=205,visualRadiusX=225,visualRadiusY=85,
-        hoverX=295,hoverY=490,hoverRadius=75},
-    puddle2={x=690,y=540,radius=165,visualRadiusX=175,visualRadiusY=70,
-        hoverX=690,hoverY=540,hoverRadius=65}}
+legacyAnchors={
+    puddle1={x=295,y=490},
+    puddle2={x=690,y=540},
+}
+
+local function puddlePoint(template,x,y)
+    local point={}
+    for key,value in pairs(template) do point[key]=value end
+    point.x,point.y,point.hoverX,point.hoverY=x,y,x,y
+    return point
+end
+
+local function puddleFitsWalkArea(point)
+    -- Include a margin for the player's feet, mop head, and the shader's soft
+    -- edge; checking just the center lets an unreachable strip remain dirty.
+    local margin=30
+    local left=point.x-point.visualRadiusX-margin
+    local right=point.x+point.visualRadiusX+margin
+    local top=point.y-point.visualRadiusY-margin
+    local bottom=point.y+point.visualRadiusY+margin
+    local y=top
+    while true do
+        local x=left
+        while true do
+            if not WarehouseMap.walkable(x,y,"warehouse") then return false end
+            if x>=right then break end
+            x=math.min(right,x+16)
+        end
+        if y>=bottom then break end
+        y=math.min(bottom,y+16)
+    end
+    return true
+end
+
+local function separatedFrom(point,other)
+    if not other then return true end
+    local minDistance=(point.visualRadiusX+other.visualRadiusX)*.65
+    return (point.x-other.x)^2+(point.y-other.y)^2>=minDistance^2
+end
+
+local function placePuddle(template,candidates,other)
+    for _,candidate in ipairs(candidates) do
+        local point=puddlePoint(template,candidate[1],candidate[2])
+        if puddleFitsWalkArea(point) and separatedFrom(point,other) then return point end
+    end
+    -- If a later floor contour invalidates the authored spots, scan an interior
+    -- grid and accept only positions with the same walkable-footprint margin.
+    for y=300,600,20 do
+        for x=180,840,20 do
+            local point=puddlePoint(template,x,y)
+            if puddleFitsWalkArea(point) and separatedFrom(point,other) then return point end
+        end
+    end
+    -- On a narrower future floor, shrink the spill before ever placing its wipe
+    -- area beyond the player walk mask.
+    for tenth=9,2,-1 do
+        local scale=tenth/10
+        for y=280,640,16 do
+            for x=120,920,16 do
+                local point=puddlePoint(template,x,y)
+                point.visualRadiusX=template.visualRadiusX*scale
+                point.visualRadiusY=template.visualRadiusY*scale
+                if puddleFitsWalkArea(point) and separatedFrom(point,other) then return point end
+            end
+        end
+    end
+    for y=120,640,8 do
+        for x=24,936,8 do
+            local point=puddlePoint(template,x,y)
+            point.visualRadiusX,point.visualRadiusY=14,8
+            point.radius,point.hoverRadius=28,28
+            if puddleFitsWalkArea(point) and separatedFrom(point,other) then return point end
+        end
+    end
+    error("The warehouse has no walkable floor space for a story puddle.")
+end
+
+local puddleTemplates={
+    puddle1={x=300,y=370,radius=205,visualRadiusX=225,visualRadiusY=85,
+        hoverX=300,hoverY=370,hoverRadius=75},
+    puddle2={x=740,y=540,radius=165,visualRadiusX=175,visualRadiusY=70,
+        hoverX=740,hoverY=540,hoverRadius=65},
+}
+anchors={breaker={x=218,y=185,radius=66,hoverX=218,hoverY=114}}
+anchors.puddle1=placePuddle(puddleTemplates.puddle1,
+    {{300,370},{300,390},{320,390},{280,390},{320,410}},nil)
+anchors.puddle2=placePuddle(puddleTemplates.puddle2,
+    {{740,540},{720,540},{760,540},{720,520},{740,520},{760,520}},anchors.puddle1)
 Condition.anchors=anchors
 local function withinSpill(point,x,y)
     local dx=(x-point.x)/point.visualRadiusX
@@ -234,8 +331,9 @@ function Condition.puddleProgress(state,name)
     local byName=progressCache[c]
     if not byName then byName={};progressCache[c]=byName end
     local entry=byName[name]
-    if not entry or entry.count>#strokes then
-        entry={count=0,total=0,remaining=0,cells={}}
+    if not entry or entry.version~=c.version or entry.x~=point.x or entry.y~=point.y
+        or entry.count>#strokes then
+        entry={version=c.version,x=point.x,y=point.y,count=0,total=0,remaining=0,cells={}}
         for y=point.y-point.visualRadiusY,point.y+point.visualRadiusY,7 do
             for x=point.x-point.visualRadiusX,point.x+point.visualRadiusX,12 do
                 if withinSpill(point,x,y) then

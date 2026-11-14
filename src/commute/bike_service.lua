@@ -1,16 +1,19 @@
--- Fuel in litres. Service intervals are shortened for town-scale rides.
-local S={tank=4,oilLife=18,chainLife=42,tires={},tireOrder={},orders={'fuel','oil'}}
+-- Fuel in litres. A full 4 L tank is about a week of typical town riding.
+-- Service wear scales with the longer range so fuel tuning does not make
+-- routine maintenance arrive several times sooner per tank.
+local S={tank=4,oilLife=63,chainLife=147,tires={},tireOrder={},orders={'fuel','oil'},
+    fuelPerMile=.045,throttleFuelPerMile=.025,boostFuelPerMile=.06,idleFuelPerSecond=.00003}
 local function tire(id,name,cents,road,dirt,life,roadAcceleration,dirtAcceleration,description)
     S.tires[id]={name=name,price=cents,road=road,dirt=dirt,life=life,
         roadAcceleration=roadAcceleration,dirtAcceleration=dirtAcceleration,description=description}
     S.tireOrder[#S.tireOrder+1]=id
 end
-tire('street','Street',2600,1.14,.70,24,1.12,.92,'Strong concrete grip and acceleration; slides more on dirt.')
-tire('streetplus','Premium street',4900,1.24,.74,46,1.20,.94,'Best concrete grip and acceleration; loses traction quickly on dirt.')
-tire('mixed','Standard',3200,1,1,28,1,1,'Factory tires with the current balanced, predictable handling.')
-tire('mixedplus','Dual-purpose',5700,1.10,1.15,52,1.06,1.04,'Extra grip on both concrete and dirt with balanced acceleration.')
-tire('dirt','Dirt',3700,.82,1.25,22,.92,1.06,'Trades some concrete grip for stronger dirt traction and control.')
-tire('dirtplus','Premium dirt',6400,.88,1.36,44,.94,1.10,'Maximum dirt grip and reduced sliding on loose terrain.')
+tire('street','Street',2600,1.14,.70,84,1.12,.92,'Strong concrete grip and acceleration; slides more on dirt.')
+tire('streetplus','Premium street',4900,1.24,.74,161,1.20,.94,'Best concrete grip and acceleration; loses traction quickly on dirt.')
+tire('mixed','Standard',3200,1,1,98,1,1,'Factory tires with the current balanced, predictable handling.')
+tire('mixedplus','Dual-purpose',5700,1.10,1.15,182,1.06,1.04,'Extra grip on both concrete and dirt with balanced acceleration.')
+tire('dirt','Dirt',3700,.82,1.25,77,.92,1.06,'Trades some concrete grip for stronger dirt traction and control.')
+tire('dirtplus','Premium dirt',6400,.88,1.36,154,.94,1.10,'Maximum dirt grip and reduced sliding on loose terrain.')
 function S.copy(s)
     s=s or {}
     return {fuel=s.fuel or S.tank,miles=s.miles or 0,tread=s.tread or 0,oil=s.oil or 0,
@@ -52,7 +55,8 @@ function S.run(bike,meters,dt,powered)
     s.chain=s.chain+miles*(bike.boosting and 1.3 or 1)
     s.tread=s.tread+miles*(1+2*(bike.tireSlip or 0)+(bike.slip or 0))
     if powered==false then return false end
-    s.fuel=math.max(0,s.fuel-miles*(.17+.09*(bike.throttle or 0)+(bike.boosting and .12 or 0))-dt*.00012)
+    s.fuel=math.max(0,s.fuel-miles*(S.fuelPerMile+S.throttleFuelPerMile*(bike.throttle or 0)
+        +(bike.boosting and S.boostFuelPerMile or 0))-dt*S.idleFuelPerSecond)
     local rough=S.rough(bike)
     bike.stallClock=(bike.stallClock or 0)+dt*rough*rough
     return s.fuel<=0 or bike.stallClock>=32

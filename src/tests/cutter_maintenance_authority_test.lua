@@ -21,7 +21,6 @@ local function baseView()
         programIndex = 1,
         memoryCentiInch = {},
         candidates = {},
-        genericSheets = 2500,
     }
 end
 
@@ -45,7 +44,7 @@ local function fixture(context, prefix)
     })
     local productionCalls = 0
     local commands = service.withProductionCommands({
-        load_stock = {
+        load_pallet = {
             normalize = function(arguments)
                 return type(arguments) == "table" and next(arguments) == nil and {} or nil
             end,
@@ -139,7 +138,7 @@ function Test.run(context, check)
     local machineBusy = command(lubrication, worker, grant, 3, "begin_lubrication", {})
     lubrication.setMachineIdle(true)
     local begun = command(lubrication, worker, grant, 4, "begin_lubrication", {})
-    local productionBlocked = command(lubrication, worker, grant, 5, "load_stock", {})
+    local productionBlocked = command(lubrication, worker, grant, 5, "load_pallet", {})
     check("cutter_maintenance_revalidates_range_machine_state_and_production_interlock",
         not outOfRange.accepted and outOfRange.code == "out_of_range"
         and not machineBusy.accepted and machineBusy.code == "machine_busy"

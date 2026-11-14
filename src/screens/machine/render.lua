@@ -172,7 +172,7 @@ function Component.install(Runtime)
             layout.x + 20, layout.y + 40)
         if layout.visibleCount == 0 then
             love.graphics.setColor(0.78, 0.84, 0.85)
-            love.graphics.printf("No eligible paper is inside the cutter's load radius.\nMove a skid closer or add generic shop stock.",
+            love.graphics.printf("No eligible paper pallet is inside the cutter's load radius.\nMove an unfinished pallet closer.",
                 layout.x + 24, layout.y + 82, layout.width - 48, "center")
         end
         for index = layout.pageStart, layout.pageEnd do

@@ -25,6 +25,9 @@ local maneuverPaths=setmetatable({}, {__mode='k'})
 local yardPaths=setmetatable({}, {__mode='k'})
 local stopRoutes=setmetatable({}, {__mode='k'})
 local leftTurnLaneRoutes=setmetatable({}, {__mode='k'})
+local parkedPositionReports=setmetatable({}, {__mode='k'})
+local queueCapacityMonitors=setmetatable({}, {__mode='k'})
+local lastWorldByState=setmetatable({}, {__mode='k'})
 -- Junction reservations belong to the active town world. Weak world keys let
 -- abandoned commute worlds release their vehicle claims with the rest of the
 -- simulation instead of leaving stale town/coordinate entries behind.
@@ -1482,7 +1485,7 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
     local duration=route.length/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
     if require('src.business_hours').nextService(now,duration)>now+1e-7 then return false end
     local carriers,activeCount={},0
-    local lastDeparture,queued=-math.huge,0
+    local lastDeparture,queued,inboundCount=-math.huge,0,0
     local gateClear=true
     local gate=route.inward[1]
     for _,entry in ipairs(entries) do
@@ -1490,6 +1493,10 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
         local inbound,outbound=delivery.route,delivery.returnRoute
         if inbound and not inbound.transportId and finite(inbound.departedAtEpoch) then
             lastDeparture=math.max(lastDeparture,inbound.departedAtEpoch)
+            local vehicle=inbound.vehicle
+            if delivery.status~='received' and (not vehicle or vehicle.phase~='offmap') then
+                inboundCount=inboundCount+1
+            end
         end
         if outbound and finite(outbound.departedAtEpoch) and not (inbound and inbound.transportId)
             and (outbound.vehicle and outbound.vehicle.phase~='offmap'
@@ -1539,6 +1546,9 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
     end)
 
     local changed=false
+    local dockOccupied=dockBlocked(state,route.world)
+    local queueCapacity=WarehouseQueue.capacity(route)
+    local inboundCapacity=math.min(Network.MAX_ACTIVE_TRUCKS,queueCapacity+(dockOccupied and 0 or 1))
     for _,item in ipairs(due) do
         local entry=item.entry
         local inbound=entry.delivery.route
@@ -1563,9 +1573,10 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
             best.group.members[#best.group.members+1]=entry
             best.pallets=best.pallets+item.pallets
             changed=true
-        elseif activeCount<Network.MAX_ACTIVE_TRUCKS and gateClear and TrafficBudget.allows(state,activeCount)
+        elseif activeCount<Network.MAX_ACTIVE_TRUCKS and inboundCount<inboundCapacity
+            and gateClear and TrafficBudget.allows(state,activeCount)
             and epoch-lastDeparture>=Network.DISPATCH_HEADWAY_SECONDS
-            and queued<#(route.world.sites.byId.warehouse.truckQueueAnchors or {1,2,3}) then
+            and queued<queueCapacity then
             inbound.departedAtEpoch=epoch
             inbound.arrivedAtEpoch=epoch+route.length/Network.AVERAGE_SPEED
             local group=groups[entry.id] or {id=entry.id,leader=entry,members={entry}}
@@ -1573,6 +1584,7 @@ local function dispatchInbound(state,entries,groups,route,now,epoch)
             carriers[#carriers+1]={id=entry.id,group=group,route=inbound,
                 pallets=item.pallets,canLoad=not entry.delivery.customerPickup and item.pallets<Network.TRUCK_CAPACITY}
             activeCount=activeCount+1
+            inboundCount=inboundCount+1
             lastDeparture=epoch
             changed=true
         end
@@ -1765,6 +1777,25 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
         if not assignment then return changed end
         local target,anchor=assignment.target,assignment.anchor
         local blocked=assignment.slot~=nil
+        if not anchor then
+            local monitor=queueCapacityMonitors[vehicle]
+            if not monitor then monitor={};queueCapacityMonitors[vehicle]=monitor end
+            local localX,localZ=site:toLocal(vehicle.x,vehicle.z)
+            AIWatchdog.observe(state,monitor,{issueId='delivery-queue-capacity:'..tostring(vehicle.trafficId),
+                system='Shop driveway',subject=vehicle.trafficId or 'Delivery truck',stage='queue_capacity',
+                dt=step,timeout=3,retryDelay=3,
+                reason='The generated route has no safe remaining truck queue position',
+                detail=('target=%s slot=%s capacity=%s local=%.1f,%.1f'):format(tostring(target),
+                    tostring(assignment.slot),tostring(assignment.capacity),localX,localZ),
+                x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,scope='world-simulation',
+                recover=function()
+                    return {ok=false,action='Holding this truck while the warehouse queue advances'}
+                end})
+            return changed
+        end
+        local queueMonitor=queueCapacityMonitors[vehicle]
+        if queueMonitor then AIWatchdog.clear(state,queueMonitor,'A safe warehouse queue position is available') end
+        queueCapacityMonitors[vehicle]=nil
         if created and finite(inbound.departedAtEpoch) and finite(inbound.arrivedAtEpoch)
             and epoch>inbound.departedAtEpoch+1 then
             if epoch>=inbound.arrivedAtEpoch then
@@ -1806,19 +1837,38 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
             end
         end
         local anchorX,anchorZ=site:toWorld(anchor.x,anchor.z,0)
+        local atAssignedPosition=(vehicle.x-anchorX)^2+(vehicle.z-anchorZ)^2<1.2^2
         if vehicle.pathTarget==target
             and (vehicle.phase=='waiting_bay' and blocked or vehicle.phase=='at_bay' and not blocked)
-            and (vehicle.x-anchorX)^2+(vehicle.z-anchorZ)^2<1.2^2 then
+            and atAssignedPosition then
             vehicle.speed=0
+            local reportedTarget=parkedPositionReports[vehicle]
+            if reportedTarget then
+                AIWatchdog.resolve(state,'delivery-park-position:'..tostring(vehicle.trafficId),
+                    {reason='Truck reached its assigned warehouse stop',x=vehicle.x,z=vehicle.z})
+                parkedPositionReports[vehicle]=nil
+            end
             AIWatchdog.clear(state,vehicle,'Holding assigned receiving position')
             return changed
         end
-        if vehicle.phase=='at_bay' and blocked then
-            vehicle.pathTarget=nil;vehicle.phase='approaching';vehicle.pathIndex=2
-            vehicle.localManeuver=true;changed=true
-        elseif vehicle.phase=='waiting_bay' and not blocked then
-            vehicle.pathTarget=nil;vehicle.phase='approaching';vehicle.pathIndex=2
-            vehicle.localManeuver=true;changed=true
+        if (vehicle.phase=='at_bay' or vehicle.phase=='waiting_bay')
+            and (vehicle.pathTarget~=target or not atAssignedPosition) then
+            local localX,localZ=site:toLocal(vehicle.x,vehicle.z)
+            local anchorLocalX,anchorLocalZ=site:toLocal(anchorX,anchorZ)
+            if parkedPositionReports[vehicle]~=target then
+                parkedPositionReports[vehicle]=target
+                AIWatchdog.note(state,'delivery-park-position:'..tostring(vehicle.trafficId),{
+                    status='RECOVERING',system='Shop driveway',subject=vehicle.trafficId or 'Delivery truck',
+                    stage='rejoin_'..tostring(target),
+                    reason='Truck was marked parked away from its assigned dock or queue position',
+                    action='Cleared the parked state and replanned to the assigned warehouse stop',
+                    detail=('phase=%s target=%s local=%.1f,%.1f assigned=%.1f,%.1f path=%s')
+                        :format(tostring(vehicle.phase),tostring(target),localX,localZ,
+                            anchorLocalX,anchorLocalZ,tostring(vehicle.pathIndex)),
+                    x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,scope='world-simulation'})
+            end
+            vehicle.pathTarget=nil;vehicle.phase=blocked and 'approaching_wait' or 'approaching'
+            vehicle.pathIndex=2;vehicle.localManeuver=true;vehicle.replanRoute=true;changed=true
         end
         local points
         if vehicle.pathTarget~=target then
@@ -1900,6 +1950,7 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
     dt=finite(dt) and math.max(0,dt) or 0
     local world=activeWorld
     if type(world)~='table' or world.townId~=route.world.townId then world=route.world end
+    lastWorldByState[state]=world
     local motorcyclesCreated=AIMotorcycleTraffic.ensure(commute,world)
     local hasMotorcycles=commute and #(commute.aiMotorcycles or {})>0
     if not activeDelivery and not hasMotorcycles then return motorcyclesCreated,false end
@@ -2016,6 +2067,97 @@ end
 function Network.cachedWorld(town)
     local cached=town and routeCache[town]
     return cached and cached.world
+end
+local function vehicleForWatchdogIssue(state,issueId)
+    if type(issueId)~='string' then return nil end
+    local trafficId=issueId:match('^road%-driver:(.+)$')
+        or issueId:match('^delivery%-dock:(.+)$')
+        or issueId:match('^delivery%-dock%-controller:(.+)$')
+        or issueId:match('^delivery%-route%-plan:(.+)$')
+        or issueId:match('^delivery%-queue%-capacity:(.+)$')
+        or issueId:match('^delivery%-park%-position:(.+)$')
+    if not trafficId then return nil end
+    trafficId=trafficId:gsub(':controller$','')
+    local returning=trafficId:sub(-7)==':return'
+    local id=returning and trafficId:sub(1,-8) or trafficId
+    for _,entry in ipairs(deliveryEntries(state)) do
+        if entry.id==id then
+            local delivery=entry.delivery
+            local record=returning and delivery.returnRoute or delivery.route
+            local kind=returning and 'outbound' or 'inbound'
+            local vehicle=record and record.vehicle
+            if vehicle and vehicle.phase~='offmap' then
+                return entry,vehicle,record,kind
+            end
+        end
+    end
+end
+function Network.debugUnstickAvailable(state,issueId)
+    local entry,vehicle=vehicleForWatchdogIssue(state,issueId)
+    return entry~=nil and vehicle~=nil
+end
+function Network.debugUnstick(state,issueId)
+    local entry,vehicle,record,kind=vehicleForWatchdogIssue(state,issueId)
+    if not entry or not vehicle then return false,'No active delivery truck matches that watchdog report.' end
+    vehicle.trafficId=kind=='outbound' and entry.id..':return' or entry.id
+    local town=state.home and state.home.town
+    local world=lastWorldByState[state] or Network.cachedWorld(town)
+    if not world and town then
+        local okay,result=pcall(require('src.commute.town').world,town)
+        if okay then world=result end
+    end
+    if not world then return false,'The delivery town is not available for a safe route reset.' end
+    local route=townWorld(town,world)
+    if not route then return false,'The delivery road graph is not available for a safe route reset.' end
+    world=route.world
+    lastWorldByState[state]=world
+    local site=world.sites and world.sites.byId and world.sites.byId.warehouse
+    local beforeX,beforeZ=vehicle.x,vehicle.z
+    local localX,localZ=beforeX,beforeZ
+    if site then localX,localZ=site:toLocal(beforeX,beforeZ) end
+    local recoveryPath=kind=='outbound' and route.outward or route.inward
+    local rescued,detail=false,'Kept the truck in place and rebuilt its route from the current pose'
+    if recoveryPath and #recoveryPath>=2 then
+        local oldActors,oldIndex=world.trafficActors,world.trafficActorIndex
+        local oldVehicleObstacles,oldSweepObstacles=world.vehicleObstacles,world.sweepTrafficObstacles
+        local _,_,_,actors=gatherDynamicActors(state,town,world)
+        world.trafficActors=actors
+        world.trafficActorIndex=TrafficActorIndex.shouldUse(#actors) and TrafficActorIndex.new(actors) or nil
+        installVehicleCollision(world,actors,world.trafficActorIndex)
+        local okay,result,reason=pcall(TrafficRecovery.rescue,vehicle,recoveryPath,world)
+        world.trafficActors,world.trafficActorIndex=oldActors,oldIndex
+        world.vehicleObstacles,world.sweepTrafficObstacles=oldVehicleObstacles,oldSweepObstacles
+        if okay and result then rescued=true;detail='Moved to a collision-checked point behind the obstruction'
+        elseif not okay then detail='Route reset requested; safe reverse-point check failed: '..tostring(result)
+        elseif reason then detail='Route reset requested; safe reverse-point check found no clear point: '..tostring(reason) end
+    end
+    local finalLocalX,finalLocalZ=vehicle.x,vehicle.z
+    if site then finalLocalX,finalLocalZ=site:toLocal(vehicle.x,vehicle.z) end
+    local target=vehicle.pathTarget or (kind=='outbound' and 'outbound' or 'assigned dock/queue')
+    DockManeuver.clear(vehicle,state,'Manual watchdog unstick')
+    for _,prefix in ipairs({'road-driver:','delivery-dock:','delivery-dock-controller:',
+        'delivery-route-plan:','delivery-queue-capacity:','delivery-park-position:'}) do
+        AIWatchdog.resolve(state,prefix..vehicle.trafficId,{reason='Manual driveway unstick requested'})
+        if prefix=='road-driver:' or prefix=='delivery-dock:' then
+            AIWatchdog.resolve(state,prefix..tostring(vehicle.trafficId)..':controller',
+                {reason='Manual driveway unstick requested'})
+        end
+    end
+    stuckWatch[vehicle]=nil;ruleWatch[vehicle]=nil;maneuverPaths[vehicle]=nil;yardPaths[vehicle]=nil
+    stopRoutes[vehicle]=nil;leftTurnLaneRoutes[vehicle]=nil
+    parkedPositionReports[vehicle]=nil;queueCapacityMonitors[vehicle]=nil
+    vehicle.pathTarget=nil;vehicle.pathIndex=2;vehicle.localManeuver=true;vehicle.replanRoute=true
+    if kind=='outbound' then vehicle.phase='departing'
+    else vehicle.phase='approaching';record.vehicle=vehicle end
+    AIWatchdog.note(state,'delivery-debug-unstick:'..entry.id..(kind=='outbound' and ':return' or ''),{
+        status='RECOVERED',system='Shop driveway',subject=entry.id,stage=tostring(target),
+        reason='Manual unstick requested from the game watchdog',
+        action=rescued and detail or 'Cleared parked and route state; replanning from the current truck position',
+        detail=('before=%.1f,%.1f after=%.1f,%.1f safeMove=%s route=%s')
+            :format(localX,localZ,finalLocalX,finalLocalZ,tostring(rescued),tostring(record.roadTownId)),
+        x=vehicle.x,z=vehicle.z,visible=vehicle.visible~=false,scope='world-simulation'})
+    return true,rescued and 'Truck moved to a clear point and its delivery route was replanned.'
+        or 'Truck route state was reset and it will replan from its current position.'
 end
 -- Read physical poses without constructing route planners or sampling trips.
 -- Small indoor views do not need the full map's render-only fallback routes.

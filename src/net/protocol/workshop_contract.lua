@@ -67,7 +67,6 @@ function Component.install(Runtime)
         },
         cutter = {
             load_pallet = "palletId",
-            load_stock = false,
             select_program = "programIndex",
             set_gauge = "gaugeCentiInch",
             auto_gauge = false,
@@ -181,6 +180,7 @@ function Component.install(Runtime)
         lift_returning = true,
         repeat_ready = true,
         unloading = true,
+        unloading_partial = true,
         finished = true,
         blocked = true,
         resetting = true,

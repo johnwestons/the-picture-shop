@@ -52,8 +52,8 @@ function Test.run(context, check)
         model.paper.currentSize.width == 13 and model.paper.currentSize.height == 10
         and #model.paper.history == 0)
     current.paper.palletId = "STOCK-P01"
-    check("cutter_presentation_generic_stock_matches_local_stock",
-        presentation:model({}, current).paper.currentSize.width == source.currentSize.width)
+    check("cutter_presentation_does_not_invent_untracked_bulk_stock",
+        presentation:model({}, current).paper == nil)
     current.paper.palletId = "UNKNOWN-P01"
     check("cutter_presentation_missing_ticket_does_not_invent_customer_art",
         presentation:model(state, current).paper == nil)

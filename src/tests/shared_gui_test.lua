@@ -99,7 +99,7 @@ function Test.run(context,check)
     check('shared_gui_rotation_arrow_release_sends_clockwise_intent',last('rotate_clockwise'))
     click(rotateX,rotateY);Remote.mousereleased(state,rotateX+40,rotateY,1)
     check('shared_gui_rotation_swipe_sends_counterclockwise_intent',last('rotate_counterclockwise'))
-    cutter.paper=nil; cutter.loaded=false; cutter.step="idle"; cutter.candidates={}; cutter.genericSheets=1000
+    cutter.paper=nil; cutter.loaded=false; cutter.step="idle"; cutter.candidates={}
     enter("cutter",cutter)
     Remote.keypressed("l",state,send); render("cutter_load_menu",nil,true)
     Remote.sharedMachine.screen.loadMenu=nil

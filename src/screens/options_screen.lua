@@ -839,6 +839,18 @@ function OptionsScreen.mousepressed(x, y, button)
         elseif action=="older" then
             OptionsScreen.debugOffset=math.min(maximum,OptionsScreen.debugOffset+panel.PAGE_SIZE);return true
         elseif action=="latest" then OptionsScreen.debugOffset=0;return true end
+        if action=="unstick" then
+            local event=panel.unstickEvent(snapshot,OptionsScreen.context.state)
+            if not event then
+                OptionsScreen.message="No active delivery truck is available to unstick."
+                return true
+            end
+            local called,okay,detail=pcall(require("src.commute.delivery_traffic").debugUnstick,
+                OptionsScreen.context.state,event.issueId)
+            OptionsScreen.message=not called and ("Truck unstick failed: "..tostring(okay))
+                or detail or (okay and "Truck route reset." or "Truck could not be unstuck.")
+            return true
+        end
         if x>=110 and x<=850 and y>=321 and y<=565 then
             OptionsScreen.debugDragY=y;OptionsScreen.debugDragRemainder=0;return true
         end

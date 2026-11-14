@@ -186,7 +186,7 @@ function Component.install(Runtime)
             "bladePermille", "barrierClear", "emergencyStopped", "gaugeCentiInch",
             "programIndex", "memoryCentiInch",
         }, {
-            "paper", "candidates", "genericSheets", "serviceStep", "servicePermille",
+            "paper", "candidates", "serviceStep", "servicePermille",
             "serviceView", "serviceTool", "serviceItems", "centralInstalled",
             "gearInspected", "gearLevelPermille", "bladeBoltsDone", "bladeBoltMask",
             "bladeGrade", "orderedBladeGrade", "moneyCents",
@@ -245,14 +245,14 @@ function Component.install(Runtime)
         elseif value.servicePermille ~= nil then
             return nil, label .. ".servicePermille requires an active serviceStep"
         end
-        if value.paper ~= nil and (value.candidates ~= nil or value.genericSheets ~= nil) then
+        if value.paper ~= nil and value.candidates ~= nil then
             return nil, label .. " cannot include load candidates while paper is present"
         end
         if serviceStep and value.paper ~= nil then
             return nil, label .. " cannot service the cutter while paper is present"
         end
         if serviceStep and (value.loaded ~= false or value.step ~= "idle"
-            or value.candidates ~= nil or value.genericSheets ~= nil)
+            or value.candidates ~= nil)
         then
             return nil, label .. " active service requires an idle unloaded cutter without load candidates"
         end
@@ -299,11 +299,6 @@ function Component.install(Runtime)
             normalized.candidates, fieldError = Runtime.normalizeCutterCandidates(
                 value.candidates, label .. ".candidates")
             if not normalized.candidates then return nil, fieldError end
-        end
-        if value.genericSheets ~= nil then
-            normalized.genericSheets, fieldError = Runtime.integerInRange(
-                value.genericSheets, 0, 100000, label .. ".genericSheets")
-            if normalized.genericSheets == nil then return nil, fieldError end
         end
         local serviceFields = {
             "serviceView", "serviceTool", "serviceItems", "centralInstalled",

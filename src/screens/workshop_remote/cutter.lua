@@ -192,7 +192,7 @@ function Component.install(Runtime)
             local candidates = Runtime.cutterCandidates()
             if #candidates == 0 then
                 love.graphics.setColor(0.40, 0.42, 0.43)
-                love.graphics.printf("Park an unfinished pallet beside the cutter, or use generic stock.",
+                love.graphics.printf("Park an unfinished pallet beside the cutter to continue.",
                     122, 260, 318, "center")
             end
             for index, candidate in ipairs(candidates) do
@@ -202,17 +202,19 @@ function Component.install(Runtime)
                 Runtime.button(Runtime.cutterCandidateRect(index), label, pointerX, pointerY,
                     Runtime.cutterButtonEnabled("load_pallet"), true)
             end
-            Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.load_stock,
-                string.format("LOAD STOCK (%d)", math.max(0, math.floor(tonumber(view.genericSheets) or 0))),
-                pointerX, pointerY, Runtime.cutterButtonEnabled("load_stock")
-                    and (tonumber(view.genericSheets) or 0) > 0, true)
             Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.set_barrier,
                 view.barrierClear == true and "BLOCK BARRIER" or "CLEAR BARRIER",
                 pointerX, pointerY, Runtime.cutterButtonEnabled("set_barrier"), false)
             Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.reset_safety, "RESET SAFETY",
                 pointerX, pointerY, Runtime.cutterButtonEnabled("reset_safety"), true)
-            Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.run_next_lift, "RUN NEXT LIFT",
+            local parkedCompleteLift = view.step == "repeat_ready" and view.paper
+                and (tonumber(view.paper.remainingSheets) or 0) > 0
+            Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.run_next_lift,
+                "RUN NEXT LIFT",
                 pointerX, pointerY, Runtime.cutterButtonEnabled("run_next_lift"), true)
+            Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.return_to_pallet,
+                parkedCompleteLift and "UNLOAD JOB [U]" or "RETURN TO PALLET [U]",
+                pointerX, pointerY, Runtime.cutterButtonEnabled("return_to_pallet"), true)
             Runtime.button(Runtime.CUTTER_UNLOADED_CONTROLS.emergency_stop, "E-STOP",
                 pointerX, pointerY, Runtime.cutterButtonEnabled("emergency_stop"), false)
             Runtime.button(Runtime.CUTTER_SERVICE_NAV, "SERVICE", pointerX, pointerY,
@@ -261,7 +263,11 @@ function Component.install(Runtime)
             Runtime.cutterButtonEnabled("reset_safety"), true)
         Runtime.button(Runtime.CUTTER_CONTROLS.emergency_stop, "E-STOP [X]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("emergency_stop"), false)
-        Runtime.button(Runtime.CUTTER_CONTROLS.return_to_pallet, "RETURN TO PALLET [U]", pointerX, pointerY,
+        local unloadingToOutput = view.paper and (view.paper.status ~= "complete"
+            or (view.step == "unloading_partial" and (tonumber(view.paper.remainingSheets) or 0) > 0))
+        local unloadLabel = unloadingToOutput
+            and "UNLOAD PARTIAL [U]" or "RETURN TO PALLET [U]"
+        Runtime.button(Runtime.CUTTER_CONTROLS.return_to_pallet, unloadLabel, pointerX, pointerY,
             Runtime.cutterButtonEnabled("return_to_pallet"), true)
         Runtime.button(Runtime.CUTTER_CONTROLS.run_next_lift, "RUN NEXT LIFT [T]", pointerX, pointerY,
             Runtime.cutterButtonEnabled("run_next_lift"), true)

@@ -86,13 +86,6 @@ local function playerAtShop(context)
     return false
 end
 
-local function employeeAtShop(state)
-    for _,worker in ipairs(state.employment and state.employment.staff or {}) do
-        if worker.status=="employed" and worker.visible and worker.clockedIn
-            and (worker.sceneId or "warehouse")=="warehouse" then return worker end
-    end
-end
-
 local function reputationPenalty(state)
     local reputation=require("src.reputation").ensure(state)
     reputation.score=math.max(-100,reputation.score-2)
@@ -139,6 +132,18 @@ function Driver.sign(state,player,signature)
     end
     direction(actor,-dx,-dy)
     return acceptSignature(state,value,player.name or player.displayName or 'You',signature and signature.ink)
+end
+
+function Driver.signByEmployee(state,worker,deliveryId)
+    local value=matching(state,deliveryId)
+    local actor=actorFor(state)
+    if not value or value.status~="waiting" or not actor then return false end
+    if type(worker)~="table" or worker.status~="employed" or not worker.visible
+        or (worker.sceneId or "warehouse")~="warehouse" then return false end
+    local dx,dy=(tonumber(worker.x) or 0)-actor.x,(tonumber(worker.y) or 0)-actor.y
+    if dx*dx+dy*dy>(Driver.SIGNATURE_RADIUS+30)^2 then return false end
+    direction(actor,dx,dy)
+    return acceptSignature(state,value,worker.name or "Employee")
 end
 
 function Driver.interaction(state)
@@ -334,15 +339,24 @@ function Driver.update(state,dt,context)
         actor.visible=false;actor.moving=false;actor.phase="gone"
         value.driverReturned=true;changed=true
     end
+    local employeeSigning=false
     if value.status=="waiting" and not playerAtShop(context) then
-        local worker=employeeAtShop(state)
-        if worker then changed=acceptSignature(state,value,worker.name or "Employee") or changed end
+        for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+            if AI.requestDeliverySignature(state,worker,value.deliveryId,
+                require("src.business_calendar").absoluteHours(state)) then
+                changed=true
+                break
+            end
+        end
     end
+    employeeSigning=AI.deliverySignatureActive(state,value.deliveryId)
     if value.status=="approaching" or value.status=="waiting" then
-        local previous=math.floor(value.waitSeconds or 0)
-        value.waitSeconds=math.min(Driver.WAIT_SECONDS,(value.waitSeconds or 0)+dt)
-        if math.floor(value.waitSeconds)~=previous then changed=true end
-        if value.waitSeconds>=Driver.WAIT_SECONDS then changed=missed(state,value,actor) or changed end
+        if not employeeSigning then
+            local previous=math.floor(value.waitSeconds or 0)
+            value.waitSeconds=math.min(Driver.WAIT_SECONDS,(value.waitSeconds or 0)+dt)
+            if math.floor(value.waitSeconds)~=previous then changed=true end
+            if value.waitSeconds>=Driver.WAIT_SECONDS then changed=missed(state,value,actor) or changed end
+        end
     end
     return changed
 end
@@ -373,7 +387,7 @@ function Driver.departIfReady(state,truck)
     if not value or (value.status~="signed" and value.status~="missed") or not value.driverReturned then return false end
     local canDepart=value.status=="missed" or received(state,value)
     if not canDepart then return false end
-    if truck.state=="cargo_open" then return truck:toggleCargoDoor() end
+    if truck.state=="cargo_open" then return false end
     if truck.state=="parked_closed" then return truck:depart() end
     return false
 end

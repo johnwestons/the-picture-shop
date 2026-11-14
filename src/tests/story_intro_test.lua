@@ -5,6 +5,7 @@ function Test.run(context,check)
     local Opening=require('src.story_opening')
     local Commute=require('src.commute.runtime')
     local Trip=require('src.commute.trip')
+    local Sites=require('src.commute.sites')
     local Condition=require('src.warehouse_condition')
     local quick=assert(R.Save.newGame(2,{startMode='quick',townSeed=712345}))
     check('story_intro_quick_start_keeps_shop_open',Condition.openForBusiness(quick.state)
@@ -115,9 +116,18 @@ function Test.run(context,check)
     local part=assert(Commute.localPart(R))
     local farm=assert(Commute.world(R).sites.byId.farm)
     local bx,bz=farm:toWorld(0,25,0)
+    local porchX,porchZ=farm:toWorld(Sites.farmStory.barnDoor.x,Sites.farmStory.barnDoor.z,0)
+    local ped=part.rider.ped
     check('story_intro_arrives_on_foot_at_farm_with_bike',R.World.player.sceneId=='barn'
         and not part.rider.gear.mounted and math.abs(part.rider.bike.x-bx)<.01
-        and math.abs(part.rider.bike.z-bz)<.01 and Trip.valid(R.state.home.commute,R.state.home))
+        and math.abs(part.rider.bike.z-bz)<.01 and Trip.valid(R.state.home.commute,R.state.home),
+        ('scene=%s interior=%s mounted=%s bike=(%.2f,%.2f) expected=(%.2f,%.2f) '
+            ..'ped=(%.2f,%.2f) porch=(%.2f,%.2f) walkIndex=%s/%s trip=%s message=%s'):
+            format(tostring(R.World.player.sceneId),tostring(part.interior),
+                tostring(part.rider.gear.mounted),part.rider.bike.x,part.rider.bike.z,bx,bz,
+                ped.x,ped.z,porchX,porchZ,tostring(arrival and arrival.walkIndex),
+                tostring(arrival and #arrival.plan.walk),
+                tostring(Trip.valid(R.state.home.commute,R.state.home)),tostring(R.state.message)))
     check('story_arrival_walk_opens_grandpa_dialogue',part.interior=='barn'
         and not Intro.dialogueOpen(R))
     check('story_arrival_restores_gameplay_camera',R.World.player.x==part.interiorPose.x

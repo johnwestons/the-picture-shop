@@ -5,7 +5,7 @@ local Presentation=require("src.screens.cutter_presentation")
 local Motion=require("src.screens.cutter_motion")
 local Test={}
 
-function Test.run(_,check)
+function Test.run(context,check)
     local home, previous = Motion.bladeDepthPose(0), Motion.bladeDepthPose(0)
     for _, depth in ipairs({0.25,0.5,0.75,1}) do
         local pose = Motion.bladeDepthPose(depth)
@@ -30,6 +30,13 @@ function Test.run(_,check)
     check("cutter_clamp_moves_within_a_former_single_atlas_step",
         firstClamp==1 and nextClamp==1 and nextClampOffset>firstClampOffset)
     local state=State.new()
+    local job=assert(context.jobs.createOffer({
+        id="JOB-ANIMATION-MOTION",company="Cutter Motion Test Co.",
+        sourceSize={width=20,height=16},finishedSize={width=10,height=8},sheetCounts={500},
+    }))
+    assert(context.jobs.accept(job))
+    state.jobs.active[1]=job
+    local pallet=job.pallets[1]
     local machine=Machine.forId("MCH-ANIMATION-MOTION")
     local runtime={Screen={},drawPaper=function()end}
     Render.install(runtime)
@@ -40,8 +47,8 @@ function Test.run(_,check)
       for _,cyclePhase in ipairs({.3,.7}) do
         local case=stop..(cyclePhase>.5 and "_returning" or "")
         machine.reset(state)
-        machine.paper=require("src.paper_work").createStockPaper()
-        machine.legacyPaper,machine.loaded=true,true
+        machine.paper=pallet.paper;machine.pallet=pallet;machine.job=job
+        machine.loaded=true
         machine.step="cutting"
         machine.update(machine.cycleTime*cyclePhase,state)
         local depth=machine.bladeProgress

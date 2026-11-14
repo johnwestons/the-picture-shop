@@ -137,9 +137,6 @@ function Component.install(Runtime)
                     local candidates = Runtime.cutterCandidates()
                     if #candidates == 1 and Runtime.cutterButtonEnabled("load_pallet") then
                         return Runtime.request(sendCommand, "load_pallet", { palletId = candidates[1].palletId })
-                    elseif #candidates == 0 and (tonumber(view.genericSheets) or 0) > 0
-                        and Runtime.cutterButtonEnabled("load_stock") then
-                        return Runtime.request(sendCommand, "load_stock", {})
                     end
                     Runtime.Screen.status = "Choose the matching nearby pallet on screen."
                     return true

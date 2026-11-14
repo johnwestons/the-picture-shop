@@ -1,4 +1,3 @@
-local PaperWork = require("src.paper_work")
 local CutterMotion = require("src.screens.cutter_motion")
 
 local Presentation = {}
@@ -65,7 +64,6 @@ function Presentation:update(dt)
 end
 
 local function findPaper(state, id)
-    if id == "STOCK-P01" then return PaperWork.createStockPaper() end
     for _, job in ipairs(state and state.jobs and state.jobs.active or {}) do
         for _, pallet in ipairs(job.pallets or {}) do
             if pallet.id == id then return pallet.paper end

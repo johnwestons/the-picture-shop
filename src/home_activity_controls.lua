@@ -166,6 +166,18 @@ local function closeAppliance(R)
     Controls.appliance=nil
     R.state.screen="world"
 end
+function Controls.openBikeCargo(R)
+    if not R or not R.state then return false end
+    Controls.target="bikeCargo"
+    Controls.mode="routines"
+    Controls.page=1
+    Controls.appliance="bike"
+    Controls.appliancePage=1
+    Controls.applianceHint=nil
+    Controls.applianceOpenedAt=applianceNow()
+    R.state.screen="home_activity"
+    return true
+end
 function Controls.visibleRows(R)
     return visibleRows(R.state,Controls.localPlayer(R))
 end
@@ -181,7 +193,10 @@ function Controls.keypressed(key,R)
             if key=="backspace" then send(R,"cancel");return true end
             local visible=visibleApplianceRows(R)
             local row=visible[tonumber(key) or (key=="return" and 1 or 0)]
-            if row then send(R,row.command) end
+            if row and row.command then send(R,row.command)
+            elseif row and Controls.appliance=="bike" then
+                R.state.message="Return to your apartment to unload bike cargo into home storage."
+            end
             return true
         end
         if key=="escape" or key=="h" then R.state.screen="world";return true end
@@ -214,6 +229,7 @@ function Controls.keypressed(key,R)
             if command then Controls.appliance=nil;send(R,command);return true end
         end
         Controls.appliance=HomeInteractions.appliance(item and item.kind,not item and Controls.target or nil)
+        if Controls.appliance=="bike" then return Controls.openBikeCargo(R) end
         Controls.appliancePage=1;Controls.applianceHint=nil
         Controls.applianceOpenedAt=applianceNow()
         Controls.mode=item and item.kind=="clock" and "sleep" or "routines"
@@ -256,7 +272,13 @@ function Controls.mousepressed(x,y,button,R)
         for i,row in ipairs(visible) do
             local top=Controls.appliance=="fridge" and 264 or Controls.appliance=="bike" and 224 or 382
             top=top+(i-1)*(Controls.appliance=="bike" and 56 or 48)
-            if x>=480 and x<=820 and y>=top and y<=top+42 then send(R,row.command);return true end
+            if x>=480 and x<=820 and y>=top and y<=top+42 then
+                if row.command then send(R,row.command)
+                elseif Controls.appliance=="bike" then
+                    R.state.message="Return to your apartment to unload bike cargo into home storage."
+                end
+                return true
+            end
         end
         return true
     end
@@ -351,16 +373,50 @@ end
 local function drawApplianceRows(R)
     local visible,pages,all=visibleApplianceRows(R)
     local Food=require("src.home_food_catalog")
+    local bikeCargo=Controls.appliance=="bike"
+    local groceryArt=bikeCargo and require("src.commute.grocery_ui_art")
     for i,row in ipairs(visible) do
         local y=Controls.appliance=="fridge" and 264 or Controls.appliance=="bike" and 224 or 382
         y=y+(i-1)*(Controls.appliance=="bike" and 56 or 48)
-        love.graphics.setColor(.12,.29,.32,1);love.graphics.rectangle("fill",480,y,340,42,5)
-        local food=row.command:match("^object:[a-z]+:%d+:%d+:([a-z_]+)$")
-        local definition=food and Food.ITEMS[food]
-        if definition then require("src.home_food_art").draw(definition.sprite,502,y+21,27) end
-        love.graphics.setFont(applianceSmall)
-        love.graphics.setColor(.96,.96,.88,1)
-        love.graphics.printf(row.label,522,y+5,288,"left")
+        local enabled=row.command~=nil
+        if bikeCargo then
+            if enabled then love.graphics.setColor(.075,.145,.14,1)
+            else love.graphics.setColor(.045,.073,.08,1) end
+        elseif enabled then love.graphics.setColor(.12,.29,.32,1)
+        else love.graphics.setColor(.075,.13,.15,1) end
+        love.graphics.rectangle("fill",480,y,340,42,5)
+        if bikeCargo then
+            love.graphics.setColor(enabled and .62 or .20,enabled and .70 or .31,enabled and .48 or .34,1)
+            love.graphics.rectangle("fill",480,y+5,3,32,1,1)
+            love.graphics.setColor(.12,.18,.18,1);love.graphics.rectangle("fill",488,y+4,38,34,4,4)
+            local productId=row.productId or row.command and row.command:match("^bike:([a-z_]+):%d+$")
+            if productId and productId~="all" then groceryArt.drawProduct(productId,507,y+21,31)
+            elseif productId=="all" then
+                love.graphics.setColor(.72,.61,.39,1);love.graphics.rectangle("fill",496,y+12,14,16,2,2)
+                love.graphics.rectangle("fill",505,y+8,14,20,2,2)
+                love.graphics.setColor(.20,.27,.24,1);love.graphics.rectangle("line",496,y+12,14,16,2,2)
+                love.graphics.rectangle("line",505,y+8,14,20,2,2)
+            end
+            local parsedQuantity,label=row.label:match("^(%d+) × (.+)$")
+            local quantity=row.quantity or parsedQuantity
+            love.graphics.setFont(require("src.screens.title_fonts").get("metal",12))
+            love.graphics.setColor(enabled and .95 or .61,enabled and .93 or .68,enabled and .82 or .68,1)
+            love.graphics.printf(productId=="all" and "UNLOAD ALL CARGO" or row.name or label or row.label,536,y+13,218,"left")
+            if quantity then
+                love.graphics.setColor(.12,.24,.21,1);love.graphics.rectangle("fill",770,y+8,40,26,4,4)
+                love.graphics.setColor(.96,.84,.55,1)
+                love.graphics.setFont(require("src.screens.title_fonts").get("metal",10))
+                love.graphics.printf("× "..quantity,770,y+14,40,"center")
+            end
+        else
+            local food=row.command and row.command:match("^object:[a-z]+:%d+:%d+:([a-z_]+)$")
+            local definition=food and Food.ITEMS[food]
+            if definition then require("src.home_food_art").draw(definition.sprite,502,y+21,27) end
+            love.graphics.setFont(applianceSmall)
+            if enabled then love.graphics.setColor(.96,.96,.88,1)
+            else love.graphics.setColor(.65,.72,.72,1) end
+            love.graphics.printf(row.label,522,y+5,288,"left")
+        end
     end
     if pages>1 then
         love.graphics.setColor(.13,.32,.35,1)
@@ -543,48 +599,140 @@ local function drawLaundry(R)
     love.graphics.printf("Tap the washer action or use [1].",140,603,680,"center")
     love.graphics.pop()
 end
+local function drawCargoMotorcycle(GroceryUiArt)
+    local g=love.graphics
+    g.setColor(.045,.082,.087,1);g.circle("fill",289,323,102)
+    g.setColor(.15,.26,.25,1);g.circle("line",289,323,95)
+    g.setColor(.11,.17,.17,1);g.setLineWidth(2);g.line(151,411,427,411)
+
+    local function wheel(x,y)
+        g.setColor(.015,.025,.029,1);g.circle("fill",x,y,39)
+        g.setColor(.29,.38,.37,1);g.setLineWidth(3);g.circle("line",x,y,34)
+        g.setColor(.58,.67,.62,1);g.setLineWidth(2);g.circle("line",x,y,27)
+        for i=0,7 do
+            local a=i*math.pi/4
+            g.line(x+math.cos(a)*5,y+math.sin(a)*5,x+math.cos(a)*25,y+math.sin(a)*25)
+        end
+        g.setColor(.77,.79,.69,1);g.circle("fill",x,y,5)
+        g.setColor(.18,.27,.28,1);g.circle("fill",x,y,2)
+    end
+    wheel(207,359);wheel(365,359)
+
+    g.setColor(.43,.57,.53,1);g.setLineWidth(7)
+    g.line(207,359,251,309,300,344,207,359)
+    g.line(251,309,277,309,300,344)
+    g.line(300,344,341,298,365,359)
+    g.line(329,291,354,355)
+    g.setColor(.73,.78,.66,1);g.setLineWidth(3)
+    g.line(343,291,366,272,381,273)
+    g.line(364,272,370,264)
+
+    g.setColor(.07,.12,.13,1);g.ellipse("fill",281,317,23,25)
+    g.setColor(.45,.56,.50,1);g.setLineWidth(2);g.ellipse("line",281,317,23,25)
+    g.setColor(.30,.42,.39,1);g.rectangle("fill",270,338,45,8,3,3)
+    g.setColor(.76,.78,.66,1);g.setLineWidth(5);g.line(278,344,235,345)
+    g.setColor(.13,.20,.20,1);g.line(239,345,227,345)
+
+    g.setColor(.09,.13,.13,1);g.setLineWidth(8);g.line(241,285,277,284)
+    g.setColor(.79,.69,.46,1);g.setLineWidth(2);g.line(246,279,275,279)
+    g.setColor(.32,.47,.43,1)
+    g.polygon("fill",268,292,294,279,322,285,339,299,329,313,293,317,271,308)
+    g.setColor(.83,.71,.44,1);g.setLineWidth(2)
+    g.line(268,292,294,279,322,285,339,299)
+    g.setColor(.10,.17,.17,1);g.setLineWidth(3);g.line(281,309,318,309)
+    g.setColor(.75,.80,.70,1);g.circle("fill",346,298,6)
+    g.setColor(.96,.77,.40,1);g.circle("fill",346,298,3)
+
+    -- A pannier is the visual anchor for this screen; the grocery emblem ties
+    -- it to the same hand-painted product art used at town checkout.
+    g.setColor(.04,.07,.07,1);g.rectangle("fill",194,290,54,62,6,6)
+    g.setColor(.62,.47,.27,1);g.rectangle("fill",198,286,48,60,5,5)
+    g.setColor(.86,.70,.43,1);g.rectangle("line",198,286,48,60,5,5)
+    g.setColor(.74,.56,.32,1);g.rectangle("fill",202,291,40,11,3,3)
+    g.setColor(.34,.26,.17,1);g.rectangle("fill",218,301,8,41,2,2)
+    g.setColor(.91,.77,.51,1);g.rectangle("fill",216,309,12,9,2,2)
+    GroceryUiArt.drawEmblem(222,329,26)
+    g.setColor(1,1,1,1);g.setLineWidth(1)
+end
+
 local function drawBikeCargo(R)
-    font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
-    applianceSmall=applianceSmall or love.graphics.newFont(13)
+    local titleFonts=require("src.screens.title_fonts")
+    local groceryArt=require("src.commute.grocery_ui_art")
     local player=Controls.localPlayer(R);local resident=Residents.get(R.state,player)
     local inventory=resident and BikeCargo.ensure(resident) or BikeCargo.new()
     local used=BikeCargo.used(inventory)
-    love.graphics.push("all")
-    love.graphics.setColor(.025,.045,.06,.98);love.graphics.rectangle("fill",110,82,740,558,8)
-    love.graphics.setColor(.30,.52,.58,1);love.graphics.rectangle("line",110,82,740,558,8)
-    love.graphics.setFont(font);love.graphics.setColor(.96,.92,.79,1)
-    love.graphics.print("BIKE CARGO / APARTMENT PARKING",140,110)
-    love.graphics.setColor(.17,.28,.33,1);love.graphics.rectangle("fill",748,95,102,50,5)
-    love.graphics.setFont(small);love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("BACK [Esc]",748,111,102,"center")
-    love.graphics.setColor(.035,.065,.075,1);love.graphics.rectangle("fill",126,153,326,392,8)
-    love.graphics.setColor(.24,.39,.43,1);love.graphics.rectangle("line",126,153,326,392,8)
-    love.graphics.setColor(.78,.86,.87,1);love.graphics.setFont(small)
-    love.graphics.printf("Your bike is parked in an apartment space outside. Groceries stay on the bike until you unload them here.",148,178,282,"center")
-    love.graphics.setColor(.12,.20,.23,1);love.graphics.circle("fill",215,325,50);love.graphics.circle("fill",362,325,50)
-    love.graphics.setColor(.68,.76,.71,1);love.graphics.setLineWidth(7)
-    love.graphics.circle("line",215,325,43);love.graphics.circle("line",362,325,43)
-    love.graphics.setLineWidth(5);love.graphics.line(215,325,263,270,310,325,215,325,280,325,362,325,310,325)
-    love.graphics.line(263,270,310,265,325,276);love.graphics.line(272,260,292,260)
-    love.graphics.setLineWidth(1)
-    love.graphics.setColor(.96,.84,.52,1);love.graphics.rectangle("fill",278,284,54,37,4)
-    love.graphics.setColor(.18,.29,.27,1);love.graphics.rectangle("line",278,284,54,37,4)
-    love.graphics.setColor(.96,.92,.79,1);love.graphics.setFont(font)
-    love.graphics.printf(("CARGO  %d / %d BAGS"):format(used,BikeCargo.CAPACITY),148,408,282,"center")
-    love.graphics.setFont(small);love.graphics.setColor(.76,.86,.86,1)
-    love.graphics.printf("Choose a bag to unload it into shared home storage. You can also unload everything at once.",148,443,282,"center")
-    love.graphics.setColor(.96,.92,.79,1);love.graphics.setFont(font);love.graphics.print("BIKE INVENTORY",480,164)
+    local atApartment=player.sceneId=="home" and resident and resident.bikeParkedAtHome==true
+        and require("src.weekend_flow").atHome(R.state)
+    local g=love.graphics
+    g.push("all")
+    g.setColor(.006,.012,.017,.68);g.rectangle("fill",0,0,960,678)
+    g.setColor(.012,.025,.032,1);g.rectangle("fill",110,82,740,558,8,8)
+    g.setColor(.30,.52,.58,1);g.setLineWidth(2);g.rectangle("line",110,82,740,558,8,8)
+    g.setColor(.78,.61,.34,1);g.rectangle("fill",126,153,708,2)
+    g.setColor(.026,.047,.052,1);g.rectangle("fill",126,96,708,56,5,5)
+    groceryArt.drawEmblem(151,124,42)
+    g.setColor(.97,.91,.74,1);g.setFont(titleFonts.get("metal",20))
+    g.print("BIKE CARGO",180,99)
+    g.setColor(.66,.79,.74,1);g.setFont(titleFonts.get("metal",10))
+    g.print("MOTORCYCLE PANNIER / HOUSEHOLD INVENTORY",181,126)
+
+    g.setColor(.08,.15,.15,1);g.rectangle("fill",620,101,116,42,4,4)
+    g.setColor(.64,.78,.67,1);g.setFont(titleFonts.get("metal",8))
+    g.printf("BAG CAPACITY",625,105,106,"center")
+    g.setColor(.98,.84,.51,1);g.setFont(titleFonts.get("metal",16))
+    g.printf(("%02d / %02d"):format(used,BikeCargo.CAPACITY),625,117,106,"center")
+    g.setColor(.17,.28,.33,1);g.rectangle("fill",748,95,102,50,5,5)
+    g.setColor(.96,.96,.88,1);g.setFont(titleFonts.get("metal",10))
+    g.printf("BACK  [Esc]",748,113,102,"center")
+
+    g.setColor(.028,.050,.058,1);g.rectangle("fill",126,166,326,378,7,7)
+    g.setColor(.20,.34,.37,1);g.setLineWidth(1);g.rectangle("line",126,166,326,378,7,7)
+    g.setColor(.90,.79,.54,1);g.setFont(titleFonts.get("metal",10))
+    g.print("REAR RACK / PANNIER",145,178)
+    g.setColor(.17,.28,.29,1);g.rectangle("fill",145,198,288,1)
+    drawCargoMotorcycle(groceryArt)
+    g.setColor(.97,.91,.75,1);g.setFont(titleFonts.get("metal",13))
+    g.printf("12-BAG MOTORCYCLE STORAGE",145,431,288,"center")
+    g.setColor(.66,.78,.73,1);g.setFont(titleFonts.get("metal",9))
+    g.printf(atApartment and "PARKED AT HOME  /  UNLOADING ENABLED"
+        or "PURCHASES FROM GROCERY CHECKOUT",145,454,288,"center")
+    g.setColor(.10,.18,.18,1);g.rectangle("fill",151,480,276,38,4,4)
+    g.setColor(.96,.83,.51,1);g.setFont(titleFonts.get("metal",9))
+    g.printf(atApartment and "SELECT A BAG TO MOVE IT TO HOME STORAGE"
+        or "RETURN HOME TO UNLOAD INTO SHARED STORAGE",160,493,258,"center")
+
+    g.setColor(.96,.91,.76,1);g.setFont(titleFonts.get("metal",14))
+    g.print("CARGO MANIFEST",480,169)
+    g.setColor(atApartment and .56 or .74,atApartment and .86 or .71,atApartment and .67 or .50,1)
+    g.setFont(titleFonts.get("metal",9))
+    g.printf(atApartment and "APARTMENT / UNLOAD" or "VIEW ONLY / STORED ON BIKE",635,173,185,"right")
+    g.setColor(.57,.70,.66,1);g.setFont(titleFonts.get("metal",8))
+    g.print("OCCUPIED BAG SLOTS",480,195)
+    for slot=1,BikeCargo.CAPACITY do
+        local x=480+(slot-1)*28
+        g.setColor(slot<=used and .78 or .12,slot<=used and .62 or .19,slot<=used and .34 or .20,1)
+        g.rectangle("fill",x,207,24,7,2,2)
+        g.setColor(.23,.35,.34,1);g.rectangle("line",x,207,24,7,2,2)
+    end
     local visible,pages,all=drawApplianceRows(R)
     if #all==0 then
-        love.graphics.setFont(small);love.graphics.setColor(.78,.86,.87,1)
-        love.graphics.printf("No groceries on the bike. Pick up food at a town counter to load its cargo.",480,230,340,"center")
+        groceryArt.drawEmblem(650,320,72)
+        g.setColor(.90,.88,.75,1);g.setFont(titleFonts.get("metal",12))
+        g.printf("NO BAGS ON THE BIKE",495,373,310,"center")
+        g.setColor(.65,.77,.72,1);g.setFont(titleFonts.get("metal",9))
+        g.printf("GROCERY AND TAKEOUT PURCHASES WILL SHOW HERE",495,395,310,"center")
     end
     if R.state.message and R.state.message~="" then
-        love.graphics.setFont(applianceSmall);love.graphics.setColor(.97,.79,.43,1)
-        love.graphics.printf(R.state.message,480,559,340,"left")
+        g.setFont(titleFonts.get("metal",9));g.setColor(.97,.79,.43,1)
+        g.printf(R.state.message,480,559,340,"left")
     end
-    love.graphics.setFont(applianceSmall);love.graphics.setColor(.73,.81,.82,1)
-    love.graphics.printf("Tap a bag or use [1]–[5]. Left/right changes pages. [Esc] closes.",140,603,680,"center")
-    love.graphics.pop()
+    g.setColor(.18,.29,.31,1);g.rectangle("fill",126,581,708,1)
+    g.setColor(.72,.82,.77,1);g.setFont(titleFonts.get("metal",9))
+    g.printf(atApartment
+        and "TAP A BAG OR USE [1]–[5] TO UNLOAD  ·  LEFT/RIGHT CHANGES PAGES  ·  [ESC] CLOSES"
+        or "VIEW YOUR BAGS HERE  ·  UNLOAD AT YOUR APARTMENT  ·  [ESC] CLOSES",
+        140,600,680,"center")
+    g.pop()
 end
 function Controls.draw(R)
     if Controls.appliance=="laundry" then drawLaundry(R);return end

@@ -93,7 +93,9 @@ function Component.install(R)
             add('position','PUSH / PULL STOCK',onMachine(238,238,293,63),nil,'p')
             add('clamp','CLAMP',onMachine(338,462,91,43),nil,'space')
             add('rotate','ROTATE',onMachine(280,337,208,62),nil,'q')
-            add('unload','TO PALLET',rect(24,568,140,40),nil,'u')
+            local canPausePallet=M.step=='repeat_ready' and M.pallet and (tonumber(M.pallet.remainingSheets) or 0)>0
+            local unloadLabel=M.paper and (M.paper.status~='complete' or canPausePallet) and 'UNLOAD' or 'TO PALLET'
+            add('unload',unloadLabel,rect(24,568,140,40),nil,'u')
             add('repeat','NEXT LIFT',rect(796,568,140,40),nil,'t')
         end
     end

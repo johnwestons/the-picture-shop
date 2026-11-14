@@ -644,6 +644,7 @@ function Trip.update(state,player,input,dt,world)
                 if not Truck.blocked(world,x,z,heading,truck) then returnX,returnZ=x,z;break end
             end
             if not returnX then state.message='Waiting for a clear lane on the return bridge.';return false end
+            local firstCityStopIndex=run.stopIndex
             local delivered=0
             local receivingClosed=false
             while run.stops[run.stopIndex] and run.stops[run.stopIndex].kind=='city' do
@@ -657,6 +658,14 @@ function Trip.update(state,player,input,dt,world)
                 delivered=delivered+stop.palletCount
                 run.stopIndex=run.stopIndex+1
             end
+            local lastCityStopIndex=math.max(firstCityStopIndex,run.stopIndex-1)
+            local cityRouteMeters=require('src.commute.delivery_run').cityRouteMiles(
+                run,firstCityStopIndex,lastCityStopIndex)*1609.344
+            Truck.accountRouteDistance(truck,cityRouteMeters)
+            TruckService.syncFleet(state.home,Trip.trucks(t))
+            local companyTruck=require('src.company_delivery_driver').ensure(state)
+            require('src.company_delivery_driver').syncFromVehicle(companyTruck,truck)
+            for _,parked in ipairs(Trip.trucks(t)) do parked.fuel=truck.fuel end
             run.status='driving'
             run.cutsceneStartedAtEpoch=nil;run.cutsceneEndsAtEpoch=nil
             if not truck.driver then

@@ -45,6 +45,7 @@ end
 local motion=require("src.worker_catalog").motion
 local speeds=setmetatable({},{__mode="k"})
 local taskWatchKeys=setmetatable({},{__mode='k'})
+local deliverySignatureTasks=setmetatable({},{__mode='k'})
 local function taskWatchKey(w)
     local key=taskWatchKeys[w]
     if not key then key={};taskWatchKeys[w]=key end
@@ -194,6 +195,144 @@ local function beginBreak(state,w,b,context)
     w.activity=seat and "Walking to breakroom" or "Resting beside workstation"
     return true
 end
+
+local function eligibleForDeliverySignature(state,w,now)
+    if type(w)~="table" or w.status~="employed" or not w.visible or not w.clockedIn
+        or (w.sceneId or "warehouse")~="warehouse" or w.phase~="idle" or w.moving
+        or w.assignment or w.training or w.breakKind or w.seatBay or w.carryingPalletId
+        or w.stopRequested or w.terminationRequested or w.awayForDelivery
+        or w._shippingActive or w._shippingPalletId or w._inboundDeliveryPalletId
+        or w._jackTarget or w._trainingMachineId
+        or EmployeeHighFive.get(w.id)
+        or (w.greetingUntilHours and now<w.greetingUntilHours)
+        or not Contracts.onShift(w.contract,now)
+        or not require("src.weekend_flow").acceptsNewWork(state)
+        or breakChoice(w,now) then return false end
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and (companyTruck.pendingDriverEmployeeId==w.id
+        or companyTruck.driverEmployeeId==w.id and companyTruck.departureStage) then return false end
+    if Payroll.balance(w,now,false)>0 then return false end
+    if w.carryingPalletId or not Work.safe(w,state) then return false end
+    for _,jack in ipairs(require("src.pallet_jack_fleet").all(state)) do
+        if jack.operatorEmployeeId==w.id and (jack.carriedPalletId or jack.operating) then return false end
+    end
+    return true
+end
+
+function AI.requestDeliverySignature(state,w,deliveryId,now)
+    if deliverySignatureTasks[w] or not eligibleForDeliverySignature(state,w,now) then return false end
+    deliverySignatureTasks[w]={deliveryId=tostring(deliveryId),phase="walking",
+        origin={x=w.x,y=w.y},elapsed=0,routeSeconds=0}
+    w.phase="walking";w.moving=false
+    w.activity="Walking to sign for an incoming delivery"
+    return true
+end
+
+function AI.deliverySignatureActive(state,deliveryId)
+    for worker,task in pairs(deliverySignatureTasks) do
+        if task.deliveryId==tostring(deliveryId) and worker.visible
+            and worker.status=="employed" then return true end
+    end
+    return false
+end
+
+local function cancelDeliverySignature(worker,task)
+    if task.phase~="returning" then
+        task.phase="returning";task.routeSeconds=0
+        worker.moving=false;worker.phase="walking"
+        worker.activity="Returning to work"
+    else
+        deliverySignatureTasks[worker]=nil
+        worker.moving=false;worker.phase="idle"
+        worker.activity="Delivery signature delayed; returning to work"
+    end
+end
+
+local function updateDeliverySignature(state,w,dt,context)
+    local task=deliverySignatureTasks[w]
+    if not task then return false,false end
+    local visit=require("src.warehouse_delivery_driver").visit(state)
+    if not visit or tostring(visit.deliveryId)~=task.deliveryId then
+        cancelDeliverySignature(w,task)
+        return task.phase=="returning",true
+    end
+    if task.phase~="returning" and visit.status~="waiting" then
+        cancelDeliverySignature(w,task)
+        return true,true
+    end
+    local companyTruck=state.employment and state.employment.companyTruck
+    if companyTruck and companyTruck.pendingDriverEmployeeId==w.id then
+        cancelDeliverySignature(w,task)
+        return true,true
+    end
+    local movementContext=context.forActor and context.forActor(w) or context
+    if task.phase=="walking" then
+        local driver=require("src.warehouse_delivery_driver").presentation(state)
+        if not driver or driver.visible==false then
+            cancelDeliverySignature(w,task)
+            return true,true
+        end
+        if not task.target then
+            local goals={
+                {x=driver.x+30,y=driver.y+8},{x=driver.x-30,y=driver.y+8},
+                {x=driver.x+24,y=driver.y+24},{x=driver.x-24,y=driver.y+24},
+            }
+            task.target=AI.findReachablePoint(w,goals,movementContext)
+                or {x=driver.x+30,y=driver.y+8}
+        end
+        local reached,blocked=AI.move(w,task.target,dt,movementContext)
+        task.routeSeconds=task.routeSeconds+dt
+        w.phase="walking"
+        w.activity=blocked and "Finding a clear path to the delivery driver"
+            or "Walking to sign for an incoming delivery"
+        if reached then
+            task.phase="talking";task.elapsed=0
+            face(w,driver.x-w.x,driver.y-w.y)
+            w.phase="delivery_talking";w.moving=false;w.idleClock=0
+            w.activity="Speaking with the delivery driver"
+        elseif task.routeSeconds>=18 then
+            cancelDeliverySignature(w,task)
+            return true,true
+        end
+        return false,false
+    elseif task.phase=="talking" then
+        local driver=require("src.warehouse_delivery_driver").presentation(state)
+        if driver then face(w,driver.x-w.x,driver.y-w.y) end
+        w.phase="delivery_talking";w.moving=false;w.idleClock=(w.idleClock or 0)+dt
+        w.activity="Speaking with the delivery driver"
+        task.elapsed=task.elapsed+dt
+        if task.elapsed>=1.05 then
+            task.phase="signing";task.elapsed=0
+            w.phase="delivery_signing";w.idleClock=0
+            w.activity="Signing the delivery receipt"
+        end
+        return false,false
+    elseif task.phase=="signing" then
+        local driver=require("src.warehouse_delivery_driver").presentation(state)
+        if driver then face(w,driver.x-w.x,driver.y-w.y) end
+        w.phase="delivery_signing";w.moving=false;w.idleClock=(w.idleClock or 0)+dt
+        w.activity="Signing the delivery receipt"
+        task.elapsed=task.elapsed+dt
+        if task.elapsed>=1.65 then
+            task.signed=require("src.warehouse_delivery_driver").signByEmployee(
+                state,w,task.deliveryId)==true
+            task.phase="returning";task.routeSeconds=0
+            w.phase="walking";w.activity="Returning to work"
+            return task.signed,false
+        end
+        return false,false
+    end
+    local reached,blocked=AI.move(w,task.origin,dt,movementContext)
+    task.routeSeconds=task.routeSeconds+dt
+    w.phase="walking";w.activity=blocked and "Finding a clear path back to work" or "Returning to work"
+    if reached or task.routeSeconds>=18 then
+        deliverySignatureTasks[w]=nil
+        w.moving=false;w.phase="idle"
+        w.activity=Schedule.idleActivity(state,w)
+    end
+    return reached or task.routeSeconds>=18,false
+end
+
 local function trainingStep(state,w,dt,hours,context)
     local training=w.training
     if not training then return false end
@@ -275,6 +414,7 @@ function AI.worker(state,w,dt,now,context)
     local companyTruck=state.employment and state.employment.companyTruck
     if companyTruck and companyTruck.driverEmployeeId==w.id
         and companyTruck.departureStage=="warehouse_exit" then
+        deliverySignatureTasks[w]=nil
         if (w.sceneId or "warehouse")~="warehouse" and context.travelScene then
             w.activity="Going on a delivery"
             w.greetingKind=Speech.EMPLOYEE_GOING_ON_DELIVERY
@@ -298,6 +438,11 @@ function AI.worker(state,w,dt,now,context)
     if w.awayForDelivery then
         w.visible=false;w.clockedIn=true;w.phase="hidden";w.sceneId=nil;w.moving=false
         return false
+    end
+    if deliverySignatureTasks[w] then
+        return updateDeliverySignature(state,w,dt,context)
+    elseif w.phase=="delivery_talking" or w.phase=="delivery_signing" then
+        w.phase="idle";w.moving=false
     end
     if w.pendingSchedule and not Contracts.onShift(w.contract,now) then
         local terms=w.pendingSchedule
@@ -436,7 +581,10 @@ function AI.worker(state,w,dt,now,context)
             local pendingDelivery=companyTruck and companyTruck.pendingDriverEmployeeId==w.id
             if not w.assignment and not pendingDelivery then
                 local shipping,changed=require("src.employee_shipping").update(state,w,dt,context)
+                w._shippingActive=shipping==true
                 if shipping then return changed end
+            else
+                w._shippingActive=false
             end
             local scheduleChanged=Schedule.advance(state,w,now,context.canClaim)
             if w.assignment then

@@ -485,7 +485,6 @@ function Test.run(context, check)
         barrierClear = true, emergencyStopped = false,
         gaugeCentiInch = 0, programIndex = 1, memoryCentiInch = {},
         candidates = { { palletId = "JOB-CUT-P01", distancePixels = 22 } },
-        genericSheets = 100,
     }
     WorkshopRemoteScreen.enter({
         resourceId = "cutter", leaseId = "cutter-test", revision = 4, view = cutterView,
@@ -558,7 +557,12 @@ function Test.run(context, check)
         and WorkshopRemoteScreen.workshopTick == 9000
         and WorkshopRemoteScreen.revision == 6
         and WorkshopRemoteScreen.view.runtimeRevision == 6
-        and WorkshopRemoteScreen.view.gaugeCentiInch == 625)
+        and WorkshopRemoteScreen.view.gaugeCentiInch == 625,
+        string.format("idle=%s stale=%s fresh=%s pullback=%s interleaved=%s disabled=%s tick=%s resource=%s runtime=%s gauge=%s",
+            tostring(loadedMergeClearedIdleChoices), tostring(staleResource), tostring(freshSnapshot),
+            tostring(pullbackSent), tostring(interleavedCutterSnapshot), tostring(transitionControlsStayedDisabled),
+            tostring(WorkshopRemoteScreen.workshopTick), tostring(WorkshopRemoteScreen.revision),
+            tostring(WorkshopRemoteScreen.view.runtimeRevision), tostring(WorkshopRemoteScreen.view.gaugeCentiInch)))
     WorkshopRemoteScreen.applyResult({
         resourceId = "cutter", action = "position_paper", accepted = true, revision = 6,
         view = { runtimeRevision = 6, gaugeCentiInch = 625, step = "retracting", loaded = true },

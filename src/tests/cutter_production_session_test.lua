@@ -4,6 +4,7 @@ local Remote = require("src.screens.workshop_remote_screen")
 local Session = require("src.net.session")
 local WorkshopAuthority = require("src.workshop_authority")
 local Harness = require("src.tests.support.network_impairment_harness")
+local Schema = require("src.save_schema")
 
 local Test = {}
 
@@ -14,11 +15,24 @@ end
 
 function Test.run(context, check)
     local state = context.State.new()
-    state.cutterMemory = { ["1"] = { 12.5 }, ["2"] = { 9.5 } }
+    state.cutterMemory = { ["1"] = { 15 }, ["2"] = { 12 } }
+    local job = assert(context.jobs.createOffer({
+        id = "JOB-CUTTER-PRODUCTION-SESSION", company = "Network Cutter Session Co.",
+        sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+        sheetCounts = { 500 },
+    }))
+    assert(context.jobService.acceptOffer(state, job, 100))
+    job.status = "in_production"
+    job.delivery.status = "received"
+    local pallet = job.pallets[1]
+    local inputX, inputY = context.CutterZones.inputAnchor(state, context.config.cutterPlacement)
+    pallet.location = "warehouse"
+    pallet.world = { x = inputX, y = inputY, fromX = inputX, fromY = inputY,
+        direction = "northwest", spawnProgress = 1 }
     local guestState = context.State.new()
     Machine.reset()
     local operations = {
-        load_stock = function() return Machine.load(state, "__generic_stock__") end,
+        load_pallet = function(args) return Machine.load(state, args.palletId) end,
         rotate_paper = function() return Machine.rotate(state) end,
         rotate_clockwise = function() return Machine.rotate(state,1) end,
         rotate_counterclockwise = function() return Machine.rotate(state,-1) end,
@@ -37,10 +51,12 @@ function Test.run(context, check)
             normalize = function(args)
                 for key in pairs(args) do
                     if not (action == "set_clamp" and key == "clamp")
-                        and not (action == "set_gauge" and key == "gaugeCentiInch") then return nil end
+                        and not (action == "set_gauge" and key == "gaugeCentiInch")
+                        and not (action == "load_pallet" and key == "palletId") then return nil end
                 end
                 if action == "set_clamp" and type(args.clamp) ~= "boolean" then return nil end
                 if action == "set_gauge" and type(args.gaugeCentiInch) ~= "number" then return nil end
+                if action == "load_pallet" and (type(args.palletId) ~= "string" or args.palletId ~= pallet.id) then return nil end
                 return args
             end,
             perform = function(_, _, args)
@@ -73,8 +89,7 @@ function Test.run(context, check)
         localPlayer = player(), resolveGuestSpawn = function() return 100, 100 end,
         moveRemote = function() end,
         getShopSnapshot = function()
-            return { state = { money = state.money, screen = "world",
-                inventory = { paper = 2500, prints = 0 }, jobs = { active = {}, completed = {} } },
+            return { state = assert(Schema.snapshot(state)),
                 player = { x = 100, y = 100, character = "rabbit-worker" } }
         end,
         getCutterSnapshot = function()
@@ -89,6 +104,7 @@ function Test.run(context, check)
                     resourceId = payload.resourceId }, {})
             elseif operation == "workshop_command" then
                 local args = {}
+                if payload.palletId ~= nil then args.palletId = payload.palletId end
                 if payload.clamp ~= nil then args.clamp = payload.clamp end
                 if payload.gaugeCentiInch ~= nil then args.gaugeCentiInch = payload.gaugeCentiInch end
                 return authority:command(worker, { requestId = payload.commandId,
@@ -101,7 +117,11 @@ function Test.run(context, check)
     local function receive()
         client:update(0, clientContext)
         for _, event in ipairs(client:drainEvents()) do
-            if event.type == "workshop_grant" and event.granted then Remote.enter(event, guestState)
+            if event.type == "ready" then
+                assert(context.State.applySharedSnapshot(guestState, event.state))
+            elseif event.type == "shop_state" then
+                assert(context.State.applySharedUpdate(guestState, event.state))
+            elseif event.type == "workshop_grant" and event.granted then Remote.enter(event, guestState)
             elseif event.type == "workshop_result" then Remote.applyResult(event)
             elseif event.type == "cutter_state" then Remote.applyCutterSnapshot(event) end
         end
@@ -152,7 +172,7 @@ function Test.run(context, check)
     check("cutter_production_guest_load_gauge_position_clamp_round_trip",
         Machine.step == "clamped" and Remote.view.step == "clamped"
         and Remote.view.paper.orientation == Machine.paper.orientation
-        and Remote.view.gaugeCentiInch == 1250 and Machine.gauge == 12.5)
+        and Remote.view.gaugeCentiInch == 1500 and Machine.gauge == 15)
     network:duplicateNext("client_to_host", 1, 1, true)
     key("j")
     advance(0.25)
@@ -161,7 +181,11 @@ function Test.run(context, check)
     local second = Remote.cutterPresentation:model(guestState, Remote.view)
     check("cutter_production_real_snapshots_animate_without_duplicate_blade_start",
         calls.guarded_cut == 1 and first.step == "cutting" and first.paper ~= nil
-        and second.progress > first.progress and second.progress < 1 and completedCuts == 0)
+        and second.progress > first.progress and second.progress < 1 and completedCuts == 0,
+        string.format("guarded=%s first=%s/%.3f second=%s/%.3f host=%s/%.3f cuts=%d message=%s",
+            tostring(calls.guarded_cut), tostring(first.step), first.progress or -1,
+            tostring(second.step), second.progress or -1, tostring(Machine.step),
+            Machine.progress or -1, completedCuts, tostring(state.message)))
     -- A paused guest stream must not finish a cut or mutate host/guest stock.
     local hostProgress = Machine.progress
     Remote.update(20)

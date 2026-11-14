@@ -107,11 +107,11 @@ function Test.run(context,check)
     c.powerConnected,c.breakerRepaired,c.lightsOn=false,false,false
     conditionRenderer.clear()
     local overlay=love.graphics.newCanvas(960,678)
-    local function overlayAlpha(x,y)
+    local function overlayAlpha(x,y,drawState)
         love.graphics.push("all")
         love.graphics.setCanvas(overlay)
         love.graphics.clear(0,0,0,0)
-        conditionRenderer.drawStatic(state)
+        conditionRenderer.drawStatic(drawState or state)
         love.graphics.pop()
         local data=overlay:newImageData()
         local _,_,_,alpha=data:getPixel(x,y)
@@ -119,9 +119,28 @@ function Test.run(context,check)
         return alpha
     end
     local firstSpill,secondSpill=Condition.anchors.puddle1,Condition.anchors.puddle2
+    local function hasWalkableClearance(point)
+        local margin=30
+        local top,bottom=point.y-point.visualRadiusY-margin,point.y+point.visualRadiusY+margin
+        local y=top
+        while true do
+            local left,right=point.x-point.visualRadiusX-margin,point.x+point.visualRadiusX+margin
+            local x=left
+            while true do
+                if not Rooms.walkable(x,y,"warehouse") then return false end
+                if x>=right then break end
+                x=math.min(right,x+16)
+            end
+            if y>=bottom then break end
+            y=math.min(bottom,y+16)
+        end
+        return true
+    end
+    check("warehouse_condition_full_puddle_footprints_have_walkable_clearance",
+        hasWalkableClearance(firstSpill) and hasWalkableClearance(secondSpill))
     local standingWater,clearFloor=overlayAlpha(firstSpill.x,firstSpill.y),overlayAlpha(500,600)
     check("warehouse_condition_fixed_floor_renders_only_spills",
-        overlayAlpha(150,383)<.005 and standingWater>.55 and clearFloor<.005,
+        overlayAlpha(150,250)<.005 and standingWater>.55 and clearFloor<.005,
         ("water=%.3f clear=%.3f"):format(standingWater,clearFloor))
     check("warehouse_condition_puddles_are_separate_and_visible_in_middle_floor",
         overlayAlpha(secondSpill.x,secondSpill.y)>.55
@@ -132,6 +151,32 @@ function Test.run(context,check)
             overlayAlpha(firstSpill.x,firstSpill.y),overlayAlpha(secondSpill.x,secondSpill.y),
             overlayAlpha(515,520),tostring(Rooms.walkable(firstSpill.x,firstSpill.y,"warehouse")),
             tostring(Rooms.walkable(secondSpill.x,secondSpill.y,"warehouse"))))
+    local migratedState=State.new()
+    local migrated=Condition.new("story",772)
+    migrated.version=2
+    migrated.puddleStrokes.puddle1={{x=305,y=490,angle=.35}}
+    migrated.puddleStrokes.puddle2={{x=700,y=540,angle=-.2}}
+    migratedState.warehouse.condition=migrated
+    local targetX,targetY=firstSpill.x+10,firstSpill.y
+    local beforeMigrationAlpha=overlayAlpha(targetX,targetY,migratedState)
+    Condition.puddleProgress(migratedState,"puddle1") -- Prime the old-position cache.
+    Condition.normalize(migrated)
+    local afterMigrationAlpha=overlayAlpha(targetX,targetY,migratedState)
+    local comparisonState=State.new()
+    local comparison=Condition.new("story",772)
+    comparison.puddleStrokes.puddle1={{x=targetX,y=targetY,angle=.35}}
+    comparison.puddleStrokes.puddle2={{x=750,y=540,angle=-.2}}
+    comparisonState.warehouse.condition=comparison
+    local migratedProgress=Condition.puddleProgress(migratedState,"puddle1")
+    local freshProgress=Condition.puddleProgress(comparisonState,"puddle1")
+    check("warehouse_condition_v2_strokes_migrate_with_progress_and_renderer",
+        Condition.valid(migrated) and migrated.version==Condition.VERSION
+            and migrated.puddleStrokes.puddle1[1].x==targetX
+            and migrated.puddleStrokes.puddle1[1].y==targetY
+            and migrated.puddleStrokes.puddle2[1].x==750
+            and migrated.puddleStrokes.puddle2[1].y==540
+            and math.abs(migratedProgress-freshProgress)<1e-9
+            and afterMigrationAlpha<beforeMigrationAlpha)
     local dryEdgeX=firstSpill.x+math.floor(firstSpill.visualRadiusX*.9)
     check("warehouse_condition_mop_hit_area_follows_visible_spill",
         overlayAlpha(dryEdgeX,firstSpill.y)<.005
@@ -339,7 +384,7 @@ function Test.run(context,check)
     check("warehouse_condition_dirty_steps_keep_only_five_marks",Footprints.count()==5)
     check("warehouse_condition_wet_surface_is_distinct",
         Footprints.surface(walked,Condition.anchors.puddle1.x,Condition.anchors.puddle1.y)=="water"
-        and Footprints.surface(walked,150,383)=="concrete")
+        and Footprints.surface(walked,150,250)=="concrete")
     Footprints.update(walked,walker,nil,10)
     check("warehouse_condition_footprints_fade_quickly",Footprints.count()==0)
     Footprints.reset()

@@ -155,6 +155,30 @@ local function drawHighFiveArm(character,animation,actor,mirror,ax,ay,scale,x,y)
     love.graphics.pop()
 end
 
+local function drawDeliverySignature(actor,mirror,ax,ay,scale,x,y)
+    local motion=(actor.idleClock or 0)%0.55
+    local penX=166+motion/0.55*15
+    local penY=143-math.sin(motion/0.55*math.pi)*3
+    love.graphics.push("all")
+    love.graphics.translate(x,y)
+    love.graphics.scale(scale*mirror,scale)
+    love.graphics.translate(-ax,-ay)
+    love.graphics.setColor(.08,.10,.11,1)
+    love.graphics.rectangle("fill",151,123,48,34,2,2)
+    love.graphics.setColor(.94,.93,.82,1)
+    love.graphics.rectangle("fill",153,125,44,30,1,1)
+    love.graphics.setColor(.42,.49,.48,1)
+    love.graphics.setLineWidth(1.5)
+    love.graphics.line(157,131,193,131,157,137,185,137)
+    love.graphics.setColor(.15,.26,.31,1)
+    love.graphics.setLineWidth(2.5)
+    love.graphics.line(penX-9,penY+8,penX,penY,penX+4,penY-2)
+    love.graphics.setColor(.75,.36,.20,1)
+    love.graphics.setLineWidth(3)
+    love.graphics.line(penX+1,penY-1,penX+7,penY-8)
+    love.graphics.pop()
+end
+
 function Renderer.draw(entry,characterAssets,state)
     local a=entry.actor
     local character,action,frame,mirror,ax,ay,scale,x,y=drawPose(entry,characterAssets,state)
@@ -164,6 +188,9 @@ function Renderer.draw(entry,characterAssets,state)
     love.graphics.draw(image,quad,x,y,0,scale*mirror,scale,ax,ay)
     local highFive=entry.worker and EmployeeHighFive.get(entry.worker.id)
     if highFive then drawHighFiveArm(character,highFive,a,mirror,ax,ay,scale,x,y) end
+    if entry.worker and a.phase=="delivery_signing" then
+        drawDeliverySignature(a,mirror,ax,ay,scale,x,y)
+    end
     if entry.application and a.phase=="waiting" then
         love.graphics.setColor(.96,.85,.42,1)
         love.graphics.printf("APPLICANT",a.x-44,a.y-94,88,"center")
@@ -175,11 +202,15 @@ end
 function Renderer.drawBubble(entry,characterAssets,state)
     local owner=state and state.home and state.home.residents and state.home.residents.owner
     local code=Speech.code(entry)
-    local message=Speech.message(code,owner and owner.name)
     local a=entry.actor
+    local message=a.phase=="delivery_talking" and "I can sign for this delivery."
+        or a.phase=="delivery_signing" and "Signing the delivery receipt."
+        or Speech.message(code,owner and owner.name)
     local character,action,frame,_,_,anchorY,scale,originX,originY=drawPose(entry,characterAssets,state)
     local fullMessage
-    message,fullMessage=require('src.dialogue_presentation').present(a,character,message,Speech.emotion(code))
+    if a.phase~="delivery_talking" and a.phase~="delivery_signing" then
+        message,fullMessage=require('src.dialogue_presentation').present(a,character,message,Speech.emotion(code))
+    end
     if not message then return end
     local top
     if characterAssets.getVisibleBounds then

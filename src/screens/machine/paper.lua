@@ -25,18 +25,11 @@ function Component.install(Runtime)
                 x = world.x, y = world.y,
             }
         end
-        if #options == 0 and Runtime.Procurement.paperAvailable(state) > 0 then
-            options[1] = {
-                palletId = "__generic_stock__",
-                title = "GENERIC SHOP STOCK",
-                detail = string.format("%d stock sheets available", Runtime.Procurement.paperAvailable(state)),
-            }
-        end
         Runtime.Screen.loadMenu = { options = options, selected = 1 }
         Runtime.Screen.gaugeFocused = false
         state.message = #options > 0
             and "Choose which nearby pallet to load onto the cutter."
-            or "No eligible paper is inside the cutter's expanded load radius. Move a skid closer or add generic stock."
+            or "No eligible paper pallet is inside the cutter's load radius. Move an unfinished pallet closer."
         return true
     end
 
@@ -147,7 +140,7 @@ function Component.install(Runtime)
             local phase = 1 - (1 - math.min(1, t / 0.82)) ^ 2
             topY = workingY + PAPER_STOP_CLEARANCE
                 + (bedY - workingY - PAPER_STOP_CLEARANCE) * phase
-        elseif step == "unloading" or step == "lift_returning" then
+        elseif step == "unloading" or step == "unloading_partial" or step == "lift_returning" then
             if t < 0.54 then
                 local phase = ease(t / 0.54)
                 centerX = 662 + 6 * phase
@@ -168,7 +161,9 @@ function Component.install(Runtime)
         local centerY = boundsY + boundsHeight / 2
         local skidAlpha = 0
         if step == "loading" then skidAlpha = 1 - ease(t / 0.48)
-        elseif step == "unloading" or step == "lift_returning" then skidAlpha = ease((t - 0.72) / 0.28) end
+        elseif step == "unloading" or step == "unloading_partial" or step == "lift_returning" then
+            skidAlpha = ease((t - 0.72) / 0.28)
+        end
         if skidAlpha > 0.01 then
             local skidWidth = math.min(310, boundsWidth + 22)
             local skidX = 690 - skidWidth / 2
@@ -189,7 +184,7 @@ function Component.install(Runtime)
         -- A small rear stop sits in the throat. As the stack moves off the skid,
         -- its back edge advances up to this fixed gauge line.
         local stopAlpha = 1
-        if step == "unloading" or step == "lift_returning" then
+        if step == "unloading" or step == "unloading_partial" or step == "lift_returning" then
             stopAlpha = 1 - ease(t / 0.42)
         end
         if stopAlpha > 0.01 then

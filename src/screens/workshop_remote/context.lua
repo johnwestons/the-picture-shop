@@ -86,15 +86,14 @@ function Component.install(Runtime)
         run_next_lift = { x = 473, y = 474, width = 339, height = 42 },
         cut_left = { x = 122, y = 526, width = 339, height = 62 },
         cut_right = { x = 473, y = 526, width = 339, height = 62 },
-        load_stock = { x = 298, y = 354, width = 338, height = 46 },
     }
 
     Runtime.CUTTER_UNLOADED_CONTROLS = {
-        load_stock = { x = 122, y = 374, width = 222, height = 44 },
-        set_barrier = { x = 356, y = 374, width = 222, height = 44 },
-        reset_safety = { x = 590, y = 374, width = 222, height = 44 },
-        run_next_lift = { x = 122, y = 430, width = 456, height = 48 },
-        emergency_stop = { x = 590, y = 430, width = 222, height = 48 },
+        set_barrier = { x = 122, y = 374, width = 222, height = 44 },
+        reset_safety = { x = 356, y = 374, width = 222, height = 44 },
+        emergency_stop = { x = 590, y = 374, width = 222, height = 44 },
+        run_next_lift = { x = 122, y = 430, width = 222, height = 48 },
+        return_to_pallet = { x = 356, y = 430, width = 456, height = 48 },
     }
 
     Runtime.CUTTER_PROGRAMS = {

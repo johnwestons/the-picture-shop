@@ -5,7 +5,8 @@ local footprint=require('src.commute.truck_footprint')
 local Service=require('src.commute.truck_service')
 local Truck={MAX_SPEED=13.6,REVERSE_SPEED=3.2,ACCELERATION=1.75,BRAKE=6.5,COAST=1.15,
     WHEELBASE=3.5,STEER_LOCK=math.rad(42),RADIUS=1.18,COLLISION_HEIGHT=footprint.height,FRAME_DISTANCE=.12,
-    TANK_LITERS=60,FUEL_PER_METER=.0003,COLLISION_STUN_SECONDS=2,
+    -- 60 L gives roughly 250 miles at the shared delivery-truck economy.
+    TANK_LITERS=60,FUEL_PER_METER=.00015,COLLISION_STUN_SECONDS=2,
     COLLISION_STUN_CRAWL_SPEED=1.4,COLLISION_STUN_MIN_ACCELERATION=.2,COLLISION_STUN_TRIGGER_SPEED=3}
 local profiles={box={maxSpeed=13.6,reverseSpeed=3.2,acceleration=1.75,brake=6.5,coast=1.15,
     wheelbase=3.5,steerLock=math.rad(42),dirtGrip=4.25,roadGrip=5.15,
@@ -359,6 +360,18 @@ function Truck.update(p,input,dt,world)
     if p.throttle==0 and p.speed<.025 then p.speed=0;p.slipAngle=0 end
     p.acceleration=dt>0 and (p.speed-before)/dt or 0
     return moved,conditionChanged
+end
+
+-- Off-map city deliveries still count against the same fuel, odometer and
+-- maintenance records as distance driven in town.
+function Truck.accountRouteDistance(p,meters)
+    meters=math.max(0,tonumber(meters) or 0)
+    if not p or meters<=0 then return 0 end
+    p.distance=(p.distance or 0)+meters
+    p.fuel=math.max(0,(p.fuel or Truck.TANK_LITERS)-meters*Truck.FUEL_PER_METER)
+    if p.fuel<=0 then p.engine=false;p.throttle=0 end
+    Service.run(p,meters,0)
+    return meters
 end
 
 return Truck

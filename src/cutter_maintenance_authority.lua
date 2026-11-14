@@ -130,7 +130,7 @@ function CutterMaintenanceAuthority.create(options)
         view.moneyCents = math.max(0, math.floor((tonumber(state.money) or 0) * 100 + 0.5))
         local lubrication = session and session.lubrication
         if lubrication then
-            view.candidates, view.genericSheets = nil, nil
+            view.candidates = nil
             view.serviceStep = serviceStep(session)
             view.servicePermille = clampInteger(
                 MachineMaintenance.lubricationProgress(lubrication) * 1000, 0, 1000)
@@ -147,7 +147,7 @@ function CutterMaintenanceAuthority.create(options)
                 view.gearLevelPermille = clampInteger(lubrication.gear.level * 1000, 0, 1000)
             end
         elseif session and session.bladeStage then
-            view.candidates, view.genericSheets = nil, nil
+            view.candidates = nil
             view.serviceStep = serviceStep(session)
             local removed, mask = 0, 0
             for index = 1, 5 do

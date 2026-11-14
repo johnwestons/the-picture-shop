@@ -32,7 +32,7 @@ function Art.draw(assets,actor,camera,world,appearance,visual,clock,opacity)
     if not assets.hasAction(a.character,action) then action='idle' end
     if assets.resolveAction then action=assets.resolveAction(a.character,action) end
     local _,_,count=assets.get(a.character,action,1)
-    local frame=Animation.frameForPlayerAction(action,count or 1,distance/Rider.FRAME_DISTANCE,
+    local frame=Animation.frameForPlayerAction(action,count or 1,distance/Rider.WALK_ANIMATION_FRAME_DISTANCE,
         clock or 0,1,Config.player.idleAnimationRate)
     local image,quad=assets.get(a.character,action,frame)
     if not image or not quad then return false end

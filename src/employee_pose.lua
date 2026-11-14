@@ -7,7 +7,8 @@ local WorkPresentation=require("src.employee_work_presentation")
 local Pose={}
 local directions={"east","southeast","south","southwest","west","northwest","north","northeast"}
 local vectors={{1,0},{1,1},{0,1},{-1,1},{-1,0},{-1,-1},{0,-1},{1,-1}}
-local phases={"hidden","entering","waiting","leaving","idle","walking","working","break_walk","break","pushing"}
+local phases={"hidden","entering","waiting","leaving","idle","walking","working","break_walk","break","pushing",
+    "delivery_talking","delivery_signing"}
 local function index(values,value)
     for i,v in ipairs(values) do if v==value then return i end end
     return 1
@@ -24,7 +25,7 @@ end
 function Pose.normalize(rows)
     if type(rows)~="table" or #rows>11 or not dense(rows,#rows) then return nil end
     local out,ids=Codec.array(),{}
-    local ranges={{0,96000},{0,67800},{1,8},{0,15999},{0,12999},{0,1},{1,10},{0,124},{0,2},{0,1000},{0,Speech.MAX_CODE}}
+    local ranges={{0,96000},{0,67800},{1,8},{0,15999},{0,12999},{0,1},{1,12},{0,124},{0,2},{0,1000},{0,Speech.MAX_CODE}}
     for _,r in ipairs(rows) do
         if not dense(r,12) or type(r[1])~="string" or #r[1]>16
             or not (r[1]:match("^APP%-%d+$") or r[1]:match("^EMP%-%d+$")) or ids[r[1]] then return nil end

@@ -59,6 +59,22 @@ function Test.run(check)
     end
     check('receiving_overflow_has_separate_nonoverlapping_positions',safe
         and plan[entries[1].delivery.route].target=='waiting-5' and plan[entries[5].delivery.route].target=='waiting-1')
+    local capacity=Queue.capacity(routing)
+    local capacityEntries={}
+    for i=1,capacity+1 do
+        capacityEntries[i]={id=('CAPACITY-%02d'):format(i),delivery={status='pending_arrival',
+            route={roadTownId=town.id,departedAtEpoch=epoch+i,arrivedAtEpoch=epoch+999}}}
+    end
+    local capacityPlan=Queue.plan(capacityEntries,routing,true,epoch+capacity+2,Network.lanePosition)
+    local capacityOkay=capacity>=#(site.truckQueueAnchors or {})
+    for i=1,capacity do
+        local assignment=capacityPlan[capacityEntries[i].delivery.route]
+        capacityOkay=capacityOkay and assignment~=nil and assignment.anchor~=nil
+    end
+    local overflowAssignment=capacityPlan[capacityEntries[capacity+1].delivery.route]
+    check('receiving_queue_capacity_tracks_usable_procedural_road_length',capacityOkay
+        and overflowAssignment~=nil and overflowAssignment.anchor==nil
+        and overflowAssignment.capacity==capacity)
     local clear=Queue.plan(entries,routing,false,epoch+10,Network.lanePosition)
     check('receiving_first_truck_gets_dock_regardless_of_job_array_order',clear[entries[5].delivery.route].target=='dock'
         and clear[entries[4].delivery.route].target=='waiting-1')

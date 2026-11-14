@@ -55,11 +55,12 @@ function Test.run(_,check)
     actor.phase,actor.x,actor.y='exit_cab',120,230
     Driver.update(state,.1,{})
     local returned=visit.driverReturned
-    local closing=Driver.departIfReady(state,truck)
+    local waitsForClosedDoor=not Driver.departIfReady(state,truck)
+    local closeStarted=truck:toggleCargoDoor()
     local closed=truck:update(1,'open',1)
     local departing=Driver.departIfReady(state,truck)
     local departed=truck:update(3,'open',3)
-    check('signed_empty_grouped_delivery_leaves_warehouse',closing
+    check('signed_empty_grouped_delivery_leaves_warehouse',waitsForClosedDoor and closeStarted
         and closed=='cargo_closed' and signed and returned and departing
         and departed=='departed' and truck.state=='absent')
 end

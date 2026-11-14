@@ -3,12 +3,14 @@
 -- delivery completion still use the same authoritative service as player runs.
 local Run=require('src.commute.delivery_run')
 local Roads=require('src.commute.roads')
+local DeliveryTruck=require('src.commute.delivery_truck')
+local TruckService=require('src.commute.truck_service')
 local Contracts=require('src.employment_contracts')
 local Calendar=require('src.business_calendar')
 local Payroll=require('src.payroll')
 local ScheduledDriving=require('src.commute.scheduled_driving')
-local CompanyTruck={TANK_LITERS=60,FUEL_PRICE_CENTS_PER_LITER=160,
-    FUEL_PER_METER=.0003,LOW_FUEL_LITERS=12,VERSION=1}
+local CompanyTruck={TANK_LITERS=DeliveryTruck.TANK_LITERS,FUEL_PRICE_CENTS_PER_LITER=160,
+    FUEL_PER_METER=DeliveryTruck.FUEL_PER_METER,LOW_FUEL_LITERS=12,VERSION=1}
 local BASELINE_DRIVER_SKILL=55
 local routeLookupCache=setmetatable({},{__mode='k'})
 local exteriorRoutes=setmetatable({},{__mode='k'})
@@ -95,11 +97,13 @@ end
 function CompanyTruck.syncFromVehicle(truck,vehicle)
     if not truck or not vehicle or not finite(vehicle.fuel) then return false end
     local fuel=math.max(0,math.min(CompanyTruck.TANK_LITERS,vehicle.fuel))
-    if math.abs(fuel-truck.fuelLiters)>.00001 then
-        local distance=math.max(0,tonumber(vehicle.distance) or 0)
-        local previous=truck.lastPlayerDistance or 0
-        if distance>=previous then truck.odometerMeters=truck.odometerMeters+distance-previous end
-        truck.lastPlayerDistance=distance
+    local distance=math.max(0,tonumber(vehicle.distance) or 0)
+    local previous=truck.lastPlayerDistance or 0
+    local distanceChanged=distance>=previous and distance-previous>.00001
+    local fuelChanged=math.abs(fuel-truck.fuelLiters)>.00001
+    if distanceChanged then truck.odometerMeters=truck.odometerMeters+distance-previous end
+    truck.lastPlayerDistance=distance
+    if fuelChanged or distanceChanged then
         truck.fuelLiters=fuel
         truck.revision=truck.revision+1
         return true
@@ -300,8 +304,17 @@ leg=function(previous,stop,town,skill,model)
     local speed=CompanyTruck.speedMultiplier(skill)*CompanyTruck.vehicleSpeedMultiplier(model)
     local previousKind=previous and previous.kind
     if previousKind=='city' or stop.kind=='city' then
-        local meters=previousKind=='city' and stop.kind=='city' and 4000 or 10000
-        return meters,.42/speed,0
+        local miles
+        if stop.kind=='city' then
+            miles=Run.cityStopMiles(stop)
+            if previousKind~='city' then miles=miles+Run.CITY_HIGHWAY_MILES end
+        else
+            miles=Run.CITY_HIGHWAY_MILES
+        end
+        local meters=miles*1609.344
+        -- City mileage tracks real fuel/maintenance distance, while calendar
+        -- travel stays compressed so a 100+ mile route fits a normal shift.
+        return meters,(.10+meters/10000*.18)/speed,0
     end
     local from,to=previous and previous.id or 'warehouse',stop.id
     local lookup=savedRoutes(town)
@@ -547,8 +560,10 @@ function CompanyTruck.update(state,now,activeRunOnly)
         if now<(truck.nextActionAtHours or math.huge) then return false end
         if truck.status=='returning' then
             local fuel=truck.currentLegFuelLiters or 0
+            local meters=fuel/CompanyTruck.FUEL_PER_METER
             truck.fuelLiters=math.max(0,truck.fuelLiters-fuel)
-            truck.odometerMeters=truck.odometerMeters+fuel/CompanyTruck.FUEL_PER_METER
+            truck.odometerMeters=truck.odometerMeters+meters
+            TruckService.runFleet(state.home,truck.vehicleModel or 'box',meters,0)
             local vehicle=exteriorVehicle(state)
             if vehicle then
                 local town=state.home and state.home.town
@@ -593,8 +608,10 @@ function CompanyTruck.update(state,now,activeRunOnly)
             return false
         end
         local fuel=truck.currentLegFuelLiters or 0
+        local meters=fuel/CompanyTruck.FUEL_PER_METER
         truck.fuelLiters=math.max(0,truck.fuelLiters-fuel)
-        truck.odometerMeters=truck.odometerMeters+fuel/CompanyTruck.FUEL_PER_METER
+        truck.odometerMeters=truck.odometerMeters+meters
+        TruckService.runFleet(state.home,run.vehicleModel or truck.vehicleModel or 'box',meters,0)
         run.stopIndex=run.stopIndex+1
         if run.stopIndex>#run.stops then
             local distance,duration=leg(stop,{kind='town',id='warehouse'},

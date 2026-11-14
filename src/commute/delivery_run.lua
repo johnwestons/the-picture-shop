@@ -1,6 +1,6 @@
 -- Manifest planning and completion for player-driven shop deliveries.
 local Traffic=require('src.commute.delivery_traffic')
-local Run={CAPACITY=10,VERSION=1}
+local Run={CAPACITY=10,VERSION=1,CITY_HIGHWAY_MILES=50,CITY_LOCAL_MILES_MIN=5,CITY_LOCAL_MILES_MAX=20}
 
 local function copy(value)
     if type(value)~='table' then return value end
@@ -104,6 +104,9 @@ function Run.build(state,jobIds,world,driverMode)
         if not stop then
             stop={kind=kind,id=destination.id,label=destination.label,city=destination.city,
                 jobIds={},palletCount=0}
+            if kind=='city' then
+                stop.cityMiles=math.random(Run.CITY_LOCAL_MILES_MIN,Run.CITY_LOCAL_MILES_MAX)
+            end
             byKey[key]=stop;stops[#stops+1]=stop
         end
         stop.jobIds[#stop.jobIds+1]=item.job.id
@@ -116,6 +119,24 @@ function Run.build(state,jobIds,world,driverMode)
         stopIndex=1,stops=stops,jobIds={}}
     for _,item in ipairs(jobs) do run.jobIds[#run.jobIds+1]=item.job.id end
     return run
+end
+
+function Run.cityStopMiles(stop)
+    local miles=type(stop)=='table' and tonumber(stop.cityMiles)
+    if miles and miles>=Run.CITY_LOCAL_MILES_MIN and miles<=Run.CITY_LOCAL_MILES_MAX then return miles end
+    -- Old saved delivery runs predate per-destination city mileage.
+    return 12.5
+end
+
+function Run.cityRouteMiles(run,firstStopIndex,lastStopIndex)
+    local miles=Run.CITY_HIGHWAY_MILES*2
+    for index,stop in ipairs(run and run.stops or {}) do
+        if index>=(firstStopIndex or 1) and (not lastStopIndex or index<=lastStopIndex)
+            and stop.kind=='city' then
+            miles=miles+Run.cityStopMiles(stop)
+        end
+    end
+    return miles
 end
 
 function Run.reserve(state,run)
@@ -295,6 +316,10 @@ function Run.valid(value,home)
             or type(stop.jobIds)~='table' or #stop.jobIds<1 or #stop.jobIds>Run.CAPACITY
             or type(stop.palletCount)~='number' or stop.palletCount<1 or stop.palletCount>Run.CAPACITY
             or stop.palletCount%1~=0
+            or stop.kind=='city' and stop.cityMiles~=nil and (type(stop.cityMiles)~='number'
+                or stop.cityMiles%1~=0 or stop.cityMiles<Run.CITY_LOCAL_MILES_MIN
+                or stop.cityMiles>Run.CITY_LOCAL_MILES_MAX)
+            or stop.kind=='town' and stop.cityMiles~=nil
             or (stop.standardArrivalAtHours~=nil and (type(stop.standardArrivalAtHours)~='number'
                 or stop.standardArrivalAtHours~=stop.standardArrivalAtHours
                 or stop.standardArrivalAtHours<0 or stop.standardArrivalAtHours>=1e12)) then return false end

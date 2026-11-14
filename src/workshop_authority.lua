@@ -81,7 +81,6 @@ Authority.ACTIONS = {
     },
     cutter = {
         load_pallet = true,
-        load_stock = true,
         select_program = true,
         set_gauge = true,
         auto_gauge = true,

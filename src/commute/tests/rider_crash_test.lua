@@ -73,11 +73,16 @@ function Test.run(check)
         if M.length(bikeX-ped.x,bikeZ-ped.z)<1.7 then break end
         Rider.update(rider,{walkX=dx/distance,walkZ=dz/distance},1/60,world)
     end
-    for i=1,20 do Rider.update(rider,{},1/60,world) end
+    for i=1,60 do
+        Rider.update(rider,{},1/60,world)
+        if rider.ped.speed<=.05 then break end
+    end
     local mount=Rider.command(rider,'mount',world)
     for i=1,110 do Rider.update(rider,{},1/60,world) end
     check('crash_walk_back_and_normal_remount_restore_riding_without_repair',
-        mount and Gear.allowed(rider.gear,'ride') and bike.damage>0 and not ped.crash)
+        mount and Gear.allowed(rider.gear,'ride') and bike.damage>0 and not ped.crash,
+        ('mount=%s speed=%.3f distance=%.3f pose=%s damage=%.2f'):
+            format(tostring(mount),ped.speed,M.length(bikeX-ped.x,bikeZ-ped.z),Rider.pose(rider),bike.damage))
 end
 
 return Test

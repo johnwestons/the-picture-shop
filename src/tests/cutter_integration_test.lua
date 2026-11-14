@@ -224,19 +224,31 @@ function Test.run(context, check, jobs)
         check("cutter_active_lease_blocks_installed_machine_sale",
             not idleLeaseSaleAllowed
             and idleLeaseSaleReason:find("active cutter console", 1, true) ~= nil)
-        saleState.inventory.paper = 100
+        local saleJob = jobs.createOffer({
+            id = "JOB-CUTTER-SALE-CONTENTION", company = "Cutter Sale Contention Co.",
+            sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
+            sheetCounts = { 500 },
+        })
+        jobs.accept(saleJob)
+        saleState.jobs.active[1] = saleJob
+        local salePallet = saleJob.pallets[1]
+        local saleInputX, saleInputY = context.CutterZones.inputAnchor(
+            saleState, context.config.cutterPlacement)
+        salePallet.location = "warehouse"
+        salePallet.world = { x = saleInputX, y = saleInputY,
+            fromX = saleInputX, fromY = saleInputY, direction = "northwest", spawnProgress = 1 }
         context.machine.reset(saleState)
-        check("cutter_generic_stock_loads_for_sale_contention_test",
-            context.machine.load(saleState, "__generic_stock__"))
-        check("cutter_generic_batch_blocks_relocation_without_active_lease",
+        check("cutter_staged_customer_pallet_loads_for_sale_contention_test",
+            context.machine.load(saleState, salePallet.id))
+        check("cutter_customer_batch_blocks_relocation_without_active_lease",
             not context.world.beginCutterMove(saleState, false)
             and saleState.message:find("cutter batch", 1, true) ~= nil)
-        check("cutter_generic_batch_blocks_rotation_without_active_lease",
+        check("cutter_customer_batch_blocks_rotation_without_active_lease",
             not context.world.rotateCutter(saleState, false)
             and saleState.message:find("cutter batch", 1, true) ~= nil)
         local activeSale, activeSaleReason = context.machineFleet.sell(
             saleState, installedCutter.id, "online")
-        check("cutter_active_generic_batch_blocks_installed_machine_sale",
+        check("cutter_active_customer_batch_blocks_installed_machine_sale",
             not activeSale and activeSaleReason:find("cutter batch", 1, true) ~= nil
             and context.machineFleet.byId(saleState, installedCutter.id) == installedCutter)
         context.machine.reset(saleState)
@@ -299,8 +311,9 @@ function Test.run(context, check, jobs)
         bulkStockState.inventory.paper = 100001
         context.machine.reset(bulkStockState)
         local bulkStockView = context.machine.networkView(bulkStockState, true)
-        check("cutter_network_view_clamps_bulk_generic_stock_to_wire_limit",
-            bulkStockView.genericSheets == 100000)
+        check("cutter_network_view_excludes_bulk_stock_without_physical_pallet",
+            bulkStockView.genericSheets == nil and type(bulkStockView.candidates) == "table"
+            and #bulkStockView.candidates == 0)
         context.machine.reset(networkState)
 
         check("cutter_network_loads_named_candidate",
@@ -585,12 +598,11 @@ function Test.run(context, check, jobs)
         and not context.machineScreen.hasModal())
     emptyLoad.inventory.paper=12
     context.machineScreen.enter()
-    check('cutter_generic_load_menu_offers_shop_stock',
+    check('cutter_load_menu_ignores_bulk_stock_without_a_customer_pallet',
         context.machineScreen.keypressed(emptyLoad,'l')
-        and #context.machineScreen.loadMenuOptions()==1
-        and context.machineScreen.loadMenuOptions()[1].palletId=='__generic_stock__')
+        and #context.machineScreen.loadMenuOptions()==0)
     backX,backY=context.machineScreen.loadMenuBackCenter()
-    check('cutter_generic_load_menu_has_touch_back',backX and backY
+    check('cutter_bulk_stock_load_menu_has_touch_back',backX and backY
         and context.machineScreen.mousepressed(emptyLoad,backX,backY,1)
         and not context.machineScreen.hasModal())
 

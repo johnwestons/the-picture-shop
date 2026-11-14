@@ -11,8 +11,8 @@ function Component.run(Context)
         simultaneity = 0.30, cycleTime = 1.25, transferTime = 0.45,
         repeatCycleTime = 1.0,
         gauge = 0, programIndex = 1, savedGauge = nil, autoCycle = {},
-        paper = nil, pallet = nil, job = nil, legacyPaper = false, paperTravel = 0,
-        pendingOutput = nil, outputResolver = nil,
+        paper = nil, pallet = nil, job = nil, paperTravel = 0,
+        pendingOutput = nil, unloadResumeStep = nil, outputResolver = nil,
         runtimeRevision = 0, _resetResume = nil, _blockedResume = nil,
         multiplayerSingleControl = false,
     }
@@ -36,6 +36,7 @@ function Component.run(Context)
         if step == "cut_complete" or step == "lift_returning" or step == "unloading" then
             return "cut_complete"
         end
+        if step == "unloading_partial" then return "unloading_partial" end
         return Context.Machine.paper and "loaded" or "idle"
     end
 
@@ -47,10 +48,6 @@ function Component.run(Context)
 
     function Context.availablePapers(state)
         return Context.PalletState.cutterCandidates(state, Context.Config.cutterPlacement.palletInputZoneRadius)
-    end
-
-    function Context.makeLegacyPaper()
-        return Context.PaperWork.createStockPaper()
     end
 
     function Context.syncProgram()
@@ -70,7 +67,7 @@ function Component.run(Context)
 
     function Context.completeLift(state)
         local pallet = Context.Machine.pallet
-        if Context.Machine.legacyPaper or not pallet then
+        if not pallet then
             Context.Machine.step = "cut_complete"
             return
         end
@@ -109,7 +106,8 @@ function Component.run(Context)
         Context.Machine.barrierClear, Context.Machine.emergencyStopped = true, false
         Context.Machine.gauge, Context.Machine.programIndex, Context.Machine.savedGauge, Context.Machine.autoCycle = 0, 1, nil, {}
         Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = nil, nil, nil
-        Context.Machine.legacyPaper, Context.Machine.paperTravel, Context.Machine.pendingOutput = false, 0, nil
+        Context.Machine.paperTravel, Context.Machine.pendingOutput = 0, nil
+        Context.Machine.unloadResumeStep = nil
         Context.Machine._leftAt, Context.Machine._rightAt = -math.huge, -math.huge
         Context.Machine._resetResume, Context.Machine._blockedResume = nil, nil
         Context.bumpRevision()
@@ -130,7 +128,6 @@ function Component.run(Context)
     -- still points into this save is preserved; a fresh process rebuilds a safe
     -- resumable runtime from the pallet durably parked at the cutter.
     function Context.Machine.open(state)
-        if Context.Machine.legacyPaper and Context.Machine.paper then return true end
         if Context.Machine.pallet and Context.statePallet(state, Context.Machine.pallet.id) == Context.Machine.pallet then
             return true
         end
@@ -171,21 +168,20 @@ function Component.run(Context)
         if not operable then Context.message(state, machineOrError); return false end
         local candidates = Context.availablePapers(state)
         local selected
-        if palletId ~= "__generic_stock__" then
-            if palletId then
-                for _, candidate in ipairs(candidates) do
-                    if candidate.pallet.id == palletId then selected = candidate; break end
-                end
-                if not selected then
-                    Context.message(state, "That pallet is no longer available in the cutter load zone.")
-                    return false
-                end
-            else
-                selected = candidates[1]
+        if palletId then
+            for _, candidate in ipairs(candidates) do
+                if candidate.pallet.id == palletId then selected = candidate; break end
             end
+            if not selected then
+                Context.message(state, "That pallet is no longer available in the cutter load zone.")
+                return false
+            end
+        else
+            selected = candidates[1]
         end
         if selected then
             local wasWarehouse = selected.pallet.location == "warehouse"
+            local alreadyInProcess = selected.pallet.status == "in_process"
             if wasWarehouse then
                 local transitioned, transitionError = Context.PalletState.transition(state, selected.pallet, "at_cutter", {
                     status = "in_process",
@@ -195,9 +191,8 @@ function Component.run(Context)
             end
             Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = selected.paper, selected.pallet, selected.job
             Context.PaperWork.prepareFirstCut(Context.Machine.paper)
-            Context.Machine.legacyPaper = false
             Context.ensureLiftProgress(selected.pallet)
-            if wasWarehouse and state and state.inventory then
+            if wasWarehouse and not alreadyInProcess and state and state.inventory then
                 state.inventory.rawPallets = math.max(0, (state.inventory.rawPallets or 0) - 1)
                 state.inventory.inProcessPallets = (state.inventory.inProcessPallets or 0) + 1
             end
@@ -223,11 +218,8 @@ function Component.run(Context)
         elseif Context.PalletState.hasUnfinishedCustomerPaper(state) then
             Context.message(state, "Stage an unfinished pallet on clear floor beside the cutter before loading.")
             return false
-        elseif state and state.inventory and Context.Procurement.paperAvailable(state) > 0 then
-            Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = Context.makeLegacyPaper()
-            Context.Machine.legacyPaper = true
         else
-            Context.message(state, "No eligible paper is in the warehouse or generic stock inventory.")
+            Context.message(state, "No eligible paper pallet is in the cutter load zone.")
             return false
         end
         Context.Machine.loaded, Context.Machine.step, Context.Machine.progress, Context.Machine.paperTravel = true, "loading", 0, 0

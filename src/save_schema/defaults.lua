@@ -29,7 +29,7 @@ function Component.install(Runtime)
             tutorial = require('src.tutorial').new(false),
             home = Runtime.Home.new(),
             inventory = {
-                paper = 40,
+                paper = 0,
                 prints = 0,
                 rawPallets = 0,
                 inProcessPallets = 0,

@@ -16,7 +16,13 @@ function Component.install(Runtime)
         if action == "reset_safety" then
             return view.emergencyStopped == true or view.step == "blocked" or view.step == "finished"
         elseif action == "return_to_pallet" then
-            return view.loaded == true and view.step == "cut_complete"
+            if not view.paper then return false end
+            if view.paper.status == "complete" then
+                return view.step == "cut_complete"
+                    or (view.step == "repeat_ready" and (tonumber(view.paper.remainingSheets) or 0) > 0)
+            end
+            if view.loaded ~= true then return false end
+            return view.clamp ~= true and (view.step == "loaded" or view.step == "positioned")
         elseif action == "run_next_lift" then
             return view.loaded == false and view.step == "repeat_ready"
         elseif action == "set_clamp" then
@@ -33,7 +39,7 @@ function Component.install(Runtime)
             return view.loaded == true and view.clamp ~= true and view.step ~= "cutting"
         elseif action == "cut_left" or action == "cut_right" then
             return Runtime.cutterCutReady()
-        elseif action == "load_stock" or action == "load_pallet" then
+        elseif action == "load_pallet" then
             return view.loaded ~= true and (view.step == "idle" or view.step == "finished")
         end
         return false

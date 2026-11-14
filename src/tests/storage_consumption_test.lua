@@ -232,12 +232,16 @@ function Test.run(_, check)
 
     local paperState = fresh()
     local paperPallet = delivered(paperState,1,1)
-    local paperUsed = Procurement.consumePaper(paperState,1000)
+    local paperUsed, paperFailure = Procurement.consumePaper(paperState,1000)
     check("stock_consumption_empty_paper_skid_despawns_after_sheet_use",
         paperUsed and paperState.inventory.stock.house_sheets == 0
-        and paperState.inventory.paper == 40 and paperPallet.remainingQuantity == 0
+        and paperState.inventory.paper == 0 and paperPallet.remainingQuantity == 0
         and paperPallet.location == "none" and paperPallet.world == nil
-        and #Procurement.physicalPallets(paperState) == 0 and PalletState.validate(paperState))
+        and #Procurement.physicalPallets(paperState) == 0 and PalletState.validate(paperState),
+        string.format("used=%s error=%s stock=%s abstract=%s remaining=%s location=%s world=%s",
+            tostring(paperUsed), tostring(paperFailure), tostring(paperState.inventory.stock.house_sheets),
+            tostring(paperState.inventory.paper), tostring(paperPallet.remainingQuantity),
+            tostring(paperPallet.location), tostring(paperPallet.world ~= nil)))
 
     local cartonState = fresh()
     local cartonPallet = delivered(cartonState,3,1)

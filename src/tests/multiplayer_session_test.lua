@@ -360,7 +360,6 @@ local function cutterState(overrides)
         candidates = {
             { palletId = "JOB-CUT-P01", distancePixels = 24 },
         },
-        genericSheets = 2500,
     }
     for key, value in pairs(overrides or {}) do view[key] = value end
     return view

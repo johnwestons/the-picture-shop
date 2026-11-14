@@ -214,17 +214,28 @@ function Arrival.update(R,state,dt)
         end
         sync(R,part)
     elseif arrival.phase=='walk' then
-        local target=arrival.plan.walk[arrival.walkIndex]
-        if not target then return true end
-        local dx,dz=target.x-rider.ped.x,target.z-rider.ped.z
-        local beforeX,beforeZ=rider.ped.x,rider.ped.z
-        local distance=math.sqrt(dx*dx+dz*dz)
-        if distance<.55 then arrival.walkIndex=arrival.walkIndex+1
-        else
-            updateRider(rider,world,{walkX=dx/distance,walkZ=dz/distance},dt)
-            local moved=math.sqrt((rider.ped.x-beforeX)^2+(rider.ped.z-beforeZ)^2)
-            arrival.stalled=moved<.01 and arrival.stalled+dt or 0
-            if arrival.stalled>2 then return nil,'The porch walk is blocked.' end
+        -- Re-aim during the frame. A full-frame direction held at the faster
+        -- outdoor walk speed can carry the rider past a short porch waypoint
+        -- and leave the collision solver oscillating against the building.
+        local remaining=dt
+        while remaining>1e-6 do
+            local target=arrival.plan.walk[arrival.walkIndex]
+            if not target then return true end
+            local dx,dz=target.x-rider.ped.x,target.z-rider.ped.z
+            local distance=math.sqrt(dx*dx+dz*dz)
+            if distance<.55 then
+                arrival.walkIndex=arrival.walkIndex+1
+                arrival.stalled=0
+            else
+                local step=math.min(.05,remaining)
+                local beforeX,beforeZ=rider.ped.x,rider.ped.z
+                local pace=math.min(1,distance/5)
+                updateRider(rider,world,{walkX=dx/distance*pace,walkZ=dz/distance*pace},step)
+                local moved=math.sqrt((rider.ped.x-beforeX)^2+(rider.ped.z-beforeZ)^2)
+                arrival.stalled=moved<.01 and arrival.stalled+step or 0
+                if arrival.stalled>2 then return nil,'The porch walk is blocked.' end
+                remaining=remaining-step
+            end
         end
         sync(R,part)
         if arrival.walkIndex>#arrival.plan.walk then return true end
