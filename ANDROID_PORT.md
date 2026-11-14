@@ -3,18 +3,17 @@
 ## Current test build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.114` (`versionCode` 114); Windows build: `0.1.0-test.114`.
+- Version: `0.1.0-android.115` (`versionCode` 115).
 - Multiplayer protocol: 75; host and guests need matching current code.
-- Build command: `./BUILD_ANDROID.ps1`.
-- Local APK: `output/mobile/ThePictureShop-0.1.0-android.114-debug.apk`.
-- Remote APK: [download Android 114](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.114/ThePictureShop-0.1.0-android.114-Install.apk).
-- The update uses the restored warehouse artwork as the base, adds matching
-  lights-on/off states, and replaces floor repaint/region selection with two
-  persistent spills that fade under the moving mop. The wall phone works with
-  the building power off and can reconnect both power and water; breaker and
-  light switching are direct in-world actions.
-- Build and validation details: [Android 114 release notes](docs/android_114_release.md).
-- This is a private development build. Physical-device play and multiplayer
+- Build commands: `python tools/build_mobile_package.py --output-dir output/mobile`, then
+  `pwsh -NoProfile -File tools/build_android_apk.ps1 -PackagePath output/mobile/the-picture-shop-0.1.0-android.115.love -ReuseVerifiedNativeCryptoArtifacts`.
+- Local APK: `output/android-share/0.1.0-android.115/ThePictureShop-0.1.0-android.115-Install.apk`.
+- Remote APK: [download Android 115](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.115/ThePictureShop-0.1.0-android.115-Install.apk).
+- This update improves delivery receiving and unloading, mobile action controls,
+  the work phone and bike cargo access, vehicle mileage and fuel use, and
+  commute movement and walking animation speed.
+- Build and validation details: [Android 115 release notes](docs/android_115_release.md).
+- This is a development pre-release. Physical-device play and multiplayer
   acceptance remain separate from package verification; use the device
   checklist below before a public release.
 
