@@ -3,16 +3,16 @@
 ## Current test build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.115` (`versionCode` 115).
+- Version: `0.1.0-android.116` (`versionCode` 116).
 - Multiplayer protocol: 75; host and guests need matching current code.
 - Build commands: `python tools/build_mobile_package.py --output-dir output/mobile`, then
-  `pwsh -NoProfile -File tools/build_android_apk.ps1 -PackagePath output/mobile/the-picture-shop-0.1.0-android.115.love -ReuseVerifiedNativeCryptoArtifacts`.
-- Local APK: `output/android-share/0.1.0-android.115/ThePictureShop-0.1.0-android.115-Install.apk`.
-- Remote APK: [download Android 115](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.115/ThePictureShop-0.1.0-android.115-Install.apk).
-- This update improves delivery receiving and unloading, mobile action controls,
-  the work phone and bike cargo access, vehicle mileage and fuel use, and
-  commute movement and walking animation speed.
-- Build and validation details: [Android 115 release notes](docs/android_115_release.md).
+  `pwsh -NoProfile -File tools/build_android_apk.ps1 -PackagePath output/mobile/the-picture-shop-0.1.0-android.116.love -ReuseVerifiedNativeCryptoArtifacts`.
+- Local APK: `output/android-share/0.1.0-android.116/ThePictureShop-0.1.0-android.116-Install.apk`.
+- Remote APK: [download Android 116](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.116/ThePictureShop-0.1.0-android.116-Install.apk).
+- This update adds truck and forklift financing, company-truck obstacle and
+  return handling, a strict delivery yard protocol, and the prepared story-mode
+  fixes.
+- Build and validation details: [Android 116 release notes](docs/android_116_release.md).
 - This is a development pre-release. Physical-device play and multiplayer
   acceptance remain separate from package verification; use the device
   checklist below before a public release.
