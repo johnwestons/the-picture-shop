@@ -15,6 +15,7 @@ local AIWatchdog=require('src.ai_watchdog')
 local DockManeuver=require('src.commute.dock_maneuver')
 local TrafficRecovery=require('src.commute.truck_traffic_recovery')
 local WarehouseQueue=require('src.commute.warehouse_queue')
+local WarehouseYard=require('src.commute.warehouse_yard')
 local TrafficBudget=require('src.commute.traffic_budget')
 -- Admission limits delay departures; they never hide or delete active traffic.
 local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_ACTIVE_TRUCKS=16,
@@ -621,8 +622,14 @@ end
 
 local function dockBlocked(state,world,subject)
     local commute=state and state.home and state.home.commute
-    if commute and truckAtDock(world,commute.truck) then return true end
-    if commute and truckAtDock(world,commute.keiTruck) then return true end
+    local company=require('src.company_delivery_driver')
+    local companyState=state and state.employment and state.employment.companyTruck
+    local motion=companyState and companyState.exterior
+    if motion and motion.dockDeparture and motion.phase=='departing' then return true end
+    if commute and commute.truck and not company.vehicleHidden(state,commute.truck)
+        and truckAtDock(world,commute.truck) then return true end
+    if commute and commute.keiTruck and not company.vehicleHidden(state,commute.keiTruck)
+        and truckAtDock(world,commute.keiTruck) then return true end
     local occupied=false
     eachDelivery(state,function(_,delivery)
         if occupied or type(delivery)~='table' then return end
@@ -639,13 +646,24 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
     local commute=state and state.home and state.home.commute
     if commute then
         for _,truck in ipairs(require('src.commute.trip').trucks(commute)) do
-            if type(truck)=='table' and Truck.valid(truck) then
+            if type(truck)=='table' and Truck.valid(truck)
+                and not require('src.company_delivery_driver').vehicleHidden(state,truck) then
                 local dims=Footprint.dimensions(truck)
                 vehicles[#vehicles+1]=truck
                 trafficActors[#trafficActors+1]={actor=truck,id='player-truck-'..(truck.model or 'box'),
                     isPlayer=true,kind='vehicle',halfLength=dims.halfLength,halfWidth=dims.halfWidth}
             end
         end
+    end
+    local company=state and state.employment and state.employment.companyTruck
+    local motion=company and company.exterior
+    if require('src.commute.company_truck_motion').visible(motion) then
+        local truck=motion.vehicle
+        truck.trafficId='company-delivery-truck'
+        local dims=Footprint.dimensions(truck)
+        vehicles[#vehicles+1]=truck
+        trafficActors[#trafficActors+1]={actor=truck,id=truck.trafficId,isPlayer=false,
+            kind='vehicle',halfLength=dims.halfLength,halfWidth=dims.halfWidth}
     end
     if commute then
         for _,part in pairs(commute.participants or {}) do
@@ -712,6 +730,8 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
         if inboundRoute and inboundRoute.transportId then inboundRoute=nil end
         local inboundNeeded=delivery.status~='received'
             or not groupReceived(groups[entry.id])
+            or inboundRoute and inboundRoute.vehicle and inboundRoute.vehicle.phase=='at_bay'
+                and not (delivery.returnRoute and delivery.returnRoute.vehicle)
         local inbound=inboundRoute and inboundNeeded and inboundRoute.vehicle
         local outbound=delivery.returnRoute and delivery.returnRoute.vehicle
         if inbound and inbound.phase~='offmap' then
@@ -1629,7 +1649,7 @@ function Network.update(state,town,now,epoch,activeWorld)
     epoch=finite(epoch) and epoch or os.time()
     local durationHours=route.length/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
     local outboundDurationHours=route.outboundLength/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
-    local changed=companyTruck.updateExterior(state,route.world,epoch,now)
+    local changed=false
     if companyActive then
         changed=companyTruck.update(state,now,true) or changed
         companyTruck.syncTripVehicle(state)
@@ -1681,6 +1701,7 @@ function Network.update(state,town,now,epoch,activeWorld)
                         local inbound=pickup.roadDelivery.route
                         inbound.departedAtEpoch=epoch-route.length/Network.AVERAGE_SPEED-2
                         inbound.arrivedAtEpoch=epoch-1
+                        inbound.restoreLoadingAtDock=true
                     end
                 end
                 local road=pickup.roadDelivery
@@ -1741,6 +1762,20 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
     if vehicle and (not Truck.valid(vehicle) or type(vehicle.phase)~='string') then
         record.vehicle=nil;vehicle=nil;created=true
     end
+    if not vehicle and kind=='inbound' then
+        local spawn=routeSample(route.inward,route.length,(Footprint.halfLength+.65)/route.length)
+        if spawn and Truck.blocked(world,spawn.x,spawn.z,spawn.heading,{model='box'}) then return false end
+    elseif not vehicle and kind=='outbound' then
+        if queue.exitOwner and queue.exitOwner~=record then return false end
+        local site=world.sites.byId.warehouse
+        local start=inbound and inbound.vehicle and inbound.vehicle.phase=='at_bay' and inbound.vehicle
+        local x,z=site:toWorld(site.design.truckParking.x,site.design.truckParking.z,0)
+        local heading=site.yaw
+        if start then x,z,heading=start.x,start.z,start.heading end
+        -- Replace the inbound body in place, but never create a departing
+        -- body over another truck when restoring an older/suspended route.
+        if Truck.blocked(world,x,z,heading,start or {model='box'}) then return false end
+    end
     vehicle=vehicle or beginVehicle(delivery,record,route,kind)
     if not vehicle or dt<=0 then return false end
     vehicle.trafficId=tostring(entryId or 'delivery')..(kind=='outbound' and ':return' or '')
@@ -1751,6 +1786,51 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
     end
     local changed=created or boundaryRepaired
     local step=math.min(.1,dt)
+    if kind=='inbound' and record.restoreLoadingAtDock then
+        -- Only an explicitly migrated, already-loading pickup may restore at
+        -- the dock. Elapsed travel time alone must never skip the yard line.
+        local assignment=queue[inbound]
+        if assignment and assignment.target=='dock' then
+            local site=world.sites.byId.warehouse
+            local x,z=site:toWorld(assignment.anchor.x,assignment.anchor.z,0)
+            if require('src.commute.yard_rail').place(vehicle,{x=x,z=z,heading=site.yaw},world) then
+                vehicle.phase='at_bay';vehicle.pathTarget='dock';vehicle.yard=nil
+                record.restoreLoadingAtDock=nil;record.arrivedAtEpoch=epoch
+            end
+        end
+    end
+    if WarehouseYard.controls(vehicle,world) then
+        if kind=='outbound' then WarehouseYard.setExitLine(world,route.outward,Network.lanePosition) end
+        if kind=='outbound' and queue.exitOwner and queue.exitOwner~=record then
+            require('src.commute.yard_rail').stop(vehicle);return true
+        end
+        -- The yard protocol entirely replaces the road AI here. Keep the
+        -- physical pose and phase authoritative for unloading and pickup.
+        DockManeuver.clear(vehicle,state,'Warehouse yard controller took ownership')
+        local yardAssignment=kind=='outbound' and {target='outbound',permitted=not queue.exitOwner or queue.exitOwner==record}
+            or queue[inbound]
+        local okay,finished=AIWatchdog.protect(state,'delivery-yard-controller:'..vehicle.trafficId,
+            {system='Shop yard protocol',subject=vehicle.trafficId,stage=kind,x=vehicle.x,z=vehicle.z,
+                visible=vehicle.visible~=false,scope='world-simulation'},
+            function()return WarehouseYard.update(vehicle,yardAssignment,world,step,state,kind)end,
+            function()
+                world.activeTruck=nil;require('src.commute.yard_rail').stop(vehicle)
+                local moved,reason=WarehouseYard.recover(vehicle,yardAssignment,world,state)
+                return {ok=moved,action=reason}
+            end)
+        if okay and finished and kind=='outbound' then
+            local station=require('src.commute.yard_rail').project(route.outward,vehicle.x,vehicle.z)
+            vehicle.pathIndex=DrivingPath.indexAtDistance(route.outward,station+.5)
+            vehicle.pathTarget=nil
+        elseif okay and finished then
+            inbound.arrivedAtEpoch=epoch
+        elseif vehicle.phase~='waiting_bay' and vehicle.phase~='at_bay' then
+            vehicle.phase=kind=='outbound' and 'departing'
+                or queue[inbound] and queue[inbound].slot and 'approaching_wait' or 'approaching'
+        end
+        updateTrafficActorIndex(world,vehicle,'vehicle')
+        return true
+    end
     if kind=='outbound' then
         if vehicle.phase=='offmap' then return changed end
         local site=route.world.sites.byId.warehouse
@@ -1796,7 +1876,7 @@ local function simulateDelivery(delivery,route,dt,state,epoch,world,entryId,queu
         local queueMonitor=queueCapacityMonitors[vehicle]
         if queueMonitor then AIWatchdog.clear(state,queueMonitor,'A safe warehouse queue position is available') end
         queueCapacityMonitors[vehicle]=nil
-        if created and finite(inbound.departedAtEpoch) and finite(inbound.arrivedAtEpoch)
+        if created and not route.accessIntegrated and finite(inbound.departedAtEpoch) and finite(inbound.arrivedAtEpoch)
             and epoch>inbound.departedAtEpoch+1 then
             if epoch>=inbound.arrivedAtEpoch then
                 vehicle.x,vehicle.z=site:toWorld(anchor.x,anchor.z,0)
@@ -1944,7 +2024,9 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
         end
     end)
     local commute=state.home and state.home.commute
-    if not activeDelivery and not commute then return false,false end
+    local Company=require('src.company_delivery_driver')
+    local companyActive=Company.busy(state)
+    if not activeDelivery and not commute and not companyActive then return false,false end
     local route=townWorld(town,activeWorld)
     if not route then return false,false end
     dt=finite(dt) and math.max(0,dt) or 0
@@ -1953,13 +2035,16 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
     lastWorldByState[state]=world
     local motorcyclesCreated=AIMotorcycleTraffic.ensure(commute,world)
     local hasMotorcycles=commute and #(commute.aiMotorcycles or {})>0
-    if not activeDelivery and not hasMotorcycles then return motorcyclesCreated,false end
+    if not activeDelivery and not hasMotorcycles and not companyActive then return motorcyclesCreated,false end
     local elapsed=math.min(dt,TRAFFIC_MAX_CATCHUP)
     local stepCount=math.max(1,math.ceil(elapsed/TRAFFIC_MAX_STEP))
     local step=elapsed/stepCount
     trafficClock=trafficClock+elapsed
     local changed,moving=motorcyclesCreated,false
     for _=1,stepCount do
+        -- Prepare a saved company vehicle before building the shared collision
+        -- index. Zero dt may prepare a phase, but never advances its physics.
+        changed=Company.updateExterior(state,world,epoch,nil,0) or changed
         local queue=WarehouseQueue.plan(deliveryEntries(state),route,dockBlocked(state,world),epoch,Network.lanePosition)
         -- Rebuild the shared actor index for each substep so every driver sees
         -- road users at their latest pose, including vehicles created during
@@ -1969,12 +2054,31 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
         world.trafficActorIndex=TrafficActorIndex.shouldUse(#trafficActors)
             and TrafficActorIndex.new(trafficActors) or nil
         installVehicleCollision(world,trafficActors,world.trafficActorIndex)
+        local companyMoved=Company.updateExterior(state,world,epoch,nil,step)
+        changed=companyMoved or changed
+        local company=state.employment and state.employment.companyTruck
+        local motion=company and company.exterior
+        if require('src.commute.company_truck_motion').visible(motion) then
+            -- A returning truck can enter the world this substep. Other road
+            -- users must see it immediately, including in the spatial index.
+            local vehicle=motion.vehicle
+            local present=false
+            for _,other in ipairs(vehicles) do if other==vehicle then present=true;break end end
+            if not present then
+                vehicle.trafficId='company-delivery-truck'
+                vehicles[#vehicles+1]=vehicle
+                local dims=Footprint.dimensions(vehicle)
+                trafficActors[#trafficActors+1]={actor=vehicle,id=vehicle.trafficId,isPlayer=false,
+                    kind='vehicle',halfLength=dims.halfLength,halfWidth=dims.halfWidth}
+            end
+            updateTrafficActorIndex(world,vehicle,'vehicle')
+        end
         local function driveRoute(vehicle,points,driveDt,driveWorld,targetName)
             return driveVehicle(vehicle,points,driveDt,driveWorld,targetName,state)
         end
         local bikeChanged,bikeMoving=AIMotorcycleTraffic.update(commute,world,step,driveRoute,state)
         changed=bikeChanged or changed
-        moving=bikeMoving
+        moving=moving or bikeMoving or companyMoved
         eachDelivery(state,function(id,delivery)
             local localChanged
             if delivery and delivery.route and delivery.route.transportId then
@@ -2071,6 +2175,8 @@ end
 local function vehicleForWatchdogIssue(state,issueId)
     if type(issueId)~='string' then return nil end
     local trafficId=issueId:match('^road%-driver:(.+)$')
+        or issueId:match('^delivery%-yard:(.+)$')
+        or issueId:match('^delivery%-yard%-controller:(.+)$')
         or issueId:match('^delivery%-dock:(.+)$')
         or issueId:match('^delivery%-dock%-controller:(.+)$')
         or issueId:match('^delivery%-route%-plan:(.+)$')
@@ -2092,11 +2198,33 @@ local function vehicleForWatchdogIssue(state,issueId)
         end
     end
 end
+local function companyForIssue(state,issueId)
+    if type(issueId)~='string' then return nil end
+    local model=issueId:match('^company%-yard:(.+)$') or issueId:match('^company%-yard%-controller:(.+)$')
+    local company=state and state.employment and state.employment.companyTruck
+    local motion=company and company.exterior
+    if motion and model==(company.vehicleModel or 'box') and (motion.phase=='reverse_out'
+        or motion.phase=='departing' or motion.phase=='returning') then return motion end
+end
 function Network.debugUnstickAvailable(state,issueId)
+    if companyForIssue(state,issueId) then return true end
     local entry,vehicle=vehicleForWatchdogIssue(state,issueId)
     return entry~=nil and vehicle~=nil
 end
 function Network.debugUnstick(state,issueId)
+    local motion=companyForIssue(state,issueId)
+    if motion then
+        local town=state.home and state.home.town
+        local world=lastWorldByState[state] or Network.cachedWorld(town)
+        if not world and town then world=require('src.commute.town').world(town) end
+        if not world then return false,'Company delivery town is unavailable.' end
+        local oldObstacles,oldSweep=world.vehicleObstacles,world.sweepTrafficObstacles
+        Network.installVehicleObstacles(state,world)
+        local okay,moved,message=pcall(require('src.commute.company_truck_motion').recover,motion,world,state)
+        world.vehicleObstacles,world.sweepTrafficObstacles=oldObstacles,oldSweep
+        if not okay then return false,'Company yard recovery failed: '..tostring(moved) end
+        return moved,message
+    end
     local entry,vehicle,record,kind=vehicleForWatchdogIssue(state,issueId)
     if not entry or not vehicle then return false,'No active delivery truck matches that watchdog report.' end
     vehicle.trafficId=kind=='outbound' and entry.id..':return' or entry.id
@@ -2124,6 +2252,23 @@ function Network.debugUnstick(state,issueId)
         world.trafficActors=actors
         world.trafficActorIndex=TrafficActorIndex.shouldUse(#actors) and TrafficActorIndex.new(actors) or nil
         installVehicleCollision(world,actors,world.trafficActorIndex)
+        if WarehouseYard.controls(vehicle,world) then
+            local assignments=WarehouseQueue.plan(deliveryEntries(state),route,dockBlocked(state,world),os.time(),Network.lanePosition)
+            if kind=='outbound' then WarehouseYard.setExitLine(world,route.outward,Network.lanePosition) end
+            local assignment=kind=='outbound' and {target='outbound',permitted=not assignments.exitOwner or assignments.exitOwner==record}
+                or assignments[record]
+            local okay,moved,message=pcall(WarehouseYard.unstick,vehicle,assignment,world,state,kind)
+            world.trafficActors,world.trafficActorIndex=oldActors,oldIndex
+            world.vehicleObstacles,world.sweepTrafficObstacles=oldVehicleObstacles,oldSweepObstacles
+            if not okay then return false,'Yard recovery failed: '..tostring(moved) end
+            if moved then
+                for _,prefix in ipairs({'road-driver:','delivery-dock:','delivery-dock-controller:',
+                    'delivery-route-plan:','delivery-queue-capacity:','delivery-park-position:','delivery-yard-controller:'}) do
+                    AIWatchdog.resolve(state,prefix..vehicle.trafficId,{reason='Moved to reserved yard checkpoint'})
+                end
+            end
+            return moved,message
+        end
         local okay,result,reason=pcall(TrafficRecovery.rescue,vehicle,recoveryPath,world)
         world.trafficActors,world.trafficActorIndex=oldActors,oldIndex
         world.vehicleObstacles,world.sweepTrafficObstacles=oldVehicleObstacles,oldSweepObstacles
@@ -2192,6 +2337,7 @@ function Network.actors(state,town,now,epoch,activeWorld,visitors)
         local inbound,outbound=delivery.route,delivery.returnRoute
         if inbound and inbound.transportId then return end
         local inboundNeeded=delivery.status~='received' or not groupReceived(group)
+            or inbound and inbound.vehicle and inbound.vehicle.phase=='at_bay' and not (outbound and outbound.vehicle)
         company=outbound and outbound.originCompany or inbound and inbound.originCompany or company
         local sample,phase,speed
         local physical=outbound and outbound.vehicle and outbound.vehicle.phase~='offmap' and outbound.vehicle
@@ -2218,6 +2364,14 @@ function Network.actors(state,town,now,epoch,activeWorld,visitors)
                 sample={x=x,z=z,h=route.world:supportHeight(x,z),heading=site.yaw}
                 phase='at_bay';speed=0
             end
+        end
+        if not physical and sample and route.accessIntegrated and WarehouseYard.inside(sample,route.world) then
+            -- Until simulation creates the vehicle, presentation may show its
+            -- road journey, but may never invent a dock/queue arrival.
+            local gate=route.world.truckAccess.entryGate
+            local first=route.world.truckAccess.entryPath[2]
+            sample={x=gate.x,z=gate.z,h=gate.h,heading=math.atan2(first.z-gate.z,first.x-gate.x)}
+            phase='approaching';speed=0
         end
         if sample then
             local actor={x=sample.x,z=sample.z,h=sample.h,heading=sample.heading,

@@ -3,6 +3,22 @@
   "description": "Gameplay readiness gate: completion plus interruption/recovery evidence. Full run required for PASS.",
   "stages": [
     {
+      "id": "fleet-finance-desktop", "focus": "fleet-finance", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 50
+    },
+    {
+      "id": "fleet-finance-mobile", "focus": "fleet-finance", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 50
+    },
+    {
+      "id": "yard-protocol-mobile", "focus": "warehouse-yard", "mobile": true,
+      "timeoutSeconds": 900, "minChecks": 90
+    },
+    {
+      "id": "company-driving-mobile", "focus": "company-driving", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 65
+    },
+    {
       "id": "core-desktop",
       "focus": "full",
       "mobile": false,
@@ -241,6 +257,21 @@
     }
   ],
   "features": [
+    {
+      "id": "fleet-financing", "label": "Truck and forklift credit, purchases, repayments, saves and host authority",
+      "stages": ["fleet-finance-desktop", "fleet-finance-mobile"],
+      "checks": ["fleet_finance_down_payment_acquires_box_new", "fleet_finance_down_payment_acquires_box_used", "fleet_finance_down_payment_acquires_kei_new", "fleet_finance_down_payment_acquires_kei_used", "fleet_finance_down_payment_acquires_forklift", "fleet_finance_host_commits_exactly_once", "fleet_finance_sign_button_buys_forklift", "fleet_finance_vehicle_dealer_offers_finance_without_full_cash", "fleet_finance_forklift_purchase_links_to_its_credit_page"]
+    },
+    {
+      "id": "strict-yard-protocol", "label": "Reserved dock, fixed yard lines, safe checkpoint recovery and restored departures",
+      "stages": ["yard-protocol-mobile"],
+      "checks": ["yard_takes_control_from_general_driving_ai", "yard_mixed_freight_and_pickup_follow_fifo_712345", "yard_watchdog_teleports_to_clear_reserved_dock_after_reload", "yard_restores_only_the_reserved_departure", "yard_speed_limit_is_independent_of_frame_rate_offset_0.5"]
+    },
+    {
+      "id": "employee-company-driving", "label": "Employee boarding, physical departure/return, save recovery and delivery accounting",
+      "stages": ["company-driving-mobile"],
+      "checks": ["company_driver_stays_away_until_physically_parked", "company_physical_return_survives_disk_save_reload", "company_return_hands_back_truck_without_recounting_delivery_mileage"]
+    },
     {
       "id": "readable-ui", "label": "Restored UI baseline and office controls",
       "stages": ["ui-desktop", "ui-mobile"],

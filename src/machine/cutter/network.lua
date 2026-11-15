@@ -17,6 +17,7 @@ function Component.run(Context)
         Context.Machine.emergencyStopped = view.emergencyStopped == true
         Context.Machine.gauge = (tonumber(view.gaugeCentiInch) or 0) / 100
         Context.Machine.programIndex = math.max(1, math.min(4, math.floor(view.programIndex or 1)))
+        Context.Machine.autoMode = view.autoMode == true
         return true
     end
 
@@ -26,6 +27,7 @@ function Component.run(Context)
         Context.Machine.clamp, Context.Machine.clampProgress, Context.Machine.bladeProgress = false, 0, 0
         Context.Machine.barrierClear, Context.Machine.emergencyStopped = true, false
         Context.Machine.leftDown, Context.Machine.rightDown = false, false
+        Context.Machine.autoMode = false
         Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = nil, nil, nil
         Context.Machine._resetResume, Context.Machine._blockedResume = nil, nil
         return true

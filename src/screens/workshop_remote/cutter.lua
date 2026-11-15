@@ -27,6 +27,13 @@ function Component.install(Runtime)
             or status.bladeRemoved and "REMOVED" or "INSTALLED"
         love.graphics.setColor(0.10, 0.12, 0.13)
         love.graphics.print("CUTTER SERVICE  ·  HOST-AUTHORITATIVE LOCKOUT", 122, 132)
+        if view.bladeRemoved ~= true and view.bladeSharpness ~= nil then
+            local dull = view.bladeSharpness <= BladeProfiles.DULL_THRESHOLD
+            love.graphics.setColor(dull and .73 or .10, .12, .13)
+            love.graphics.printf(string.format("SHARPNESS %d%%%s", view.bladeSharpness, dull and " · LOW" or ""),
+                520, 132, 292, "right")
+            love.graphics.setColor(0.10, 0.12, 0.13)
+        end
         love.graphics.printf(string.format("KITS %d  ·  SPARES %d%s  ·  %s %s  ·  COURIER %s",
             status.maintenanceKits,
             status.spareBlades,
@@ -149,7 +156,8 @@ function Component.install(Runtime)
         love.graphics.rectangle("fill", Runtime.CUTTER_SCENE.x, Runtime.CUTTER_SCENE.y,
             Runtime.CUTTER_SCENE.width, Runtime.CUTTER_SCENE.height, 4, 4)
         Runtime.MachineScreen.drawCutterScene(assets, model,
-            { x = Runtime.CUTTER_SCENE.x + 12, y = Runtime.CUTTER_SCENE.y, width = 340, height = 227 })
+            { x = Runtime.CUTTER_SCENE.x + 12, y = Runtime.CUTTER_SCENE.y, width = 340, height = 227 },
+            "in", view.bladeRemoved ~= true and view.bladeSharpness or nil)
         if model.paper then
             love.graphics.setColor(model.paper.offSpec and 1 or 0.84,
                 model.paper.offSpec and 0.4 or 0.92, model.paper.offSpec and 0.3 or 0.92)
@@ -160,7 +168,7 @@ function Component.install(Runtime)
         end
         local step = tostring(view.step or "idle"):gsub("_", " "):upper()
         love.graphics.setColor(0.10, 0.12, 0.13)
-        love.graphics.print("HOST: " .. step, 122, 126)
+        love.graphics.print("HOST: " .. step .. (view.autoMode and "  ·  AUTO" or "  ·  MANUAL"), 122, 126)
         if model.loaded and not model.paper then
             love.graphics.setColor(0.84, 0.92, 0.92)
             love.graphics.printf("Waiting for host paper details", 474, 348, 344, "center")

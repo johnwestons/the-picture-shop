@@ -115,7 +115,7 @@ local function moveOffDock(pallet, index, lanes, occupied)
 end
 
 local function unloadEntry(state, entry, epoch, lanes, origin, moved)
-    assert(Network.arrived(entry.delivery, epoch), "truck did not reach the dock: " .. entry.id)
+    assert(Network.arrived(entry, epoch), "truck did not reach the dock: " .. entry.id)
     if entry.job then
         for _, pallet in ipairs(entry.job.pallets or {}) do
             if pallet.location == "awaiting_delivery" then
@@ -252,25 +252,34 @@ function Test.run(context, check)
         assert(finiteTraffic, "heavy delivery traffic produced a missing or non-finite truck actor")
 
         local arrivalEpoch = epoch + frameCount * .25 + 1
-        for _, leader in ipairs(leaders) do
-            leader.delivery.route.arrivedAtEpoch = arrivalEpoch
-            leader.delivery.route.arrivalAtHours = now
-            leader.delivery.route.vehicle = nil
-        end
-        Network.update(state, town, now, arrivalEpoch)
-        local atBay = Network.actors(state, town, now, arrivalEpoch)
-        local bayCount = 0
-        for _, actor in ipairs(atBay) do if actor.phase == "at_bay" then bayCount = bayCount + 1 end end
-        assert(bayCount >= #leaders, "arriving trucks were not represented at the warehouse dock")
-
-        for _, leader in ipairs(leaders) do
-            for _, entry in ipairs(entries) do
-                local route = entry.delivery and entry.delivery.route
-                if entry.id == leader.id or route and route.transportId == leader.id then
-                    unloadEntry(state, entry, arrivalEpoch, lanes, origin, moved)
+        local serviced={}
+        local serviceCount=0
+        -- ETAs no longer create overlapping trucks at the dock. Advance the
+        -- physical road/yard protocol and unload one reserved truck at a time.
+        for step=1,8000 do
+            arrivalEpoch=arrivalEpoch+.25
+            Network.simulate(state,town,.25,arrivalEpoch)
+            local bayCount=0
+            for _,actor in ipairs(Network.actors(state,town,now,arrivalEpoch)) do
+                if actor.phase=='at_bay' then bayCount=bayCount+1 end
+            end
+            assert(bayCount<=1,'late-game traffic assigned more than one truck to the dock')
+            for _,leader in ipairs(leaders) do
+                if not serviced[leader.id] and Network.arrived(leader,arrivalEpoch) then
+                    Network.update(state,town,now,arrivalEpoch)
+                    for _,entry in ipairs(entries) do
+                        local route=entry.delivery and entry.delivery.route
+                        if entry.id==leader.id or route and route.transportId==leader.id then
+                            unloadEntry(state,entry,arrivalEpoch,lanes,origin,moved)
+                        end
+                    end
+                    serviced[leader.id]=true;serviceCount=serviceCount+1
+                    Network.update(state,town,now,arrivalEpoch)
                 end
             end
+            if serviceCount==#leaders then break end
         end
+        assert(serviceCount==#leaders,'late-game trucks did not finish their reserved dock arrivals')
         Network.update(state,town,now,arrivalEpoch)
         for step=1,Network.DISPATCH_HEADWAY_SECONDS*10 do
             Network.simulate(state,town,.1,arrivalEpoch+step*.1)

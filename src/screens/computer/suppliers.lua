@@ -13,6 +13,14 @@ function Component.install(Runtime)
         local card=Runtime.vehicleListingRect(index)
         return {x=card.x+224,y=card.y+78,width=118,height=32}
     end
+    function Runtime.vehicleListingFinanceRect(index)
+        local card=Runtime.vehicleListingRect(index)
+        return {x=card.x+224,y=card.y+38,width=118,height=32}
+    end
+    function Runtime.ComputerScreen.vehicleFinanceCenter(index)
+        local rect=Runtime.vehicleListingFinanceRect(index)
+        return rect.x+rect.width/2,rect.y+rect.height/2
+    end
 
     function Runtime.ComputerScreen.resolveVehicle(accepted,message)
         Runtime.ComputerScreen.vehiclePending=false
@@ -65,6 +73,9 @@ function Component.install(Runtime)
         end
         for index,listingId in ipairs(VehicleDealer.ORDER) do
             local listing=VehicleDealer.listing(listingId)
+            if Runtime.contains(Runtime.vehicleListingFinanceRect(index),x,y) and not VehicleDealer.owns(state,listing.model) then
+                return Runtime.openFleetFinancing(listingId)
+            end
             if Runtime.contains(Runtime.vehicleListingBuyRect(index),x,y)
                 and listing and not VehicleDealer.owns(state,listing.model) then
                 screen.vehicleRequestNumber=(screen.vehicleRequestNumber or 0)+1
@@ -268,8 +279,6 @@ function Component.install(Runtime)
             love.graphics.printf(string.format("SALE %d%% OFF", featuredSale.percent), 492, 206, 194, "right")
         end
         if site.kind=='vehicles' then
-            love.graphics.setColor(0.68,0.83,0.84)
-            love.graphics.print('NEW AND USED WORK TRUCKS',116,274)
             for index,listingId in ipairs(VehicleDealer.ORDER) do
                 local listing=VehicleDealer.listing(listingId)
                 local card,buy=Runtime.vehicleListingRect(index),Runtime.vehicleListingBuyRect(index)
@@ -284,12 +293,15 @@ function Component.install(Runtime)
                 love.graphics.printf(listing.description,card.x+12,card.y+53,210,'left')
                 if listing.condition=='used' then
                     love.graphics.setColor(0.94,0.61,0.35)
-                    love.graphics.print('Used • poor condition • service due',card.x+12,card.y+98)
+                    love.graphics.print('Used • service overdue',card.x+12,card.y+98)
                 else
                     love.graphics.setColor(0.57,0.83,0.65)
                     love.graphics.print('New • inspected before delivery',card.x+12,card.y+98)
                 end
                 local hovered=pointerX and Runtime.contains(buy,pointerX,pointerY)
+                local finance=Runtime.vehicleListingFinanceRect(index)
+                Runtime.drawComputerButton(finance,'FINANCE',owned and 'disabled'
+                    or pointerX and Runtime.contains(finance,pointerX,pointerY) and 'hover' or 'secondary')
                 Runtime.drawComputerButton(buy,owned and 'OWNED' or affordable and 'REVIEW'
                     or 'NOT ENOUGH',(owned or not affordable) and 'disabled'
                     or hovered and 'primaryHover' or 'primary')

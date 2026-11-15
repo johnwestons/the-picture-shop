@@ -248,6 +248,7 @@ function Component.install(Runtime)
             love.graphics.print("Raise forks to 50% for middle shelves, 100% for top shelves and stacks.",104,518)
             control(Runtime.WAREHOUSE_FORKLIFT,view.forkliftOwned and "OWNED" or "REVIEW PURCHASE",
                 view.enabled and not view.forkliftOwned and not view.pending)
+            control(Runtime.WAREHOUSE_FORKLIFT_FINANCE,'FINANCE',view.enabled and not view.forkliftOwned and not view.pending)
         end
         love.graphics.setColor(0.96,0.77,0.38,1)
         love.graphics.printf(view.message or "Visit rooms through the passage. Storage holds 15 stock pallets off the shop floor.",100,548,736,"left")
@@ -389,7 +390,8 @@ function Component.install(Runtime)
 
     function Runtime.drawCredit(state, pointerX, pointerY)
         local profile = Runtime.Credit.profile(state)
-        local quotes = Runtime.Credit.machineQuotes(state, Runtime.ComputerScreen.creditChannel)
+        local quotes = Runtime.Credit.quotes(state, Runtime.ComputerScreen.creditChannel)
+        local page=math.max(1,math.min(math.ceil(#quotes/3),Runtime.ComputerScreen.creditPage or 1))
         local loans = Runtime.Credit.loanRows(state)
         Runtime.panel({ x = 110, y = 190, width = 738, height = 394 },
             { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
@@ -411,7 +413,7 @@ function Component.install(Runtime)
         Runtime.panel({ x = 462, y = 230, width = 366, height = 50 },
             { 0.08, 0.11, 0.13, 1 }, { 0.30, 0.48, 0.49, 1 })
         love.graphics.setColor(0.74, 0.83, 0.83)
-        love.graphics.print("OPEN MACHINE CREDIT", 476, 239)
+        love.graphics.print("OPEN EQUIPMENT CREDIT", 476, 239)
         love.graphics.setColor(0.95, 0.84, 0.30)
         love.graphics.printf(Runtime.money(profile.totalBalance), 680, 237, 132, "right")
         love.graphics.setColor(0.65, 0.74, 0.75)
@@ -419,10 +421,10 @@ function Component.install(Runtime)
             profile.openLoans, Runtime.Credit.MAX_OPEN_LOANS, Runtime.money(profile.monthlyDue)), 476, 258)
 
         love.graphics.setColor(0.68, 0.83, 0.84)
-        love.graphics.print("MACHINE FINANCING", 116, 283)
         for _, option in ipairs({
             { id = "online", rect = Runtime.CREDIT_CHANNEL_ONLINE, label = "ONLINE" },
             { id = "dealer", rect = Runtime.CREDIT_CHANNEL_DEALER, label = "DEALER" },
+            { id = 'fleet',rect=Runtime.CREDIT_CHANNEL_FLEET,label='FLEET' },
         }) do
             local selected = Runtime.ComputerScreen.creditChannel == option.id
             local hovered = pointerX and Runtime.contains(option.rect, pointerX, pointerY)
@@ -431,17 +433,18 @@ function Component.install(Runtime)
                     or hovered and "hover" or "secondary")
         end
         love.graphics.setColor(0.80, 0.89, 0.87, 1)
-        love.graphics.print("YOUR MACHINE LOANS", 466, 283)
+        love.graphics.print("YOUR EQUIPMENT LOANS", 466, 283)
         for index, quote in ipairs(quotes) do
+            if index>(page-1)*3 and index<=page*3 then
             local rect = Runtime.creditMachineRect(index)
             local action = Runtime.creditMachineActionRect(index)
             Runtime.panel(rect, { 0.065, 0.085, 0.10, 1 }, { 0.22, 0.37, 0.40, 1 })
             love.graphics.setColor(0.91, 0.94, 0.92)
             local nameScale = math.min(1, 238 / math.max(1, love.graphics.getFont():getWidth(quote.name)))
             love.graphics.print(quote.name, rect.x + 10, rect.y + 3, 0, nameScale, nameScale)
-            local red, green, blue = Runtime.conditionColor(quote.condition)
+            local red, green, blue = Runtime.conditionColor(quote.assetKind and (quote.condition=='new' and 100 or 58) or quote.condition)
             love.graphics.setColor(red, green, blue)
-            love.graphics.print(string.format("%s used  •  %.0f%% condition  •  %s",
+            love.graphics.print(quote.assetKind and ((quote.condition=='new' and 'New' or 'Used • service due')..'  /  '..Runtime.money(quote.price)) or string.format("%s used  •  %.0f%% condition  •  %s",
                 quote.channel == "dealer" and "Dealer" or "Online", quote.condition, Runtime.money(quote.price)),
                 rect.x + 10, rect.y + 19)
             love.graphics.setColor(0.72, 0.81, 0.81)
@@ -453,8 +456,15 @@ function Component.install(Runtime)
             local hovered = quote.eligible and pointerX and Runtime.contains(action, pointerX, pointerY)
             Runtime.drawComputerButton(action,
                 quote.eligible and ("REVIEW\n" .. Runtime.money(quote.monthlyPayment) .. "/mo")
-                    or "SAVE TO\nAPPLY",
+                    or quote.owned and 'OWNED' or "UNAVAILABLE",
                 quote.eligible and (hovered and "primaryHover" or "primary") or "disabled")
+            end
+        end
+        if #quotes>3 then
+            Runtime.drawComputerButton(Runtime.CREDIT_PREVIOUS,'PREVIOUS',page>1 and 'secondary' or 'disabled')
+            Runtime.drawComputerButton(Runtime.CREDIT_NEXT,'NEXT',page<math.ceil(#quotes/3) and 'secondary' or 'disabled')
+            love.graphics.setColor(.72,.81,.81)
+            love.graphics.printf(page..' / '..math.ceil(#quotes/3),214,530,136,'center')
         end
 
         local visibleLoans = 0
@@ -485,7 +495,7 @@ function Component.install(Runtime)
         end
         if visibleLoans == 0 then
             love.graphics.setColor(0.58, 0.66, 0.67)
-            love.graphics.printf("No open machine loans.", 478, 370, 330, "center")
+            love.graphics.printf("No open equipment loans.", 478, 370, 330, "center")
         end
 
         local latest = profile.history[#profile.history]
@@ -497,15 +507,16 @@ function Component.install(Runtime)
 
         local choice = Runtime.ComputerScreen.creditConfirmation
         if choice then
-            local quote = Runtime.Credit.machineQuotes(state, choice.channel)[choice.offerIndex]
+            local quote = Runtime.Credit.quotes(state, choice.channel)[choice.offerIndex]
             if quote then
                 love.graphics.setColor(0.01, 0.02, 0.03, 0.82)
                 love.graphics.rectangle("fill", 110, 190, 738, 394)
                 Runtime.panel(Runtime.CREDIT_CONFIRM_PANEL, { 0.07, 0.09, 0.11, 1 }, { 0.48, 0.68, 0.63, 1 })
                 love.graphics.setColor(0.95, 0.84, 0.30)
-                love.graphics.print("REVIEW MACHINE FINANCING", 176, 321)
+                love.graphics.print("REVIEW EQUIPMENT FINANCING", 176, 321)
                 love.graphics.setColor(0.89, 0.93, 0.91)
-                love.graphics.print(string.format("%s  •  %s used listing at %s", quote.name,
+                love.graphics.print(quote.assetKind and (quote.name..'  /  '..Runtime.money(quote.price))
+                    or string.format("%s  •  %s used listing at %s", quote.name,
                     choice.channel == "dealer" and "dealer" or "online", Runtime.money(quote.price)), 176, 350)
                 love.graphics.setColor(0.72, 0.82, 0.81)
                 love.graphics.print("Down payment due today: " .. Runtime.money(quote.downPayment), 176, 377)

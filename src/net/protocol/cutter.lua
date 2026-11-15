@@ -186,7 +186,7 @@ function Component.install(Runtime)
             "bladePermille", "barrierClear", "emergencyStopped", "gaugeCentiInch",
             "programIndex", "memoryCentiInch",
         }, {
-            "paper", "candidates", "serviceStep", "servicePermille",
+            "paper", "candidates", "autoMode", "bladeSharpness", "bladeRemoved", "serviceStep", "servicePermille",
             "serviceView", "serviceTool", "serviceItems", "centralInstalled",
             "gearInspected", "gearLevelPermille", "bladeBoltsDone", "bladeBoltMask",
             "bladeGrade", "orderedBladeGrade", "moneyCents",
@@ -270,6 +270,17 @@ function Component.install(Runtime)
             programIndex = programIndex,
             memoryCentiInch = memoryCentiInch,
         }
+        for _, field in ipairs({ "autoMode", "bladeRemoved" }) do
+            if value[field] ~= nil and type(value[field]) ~= "boolean" then
+                return nil, label .. "." .. field .. " must be boolean"
+            end
+            normalized[field] = value[field]
+        end
+        if value.bladeSharpness ~= nil then
+            normalized.bladeSharpness, fieldError = Runtime.integerInRange(
+                value.bladeSharpness, 0, 100, label .. ".bladeSharpness")
+            if normalized.bladeSharpness == nil then return nil, fieldError end
+        end
         if value.bladeGrade ~= nil then
             if value.bladeGrade ~= "standard" and value.bladeGrade ~= "premium_hss"
                 and value.bladeGrade ~= "carbide_edge"

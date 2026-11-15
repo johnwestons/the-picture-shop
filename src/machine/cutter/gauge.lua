@@ -3,11 +3,16 @@
 local Component = {}
 
 function Component.run(Context)
+    local function gaugeEditable()
+        local machine = Context.Machine
+        return machine.paper and not machine.clamp and machine.step ~= "armed" and machine.step ~= "cutting"
+    end
+
     function Context.Machine.selectProgram(index, state)
-        if not Context.Machine.paper or type(index) ~= "number" then return false end
+        if not gaugeEditable() or type(index) ~= "number" then return false end
         index = math.max(1, math.min(#Context.Machine.paper.cuts, math.floor(index)))
         Context.Machine.programIndex = index
-        Context.Machine.autoCycle[index] = 1
+        Context.Machine.autoMode = false
         local cut = Context.Machine.paper.cuts[index]
         Context.message(state, string.format("Program %d: trim %s margin %.2f in.", index, cut.edge, cut.margin))
         Context.bumpRevision()
@@ -15,9 +20,10 @@ function Component.run(Context)
     end
 
     function Context.Machine.adjustGauge(amount, state)
-        if not Context.Machine.paper or Context.Machine.clamp or Context.Machine.step == "cutting" then return false end
+        if not gaugeEditable() then return false end
         Context.Machine.gauge = math.max(0, math.min(25,
             math.floor((Context.Machine.gauge + amount) * 100 + 0.5) / 100))
+        Context.Machine.autoMode = false
         Context.message(state, string.format("Backgauge set to %.2f in.", Context.Machine.gauge))
         Context.bumpRevision()
         return true
@@ -25,12 +31,13 @@ function Component.run(Context)
 
     function Context.Machine.setGauge(value, state)
         value = tonumber(value)
-        if not Context.Machine.paper or Context.Machine.clamp or Context.Machine.step == "cutting" then return false end
-        if not value or value < 0 or value > 25 then
+        if not gaugeEditable() then return false end
+        if not value or value ~= value or value < 0 or value > 25 then
             Context.message(state, "Enter a backgauge position from 0.00 to 25.00 inches.")
             return false
         end
         Context.Machine.gauge = math.floor(value * 100 + 0.5) / 100
+        Context.Machine.autoMode = false
         Context.message(state, string.format("Backgauge typed in at %.2f in.", Context.Machine.gauge))
         Context.bumpRevision()
         return true
@@ -67,27 +74,49 @@ function Component.run(Context)
         return result
     end
 
-    function Context.Machine.autoGauge(state)
-        if not Context.Machine.paper or Context.Machine.clamp or Context.Machine.step == "cutting" then return false end
-        local cutNumber = Context.Machine.programIndex
+    function Context.applyAutoGauge(state, cutNumber)
+        if not Context.Machine.autoMode then return false end
         local saved = Context.measurements(state, cutNumber, false)
-        if not saved or #saved == 0 then
-            Context.message(state, string.format(
-                "AUTO SET P%d has no player-saved measurement. Type a gauge and press SAVE first.", cutNumber))
+        if not saved or saved[1] == nil then
+            Context.Machine.autoMode = false
             return false
         end
-        local cursor = math.max(1, math.min(#saved, Context.Machine.autoCycle[cutNumber] or 1))
-        Context.Machine.gauge = saved[cursor]
-        Context.Machine.savedGauge = Context.Machine.gauge
-        Context.Machine.autoCycle[cutNumber] = cursor % #saved + 1
-        Context.message(state, string.format("AUTO SET P%d recalled %.2f in. (%d of %d saved).",
-            cutNumber, Context.Machine.gauge, cursor, #saved))
+        Context.Machine.programIndex = cutNumber
+        Context.Machine.gauge, Context.Machine.savedGauge = saved[1], saved[1]
+        return true
+    end
+
+    function Context.Machine.autoGauge(state)
+        local machine = Context.Machine
+        if not gaugeEditable() then return false end
+        if machine.autoMode then
+            machine.autoMode = false
+            Context.message(state, "Manual mode. The backgauge is unchanged.")
+            Context.bumpRevision()
+            return true
+        end
+        if machine.step ~= "loaded" and machine.step ~= "positioned" and machine.step ~= "repeat_ready" then
+            return false
+        end
+        local missing = {}
+        for number = 1, #machine.paper.cuts do
+            local saved = Context.measurements(state, number, false)
+            if not saved or saved[1] == nil then missing[#missing + 1] = "P" .. number end
+        end
+        if #missing > 0 then
+            Context.message(state, "Save a gauge for " .. table.concat(missing, ", ") .. " before starting Auto.")
+            return false
+        end
+        machine.autoMode = true
+        local cutNumber = machine.step == "repeat_ready" and 1 or machine.paper.activeCut
+        Context.applyAutoGauge(state, cutNumber)
+        Context.message(state, string.format("Auto mode. Cut %d backgauge set to %.2f in.", cutNumber, machine.gauge))
         Context.bumpRevision()
         return true
     end
 
     function Context.Machine.saveGauge(state)
-        if not Context.Machine.paper or Context.Machine.clamp or Context.Machine.step == "cutting" then return false end
+        if not gaugeEditable() then return false end
         Context.Machine.savedGauge = Context.Machine.gauge
         local cutNumber = Context.Machine.programIndex
         local saved = Context.measurements(state, cutNumber, true)
@@ -96,7 +125,6 @@ function Component.run(Context)
         end
         table.insert(saved, 1, Context.Machine.gauge)
         while #saved > 3 do table.remove(saved) end
-        Context.Machine.autoCycle[cutNumber] = 1
         Context.message(state, string.format("Saved P%d gauge %.2f in. (%d of 3 memory slots used).",
             cutNumber, Context.Machine.savedGauge, #saved))
         Context.bumpRevision()
@@ -104,13 +132,14 @@ function Component.run(Context)
     end
 
     function Context.Machine.recallGauge(state)
-        if Context.Machine.clamp then return false end
+        if not gaugeEditable() then return false end
         local saved = Context.measurements(state, Context.Machine.programIndex, false)
         if not saved or #saved == 0 then
             Context.message(state, string.format("No saved measurement exists for P%d.", Context.Machine.programIndex))
             return false
         end
         Context.Machine.gauge, Context.Machine.savedGauge = saved[1], saved[1]
+        Context.Machine.autoMode = false
         Context.message(state, string.format("Recalled newest P%d gauge %.2f in.", Context.Machine.programIndex, Context.Machine.gauge))
         Context.bumpRevision()
         return true

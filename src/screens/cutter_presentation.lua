@@ -80,6 +80,7 @@ function Presentation:model(state, view)
         bladeProgress = self.blade,
         gauge = (tonumber(view.gaugeCentiInch) or 0) / 100,
         programIndex = view.programIndex,
+        autoMode = view.autoMode == true,
         paperVisualOrientation = self.paperVisualOrientation,
         paperTurnProgress = self.paperTurnProgress,
     }

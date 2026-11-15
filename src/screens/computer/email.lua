@@ -1,6 +1,7 @@
 -- Email and estimating presentation.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local Viewport = require("src.viewport")
 
 function Component.install(Runtime)
     function Runtime.drawEmail(state, pointerX, pointerY, assets)
@@ -54,8 +55,12 @@ function Component.install(Runtime)
             local firstLine = math.max(1, #lines - visibleLines + 1)
             local textX, textY = input.x + 10, input.y + 10
             local previousScissorX, previousScissorY, previousScissorWidth, previousScissorHeight = love.graphics.getScissor()
-            local offsetX, offsetY, _, scaleX, scaleY = Runtime.Viewport.transform(
-                Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
+            -- ComputerScreen owns a separate Runtime from the app, so resolve
+            -- the viewport module here instead of reaching through Runtime.App.
+            -- Office screens use the safe area on desktop, but fit the full
+            -- authored canvas on Android.
+            local offsetX, offsetY, _, scaleX, scaleY = Viewport.transform(
+                Runtime.Config.baseWidth, Runtime.Config.baseHeight, not Viewport.fullScreenDevice())
             love.graphics.setScissor(offsetX + (input.x + 1) * scaleX,
                 offsetY + (input.y + 1) * scaleY,
                 (input.width - 2) * scaleX, (input.height - 2) * scaleY)
@@ -174,7 +179,7 @@ function Component.install(Runtime)
             love.graphics.setColor(0.48, 0.78, 0.68)
             love.graphics.print("ARRIVAL IF ACCEPTED:", 434, 328)
             love.graphics.setColor(0.91, 0.93, 0.87)
-            love.graphics.printf(Runtime.JobService.expectedStockArrivalText(state, selected.job),
+            love.graphics.printf(Runtime.JobService.expectedStockArrivalText(state, selected.job, Runtime.twelveHourTime()),
                 588, 328, 238, "right")
         end
         if selected.awaitingReply then

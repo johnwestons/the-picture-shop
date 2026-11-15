@@ -3,7 +3,7 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.Screen.enter(grant, state)
+    function Runtime.Screen.enter(grant, state, localPlayerId)
         Runtime.Screen.leaseResourceId = grant and grant.resourceId or nil
         Runtime.Screen.resourceId = Runtime.MachineResource.parse(Runtime.Screen.leaseResourceId)
             or Runtime.Screen.leaseResourceId
@@ -55,7 +55,7 @@ function Component.install(Runtime)
         if Runtime.Screen.resourceId == "office_computer" then
             Runtime.Screen.guiState = Runtime.Projection.copy(state)
             Runtime.Screen.sharedComputer = Runtime.ComputerScreen.new({
-                localPlayerId = Runtime.multiplayer and Runtime.multiplayer.localId or 2,
+                localPlayerId = localPlayerId or 2,
                 warehouseEnabled = Runtime.Config.warehouse and Runtime.Config.warehouse.enabled == true,
                 warehouseFirstStorageOnly = Runtime.Config.warehouse and Runtime.Config.warehouse.firstStorageOnly == true,
                 warehouseRequestPrefix = "WH-" .. tostring(Runtime.Screen.leaseId or "guest"),

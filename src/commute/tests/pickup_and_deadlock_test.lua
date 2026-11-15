@@ -88,6 +88,28 @@ local function dispatchCases(check,town,world,epoch)
     Network.simulate(state,town,.1,epoch,world)
     check('legacy_pickup_already_loading_restores_exterior_at_the_bay',Network.pickupArrived(legacy)
         and legacy.pickup.status=='loading')
+
+    local other={id='LEGACY-SECOND',status='pickup_in_progress',pickup={status='loading'}}
+    state.jobs.active[2]=other
+    Network.update(state,town,105,epoch,world)
+    Network.simulate(state,town,.1,epoch,world)
+    check('legacy_loading_pickups_cannot_restore_into_the_same_dock',Network.pickupArrived(legacy)
+        and not Network.pickupArrived(other) and other.pickup.roadDelivery.route.restoreLoadingAtDock==true)
+
+    legacy={id='LEGACY-BLOCKED',status='pickup_in_progress',pickup={status='loading'}}
+    local site=world.sites.byId.warehouse
+    local x,z=site:toWorld(site.design.truckParking.x,site.design.truckParking.z,0)
+    local blocker=Truck.new(x,z,site.yaw)
+    state={calendar={secondsPerDay=300},home={town=town,commute={participants={},truck=blocker,aiMotorcycles={}}},
+        jobs={active={legacy},completed={}}}
+    Network.update(state,town,105,epoch,world)
+    Network.simulate(state,town,.1,epoch,world)
+    check('legacy_loading_pickup_holds_when_dock_is_physically_occupied',not Network.pickupArrived(legacy)
+        and legacy.pickup.roadDelivery.route.restoreLoadingAtDock==true)
+    state.home.commute.truck=nil
+    Network.simulate(state,town,.1,epoch+.1,world)
+    check('legacy_loading_pickup_restores_after_reserved_dock_clears',Network.pickupArrived(legacy)
+        and legacy.pickup.roadDelivery.route.restoreLoadingAtDock==nil and legacy.pickup.status=='loading')
 end
 
 function Test.run(check,town)

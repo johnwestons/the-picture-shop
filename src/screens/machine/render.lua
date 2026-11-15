@@ -3,6 +3,7 @@
 local Component = {}
 local WrapperScene = require("src.screens.wrapper_scene")
 local CutterMotion = require("src.screens.cutter_motion")
+local ComputerArt = require("src.screens.cutter_computer_art")
 
 function Component.install(Runtime)
     function Runtime.motionFrame(progress)
@@ -94,12 +95,17 @@ function Component.install(Runtime)
 
     -- Shared, read-only scene: remote callers supply a presentation model, never
     -- replace the Machine singleton or execute local production to animate it.
-    function Runtime.Screen.drawCutterScene(assets, machine, rect)
+    function Runtime.Screen.drawCutterScene(assets, machine, rect, unit, bladeSharpness)
         love.graphics.push("all")
         love.graphics.translate(rect.x, rect.y)
         love.graphics.scale(rect.width / 520, rect.height / 347)
         love.graphics.translate(-400, -78)
         Runtime.drawMachine(assets, machine)
+        love.graphics.pop()
+        love.graphics.push("all")
+        love.graphics.translate(rect.x, rect.y)
+        love.graphics.scale(rect.width / 768, rect.height / 512)
+        ComputerArt.machineReadout(machine, unit, bladeSharpness)
         love.graphics.pop()
     end
 

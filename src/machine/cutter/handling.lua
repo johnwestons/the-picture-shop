@@ -78,7 +78,7 @@ function Component.run(Context)
         end
         if not Context.PaperWork.resetForNextLift(Context.Machine.paper) then return false end
         Context.Machine.programIndex, Context.Machine.gauge = 1, 0
-        Context.Machine.autoCycle = {}
+        Context.applyAutoGauge(state, 1)
         Context.Machine.loaded, Context.Machine.step, Context.Machine.progress, Context.Machine.paperTravel = true, "loading", 0, 0
         Context.message(state, string.format("Loading lift %d/%d. Make every programmed cut again.",
             Context.Machine.pallet.activeLift, Context.Machine.pallet.requiredLifts))

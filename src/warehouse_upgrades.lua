@@ -172,10 +172,17 @@ function Upgrades.validate(value)
     local requests, paidProjects, forkliftReceipt, vehicleReceipts = {}, {}, false, {}
     for _, receipt in ipairs(value.receipts) do
         if not exact(receipt, { requestId=true, kind=true, bayId=true, optionId=true, targetId=true,
-            pricePaid=true, purchasedAtHours=true }) or not token(receipt.requestId)
+            pricePaid=true, purchasedAtHours=true, cashPaid=true, loanId=true }) or not token(receipt.requestId)
             or requests[receipt.requestId] or not integer(receipt.pricePaid)
             or not nonnegative(receipt.purchasedAtHours) then return false, "Invalid warehouse purchase receipt." end
         requests[receipt.requestId] = true
+        if receipt.loanId~=nil or receipt.cashPaid~=nil then
+            if (receipt.kind~='vehicle' and receipt.kind~='forklift')
+                or type(receipt.loanId)~='string' or not receipt.loanId:match('^CR%-%d+$')
+                or not integer(receipt.cashPaid) or receipt.cashPaid<1 or receipt.cashPaid>=receipt.pricePaid then
+                return false,'Invalid financed equipment receipt.'
+            end
+        end
         if receipt.kind == "upgrade" then
             local project = ids[receipt.targetId]
             if not project or paidProjects[project.id] or receipt.bayId ~= project.bayId
@@ -274,7 +281,7 @@ function Upgrades.purchase(state, bayId, optionId, requestId, nowHours)
     return true, copy(project), "purchased"
 end
 
-function Upgrades.purchaseForklift(state, requestId, nowHours)
+function Upgrades.purchaseForklift(state, requestId, nowHours, payment)
     if not token(requestId) then return false, "A valid purchase request ID is required.", "invalid_purchase" end
     local warehouse, reason = Upgrades.ensure(state)
     if not warehouse then return false, reason, "invalid_state" end
@@ -283,13 +290,21 @@ function Upgrades.purchaseForklift(state, requestId, nowHours)
     local now = clock(state, nowHours)
     if not now then return false, "Invalid purchase time.", "invalid_time" end
     if warehouse.forkliftOwned then return false, "The shop already owns a forklift.", "forklift_owned" end
-    if not nonnegative(state.money) or state.money < CATALOG.forklift.price then
+    payment=payment or {}
+    local cash=payment.cashPayment or CATALOG.forklift.price
+    if not integer(cash) or cash<1 or cash>CATALOG.forklift.price
+        or cash<CATALOG.forklift.price and (type(payment.loanId)~='string' or not payment.loanId:match('^CR%-%d+$')) then
+        return false,'Invalid forklift financing payment.','invalid_payment'
+    end
+    if not nonnegative(state.money) or state.money < cash then
         return false, "Not enough money for the forklift.", "insufficient_funds"
     end
     local receipt = { requestId = requestId, kind = "forklift", optionId = "forklift", targetId = "forklift",
-        pricePaid = CATALOG.forklift.price, purchasedAtHours = now }
-    state.money = state.money - receipt.pricePaid
-    require('src.receipt_book').expense(state,'Forklift purchase',receipt.pricePaid*100,'Warehouse equipment','Shop','Forklift','warehouse:'..requestId)
+        pricePaid = CATALOG.forklift.price, purchasedAtHours = now,
+        cashPaid=payment.loanId and cash or nil,loanId=payment.loanId }
+    state.money = state.money - cash
+    require('src.receipt_book').expense(state,'Forklift purchase',cash*100,'Warehouse equipment','Shop',
+        'Forklift'..(payment.loanId and ('\nFull price: $'..receipt.pricePaid..'\nFinancing: '..payment.loanId) or ''),'warehouse:'..requestId)
     warehouse.forkliftOwned = true
     warehouse.receipts[#warehouse.receipts + 1] = receipt
     return true, copy(receipt), "purchased"

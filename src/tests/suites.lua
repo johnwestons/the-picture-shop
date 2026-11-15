@@ -27,6 +27,7 @@ local DOMAIN_SUITES = {
     require('src.tests.independent_scenes_runtime_test'),
     require('src.tests.player_delivery_test'),
     require('src.tests.multi_job_delivery_test'),
+    require('src.commute.tests.company_truck_motion_test'),
     require('src.tests.menu_exit_test'),
     require("src.tests.town_setup_test"),
     require('src.tests.notifications_test'),
@@ -42,6 +43,7 @@ local DOMAIN_SUITES = {
         require('src.commute.tests.cab_viewport_test').run(check)
         require('src.commute.tests.delivery_traffic_test').run(check)
         require('src.commute.tests.delivery_docking_test').run(check)
+        require('src.commute.tests.warehouse_yard_protocol_test').run(check)
         require('src.commute.tests.ai_motorcycle_traffic_test').run(check)
         require('src.commute.tests.driving_path_test').run(check)
         require('src.commute.tests.traffic_actor_index_test').run(check)
@@ -212,6 +214,7 @@ local DOMAIN_SUITES = {
     require("src.tests.multi_machine_test"),
     require("src.tests.placement_precision_test"),
     require("src.tests.credit_finance_test"),
+    require('src.tests.vehicle_finance_test'),
     require("src.tests.employees_test"),
     require("src.tests.employee_capacity_test"),
     require("src.tests.employee_schedule_test"),
@@ -233,7 +236,7 @@ function Suites.runDomain(context, check)
     for _, suite in ipairs(DOMAIN_SUITES) do suite.run(context, check) end
 end
 function Suites.runDomainTail(context, check)
-    for index=19,#DOMAIN_SUITES do DOMAIN_SUITES[index].run(context, check) end
+    for index=20,#DOMAIN_SUITES do DOMAIN_SUITES[index].run(context, check) end
 end
 function Suites.runWarehouseRooms(context,check)
     for _,name in ipairs({"shop_rooms","warehouse_upgrades","construction_service","warehouse_construction",

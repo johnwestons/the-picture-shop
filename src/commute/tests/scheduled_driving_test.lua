@@ -34,13 +34,13 @@ function Test.run(check,town,world)
     local company=Company.defaultState()
     state.employment.companyTruck=company
     company.departureStage='truck_departure';company.departureStartedAtEpoch=1000
+    Company.updateExterior(state,world,1000,7,0)
     local start=actor(Company.actors(state,world,1000),'company-delivery-truck')
-    local leaving=actor(Company.actors(state,world,1001),'company-delivery-truck')
-    local waiting=not Company.updateExterior(state,world,1001,7)
-    local finished=Company.updateExterior(state,world,2000,7)
-    check('company_truck_departure_accelerates_and_finishes_its_profile',start and leaving
-        and start.speed==0 and leaving.speed>0 and leaving.speed<=1.1 and waiting and finished
-        and company.departureStage==nil)
+    local x,z=start.x,start.z
+    local later=actor(Company.actors(state,world,2000),'company-delivery-truck')
+    Company.updateExterior(state,world,2000,7,0)
+    check('company_truck_render_and_wall_clock_never_advance_physics',start and later
+        and later.x==x and later.z==z and later.speed==0 and company.departureStage=='truck_departure')
 end
 
 return Test

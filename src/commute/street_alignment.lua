@@ -132,8 +132,10 @@ end
 
 function Alignment.street(e,nodes,plan,random)
     local a,b=nodes[e.a],nodes[e.b]
-    local reverse=not e.realistic and not e.main and random()<.45
-    local magnitude=e.length*(e.main and random(.026,.044) or random(.060,.086))
+    local reverse=not e.realistic and not e.main
+        and random()<(e.countryRoad and .62 or .45)
+    local magnitude=e.length*(e.countryRoad and random(.075,.11)
+        or e.main and random(.026,.044) or random(.060,.086))
     if e.realistic then magnitude=e.length*(e.main and .025 or .04) end
     local best,bestFlags,bestCost
     if not e.crossing then

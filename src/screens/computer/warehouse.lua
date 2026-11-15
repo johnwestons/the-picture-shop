@@ -134,6 +134,7 @@ function Component.install(Runtime)
     function Runtime.ComputerScreen.warehouseButtonCenter(bayId,optionId)
         local rect
         if bayId=="forklift" then rect=Runtime.WAREHOUSE_FORKLIFT
+        elseif bayId=='forklift_finance' then rect=Runtime.WAREHOUSE_FORKLIFT_FINANCE
         elseif bayId=="confirm" then rect=Runtime.WAREHOUSE_CONFIRM
         elseif bayId=="cancel" then rect=Runtime.WAREHOUSE_CANCEL
         elseif bayId=="acknowledge" then rect=Runtime.WAREHOUSE_ACK
@@ -388,6 +389,9 @@ function Component.install(Runtime)
                     end
                 end
             end
+        end
+        if not view.gamesPage and not view.forkliftOwned and Runtime.contains(Runtime.WAREHOUSE_FORKLIFT_FINANCE,x,y) then
+            return Runtime.openFleetFinancing('forklift')
         end
         if not view.gamesPage and Runtime.contains(Runtime.WAREHOUSE_FORKLIFT,x,y)
             and not view.forkliftOwned then kind="buy_forklift" end

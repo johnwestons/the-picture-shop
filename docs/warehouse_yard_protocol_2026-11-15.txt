@@ -1,0 +1,98 @@
+Picture Shop strict yard protocol — 2026-11-15
+============================================
+
+Behavior
+--------
+Freight and customer pickup trucks switch from general road driving to a
+prescribed line when they enter the shop's receiving area. The controller uses
+the existing entry, queue, dock setup, dock, and exit geometry. Road AI cannot
+choose another line or overtake while the yard controller owns the truck.
+
+The dock reservation follows a truck through approach, backing, service, and
+departure. Waiting trucks advance in dispatch order. Receipt/signature completion
+does not release the reservation before the departing exterior vehicle exists.
+The exit line retains control through the frontage-road turn until the truck is
+aligned in its road lane. A returning company truck follows its own prescribed
+route around the loading dock to its home stall.
+
+Receiving trucks stop for 0.75 simulated seconds at the queue head and reversing
+setup, reverse straight into the dock, and stop again at the end of the exit
+line before returning to road AI. Normal yard speeds are limited to 2.4 m/s
+forward and 1.2 m/s reverse. Company forward maneuvers are limited to 2.2 m/s.
+
+Every move sweeps the full truck footprint, including rotation, against static
+and dynamic obstacles. A blockage stops movement immediately. After 3 simulated
+seconds without progress, the receiving-yard watchdog reports the stall. At
+8 seconds it attempts a teleport to the current stage's reserved checkpoint.
+Company trucks also attempt checkpoint recovery after 8 seconds. Recovery only
+uses a clear destination, retries occupied destinations, respects the dock/exit
+reservation, and is available through the existing watchdog Unstick action.
+
+Checkpoint recovery does not sign receipts, load/unload pallets, complete jobs,
+award money, or count teleport distance as mileage/fuel usage. Normal movement
+still accounts for mileage, fuel, and vehicle service wear. Protocol stage,
+reservation target, progress, and stall time survive serialization. Old pickups
+already being loaded can restore at the dock only after obtaining its reservation
+and finding its complete footprint clear. Older pending departures also restore
+one at a time, never over an occupied dock.
+
+Implementation
+--------------
+src/commute/yard_rail.lua: fixed-line motion, swept collision, safe placement.
+src/commute/warehouse_yard.lua: receiving-yard state machine and recovery.
+src/commute/warehouse_queue.lua: exclusive dock/exit ownership and queue order.
+src/commute/delivery_traffic.lua: road/yard handoff, spawn and migration guards,
+  rendering of physical poses, watchdog integration, and shared collision index.
+src/commute/company_truck_motion.lua and src/company_delivery_driver.lua:
+  employee truck paths, saved motion, exception recovery, and driver handoffs.
+src/save_schema/paper.lua: saved protocol and migration validation.
+
+This replaces the company follow-up's general forward AI/steered reverse motion
+described in code_audit_2026-11-14.txt with prescribed yard motion. That document's
+11,964-check full pass describes the preceding version, not this protocol change.
+
+Validation
+----------
+Evidence is under output/code-audit-20261114/ (isolated disposable test identities).
+
+strict-yard-framerate-final.rpt: 93 PASS, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+  Mobile controls/layout enabled. Mixed freight/pickup FIFO in towns 712345,
+  712346, and 43127; one dock owner; required stops and straight reverse;
+  clear exit before release; no normal-route recovery; obstacle stops;
+  serialization during a stall; safe watchdog teleport and one-click recovery;
+  frozen/throwing controller; occupied destination refusal; legacy departure
+  spawn guards; company return past an occupied dock for both truck models;
+  speed limits and joining the line at 30, 60, 120, and 240 FPS.
+
+strict-yard-final-traffic.rpt: 167 PASS, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+  Desktop delivery/pickup lifecycle, old-save restoration, payments, road
+  departures, docking, motorcycles, dense traffic, simulation substeps, road
+  obstacle avoidance, junction conflicts, and passing checks.
+
+strict-yard-company-confirmed.rpt: 67 PASS, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+  Company truck paths in three towns; physical obstruction and occupied return
+  stall; watchdog recovery without extra fuel/mileage; employee departure/return;
+  multi-customer delivery and payment; save/reload during physical return.
+
+strict-yard-late-game-2.rpt: 106 PASS, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+  Delivery/pickup lifecycle plus the late-game receiving surge. All 72 pallets
+  unload after physical arrival, with at most one truck at the dock, staggered
+  departures, and ten employees maintaining valid positions. The old fixture
+  intentionally erased vehicle poses and expected several trucks to appear at
+  the dock from their ETA. It now advances the real protocol and checks actual
+  arrival, including manifests sharing a truck.
+
+The attempted full desktop run (strict-yard-full-desktop.rpt) passed 1,307 checks
+before stopping at warehouse_condition_mop_hit_area_follows_visible_spill in the
+separately edited warehouse-condition system. This task leaves those edits intact.
+The separate domain-tail run passed 5,738 checks before reaching that obsolete
+late-game fixture. After updating the fixture, its focused run passed as listed
+above. The domain-tail suites after that fixture were not rerun in this task;
+there is no claim of a complete green full-game run for this protocol version.
+
+The final yard, company, and late-game reruns include the frame-rate correction.
+The broader 167-check traffic run predates that small rail-speed correction.
+git diff --check passes. No production changes followed the final focused runs.
+
+These are automated native LÖVE runs. Mobile mode does not certify a physical
+Android device or APK. No GitHub push, installer, release, or APK build performed.

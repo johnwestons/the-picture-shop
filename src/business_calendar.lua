@@ -562,8 +562,8 @@ function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
             local dueDay = hasDue and (state.calendar.totalDays or 0) or loan.nextDueDay
             local amount = (loan.amountDue or 0) + (loan.feesDue or 0)
             add(dueDay,
-                overdue and ("Machine payment overdue: " .. loan.machineName)
-                    or ("Machine installment due: " .. loan.machineName),
+                overdue and ((loan.assetKind and 'Equipment' or 'Machine').." payment overdue: " .. loan.machineName)
+                    or ((loan.assetKind and 'Equipment' or 'Machine').." installment due: " .. loan.machineName),
                 "credit",
                 hasDue and string.format("%s • $%d due", loan.id, amount)
                     or string.format("%s • $%d • %.2f%% APR", loan.id, loan.monthlyPayment,

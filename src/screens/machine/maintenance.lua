@@ -2,6 +2,7 @@
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
 local BladeProfiles = require("src.machine.cutter.blade_profiles")
+local ComputerArt = require("src.screens.cutter_computer_art")
 local DisplayFonts = require("src.screens.reference_display_fonts")
 local bladeUpgradeFont
 
@@ -93,6 +94,17 @@ function Component.install(Runtime)
             or cutter.bladeRemoved and "REMOVED" or "INSTALLED"
         local installedGrade = BladeProfiles.get(cutter.bladeGrade) or BladeProfiles.get("standard")
         love.graphics.printf(installedGrade.shortName .. " / " .. bladeState, 330, 153, 270, "left")
+        local sharpness = ComputerArt.bladeSharpness(item)
+        if sharpness then
+            local dull = sharpness <= BladeProfiles.DULL_THRESHOLD
+            love.graphics.setColor(dull and 1 or 0.64, dull and 0.50 or 0.88, dull and 0.45 or 0.72)
+            love.graphics.print(string.format("SHARPNESS  %d%%%s", math.ceil(sharpness), dull and "  ·  LOW" or ""), 330, 177)
+            love.graphics.setColor(0.15, 0.19, 0.21)
+            love.graphics.rectangle("fill", 508, 182, 85, 5, 2)
+            love.graphics.setColor(dull and 0.94 or 0.33, dull and 0.28 or 0.79, dull and 0.24 or 0.51)
+            love.graphics.rectangle("fill", 508, 182, 85 * sharpness / 100, 5, 2)
+        end
+        love.graphics.setColor(0.76, 0.84, 0.84)
         love.graphics.print("TECHNICIAN", 620, 126)
         local appointment = cutter.nextTechnicianDay
             and Runtime.BusinessCalendar.dateFromTotalDay(cutter.nextTechnicianDay) or nil

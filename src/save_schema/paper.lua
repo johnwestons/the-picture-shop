@@ -236,7 +236,9 @@ function Component.install(Runtime)
         return require('src.commute.delivery_truck').valid(value)
             and phases[value.phase]==true
             and (value.pathKind==nil or kinds[value.pathKind])
-            and (value.pathTarget==nil or targets[value.pathTarget])
+            and (value.pathTarget==nil or targets[value.pathTarget]
+                or type(value.pathTarget)=='string' and #value.pathTarget<=16 and value.pathTarget:match('^waiting%-%d+$'))
+            and require('src.commute.warehouse_yard').valid(value.yard)
             -- Dense town routes can exceed 512 samples; match the bounded
             -- route cursor already supported by autonomous motorcycles.
             and (value.pathIndex==nil or Runtime.integer(value.pathIndex) and value.pathIndex>=1 and value.pathIndex<=4096)
@@ -262,6 +264,7 @@ function Component.install(Runtime)
             and Runtime.optionalNumber(value.arrivalAtHours)
             and Runtime.optionalNumber(value.departedAtEpoch)
             and Runtime.optionalNumber(value.arrivedAtEpoch)
+            and Runtime.optionalBoolean(value.restoreLoadingAtDock)
             and deliveryVehicle(value.vehicle)
     end
 

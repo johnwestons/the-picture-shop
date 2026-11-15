@@ -20,16 +20,15 @@ function Component.install(Runtime)
         return minimum + (hash * 7) % math.max(1, span)
     end
 
-    function Runtime.JobService.expectedStockArrivalText(state, job)
+    function Runtime.JobService.expectedStockArrivalText(state, job, twelveHourTime)
         local service = job and Runtime.deliveryService(job, job.sequence)
         if not service then return "Not assigned" end
         local now = Runtime.BusinessCalendar.absoluteHours(state)
         local clientReplyHours = Runtime.emailDelay(job, 1, 3)
-        local settings = Runtime.App and Runtime.App.settings
         local hours=require('src.business_hours')
         return Runtime.BusinessCalendar.dateTimeTextAtHours(hours.nextService(hours.nextService(now + clientReplyHours)
             + (tonumber(service.delayHours) or 0)),
-            not (settings and settings.twelveHourTime==false))
+            twelveHourTime~=false)
     end
 
     function Runtime.estimateRequestEmail(state, job)

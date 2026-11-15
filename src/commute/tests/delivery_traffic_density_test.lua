@@ -2,6 +2,7 @@ local Network=require('src.commute.delivery_traffic')
 local Town=require('src.commute.town')
 local Routes=require('src.commute.routes')
 local Truck=require('src.commute.delivery_truck')
+local Yard=require('src.commute.warehouse_yard')
 local Bike=require('src.commute.motorcycle')
 local Footprint=require('src.commute.truck_footprint')
 local DrivingPath=require('src.commute.driving_path')
@@ -137,15 +138,26 @@ function Test.run(check)
     local coldStartMs=(love.timer.getTime()-coldStarted)*1000
     local actorCount=#Network.actors(state,town,0,epoch)
     local originalTruckUpdate=Truck.update
+    local originalYardUpdate=Yard.update
     local truckUpdateCalls,truckUpdateTime,maxTruckStep=0,0,0
-    Truck.update=function(truck,input,dt,activeWorld)
+    local function recordStep(dt)
         truckUpdateCalls=truckUpdateCalls+1
         truckUpdateTime=truckUpdateTime+dt
         maxTruckStep=math.max(maxTruckStep,dt)
+    end
+    Truck.update=function(truck,input,dt,activeWorld)
+        recordStep(dt)
         return originalTruckUpdate(truck,input,dt,activeWorld)
+    end
+    -- Trucks inside the receiving yard consume the same shared substeps,
+    -- through the strict protocol instead of the general road driver.
+    Yard.update=function(truck,assignment,activeWorld,dt,...)
+        recordStep(dt)
+        return originalYardUpdate(truck,assignment,activeWorld,dt,...)
     end
     local stepped,stepError=pcall(Network.simulate,state,town,.25,epoch,world)
     Truck.update=originalTruckUpdate
+    Yard.update=originalYardUpdate
     if not stepped then error(stepError,0) end
     check('delivery_traffic_consumes_long_frames_in_shared_substeps',
         truckUpdateCalls==RETURN_TRUCKS*3

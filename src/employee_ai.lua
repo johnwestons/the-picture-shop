@@ -228,6 +228,10 @@ function AI.requestDeliverySignature(state,w,deliveryId,now)
     return true
 end
 
+function AI.hasDeliverySignature(worker)
+    return deliverySignatureTasks[worker]~=nil
+end
+
 function AI.deliverySignatureActive(state,deliveryId)
     for worker,task in pairs(deliverySignatureTasks) do
         if task.deliveryId==tostring(deliveryId) and worker.visible
@@ -579,6 +583,11 @@ function AI.worker(state,w,dt,now,context)
         else
             companyTruck=state.employment and state.employment.companyTruck
             local pendingDelivery=companyTruck and companyTruck.pendingDriverEmployeeId==w.id
+            if pendingDelivery and not w.assignment and not w.training and Transport.owns(state,w) then
+                -- Finish parking before the dispatch controller hands this
+                -- employee to the truck; never leave an operated jack behind.
+                return Transport.park(state,w,dt,context)==true
+            end
             if not w.assignment and not pendingDelivery then
                 local shipping,changed=require("src.employee_shipping").update(state,w,dt,context)
                 w._shippingActive=shipping==true

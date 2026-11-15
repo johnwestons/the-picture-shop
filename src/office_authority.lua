@@ -47,6 +47,7 @@ function Office.command(options)
             end
             local warehousePurchase = intent.kind == "buy_upgrade" or intent.kind == "buy_forklift"
                 or intent.kind == "buy_breakroom_fixture" or intent.kind == "buy_garage_door"
+                or intent.kind=='finance_asset' and intent.listingId=='forklift'
             local vehiclePurchase=intent.kind=="buy_vehicle"
             local stagingAction = intent.kind == "staging_area_add" or intent.kind == "staging_area_remove"
                 or intent.kind == "staging_area_change"
@@ -95,6 +96,8 @@ function Office.command(options)
             elseif intent.kind == "finance_machine" then
                 ok, result, domainCode = Credit.financeMachine(staged, intent.offerIndex,
                     intent.requestId, intent.channel)
+            elseif intent.kind=='finance_asset' then
+                ok,result,domainCode=Credit.financeAsset(staged,intent.listingId,intent.requestId)
             elseif intent.kind == "pay_machine_loan" then ok, result = Credit.payLoan(staged, intent.loanId)
             elseif intent.kind == "buy_upgrade" then
                 ok, result, domainCode = Upgrades.purchase(staged, intent.bayId, intent.optionId, intent.requestId)
@@ -137,7 +140,7 @@ function Office.command(options)
             if vehiclePurchase and domainCode=="replayed" then
                 return true,"replayed","This vehicle purchase was already confirmed; no second charge was made.",{}
             end
-            if intent.kind == "finance_machine" and domainCode == "replayed" then
+            if (intent.kind == "finance_machine" or intent.kind=='finance_asset') and domainCode == "replayed" then
                 return true, "replayed", "This financing agreement was already signed; no second loan was created.", {}
             end
             local wageAction=intent.kind=='player_wage_propose' or intent.kind=='player_wage_accept'

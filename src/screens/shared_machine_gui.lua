@@ -86,10 +86,14 @@ function Gui.new(resource, getView, presentation, send, machineId)
             machine.emergencyStopped=view.emergencyStopped==true
             machine.multiplayerSingleControl=true
             machine.leftDown,machine.rightDown=view.step=="cutting",view.step=="cutting"
-            local _, cutter = require("src.machine_maintenance").cutterStatus(currentState)
-            if cutter and view.bladeGrade then
-                cutter.bladeGrade = view.bladeGrade
-                cutter.orderedBladeGrade = view.orderedBladeGrade ~= "none" and view.orderedBladeGrade or nil
+            local item, cutter = require("src.machine_maintenance").cutterStatus(currentState)
+            if item and view.bladeSharpness ~= nil then item.variables.bladeSharpness = view.bladeSharpness end
+            if cutter then
+                if view.bladeRemoved ~= nil then cutter.bladeRemoved = view.bladeRemoved end
+                if view.bladeGrade then
+                    cutter.bladeGrade = view.bladeGrade
+                    cutter.orderedBladeGrade = view.orderedBladeGrade ~= "none" and view.orderedBladeGrade or nil
+                end
             end
             if view.moneyCents then currentState.money = view.moneyCents / 100 end
             if not gui.screen.gaugeFocused and not gui.screen.gaugeDraft then gui.screen.syncGauge() end

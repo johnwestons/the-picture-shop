@@ -146,6 +146,9 @@ function Smoke.start(context)
         if focus=='warehouse-condition' then
             require('src.tests.warehouse_condition_test').run(context,check)
             require('src.tests.player_footprints_test').run(context,check)
+        elseif focus=='fleet-finance' then
+            require('src.tests.credit_finance_test').run(context,check)
+            require('src.tests.vehicle_finance_test').run(context,check)
         elseif focus=='story-intro' then
             require('src.tests.story_intro_test').run(context,check)
             require('src.tests.story_departure_test').run(context,check)
@@ -228,6 +231,9 @@ function Smoke.start(context)
             require('src.commute.tests.grass_fields_test').run(check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='company-driving' then
+            require('src.commute.tests.company_truck_motion_test').run(context,check)
+            require('src.tests.multi_job_delivery_test').run(context,check)
         elseif focus=='player-delivery' then
             require('src.commute.tests.city_delivery_scene_test').run(check)
             require('src.tests.player_delivery_test').run(context,check)
@@ -355,6 +361,10 @@ function Smoke.start(context)
             require('src.tests.delivery_signature_test').run(check)
             require('src.commute.tests.warehouse_queue_test').run(check)
         elseif focus=='delivery-docking' then
+            require('src.commute.tests.delivery_docking_test').run(check)
+        elseif focus=='warehouse-yard' then
+            require('src.commute.tests.warehouse_yard_protocol_test').run(check)
+            require('src.commute.tests.warehouse_queue_test').run(check)
             require('src.commute.tests.delivery_docking_test').run(check)
         elseif focus=='delivery-traffic' then
             require('src.commute.tests.delivery_docking_test').run(check)

@@ -669,18 +669,25 @@ function Test.run(context, check, jobs)
         and math.abs(cutOneMemory[1] - firstGauge) < 0.001
         and math.abs(cutOneMemory[2] - firstGauge - 1.50) < 0.001
         and math.abs(cutOneMemory[3] - firstGauge - 1.00) < 0.001)
-    check("cutter_autoset_cycles_newest_first", context.machine.autoGauge(cutterState)
-        and math.abs(context.machine.gauge - firstGauge) < 0.001
-        and context.machine.autoGauge(cutterState)
-        and math.abs(context.machine.gauge - firstGauge - 1.50) < 0.001
-        and context.machine.autoGauge(cutterState)
-        and math.abs(context.machine.gauge - firstGauge - 1.00) < 0.001
-        and context.machine.autoGauge(cutterState)
+    for cutNumber = 2, 4 do
+        context.machine.selectProgram(cutNumber, cutterState)
+        context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
+        context.machine.saveGauge(cutterState)
+    end
+    local autoX, autoY = context.machineScreen.buttonCenter("auto")
+    check("cutter_mouse_enables_auto_at_first_cut_using_newest_memory",
+        context.machineScreen.mousepressed(cutterState, autoX, autoY, 1)
+        and context.machine.autoMode and context.machine.programIndex == 1
         and math.abs(context.machine.gauge - firstGauge) < 0.001)
+    context.machineScreen.mousereleased(cutterState, autoX, autoY, 1)
+    check("cutter_auto_toggles_back_to_manual_without_moving_gauge",
+        context.machine.keypressed("g", cutterState) and not context.machine.autoMode
+        and math.abs(context.machine.gauge - firstGauge) < 0.001)
+    check("cutter_keyboard_enables_auto", context.machine.keypressed("g", cutterState)
+        and context.machine.autoMode)
     local expectedBedOrientations = { 90, 0, 270, 180 }
 
     for cutNumber = 1, 4 do
-        check("cutter_select_program_" .. cutNumber, context.machine.selectProgram(cutNumber, cutterState))
         check("cutter_front_edge_orientation_" .. cutNumber,
             trackedPaper.cuts[cutNumber].orientation == expectedBedOrientations[cutNumber])
         local rotatedForProgram = false
@@ -691,22 +698,10 @@ function Test.run(context, check, jobs)
             end
             if not context.machine.keypressed("q", cutterState) then break end
         end
-        if cutNumber == 1 then
-            check("cutter_keyboard_rotate_" .. cutNumber,
-                rotatedForProgram and trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation)
-            local autoX, autoY = context.machineScreen.buttonCenter("auto")
-            check("cutter_mouse_auto_gauge", context.machineScreen.mousepressed(cutterState, autoX, autoY, 1))
-            context.machineScreen.mousereleased(cutterState, autoX, autoY, 1)
-        else
-            check("cutter_keyboard_rotate_" .. cutNumber,
-                rotatedForProgram and trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation)
-            check("cutter_manual_save_for_program_" .. cutNumber,
-                context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
-                and context.machine.saveGauge(cutterState))
-            check("cutter_keyboard_auto_gauge_" .. cutNumber, context.machine.keypressed("g", cutterState))
-        end
+        check("cutter_keyboard_rotate_" .. cutNumber,
+            rotatedForProgram and trackedPaper.orientation == trackedPaper.cuts[cutNumber].orientation)
         check("cutter_auto_recalls_saved_program_" .. cutNumber,
-            context.machine.programIndex == cutNumber
+            context.machine.autoMode and context.machine.programIndex == cutNumber
             and math.abs(context.machine.gauge - trackedPaper.cuts[cutNumber].gauge) < 0.001)
         check("cutter_position_" .. cutNumber, context.machine.keypressed("p", cutterState))
         context.machine.update(context.machine.transferTime + 0.01, cutterState)
@@ -733,6 +728,9 @@ function Test.run(context, check, jobs)
         context.machine.update(context.machine.cycleTime + 0.05, cutterState)
         check("cutter_applies_margin_" .. cutNumber, trackedPaper.activeCut == cutNumber + 1)
     end
+    check("cutter_auto_wraps_to_first_cut_after_fourth_blade_cycle",
+        context.machine.autoMode and context.machine.programIndex == 1
+        and math.abs(context.machine.gauge - firstGauge) < 0.001)
     check("cutter_manual_lift_verifies_program", trackedPaper.status == "complete"
         and trackedPaper.currentSize.width == 12.5
         and trackedPaper.currentSize.height == 9.5
@@ -751,11 +749,13 @@ function Test.run(context, check, jobs)
         and context.machine.step == "loading")
     context.machine.update(context.machine.transferTime + 0.01, cutterState)
     check("cutter_repeat_lift_requires_manual_cutting", context.machine.step == "loaded"
-        and trackedPaper.status == "uncut" and trackedPaper.activeCut == 1)
+        and trackedPaper.status == "uncut" and trackedPaper.activeCut == 1
+        and context.machine.autoMode and math.abs(context.machine.gauge - firstGauge) < 0.001)
     for cutNumber = 1, 4 do
-        context.machine.selectProgram(cutNumber, cutterState)
+        check("cutter_auto_repeats_saved_program_" .. cutNumber, context.machine.autoMode
+            and context.machine.programIndex == cutNumber
+            and math.abs(context.machine.gauge - trackedPaper.cuts[cutNumber].gauge) < 0.001)
         rotateForCurrentCut(context.machine, cutterState, trackedPaper)
-        context.machine.setGauge(trackedPaper.cuts[cutNumber].gauge, cutterState)
         context.machine.position(cutterState)
         context.machine.update(context.machine.transferTime + 0.01, cutterState)
         context.machine.toggleClamp(cutterState)

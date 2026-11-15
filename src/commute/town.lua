@@ -4,7 +4,7 @@ local Sites=require('src.commute.sites')
 local Default=require('src.commute.town_layout')
 local M=require('src.commute.vendor.mathx')
 local Options=require('src.commute.island_options')
-local Town={VERSION=1,GENERATOR_VERSION=13,MIN_SEED=1,MAX_SEED=2147483646}
+local Town={VERSION=1,GENERATOR_VERSION=14,MIN_SEED=1,MAX_SEED=2147483646}
 Town.NAMES={'Cedar Bay','Pine Hollow','Maple Crossing','Willow Creek','Harbor Point'}
 local islandBounds={x0=6,z0=6,x1=506,z1=506}
 -- Generated destination labels are part of the seed fingerprint. A player's
@@ -169,7 +169,9 @@ function Town.valid(t)
     end
     if t.generatorVersion>=3 then
         local main=type(t.topology)=='table' and t.topology.mainStreet
-        if type(main)~='table' or (main.pattern~='strip' and main.pattern~='crossroads')
+        local countryPattern=type(main)=='table' and main.pattern=='country'
+            and t.generatorVersion>=14 and t.terrain.settings.roads==1
+        if type(main)~='table' or (main.pattern~='strip' and main.pattern~='crossroads' and not countryPattern)
             or not M.finite(main.x) or not M.finite(main.z)
             or main.x<expectedBounds.x0 or main.x>expectedBounds.x1
             or main.z<expectedBounds.z0 or main.z>expectedBounds.z1

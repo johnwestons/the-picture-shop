@@ -1,6 +1,7 @@
 -- One ordered receiving queue shared by freight and customer pickup trucks.
 local Path=require('src.commute.driving_path')
 local Footprint=require('src.commute.truck_footprint')
+local Yard=require('src.commute.warehouse_yard')
 local Queue={SPACING=9}
 local overflow=setmetatable({}, {__mode='k'})
 local function tailStation(route)
@@ -58,9 +59,27 @@ function Queue.capacity(route)
 end
 function Queue.plan(entries,route,externalBlocked,epoch,lanePosition)
     local waiting={}
+    local exitOwner,exitAt,exitId,exitCommitted,pendingExit=nil,math.huge,nil,false,false
     for _,entry in ipairs(entries) do
         local delivery=entry.delivery
         local record=delivery and delivery.route
+        local outbound=delivery and delivery.returnRoute
+        if delivery and delivery.status=='received' and record and not record.transportId then
+            local departing=outbound and outbound.vehicle
+            local parked=not departing and record.vehicle and record.vehicle.phase=='at_bay'
+            local awaitingSpawn=outbound and not departing and type(outbound.departedAtEpoch)=='number'
+                and outbound.departedAtEpoch<=epoch
+                and (not outbound.arrivedAtEpoch or epoch<outbound.arrivedAtEpoch)
+            if parked or awaitingSpawn or Yard.exitOccupies(departing,route.world) then
+                pendingExit=true
+                local at=outbound and outbound.departedAtEpoch or math.huge
+                local committed=departing and departing.yard and departing.yard.target=='outbound' or false
+                if outbound and at<=epoch and (not exitOwner or committed and not exitCommitted
+                    or committed==exitCommitted and (at<exitAt or at==exitAt and entry.id<exitId)) then
+                    exitOwner,exitAt,exitId,exitCommitted=outbound,at,entry.id,committed
+                end
+            end
+        end
         if record and not record.transportId and delivery.status~='received'
             and type(record.departedAtEpoch)=='number' and record.departedAtEpoch<=epoch
             and not (record.vehicle and record.vehicle.phase=='offmap') then
@@ -70,15 +89,20 @@ function Queue.plan(entries,route,externalBlocked,epoch,lanePosition)
     table.sort(waiting,function(a,b)
         local ar,br=a.delivery.route,b.delivery.route
         local av,bv=ar.vehicle,br.vehicle
-        local ac=av and (av.phase=='at_bay' or av.pathTarget=='dock') or false
-        local bc=bv and (bv.phase=='at_bay' or bv.pathTarget=='dock') or false
+        local ac=Yard.committed(av) or false
+        local bc=Yard.committed(bv) or false
         if ac~=bc then return ac end
         if ar.departedAtEpoch~=br.departedAtEpoch then return ar.departedAtEpoch<br.departedAtEpoch end
         return a.id<b.id
     end)
-    local result={}
+    local result={exitOwner=exitOwner}
+    -- A dock lease spans approach, reversing, service, and the entire exit.
+    -- An unrelated parked truck cannot demote an owner already maneuvering;
+    -- it becomes a physical obstruction for that owner to wait/recover around.
+    local reserved=waiting[1] and Yard.committed(waiting[1].delivery.route.vehicle)
+    local dockAvailable=not pendingExit and (not externalBlocked or reserved)
     for rank,entry in ipairs(waiting) do
-        local slot=rank-(externalBlocked and 0 or 1)
+        local slot=rank-(dockAvailable and 1 or 0)
         if slot==0 then
             result[entry.delivery.route]={target='dock',anchor=route.world.sites.byId.warehouse.design.truckParking}
         else

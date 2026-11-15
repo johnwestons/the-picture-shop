@@ -61,6 +61,7 @@ function Test.run(check)
         truck.phase='departing';truck.pathIndex=2;truck.pathTarget=nil
         local departed,hit,_,detail=run(state,town,world,truck,250,'offmap')
         check('delivery_leaves_dock_without_hitting_parked_fleet_'..seed,departed and not hit,detail)
+        check('delivery_clear_yard_exit_needs_no_watchdog_recovery_'..seed,#Watchdog.snapshot(state).events==0)
     end
 
     local state,town,world,truck,delivery,site=fixture(712345)
@@ -93,8 +94,8 @@ function Test.run(check)
     Network.simulate(state,town,.1,epoch+.1,world)
     local misplaced=false
     for _,event in ipairs(Watchdog.snapshot(state).events) do
-        if event.issueId=='delivery-park-position:DOCK-TEST'
-            and event.reason=='Truck was marked parked away from its assigned dock or queue position' then
+        if event.issueId=='delivery-yard:DOCK-TEST'
+            and event.reason=='Truck moved away from its assigned protocol stop' then
             misplaced=true
         end
     end
@@ -112,8 +113,8 @@ function Test.run(check)
     local callOkay,operationOkay,result=pcall(Network.debugUnstick,state,issueId)
     check('watchdog_exposes_one_click_driveway_unstick_for_active_trucks',selected~=nil
         and panel.hitTest(120,580)=='unstick')
-    check('watchdog_unstick_resets_parked_delivery_for_safe_replanning',callOkay and operationOkay
-        and truck.phase=='approaching' and truck.replanRoute==true,tostring(result))
+    check('watchdog_unstick_restores_reserved_yard_checkpoint',callOkay and operationOkay
+        and truck.phase=='approaching' and truck.yard and truck.yard.target=='dock',tostring(result))
 
     state,town,world,truck,delivery,site=fixture(712345)
     -- Reproduce an obstruction halfway down the reversing aisle, away from
@@ -124,13 +125,13 @@ function Test.run(check)
     run(state,town,world,truck,18,'at_bay')
     local snapshot=Watchdog.snapshot(state)
     check('delivery_watchdog_reports_blocked_reverse_while_offscreen',#snapshot.active>0
-        and snapshot.active[1].system=='Delivery docking' and snapshot.active[1].detail~=nil)
+        and snapshot.active[1].system=='Shop yard protocol')
     run(state,town,world,truck,12,'at_bay')
     local reset=false
     for _,event in ipairs(Watchdog.snapshot(state).events) do
-        if event.action=='Reset to the clear dock approach and retried backing in' then reset=true end
+        if event.reason=='Reserved recovery checkpoint is unavailable' then reset=true end
     end
-    check('delivery_watchdog_escalates_to_clear_dock_setup_without_skipping_delivery',reset
+    check('delivery_watchdog_refuses_occupied_recovery_without_skipping_delivery',reset
         and truck.phase~='at_bay' and delivery.status=='pending_arrival')
     local home=assert(Trip.truckParking(world,{fuelLiters=60},'box'))
     box.x,box.z,box.heading=home.x,home.z,home.heading
@@ -141,9 +142,11 @@ function Test.run(check)
     state,town,world,truck,delivery,site=fixture(712345)
     truck.x,truck.z=site:toWorld(20,0,0);truck.heading=site.yaw
     local originalUpdate=Truck.update
-    Truck.update=function()error('injected docking controller failure')end
+    local Rail=require('src.commute.yard_rail');local originalStep=Rail.step
+    Rail.step=function()error('injected yard controller failure')end
+    truck.yard={version=1,target='dock',stage='reverse',wait=0,pause=0,recoveries=0}
     local okay,failure=pcall(Network.simulate,state,town,.1,epoch+.1,world)
-    Truck.update=originalUpdate
+    Rail.step=originalStep
     check('delivery_watchdog_contains_docking_controller_exception',okay
         and #Watchdog.snapshot(state).events>0 and world.activeTruck==nil,tostring(failure))
     local recovered,_,_,recoveryTrace=run(state,town,world,truck,30,'at_bay')
@@ -192,9 +195,21 @@ function Test.run(check)
         local returned=model=='box' and state.home.commute.truck or state.home.commute.keiTruck
         returned.x,returned.z=site.truckParking.x,site.truckParking.z
         Company.update(state,100)
+        check('employee_return_waits_for_physical_parking_'..model,company.status=='returning'
+            and company.deliveryRun~=nil and company.nextActionAtHours==nil)
+        for step=1,3000 do
+            Network.installVehicleObstacles(state,world)
+            Company.updateExterior(state,world,epoch+step*.1,100,.1)
+            if not company.deliveryRun then break end
+        end
+        world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil
         local home=site.truckHomeParking[model]
         check('employee_returns_empty_'..model..'_to_home_stall_instead_of_loading_dock',
-            returned.x==home.x and returned.z==home.z and returned.heading==home.heading)
+            returned.x==home.x and returned.z==home.z and returned.heading==home.heading,
+            company.exterior and ('phase=%s pose=%.2f,%.2f speed=%.2f blocked=%s'):format(
+                company.exterior.phase,site:toLocal(company.exterior.vehicle.x,company.exterior.vehicle.z),
+                select(2,site:toLocal(company.exterior.vehicle.x,company.exterior.vehicle.z)),
+                company.exterior.vehicle.speed,tostring(company.exterior.blocked)))
     end
 end
 return Test

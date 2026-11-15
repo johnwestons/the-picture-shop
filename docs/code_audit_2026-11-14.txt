@@ -1,0 +1,219 @@
+THE PICTURE SHOP — SYSTEMS AND DELIVERY AI AUDIT
+Date: 2026-11-14
+Base: codex/release-106, f38e2487, plus local audit fixes.
+
+Scope
+-----
+High-level source and integration review, with deeper inspection of employee
+dispatch, warehouse task handoffs, delivery arrivals, docking, signatures,
+loading, departure, and multiplayer office context. The existing full native
+LÖVE regression suite supplies breadth across the other game systems. This is
+not a line-by-line review of every source file or a claim that no bugs remain.
+
+Testing uses new isolated APPDATA directories and disposable test identities
+under output/code-audit-20261114/ad. No existing player slots or backups are
+used. The email Viewport fix from the preceding update is included.
+
+Original finding — fixed in the company-driving follow-up
+---------------------------------
+P1 (resolved): Company truck departure bypassed collision-aware driving.
+
+At the audited baseline, src/company_delivery_driver.lua:159 (updateExterior) advanced departure from
+elapsed wall-clock time. The actors function at line 217 samples a scheduled
+route for presentation. Neither applies the live truck movement/collision
+controller during that journey. The return branch also places the vehicle
+directly in its home stall, without checking that the stall is unoccupied.
+
+A native LÖVE probe installed an obstruction callback that blocks every truck
+position. Truck.blocked correctly returned true. The company departure actor
+still sampled a speed of 2.8, and updateExterior completed the departure with
+zero obstacle queries. This is a confirmed discrepancy, not a road-generation
+hypothesis. Evidence: output/code-audit-20261114/departure-probe.txt and the
+adjacent departure-probe/main.lua fixture.
+
+Impact: a company vehicle can move through a player, parked vehicle, or blocked
+exit, while an incoming freight truck correctly stops for the same obstruction.
+Arrival/docking tests for freight do not cover this company-vehicle shortcut.
+
+Follow-up implemented: company departure and return now use physical truck
+controls and the shared obstacle/traffic system. Pose and route progress persist
+through saves. The driver remains away until parking and the walk back inside
+finish. The return route bypasses an occupied freight dock. See the follow-up
+validation below; the original probe is retained as pre-fix evidence.
+
+Confirmed issues fixed in this audit
+-----------------------------------
+1. Dispatch could interrupt shipping or receipt work without a machine assignment.
+   The driver selector only considered a subset of employee tasks. A regression
+   reproduced an employee being dispatched with _shippingActive set. The selector
+   now waits for shipping, inbound unloading, carried cargo, and receipt tasks,
+   and excludes employees who are stopping or already away. Machine assignments
+   and training continue to finish through the existing reservation mechanism.
+   Files: src/company_delivery_driver.lua; src/employee_ai.lua.
+
+2. Employees could leave an operated pallet jack behind when dispatched.
+   Dispatch now waits for an empty jack to be parked/released; pending drivers
+   run the normal parking action before boarding. Loaded jacks remain with the
+   employee's current cargo task. The low-fuel refuel path also rejects an
+   employee still operating a jack. Tests exercise reservation, release, and
+   subsequent dispatch.
+
+3. Dispatch relabeled employees in other rooms as being in the warehouse.
+   Their coordinates were unchanged, so they could begin the exit route at a
+   wrong or blocked warehouse position. Dispatch now preserves the room and
+   invokes the existing room-travel handoff before walking to the outside door.
+   Regression checks preserve the starting pose and require the travel callback.
+
+4. Remote office wage controls assumed every guest was player 2.
+   The isolated remote screen had no Runtime.multiplayer object and silently
+   fell back to ID 2. A reconnected guest with ID 3 could not propose their own
+   wage. The application now passes the current session ID into the screen.
+   A regression failed before the change and passed afterward through the actual
+   remote office click path.
+   Files: src/runtime/multiplayer_events.lua;
+          src/screens/workshop_remote/lifecycle.lua; src/tests/guest_payroll_test.lua.
+
+5. Estimated stock-arrival text ignored the 24-hour clock setting.
+   JobService also referenced a nonexistent private Runtime.App. It now accepts
+   the time-format preference explicitly from the computer screen. The new
+   24-hour formatting check passes.
+   Files: src/job_service/repeat_jobs.lua; src/screens/computer/email.lua.
+
+6. Coverage gap around the previously fixed email composer crash.
+   Existing promotion checks typed and sent text without drawing the independent
+   computer screen. Added an actual composer draw to that scenario, covering the
+   path which previously crashed on Runtime.Viewport. It passes in native LÖVE.
+   File: src/tests/input_status_test.lua.
+
+System coverage
+---------------
+Incoming freight: approach, reverse alignment, occupied bay, multi-truck queue,
+  obstruction removal, watchdog recovery, departure past parked company trucks.
+Employees: contracts, shifts, breaks, wages, queues, machine operation, shipping,
+  pallet transport, delivery dispatch and signature exclusion.
+Delivery jobs: player and employee loading, multiple customers, capacity,
+  customer collection exclusions, route save/reload, single payment, return.
+Production: cutter, press, wrapper, supplies, stock, maintenance, placement,
+  pallet ownership and machine/room transitions.
+Office/business: estimates, promotions, phone/supplier flows, finance, payroll,
+  receipts, upgrades, business hours, progression and deadlines.
+World/vehicles: generated towns, road maps, motorcycle/truck control, collisions,
+  fuel/service, inventory, travel, apartments and indoor/outdoor transitions.
+Persistence/network: migrations, validation, interrupted-save recovery,
+  authoritative commands, leases, shared GUIs, guest state and reconnection.
+Presentation/runtime: controls, screen layout, input routing, rendering, assets,
+  animation, audio, performance fixtures and LuaJIT compiler limits.
+
+Cross-system pattern to watch
+----------------------------
+Several modules name their private context Runtime. A screen's Runtime is not
+the application's Runtime: it does not automatically contain App, Viewport, or
+multiplayer. The composer crash, guest wage bug and ignored clock preference
+all crossed that boundary incorrectly. Future changes should pass the needed
+value/service explicitly and exercise an independently-created screen through
+both input and drawing. Likewise, dispatch tests need to start from a worker's
+current task and room, not only from an idle warehouse worker.
+
+Evidence and final results
+--------------------------
+Desktop baseline: 11,913 PASS checks, CHECKS_COMPLETE, three rendered frames,
+SMOKE_OK, process exit 0. This ran against the starting code plus the prior
+email fix; it is not presented as a post-fix desktop full-suite run.
+It includes compilation/budget checks for 1,140 Lua source files.
+
+Focused post-fix results (all exit 0 with SMOKE_OK):
+  handoff-final.rpt — 87 checks, player/employee delivery and new handoffs.
+  docking.rpt       — 31 checks, freight docking/queue/recovery at three town seeds.
+  office.rpt        — 89 checks, office layout/input and composer rendering.
+  wages-after.rpt   — 32 checks, guest wages and remote identity regression.
+  recent.rpt        — 16 checks, recent features and arrival-time preference.
+
+Expected failing reproductions retained separately:
+  handoff-before.rpt — shipping task interrupted by dispatch.
+  wages-before.rpt   — remote office rejects reconnected guest's wage control.
+
+Final full mobile-layout suite: 11,923 PASS checks, CHECKS_COMPLETE, three
+rendered frames, SMOKE_OK, process exit 0. This run uses the final audit code
+and includes the new employee, wage, composer-rendering and time-format checks.
+Evidence: output/code-audit-20261114/final-mobile.rpt.
+
+Generated-town route sweep: 816/816 ordered destination routes passed across
+seeds 712345, 712346 and 43127, with zero failures. Each seed's live mainland
+gate-to-warehouse route also passed, as did the reliable town-map snapshot.
+The slowest simulated route was 151.3 seconds (brick-walkup to residential-2,
+seed 712346). CHECKS_COMPLETE, three rendered frames, SMOKE_OK, process exit 0.
+Evidence: output/code-audit-20261114/route-sweep.rpt and route-sweep.out.
+
+All post-fix checks above passed. The two before-fix failures are intentional
+reproduction evidence. The original obstruction probe records the pre-fix failure.
+See the company-driving follow-up results below for the corrected behavior.
+
+Limits
+------
+Mobile coverage uses native desktop LÖVE with the game's mobile controls/layout
+enabled. It does not certify installation, keyboard behavior, graphics drivers,
+or performance on physical Android phones. Network coverage uses the repository's
+session/authority/transport fixtures, not a live multi-phone Internet session.
+Generated-town route sweeps cover the listed seeds, not every possible town.
+The audit-only results above predate the company-driving fix described below.
+
+Changes are local. No GitHub push, release, or APK build is part of this audit.
+
+Company-driving follow-up — 2026-11-14
+------------------------------------
+Replaced the wall-clock/sampled company truck shortcut with a saved physical
+vehicle and yard route. Forward travel uses the common road driver; reversing
+uses the truck steering/braking physics with a full-footprint obstacle check.
+The network's simulation substeps now advance the truck and expose its actual
+pose to traffic, player collision, and rendering. Rendering and elapsed wall
+clock alone cannot advance a delivery past an obstruction.
+
+Both the box and kei trucks reverse out of their home stalls, leave through the
+shop exit, wait for a clear entry on return, drive around the outside of an
+occupied freight dock, and park in their own stalls. A truck left at the loading
+dock can also depart. The driver remains assigned until parking and the walk
+back into the shop finish. Compressed travel between customer stops is retained.
+
+The hidden parked copy stays out of collision and rendering while the employee
+is driving. Fuel and service records stay synchronized across interior changes
+and saves. Returning the truck resets the player-distance baseline so later
+player driving cannot count the employee's yard mileage twice. Boarding starts
+a healthy truck's engine; final parking switches it off.
+
+Files: src/commute/company_truck_motion.lua; src/company_delivery_driver.lua;
+       src/commute/delivery_traffic.lua; src/commute/runtime.lua;
+       src/commute/trip.lua.
+Regression coverage: src/commute/tests/company_truck_motion_test.lua;
+       src/commute/tests/scheduled_driving_test.lua;
+       src/commute/tests/delivery_docking_test.lua;
+       src/tests/multi_job_delivery_test.lua.
+The company-driving smoke focus runs both the physical motion cases and the
+employee multi-customer integration scenario.
+
+Focused native LÖVE results:
+  company-final-mobile.rpt: 64 PASS checks, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+    Includes both models in three generated towns (712345, 712346, 43127),
+    player and motorcycle blockages, occupied return gate/stall, serialization
+    while blocked, departure from the dock, employee handoffs, customer payments,
+    disk save/reload during the physical return, and fuel/mileage consistency.
+    Mobile controls/layout are enabled; this is not a physical Android test.
+  company-docking-3.rpt: 33 PASS checks, CHECKS_COMPLETE, SMOKE_OK, exit 0.
+    Includes existing freight docking/queue/recovery scenarios and both company
+    trucks returning past an occupied loading dock.
+
+Earlier development reports retain failed reproductions. The first expanded
+return test found that following the freight setup route blocked a company truck
+behind an occupied dock; the outer-apron route fixes it. The first full desktop
+run exposed an omitted nil-state guard in shared obstacle setup. The guard is
+restored for callers clearing obstacles without an active game state.
+
+Final full desktop validation:
+  company-full-desktop-final.rpt: 11,964 PASS checks, CHECKS_COMPLETE,
+  three rendered frames, SMOKE_OK, process exit 0. This run includes the final
+  nil-state correction and all company-driving regressions, along with the
+  repository's full gameplay, persistence, network, rendering and source checks.
+  No further source changes were made after this successful run.
+
+Result: the company truck driving finding is resolved in the local working tree.
+No GitHub push, release, installer, or mobile APK build was performed in this
+follow-up. Test evidence remains under output/code-audit-20261114/.

@@ -440,7 +440,7 @@ function Trip.restore(t,world,companyTruck,truckFleet,ownership)
     end
     if companyTruck and (result.truck or result.keiTruck) then
         local activeTruck=vehicleForModel(result,t.deliveryVehicleModel or 'box')
-        if t.mapVersion==Roads.VERSION and activeTruck and activeTruck.fuel~=nil then
+        if not companyTruck.deliveryRun and t.mapVersion==Roads.VERSION and activeTruck and activeTruck.fuel~=nil then
             companyTruck.fuelLiters=activeTruck.fuel
         elseif result.truck then
             require('src.company_delivery_driver').apply(companyTruck,result.truck)

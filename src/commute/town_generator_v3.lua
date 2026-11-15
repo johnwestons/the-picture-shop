@@ -179,6 +179,28 @@ local function dryCenter(rng,plan,frame)
     return nil
 end
 
+local function dryRoadPoint(x,z,plan,rng,maximum)
+    if plan:height(x,z)>.9 then
+        return {Frontage.round(x),Frontage.round(z),Frontage.round(plan:landHeight(x,z))}
+    end
+    local phase=rng(0,math.pi*2)
+    for radius=6,maximum or 48,6 do
+        local best,bestScore
+        for step=0,15 do
+            local angle=phase+step*math.pi/8
+            local px,pz=x+math.cos(angle)*radius,z+math.sin(angle)*radius
+            if plan:height(px,pz)>.9 then
+                local score=math.abs(math.sin(angle-phase))
+                if not bestScore or score<bestScore then
+                    best={Frontage.round(px),Frontage.round(pz),Frontage.round(plan:landHeight(px,pz))}
+                    bestScore=score
+                end
+            end
+        end
+        if best then return best end
+    end
+end
+
 local function dryRoadJunction(hub,outer,plan,rng,minimum,maximum)
     minimum,maximum=minimum or .48,maximum or .98
     local preferred=rng(minimum,maximum)
@@ -217,6 +239,33 @@ local function createNodes(rng, frame, plan, generatorVersion, settings, country
             nodes[i]={Frontage.round(x),Frontage.round(z),Frontage.round(plan:landHeight(x,z))}
         end
         if generatorVersion>=13 then
+            if generatorVersion>=14 then
+                -- Rural roads cross the island through an irregular inland spine.
+                -- The ten outer junctions feed into its two ends; none are joined
+                -- into a perimeter circuit.
+                local center=dryCenter(rng,plan,frame)
+                assert(center,'Country road spine could not be placed on dry ground')
+                local angle=rng(0,math.pi*2)
+                local ux,uz=math.cos(angle),math.sin(angle)
+                local sx,sz=-uz,ux
+                nodes[12]=center
+                local bend=(rng()<.5 and -1 or 1)*(24+rng(0,14))
+                local firstOffset,secondOffset=bend,bend+rng(-9,9)
+                nodes[11]=dryRoadPoint(center[1]-ux*83+sx*firstOffset,
+                    center[2]-uz*83+sz*firstOffset,plan,rng,54)
+                nodes[13]=dryRoadPoint(center[1]+ux*83+sx*secondOffset,
+                    center[2]+uz*83+sz*secondOffset,plan,rng,54)
+                assert(nodes[11] and nodes[13],'Country road spine could not follow dry ground')
+                local feeders={}
+                for i=1,10 do
+                    local dx,dz=nodes[i][1]-center[1],nodes[i][2]-center[2]
+                    local along=dx*ux+dz*uz
+                    if along< -24 then feeders[i]=11
+                    elseif along>24 then feeders[i]=13
+                    else feeders[i]=(i%2==0) and 11 or 13 end
+                end
+                return nodes,{countryFeeders=feeders}
+            end
             -- Break the old perimeter ring into rural arcs, with uneven arc
             -- lengths on some seeds so the network does not repeat a circuit.
             local gaps={}
@@ -313,6 +362,16 @@ end
 
 local function graph(rng, pattern, density, generatorVersion, branches, countryBypass)
     if density==1 then
+        if generatorVersion>=14 then
+            local edges={
+                {a=11,b=12,main=false,countryRoad=true},
+                {a=12,b=13,main=false,countryRoad=true},
+            }
+            for i=1,10 do
+                edges[#edges+1]={a=i,b=branches.countryFeeders[i],main=false,countryRoad=true}
+            end
+            return edges,12,0
+        end
         if generatorVersion>=13 then
             local edges={}
             for i=1,10 do
@@ -634,7 +693,8 @@ end
 function Planner.generate(seed,options)
     local pattern=Terrain.random(seed,71)()<.5 and 'strip' or 'crossroads'
     if options.settings and options.settings.roads==1 then
-        pattern=(options.generatorVersion or 3)>=13 and 'crossroads' or 'strip'
+        pattern=(options.generatorVersion or 3)>=14 and 'country'
+            or (options.generatorVersion or 3)>=13 and 'crossroads' or 'strip'
     end
     local reason
     local attempts=options.validateCandidate and 47 or 23

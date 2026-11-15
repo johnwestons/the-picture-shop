@@ -116,7 +116,7 @@ function Component.install(Runtime)
                         Runtime.state.screen = "world"
                     else
                         event.useHostLayout = true
-                        Runtime.WorkshopRemoteScreen.enter(event, Runtime.state)
+                        Runtime.WorkshopRemoteScreen.enter(event, Runtime.state, Runtime.multiplayer.localId)
                     end
                 end
                 if not event.granted and event.resourceId=="warehouse" then

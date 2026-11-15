@@ -189,7 +189,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.creditMachineRect(index)
-        return { x = Runtime.CREDIT_MACHINE.x, y = Runtime.CREDIT_MACHINE.y + (index - 1) * (Runtime.CREDIT_MACHINE.height + Runtime.CREDIT_MACHINE.gap),
+        return { x = Runtime.CREDIT_MACHINE.x, y = Runtime.CREDIT_MACHINE.y + ((index - 1)%3) * (Runtime.CREDIT_MACHINE.height + Runtime.CREDIT_MACHINE.gap),
             width = Runtime.CREDIT_MACHINE.width, height = Runtime.CREDIT_MACHINE.height }
     end
 
@@ -216,8 +216,23 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.creditChannelCenter(channel)
-        local rect = channel == "dealer" and Runtime.CREDIT_CHANNEL_DEALER or Runtime.CREDIT_CHANNEL_ONLINE
+        local rect = channel=='fleet' and Runtime.CREDIT_CHANNEL_FLEET
+            or channel == "dealer" and Runtime.CREDIT_CHANNEL_DEALER or Runtime.CREDIT_CHANNEL_ONLINE
         return rect.x + rect.width / 2, rect.y + rect.height / 2
+    end
+
+    function Runtime.ComputerScreen.creditPageCenter(nextPage)
+        local rect=nextPage and Runtime.CREDIT_NEXT or Runtime.CREDIT_PREVIOUS
+        return rect.x+rect.width/2,rect.y+rect.height/2
+    end
+
+    function Runtime.openFleetFinancing(listingId)
+        local screen=Runtime.ComputerScreen
+        screen.creditChannel='fleet';screen.creditPage=1;screen.creditConfirmation=nil;screen.tab='credit'
+        for index,id in ipairs(require('src.credit_assets').ORDER) do
+            if id==listingId then screen.creditPage=math.ceil(index/3) end
+        end
+        return {action='credit_financing'}
     end
 
     function Runtime.ComputerScreen.creditLoanPayCenter(index)
@@ -242,12 +257,16 @@ function Component.install(Runtime)
             elseif Runtime.contains(Runtime.CREDIT_SIGN, x, y) then
                 if Runtime.dependencies.remoteCommand then
                     Runtime.ComputerScreen.creditConfirmation = nil
+                    if choice.listingId then
+                        return Runtime.remoteAction('finance_asset',{listingId=choice.listingId,requestId=choice.requestId})
+                    end
                     return Runtime.remoteAction("finance_machine", {
                         offerIndex = choice.offerIndex, requestId = choice.requestId, channel = choice.channel,
                     })
                 end
-                local accepted, result = Runtime.Credit.financeMachine(state, choice.offerIndex,
-                    choice.requestId, choice.channel)
+                local accepted,result
+                if choice.listingId then accepted,result=Runtime.Credit.financeAsset(state,choice.listingId,choice.requestId)
+                else accepted,result=Runtime.Credit.financeMachine(state,choice.offerIndex,choice.requestId,choice.channel) end
                 if not accepted then
                     state.message = tostring(result)
                     return { action = "blocked", reason = "finance_offer_changed" }
@@ -256,19 +275,29 @@ function Component.install(Runtime)
                 local loan = result.loan
                 state.message = string.format("Financed %s: $%d down, $%d financed at %.2f%% APR.",
                     loan.machineName, loan.downPayment, loan.principal, loan.aprBasisPoints / 100)
-                return { action = "machine_financed", loan = loan }
+                return { action = choice.listingId and 'asset_financed' or "machine_financed", loan = loan }
             end
             return nil
         end
         if Runtime.contains(Runtime.CREDIT_CHANNEL_ONLINE, x, y) then
-            Runtime.ComputerScreen.creditChannel = "online"
+            Runtime.ComputerScreen.creditChannel = "online";Runtime.ComputerScreen.creditPage=1
             return { action = "credit_channel", channel = "online" }
         elseif Runtime.contains(Runtime.CREDIT_CHANNEL_DEALER, x, y) then
-            Runtime.ComputerScreen.creditChannel = "dealer"
+            Runtime.ComputerScreen.creditChannel = "dealer";Runtime.ComputerScreen.creditPage=1
             return { action = "credit_channel", channel = "dealer" }
+        elseif Runtime.contains(Runtime.CREDIT_CHANNEL_FLEET,x,y) then
+            Runtime.ComputerScreen.creditChannel='fleet';Runtime.ComputerScreen.creditPage=1
+            return {action='credit_channel',channel='fleet'}
         end
-        for index, quote in ipairs(Runtime.Credit.machineQuotes(state, Runtime.ComputerScreen.creditChannel)) do
-            if Runtime.contains(Runtime.creditMachineActionRect(index), x, y) then
+        local quotes=Runtime.Credit.quotes(state,Runtime.ComputerScreen.creditChannel)
+        local page=math.max(1,math.min(math.ceil(#quotes/3),Runtime.ComputerScreen.creditPage or 1))
+        if #quotes>3 and (Runtime.contains(Runtime.CREDIT_PREVIOUS,x,y) or Runtime.contains(Runtime.CREDIT_NEXT,x,y)) then
+            Runtime.ComputerScreen.creditPage=math.max(1,math.min(math.ceil(#quotes/3),page
+                +(Runtime.contains(Runtime.CREDIT_NEXT,x,y) and 1 or -1)))
+            return {action='credit_page'}
+        end
+        for index, quote in ipairs(quotes) do
+            if index>(page-1)*3 and index<=page*3 and Runtime.contains(Runtime.creditMachineActionRect(index), x, y) then
                 if not quote.eligible then
                     state.message = quote.reason or "This financing offer is unavailable."
                     return { action = "blocked", reason = "finance_offer_ineligible" }
@@ -277,14 +306,15 @@ function Component.install(Runtime)
                 local requestId = Runtime.nextFinanceRequestId(Runtime.ComputerScreen.creditRequestNumber)
                 Runtime.ComputerScreen.creditConfirmation = {
                     offerIndex = index, requestId = requestId, channel = Runtime.ComputerScreen.creditChannel,
+                    listingId=quote.listingId,
                 }
                 return { action = "finance_terms", quote = quote }
             end
         end
         for index, loan in ipairs(Runtime.Credit.loanRows(state)) do
-            if Runtime.contains(Runtime.creditLoanActionRect(index), x, y) then
+            if index<=3 and loan.status~='paid' and Runtime.contains(Runtime.creditLoanActionRect(index), x, y) then
                 if loan.installmentsDue < 1 then
-                    state.message = "No machine payment is due yet."
+                    state.message = "No equipment payment is due yet."
                     return { action = "blocked", reason = "no_payment_due" }
                 end
                 if Runtime.dependencies.remoteCommand then
@@ -292,7 +322,7 @@ function Component.install(Runtime)
                 end
                 local paid, result = Runtime.Credit.payLoan(state, loan.id)
                 if not paid then state.message = tostring(result); return { action = "blocked" } end
-                state.message = string.format("Paid $%d on machine loan %s.", result.amount, loan.id)
+                state.message = string.format("Paid $%d on equipment loan %s.", result.amount, loan.id)
                 return { action = "machine_payment", payment = result }
             end
         end

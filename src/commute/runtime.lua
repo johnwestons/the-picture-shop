@@ -1607,11 +1607,8 @@ function C.draw(R,cinematic)
         end
     end
     local trip=C.localTrip(R)
-    local companyTruck=R.state.employment and R.state.employment.companyTruck
-    local companyBoxAway=companyTruck and companyTruck.deliveryRun~=nil
-        and companyTruck.vehicleModel~='kei'
-    local companyKeiAway=companyTruck and companyTruck.deliveryRun~=nil
-        and companyTruck.vehicleModel=='kei'
+    local companyBoxAway=require('src.company_delivery_driver').vehicleHidden(R.state,{model='box'})
+    local companyKeiAway=require('src.company_delivery_driver').vehicleHidden(R.state,{model='kei'})
     if trip.truck and not trip.truck.driver
         and not companyBoxAway then
         actors[#actors+1]={actor=trip.truck,truck=true,parkedTruck=true}

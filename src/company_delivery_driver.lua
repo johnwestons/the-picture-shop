@@ -8,12 +8,12 @@ local TruckService=require('src.commute.truck_service')
 local Contracts=require('src.employment_contracts')
 local Calendar=require('src.business_calendar')
 local Payroll=require('src.payroll')
-local ScheduledDriving=require('src.commute.scheduled_driving')
+local Motion=require('src.commute.company_truck_motion')
 local CompanyTruck={TANK_LITERS=DeliveryTruck.TANK_LITERS,FUEL_PRICE_CENTS_PER_LITER=160,
     FUEL_PER_METER=DeliveryTruck.FUEL_PER_METER,LOW_FUEL_LITERS=12,VERSION=1}
 local BASELINE_DRIVER_SKILL=55
 local routeLookupCache=setmetatable({},{__mode='k'})
-local exteriorRoutes=setmetatable({},{__mode='k'})
+local returnDriver
 local leg
 
 local function finite(n) return type(n)=='number' and n==n and math.abs(n)<1e12 end
@@ -39,6 +39,7 @@ function CompanyTruck.valid(value)
         or (value.status~='parked' and value.status~='refueling'
             and value.status~='delivering' and value.status~='returning')
         or (value.deliveryRun~=nil and not Run.valid(value.deliveryRun))
+        or (value.exterior~=nil and not Motion.valid(value.exterior))
         or (value.nextActionAtHours~=nil and (not finite(value.nextActionAtHours) or value.nextActionAtHours<0))
         or (value.driverEmployeeId~=nil and (type(value.driverEmployeeId)~='string'
             or #value.driverEmployeeId>64 or not value.driverEmployeeId:match('^[%w_.%-]+$')))
@@ -58,6 +59,8 @@ function CompanyTruck.valid(value)
             or value.currentLegFuelLiters<0 or value.currentLegFuelLiters>CompanyTruck.TANK_LITERS)) then return false end
     if (value.status=='delivering' or value.status=='returning')~=(value.deliveryRun~=nil) then return false end
     if value.departureStage~=nil and (value.status~='delivering' or not value.deliveryRun) then return false end
+    if value.exterior~=nil and (not value.deliveryRun
+        or (value.exterior.vehicle.model or 'box')~=(value.vehicleModel or 'box')) then return false end
     if (value.departureHomeX==nil)~=(value.departureHomeZ==nil)
         or value.departureHomeX==nil and value.departureHomeHeading~=nil then return false end
     if (value.status=='refueling')~=(value.nextActionAtHours~=nil and value.deliveryRun==nil
@@ -121,6 +124,12 @@ function CompanyTruck.syncTripVehicle(state)
     if trip and truck and not busy then
         for _,vehicle in ipairs(require('src.commute.trip').trucks(trip)) do
             vehicle.fuel=truck.fuelLiters
+            -- The hidden parked copy is retained for the commute/save schema.
+            -- Keep its service record current so entering an interior or
+            -- reloading cannot overwrite mileage accrued by the employee.
+            if truck.deliveryRun and (vehicle.model or 'box')==(truck.vehicleModel or 'box') then
+                TruckService.applyFleet(vehicle,state.home.truckFleet)
+            end
         end
     end
 end
@@ -133,133 +142,129 @@ local function exteriorVehicle(state)
     return trip[key],trip
 end
 
-local function privateExitPath(world,vehicle)
-    local site=world and world.sites and world.sites.byId and world.sites.byId.warehouse
-    if not site or not vehicle then return nil end
-    local cached=exteriorRoutes[vehicle]
-    if cached and cached.world==world and cached.x==vehicle.x and cached.z==vehicle.z then
-        return cached.route.points,site,cached.route
-    end
-    local layout=require('src.commute.sites').warehouseTruckLayout
-    local x,z=site:toLocal(vehicle.x,vehicle.z)
-    local laneZ=z
-    local points={{x=x,z=z},{x=12.1,z=laneZ},{x=18.3,z=14.5}}
-    local exit=layout.truckExitWaypoints or {}
-    for index=5,#exit do points[#points+1]={x=exit[index].x,z=exit[index].z} end
-    local result={}
-    for _,point in ipairs(points) do
-        local wx,wz,h=site:toWorld(point.x,point.z,0)
-        result[#result+1]={x=wx,z=wz,h=h}
-    end
-    local route={points=result}
-    exteriorRoutes[vehicle]={world=world,x=vehicle.x,z=vehicle.z,route=route}
-    return result,site,route
+function CompanyTruck.vehicleHidden(state,vehicle)
+    local truck=state and state.employment and state.employment.companyTruck
+    if not truck or not truck.deliveryRun or (vehicle.model or 'box')~=(truck.vehicleModel or 'box') then return false end
+    local stage=truck.departureStage
+    return stage~='warehouse_exit' and stage~='outside_walk' and stage~='boarding'
 end
 
-function CompanyTruck.updateExterior(state,world,epoch,now)
+function CompanyTruck.updateExterior(state,world,epoch,now,dt)
     local truck=state and state.employment and state.employment.companyTruck
-    if not truck or not truck.departureStage then return false end
+    if not truck or not world or not world.sites or not world.sites.byId.warehouse then return false end
     epoch=finite(epoch) and epoch or os.time()
     now=finite(now) and now or Calendar.absoluteHours(state)
-    local vehicle,trip=exteriorVehicle(state)
+    local vehicle=exteriorVehicle(state)
+    local changed=false
     local stage=truck.departureStage
     local started=truck.departureStartedAtEpoch
-    if stage=='outside_walk' then
-        if not trip or not vehicle or started and epoch-started>=2.2 then
-            truck.departureStage='boarding';truck.departureStartedAtEpoch=epoch
-            if vehicle then vehicle.speed=0 end
-            truck.revision=truck.revision+1
-            return true
+    if stage=='outside_walk' or stage=='boarding' then
+        if not started then truck.departureStartedAtEpoch=epoch;return true end
+        if epoch-started<(stage=='outside_walk' and 2.2 or 1.15) then return false end
+        truck.departureStage=stage=='outside_walk' and 'boarding' or 'truck_departure'
+        truck.departureStartedAtEpoch=epoch;truck.revision=truck.revision+1
+        return true
+    end
+    if stage=='truck_departure' and not truck.exterior then
+        vehicle=vehicle or require('src.commute.trip').truckParking(world,truck,truck.vehicleModel)
+        if not vehicle then return false end
+        truck.exterior=Motion.start(vehicle,world)
+        truck.exterior.vehicle.fuel=truck.fuelLiters
+        TruckService.applyFleet(truck.exterior.vehicle,state.home.truckFleet)
+        truck.exterior.vehicle.engine=truck.fuelLiters>0
+            and not truck.exterior.vehicle.service.mechanicalFailure
+        changed=true
+    end
+    local motion=truck.exterior
+    if not motion and truck.status=='returning' and truck.nextActionAtHours==nil then
+        local home=world.sites.byId.warehouse.truckHomeParking[truck.vehicleModel or 'box']
+        local source=vehicle or DeliveryTruck.new(home.x,home.z,home.heading,'picture_shop',truck.vehicleModel)
+        motion=Motion.start(source,world);motion.phase='away';truck.exterior=motion;changed=true
+    end
+    if not motion then return false end
+    if motion.phase=='away' and truck.status=='returning' and truck.nextActionAtHours==nil then
+        motion.phase='waiting_return'
+        motion.vehicle.fuel=truck.fuelLiters
+        TruckService.apply(motion.vehicle,state.home and state.home.truckFleet and state.home.truckFleet[truck.vehicleModel or 'box'])
+        changed=true
+    end
+    local beforeDistance=motion.vehicle.distance or 0
+    local beforeFuel=motion.vehicle.fuel
+    local okay,result=require('src.ai_watchdog').protect(state,'company-yard-controller:'..(truck.vehicleModel or 'box'),
+        {system='Shop yard protocol',subject='Company truck',stage=motion.phase,
+            x=motion.vehicle.x,z=motion.vehicle.z,visible=Motion.visible(motion),scope='world-simulation'},
+        function()return Motion.update(motion,world,dt,state)end,
+        function()
+            world.activeTruck=nil;require('src.commute.yard_rail').stop(motion.vehicle)
+            local moved,reason=Motion.recover(motion,world,state)
+            return {ok=moved,action=reason}
+        end)
+    if not okay then truck.revision=truck.revision+1;return true end
+    if not result then
+        if changed then truck.revision=truck.revision+1 end
+        return changed
+    end
+    truck.odometerMeters=truck.odometerMeters+math.max(0,(motion.vehicle.distance or 0)-beforeDistance)
+    truck.fuelLiters=math.max(0,truck.fuelLiters-math.max(0,beforeFuel-motion.vehicle.fuel))
+    if Motion.visible(motion) then TruckService.syncFleet(state.home,{motion.vehicle}) end
+    CompanyTruck.syncTripVehicle(state)
+    if result=='departed' then
+        truck.departureStage=nil;truck.departureStartedAtEpoch=nil
+        local run=truck.deliveryRun
+        if run then
+            run.status='driving'
+            local distance,hours=leg({kind='town',id='warehouse'},run.stops[run.stopIndex],
+                state.home and state.home.town,run.driverSkill,run.vehicleModel)
+            truck.currentLegFuelLiters=distance*CompanyTruck.FUEL_PER_METER
+            truck.nextActionAtHours=now+hours+.08
         end
-        return false
-    elseif stage=='boarding' then
-        if started and epoch-started>=1.15 then
-            truck.departureStage='truck_departure';truck.departureStartedAtEpoch=epoch
-            if vehicle and truck.departureHomeX==nil then
-                truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=
-                    vehicle.x,vehicle.z,vehicle.heading
-            end
-            if vehicle then vehicle.speed=0;vehicle.engine=true end
-            truck.revision=truck.revision+1
-            return true
+    elseif result=='parked' then
+        truck.lastPlayerDistance=motion.vehicle.distance or 0
+        if vehicle then
+            local parked=DeliveryTruck.snapshot(motion.vehicle)
+            for key in pairs(vehicle) do vehicle[key]=nil end
+            for key,value in pairs(parked) do vehicle[key]=value end
         end
-        return false
-    elseif stage~='truck_departure' then
-        return false
-    end
-    if not started then truck.departureStartedAtEpoch=epoch;started=epoch end
-    if vehicle and truck.departureHomeX==nil then
-        truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=
-            vehicle.x,vehicle.z,vehicle.heading
-    end
-    local points,site,route=privateExitPath(world,vehicle)
-    local plan=route and ScheduledDriving.sample(route,0,world,vehicle)
-    if epoch-started<(plan and plan.duration or 8) then return false end
-    if vehicle and points then
-        local last=points[#points]
-        vehicle.x,vehicle.z,vehicle.heading=last.x,last.z,last.heading or vehicle.heading
-        vehicle.h=world:supportHeight(vehicle.x,vehicle.z);vehicle.speed=0
-    end
-    truck.departureStage=nil;truck.departureStartedAtEpoch=nil
-    local run=truck.deliveryRun
-    if run then
-        run.status='driving'
-        local stop=run.stops[run.stopIndex]
-        local firstDistance,firstHours=leg({kind='town',id='warehouse'},stop,
-            state.home and state.home.town,run.driverSkill,run.vehicleModel)
-        truck.currentLegFuelLiters=firstDistance*CompanyTruck.FUEL_PER_METER
-        truck.nextActionAtHours=now+firstHours+.08
+        returnDriver(state,truck,'Returned to the warehouse after deliveries')
+        truck.exterior=nil
+        truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=nil,nil,nil
+        state.message='The scheduled driver parked the empty delivery truck and returned to the warehouse.'
     end
     truck.revision=truck.revision+1
     return true
 end
-
 function CompanyTruck.actors(state,world,epoch)
     local truck=state and state.employment and state.employment.companyTruck
-    local stage=truck and truck.departureStage
-    local vehicle,trip=exteriorVehicle(state)
-    if not stage or not world or not world.sites or not vehicle or not trip then return {} end
+    if not truck or not world or not world.sites then return {} end
     local site=world.sites.byId.warehouse
     if not site then return {} end
-    local epochNow=finite(epoch) and epoch or os.time()
-    local started=truck.departureStartedAtEpoch or epochNow
-    if stage=='truck_departure' then
-        local actor=copy(vehicle)
-        local _,_,route=privateExitPath(world,vehicle)
-        local plan=route and ScheduledDriving.sample(route,0,world,vehicle)
-        local pose=plan and ScheduledDriving.sample(route,(epochNow-started)/math.max(.01,plan.duration),world,vehicle)
-        if pose then
-            actor.x,actor.z,actor.heading=pose.x,pose.z,pose.heading
-            actor.h=world:supportHeight(actor.x,actor.z);actor.speed=pose.speed
-            actor.distance=(actor.distance or 0)+pose.distance
-        end
-        return {{id='company-delivery-truck',actor=actor,truck=true,
-            deliveryTruck=true,phase='departing',label='Company delivery truck · leaving the warehouse'}}
+    local motion=truck.exterior
+    local vehicle=motion and motion.vehicle or exteriorVehicle(state)
+    if not vehicle then return {} end
+    local result={}
+    if Motion.visible(motion) then
+        result[1]={id='company-delivery-truck',actor=vehicle,truck=true,deliveryTruck=true,
+            phase=truck.status=='returning' and 'returning' or 'departing',label='Company delivery truck'}
     end
-    local door=site.door
-    local startX,startZ=door.x,door.z
-    local endX,endZ=vehicle.x,vehicle.z
-    local moving=stage=='outside_walk'
-    if moving then
-        local progress=math.max(0,math.min(1,(epochNow-started)/2.2))
-        local fromX,fromZ=door.x,door.z
-        local toX,toZ=vehicle.x,vehicle.z
-        startX=fromX+(toX-fromX)*progress;startZ=fromZ+(toZ-fromZ)*progress
-    elseif stage=='boarding' then
-        startX,startZ=endX,endZ
-    end
+    local stage=truck.departureStage
+    local returning=motion and motion.phase=='return_walk'
+    if stage~='outside_walk' and stage~='boarding' and not returning then return result end
+    local elapsed=returning and motion.walkSeconds or (epoch or os.time())-(truck.departureStartedAtEpoch or epoch or os.time())
+    local progress=math.max(0,math.min(1,(elapsed-(returning and 1.15 or 0))/2.2))
+    if stage=='boarding' then progress=1 end
+    local fromX,fromZ,toX,toZ=site.door.x,site.door.z,vehicle.x,vehicle.z
+    if returning then fromX,fromZ,toX,toZ=toX,toZ,fromX,fromZ end
+    local x,z=fromX+(toX-fromX)*progress,fromZ+(toZ-fromZ)*progress
+    local moving=progress>0 and progress<1 and stage~='boarding'
     local person=require('src.employees').worker(state,truck.driverEmployeeId)
-    local actor={x=startX,z=startZ,h=world:supportHeight(startX,startZ),
-        heading=math.atan2(endZ-startZ,endX-startX),speed=moving and 1.35 or 0,
-        distance=moving and math.min(3.2,(epochNow-started)*1.35) or 0,
-        moving=moving,speechCode=require('src.employee_speech').EMPLOYEE_GOING_ON_DELIVERY,
-        visible=true}
-    local result={{id='company-delivery-driver-'..tostring(truck.driverEmployeeId),actor=actor,
-        npcCharacter=true,deliveryEmployee=true,characterId='mechanic-raccoon',
-        rosterId=truck.driverEmployeeId,label=(person and person.name or 'Delivery driver')}}
+    result[#result+1]={id='company-delivery-driver-'..tostring(truck.driverEmployeeId),
+        actor={x=x,z=z,h=world:supportHeight(x,z),heading=math.atan2(toZ-fromZ,toX-fromX),
+            speed=moving and 1.35 or 0,distance=progress*math.sqrt((toX-fromX)^2+(toZ-fromZ)^2),
+            moving=moving,visible=true},npcCharacter=true,deliveryEmployee=true,
+        characterId=person and person.character or 'mechanic-raccoon',rosterId=truck.driverEmployeeId,
+        label=person and person.name or 'Delivery driver'}
     return result
 end
-
 local function point(id,town)
     local p=town and town.destinations and town.destinations[id] or Roads.destinations[id]
     if not p then return nil end
@@ -358,9 +363,16 @@ local function workerById(state,id)
     end
 end
 
-local function driverEligible(worker,now)
+local function driverEligible(state,worker,now)
     if not worker or worker.status~='employed' or worker.terminationRequested
+        or worker.stopRequested or worker.awayForDelivery or worker.carryingPalletId
+        or worker._shippingActive or worker._shippingPalletId or worker._inboundDeliveryPalletId
         or not worker.visible or not worker.clockedIn then return false end
+    -- These physical tasks can be active without a machine assignment.
+    -- Reserving the worker here would prevent their normal AI from finishing.
+    if require('src.employee_ai').hasDeliverySignature(worker) then return false end
+    local jack=require('src.pallet_jack_fleet').owned(state,worker.id)
+    if jack and jack.carriedPalletId then return false end
     local day=Contracts.shiftDay(worker.contract,now)
     return worker.sentHomeShiftDay~=day and Contracts.onShift(worker.contract,now)
         and worker.phase~='break' and worker.phase~='break_walk'
@@ -372,7 +384,7 @@ local function availableDriver(state,now,truck)
     -- refuel stop, so another employee cannot take the delivery out of order.
     local pending=workerById(state,truck and truck.pendingDriverEmployeeId)
     if pending and pending.status=='employed' and not pending.terminationRequested then
-        return driverEligible(pending,now) and pending or nil
+        return driverEligible(state,pending,now) and pending or nil
     end
     if truck and truck.pendingDriverEmployeeId then
         truck.pendingDriverEmployeeId=nil;truck.revision=truck.revision+1
@@ -381,12 +393,12 @@ local function availableDriver(state,now,truck)
     local preferred=truck and truck.preferredDriverEmployeeId
     if preferred then
         local worker=workerById(state,preferred)
-        return driverEligible(worker,now) and worker or nil
+        return driverEligible(state,worker,now) and worker or nil
     end
 
     local best,bestSkill
     for _,worker in ipairs(state.employment and state.employment.staff or {}) do
-        if driverEligible(worker,now) then
+        if driverEligible(state,worker,now) then
             local skill=tonumber(worker.drivingSkill) or BASELINE_DRIVER_SKILL
             if not best or skill>bestSkill then best,bestSkill=worker,skill end
         end
@@ -464,7 +476,7 @@ local function setActivity(state,employeeId,activity,away)
     end
 end
 
-local function returnDriver(state,truck,message)
+returnDriver=function(state,truck,message)
     local id=truck.driverEmployeeId
     truck.deliveryRun=nil;truck.nextActionAtHours=nil;truck.driverEmployeeId=nil
     truck.currentLegFuelLiters=nil;truck.status='parked'
@@ -557,6 +569,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
     end
     if truck.departureStage then return false end
     if truck.deliveryRun then
+        if truck.status=='returning' and truck.nextActionAtHours==nil then return false end
         if now<(truck.nextActionAtHours or math.huge) then return false end
         if truck.status=='returning' then
             local fuel=truck.currentLegFuelLiters or 0
@@ -564,23 +577,9 @@ function CompanyTruck.update(state,now,activeRunOnly)
             truck.fuelLiters=math.max(0,truck.fuelLiters-fuel)
             truck.odometerMeters=truck.odometerMeters+meters
             TruckService.runFleet(state.home,truck.vehicleModel or 'box',meters,0)
-            local vehicle=exteriorVehicle(state)
-            if vehicle then
-                local town=state.home and state.home.town
-                local sites=require('src.commute.sites').create({
-                    placements=town and town.placements,designs=town and town.designs})
-                local site=sites.byId.warehouse
-                local home=site and site.truckHomeParking[vehicle.model or 'box']
-                if home then
-                    vehicle.x,vehicle.z,vehicle.h=home.x,home.z,home.h
-                    vehicle.homeX,vehicle.homeZ=home.x,home.z
-                    vehicle.heading=home.heading
-                end
-                vehicle.speed=0;vehicle.reverse=false;vehicle.engine=true
-            end
-            returnDriver(state,truck,'Returned to the warehouse after deliveries')
-            truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=nil,nil,nil
-            state.message='The scheduled driver returned with the empty delivery truck.'
+            CompanyTruck.syncTripVehicle(state)
+            truck.currentLegFuelLiters=nil;truck.nextActionAtHours=nil
+            truck.revision=truck.revision+1
             return true
         end
         local run=truck.deliveryRun
@@ -612,6 +611,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
         truck.fuelLiters=math.max(0,truck.fuelLiters-fuel)
         truck.odometerMeters=truck.odometerMeters+meters
         TruckService.runFleet(state.home,run.vehicleModel or truck.vehicleModel or 'box',meters,0)
+        CompanyTruck.syncTripVehicle(state)
         run.stopIndex=run.stopIndex+1
         if run.stopIndex>#run.stops then
             local distance,duration=leg(stop,{kind='town',id='warehouse'},
@@ -638,6 +638,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
         if playerHasTruck(state) then return false end
         local worker=availableDriver(state,now,truck)
         if worker and not worker.assignment and not worker.training
+            and not require('src.pallet_jack_fleet').owned(state,worker.id)
             and truck.fuelLiters<=CompanyTruck.LOW_FUEL_LITERS then
             local okay,didRefuel=refuel(state,truck,worker,0,now)
             if didRefuel then return true end
@@ -661,7 +662,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
         end
         return false
     end
-    if worker.assignment or worker.training then
+    if worker.assignment or worker.training or require('src.pallet_jack_fleet').owned(state,worker.id) then
         if truck.pendingDriverEmployeeId~=worker.id then
             truck.pendingDriverEmployeeId=worker.id;truck.revision=truck.revision+1
             return true
@@ -705,7 +706,7 @@ function CompanyTruck.update(state,now,activeRunOnly)
     else truck.departureHomeX,truck.departureHomeZ,truck.departureHomeHeading=nil,nil,nil end
     truck.revision=truck.revision+1
     worker.visible=true;worker.clockedIn=true;worker.awayForDelivery=nil
-    worker.phase='walking';worker.sceneId='warehouse';worker.moving=false
+    worker.phase='walking';worker.sceneId=worker.sceneId or 'warehouse';worker.moving=false
     worker.activity='Going on a delivery'
     worker.greetingKind=require('src.employee_speech').EMPLOYEE_GOING_ON_DELIVERY
     worker.greetingUntilHours=now+require('src.employee_speech').GREETING_SECONDS*24

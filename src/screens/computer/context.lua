@@ -77,6 +77,7 @@ function Component.install(Runtime)
         creditConfirmation = nil,
         creditRequestNumber = 0,
         creditChannel = "online",
+        creditPage = 1,
         hiring = Runtime.Hiring.new(),
         financialSection = "overview",
         financialHiring = Runtime.Hiring.new(),
@@ -259,13 +260,17 @@ function Component.install(Runtime)
     Runtime.WAREHOUSE_BAYS = { "front_left", "front_right" }
     Runtime.WAREHOUSE_OPTIONS = { "floor", "storage", "breakroom" }
     Runtime.WAREHOUSE_FORKLIFT = {x=670,y=490,width=164,height=40}
+    Runtime.WAREHOUSE_FORKLIFT_FINANCE = {x=550,y=490,width=112,height=26}
     Runtime.WAREHOUSE_CONFIRM = {x=508,y=514,width=228,height=40}
     Runtime.WAREHOUSE_CANCEL = {x=216,y=514,width=180,height=40}
     Runtime.WAREHOUSE_ACK = {x=206,y=430,width=542,height=48}
     Runtime.CREDIT_MACHINE = { x = 116, y = 306, width = 332, height = 66, gap = 4 }
     Runtime.CREDIT_MACHINE_ACTION = { x = 354, width = 88, height = 32 }
-    Runtime.CREDIT_CHANNEL_ONLINE = { x = 262, y = 279, width = 78, height = 22 }
-    Runtime.CREDIT_CHANNEL_DEALER = { x = 344, y = 279, width = 88, height = 22 }
+    Runtime.CREDIT_CHANNEL_ONLINE = { x = 116, y = 279, width = 104, height = 22 }
+    Runtime.CREDIT_CHANNEL_DEALER = { x = 228, y = 279, width = 104, height = 22 }
+    Runtime.CREDIT_CHANNEL_FLEET = { x = 340, y = 279, width = 108, height = 22 }
+    Runtime.CREDIT_PREVIOUS = {x=116,y=524,width=92,height=28}
+    Runtime.CREDIT_NEXT = {x=356,y=524,width=92,height=28}
     Runtime.CREDIT_LOAN = { x = 462, y = 300, width = 366, height = 76, gap = 8 }
     Runtime.CREDIT_LOAN_ACTION = { x = 712, width = 104, height = 29 }
     Runtime.CREDIT_SIGN = { x = 492, y = 472, width = 220, height = 44 }

@@ -1,0 +1,81 @@
+Story-mode update and GitHub preparation — 2026-11-15
+===================================================
+
+Requested addition
+------------------
+Critter Credit now finances all four commercial truck listings (new/used box
+and kei trucks) and the warehouse forklift. The vehicle dealer and forklift
+purchase page have Finance shortcuts; the Credit page has a paginated Fleet tab.
+Players review the down payment, principal, APR, term, and monthly payment before
+signing. Ownership and the correct new/used vehicle condition are granted through
+the existing purchase routines. Only the down payment leaves shop cash.
+
+The new loans share the existing machine credit profile, three-open-account
+limit, monthly schedule, late fees, credit reporting, repayment, and lien-release
+rules. The calendar labels vehicle/forklift installments as equipment payments.
+Old machine loans remain valid. Financed purchase receipts retain the full price,
+cash paid, and loan ID. Multiplayer clients send only a listing and request ID;
+the host sets prices/terms and commits the purchase. Duplicate requests cannot
+create another loan or charge.
+
+The previous mop/spill test failure was an outdated fixture: it sampled the dry
+edge of one puddle where the relocated second puddle is visible. The test now
+isolates the puddle under test without changing the game's spill placements.
+
+Update under test
+-----------------
+This readiness pass includes the existing local updates: strict receiving-yard
+paths and dock ownership; company-truck employee departure/return and recovery;
+email rendering and employee/repeat-job fixes; cutter AUTO mode, service/control
+and network changes; country-road generation; warehouse spill placement; and
+the truck/forklift financing addition.
+
+Validation method
+-----------------
+The full gameplay release runner checks desktop and mobile-mode full suites,
+story opening/free travel, shop restoration/grand opening, seeded interruption
+campaigns, apartments and outings, production and business systems, delivery
+routes, shared-world/network fixtures, UI, rendering, and performance coverage.
+New feature contracts explicitly require financing, strict yard, and company
+driver checks. Each process uses a fresh isolated test save directory. No real
+player save was loaded and no save backups were created for this run.
+
+Run: output/gameplay-release/story-finance-20261115/
+Plan: tools/gameplay_smoke_plan.json (47 stages, 52 feature groups).
+The final summary reports every stage passed and unchanged source. Final results
+and the tested source fingerprint are recorded below.
+
+Additional checks: LuaJIT compilation/limits audit; gameplay-runner validation
+tests; git diff --check; rendered finance page, terms, loan, dealer and forklift
+screens inspected at the game's 960x678 layout.
+
+Limits: these are automated native LÖVE runs and simulated mobile controls/layout.
+They do not certify a physical Android device or live Internet multiplayer. This
+request prepares source for GitHub; it does not publish a new APK/download link.
+
+Final result: PASS
+------------------
+47/47 stages and 52/52 feature groups passed: 42,894 checks across the planned
+runs (some checks intentionally repeat across modes/seeds). The full desktop
+and mobile-mode suites each passed 12,061 checks. Both story-opening suites
+passed 138 checks. Both financing suites passed 56 checks. The yard protocol,
+company driving, three-seed delivery route sweep, restoration, UI, multiplayer,
+receipts, lighting, and performance stages all passed with successful process
+exits and render completion. All six interruption campaigns passed 1,391 checks
+each. The earlier warehouse-condition blocker is resolved.
+
+Source remained unchanged throughout the run. Fingerprint:
+57740313f9087bf5aa86abed2b1aa90e4db1c433526fbb5a27f0d73558783d91
+
+Run time: November 15, 2026, 01:07:32–01:19:20 America/New_York.
+Machine-readable evidence: output/gameplay-release/story-finance-20261115/summary.json
+Readable stage results: output/gameplay-release/story-finance-20261115/summary.txt
+Individual assertions, logs and relevant UI captures remain in the stage folders.
+
+Additional validation passed: 1,147 Lua files / 14,733 compiled functions within
+LuaJIT limits; 10 gameplay-runner validation checks; git diff --check. Finance
+screen previews also remain under output/code-audit-20261114/.
+
+Prepared for a local commit on codex/release-106, based on f38e2487. No source
+changes were made after the successful full matrix. This report supersedes the
+earlier limited-validation status in warehouse_yard_protocol_2026-11-15.txt.

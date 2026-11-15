@@ -15,7 +15,6 @@ end
 
 function Test.run(context, check)
     local state = context.State.new()
-    state.cutterMemory = { ["1"] = { 15 }, ["2"] = { 12 } }
     local job = assert(context.jobs.createOffer({
         id = "JOB-CUTTER-PRODUCTION-SESSION", company = "Network Cutter Session Co.",
         sourceSize = { width = 20, height = 16 }, finishedSize = { width = 10, height = 8 },
@@ -25,6 +24,11 @@ function Test.run(context, check)
     job.status = "in_production"
     job.delivery.status = "received"
     local pallet = job.pallets[1]
+    for number, cut in ipairs(pallet.paper.cuts) do
+        state.cutterMemory[tostring(number)] = { cut.gauge }
+    end
+    local item = require("src.machine_fleet").installed(state, "polar_115")
+    item.variables.bladeSharpness = 47
     local inputX, inputY = context.CutterZones.inputAnchor(state, context.config.cutterPlacement)
     pallet.location = "warehouse"
     pallet.world = { x = inputX, y = inputY, fromX = inputX, fromY = inputY,
@@ -172,7 +176,8 @@ function Test.run(context, check)
     check("cutter_production_guest_load_gauge_position_clamp_round_trip",
         Machine.step == "clamped" and Remote.view.step == "clamped"
         and Remote.view.paper.orientation == Machine.paper.orientation
-        and Remote.view.gaugeCentiInch == 1500 and Machine.gauge == 15)
+        and Remote.view.gaugeCentiInch == 1500 and Machine.gauge == 15
+        and Remote.view.autoMode and Remote.view.bladeSharpness == 47 and Remote.view.bladeRemoved == false)
     network:duplicateNext("client_to_host", 1, 1, true)
     key("j")
     advance(0.25)
@@ -196,6 +201,8 @@ function Test.run(context, check)
     check("cutter_production_host_confirms_one_cut_and_guest_shows_next_program",
         completedCuts == 1 and #Machine.paper.history == 1
         and Remote.view.paper.activeCut == 2 and Remote.view.programIndex == 2
+        and Remote.view.autoMode
+        and Remote.view.gaugeCentiInch == math.floor(pallet.paper.cuts[2].gauge * 100 + 0.5)
         and Remote.cutterPresentation:model(guestState, Remote.view).paper.currentSize.width
             == Machine.paper.currentSize.width,
         string.format("cuts=%d history=%d step=%s active=%s program=%s hostWidth=%s guestWidth=%s message=%s",
@@ -204,7 +211,6 @@ function Test.run(context, check)
             tostring(Remote.cutterPresentation:model(guestState, Remote.view).paper.currentSize.width),
             tostring(state.message)))
     key("q")
-    key("g")
     key("p")
     advance(0.5)
     key("space")
@@ -215,13 +221,15 @@ function Test.run(context, check)
     check("cutter_production_guest_estop_stops_shared_blade_without_extra_cut",
         Machine.step == "blocked" and Machine.emergencyStopped and Remote.view.emergencyStopped
         and Remote.cutterPresentation:model(guestState, Remote.view).step == "blocked"
-        and completedCuts == 1 and #Machine.paper.history == 1)
+        and completedCuts == 1 and #Machine.paper.history == 1
+        and Remote.view.autoMode and Remote.view.programIndex == 2)
     key("r")
     advance(0.4)
     local gx, gy = Remote.cutterGaugeInputCenter()
     Remote.mousepressed(guestState, gx, gy, 1, send)
     Remote.textinput("1")
     key("return")
+    check("cutter_production_guest_manual_gauge_exits_auto", not Machine.autoMode and Remote.view.autoMode == false)
     key("p")
     advance(0.5)
     key("space")

@@ -165,7 +165,7 @@ function Test.run(context,check)
     local comparisonState=State.new()
     local comparison=Condition.new("story",772)
     comparison.puddleStrokes.puddle1={{x=targetX,y=targetY,angle=.35}}
-    comparison.puddleStrokes.puddle2={{x=750,y=540,angle=-.2}}
+    comparison.puddleStrokes.puddle2={{x=secondSpill.x+10,y=secondSpill.y,angle=-.2}}
     comparisonState.warehouse.condition=comparison
     local migratedProgress=Condition.puddleProgress(migratedState,"puddle1")
     local freshProgress=Condition.puddleProgress(comparisonState,"puddle1")
@@ -173,13 +173,17 @@ function Test.run(context,check)
         Condition.valid(migrated) and migrated.version==Condition.VERSION
             and migrated.puddleStrokes.puddle1[1].x==targetX
             and migrated.puddleStrokes.puddle1[1].y==targetY
-            and migrated.puddleStrokes.puddle2[1].x==750
-            and migrated.puddleStrokes.puddle2[1].y==540
+            and migrated.puddleStrokes.puddle2[1].x==secondSpill.x+10
+            and migrated.puddleStrokes.puddle2[1].y==secondSpill.y
             and math.abs(migratedProgress-freshProgress)<1e-9
             and afterMigrationAlpha<beforeMigrationAlpha)
     local dryEdgeX=firstSpill.x+math.floor(firstSpill.visualRadiusX*.9)
+    -- The new center-floor placement lets the other puddle cover this sample.
+    -- Isolate the spill whose own renderer and mop footprint are under test.
+    local isolatedSpill=Schema.copy(state)
+    isolatedSpill.warehouse.condition.cleanedPuddles.puddle2=true
     check("warehouse_condition_mop_hit_area_follows_visible_spill",
-        overlayAlpha(dryEdgeX,firstSpill.y)<.005
+        overlayAlpha(dryEdgeX,firstSpill.y,isolatedSpill)<.005
             and not Condition.puddleAt(state,"puddle1",dryEdgeX,firstSpill.y))
     for _,model in ipairs({"polar_115","skid_wrapper"}) do
         local operable,reason=fleet.canOperate(state,model)

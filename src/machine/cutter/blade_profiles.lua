@@ -1,5 +1,6 @@
 local Profiles = {}
 
+Profiles.DULL_THRESHOLD = 50
 Profiles.ORDER = { "premium_hss", "carbide_edge" }
 local RANK = { standard = 1, premium_hss = 2, carbide_edge = 3 }
 Profiles.DATA = {

@@ -158,7 +158,44 @@ local function employeeRun(context,check,town,world)
         not Company.ensure(state).deliveryRun and a.pallets[1].location=='warehouse')
     state.calendar.elapsed=Calendar.secondsPerDay(state)*now/24
     worker.contract.startHour,worker.contract.endHour=9,17
+    -- Dispatch must wait for physical tasks that have no machine assignment.
+    worker.carryingPalletId='HANDOFF-PALLET'
+    Company.update(state,now)
+    check('employee_delivery_waits_for_carried_pallet',not Company.ensure(state).deliveryRun)
+    worker.carryingPalletId=nil
+    worker._shippingActive=true
+    Company.update(state,now)
+    check('employee_delivery_waits_for_shipping_task',not Company.ensure(state).deliveryRun)
+    worker._shippingActive=false
+    local AI=require('src.employee_ai')
+    assert(AI.requestDeliverySignature(state,worker,'HANDOFF-SIGNATURE',now))
+    Company.reserveNextDriver(state,now);Company.update(state,now)
+    check('employee_delivery_does_not_interrupt_receipt_signature',not Company.ensure(state).deliveryRun
+        and not Company.ensure(state).pendingDriverEmployeeId and AI.hasDeliverySignature(worker))
+    -- The receipt was cancelled; the normal AI releases its transient task.
+    AI.worker(state,worker,.1,now,{});AI.worker(state,worker,.1,now,{})
+    local Jack=require('src.pallet_jack')
+    local JackFleet=require('src.pallet_jack_fleet')
+    local Config=require('src.config')
+    assert(Jack.mountEmployee(state,Config.palletJack,worker.id))
+    Company.reserveNextDriver(state,now);Company.update(state,now)
+    check('employee_delivery_waits_for_empty_jack_parking',not Company.ensure(state).deliveryRun
+        and Company.ensure(state).pendingDriverEmployeeId==worker.id and JackFleet.owned(state,worker.id))
+    AI.worker(state,worker,.1,now,{jackParkingPoint=function()return nil end})
+    check('employee_delivery_releases_jack_before_boarding',not JackFleet.owned(state,worker.id))
+    -- Coordinates belong to the current room until scene travel completes.
+    worker.sceneId='front_left'
+    local startX,startY=worker.x,worker.y
     assert(Company.update(state,now))
+    check('employee_delivery_preserves_departure_room',worker.sceneId=='front_left'
+        and worker.x==startX and worker.y==startY)
+    local walkedToWarehouse=false
+    AI.worker(state,worker,.1,now,{travelScene=function(w,scene)
+        walkedToWarehouse=w==worker and scene=='warehouse'
+        return false,false
+    end})
+    check('employee_delivery_walks_between_rooms_before_exit',walkedToWarehouse)
+    worker.sceneId='warehouse'
     local company=Company.ensure(state)
     local run=company.deliveryRun
     check('multi_job_employee_dispatch_batches_ten_pallets_from_three_clients',run and run.palletCount==10
@@ -175,10 +212,18 @@ local function employeeRun(context,check,town,world)
     warehouse.player.x,warehouse.player.y=930,640
     warehouse.configureEmployees({players=function()return {} end,canClaim=function()return false end})
     local epoch=os.time()
+    local resumedDeparture=false
     for step=1,1800 do
         Calendar.update(state,.1);now=Calendar.absoluteHours(state)
         warehouse.updateSimulation(.1,context.assets,state,.1)
-        Company.updateExterior(state,world,epoch+step*.1,now)
+        require('src.commute.delivery_traffic').simulate(state,town,.1,epoch+step*.1,world)
+        if not resumedDeparture and company.exterior and company.exterior.vehicle.distance>1 then
+            local original=company.exterior.vehicle
+            company=assert(Company.normalize(company));state.employment.companyTruck=company
+            run=company.deliveryRun;resumedDeparture=true
+            check('company_departure_pose_survives_save_normalization',company.exterior.vehicle.x==original.x
+                and company.exterior.vehicle.z==original.z and company.exterior.vehicle.speed==original.speed)
+        end
         if not company.departureStage then break end
     end
     check('multi_job_employee_boards_and_departs_with_the_whole_load',not company.departureStage
@@ -187,24 +232,56 @@ local function employeeRun(context,check,town,world)
             tostring(company.departureStage),run.status,tostring(company.nextActionAtHours),
             tostring(worker.awayForDelivery),tostring(worker.phase),tostring(worker.activity),worker.x,worker.y))
     local before,payment=state.money,a.quote.totalPrice+b.quote.totalPrice+c.quote.totalPrice
+    -- Opening the outdoor scene while the employee is away creates a hidden
+    -- parked copy. It must not roll back the active truck's fuel/service data.
+    local owner={id=1,homeResidentId='owner',sceneId='warehouse',character='rabbit-worker'}
+    assert(require('src.commute.free_travel').enter(state,owner,world,nil,{owner}))
     assert(Company.update(state,company.nextActionAtHours))
     check('multi_job_employee_local_stop_keeps_city_cargo_onboard',#state.jobs.completed==1
         and b.pallets[1].location=='outbound_truck' and c.pallets[1].location=='outbound_truck'
         and company.deliveryRun.stopIndex==2)
     local Schema=require('src.save_schema')
+    local deliveryMiles=state.home.truckFleet.box.service.totalMiles
+    local deliveryFuel=company.fuelLiters
     local saved=assert(Schema.snapshot(state))
     assert(context.save.save(3,state,warehouse.snapshot()))
     local payload=assert(context.save.load(3));context.save.delete(3)
     local restored=State.new();assert(State.applySave(restored,payload));state=restored;company=Company.ensure(state)
     check('multi_job_employee_route_restores_after_first_customer_delivery',Schema.validState(saved)
         and company.deliveryRun.stopIndex==2 and company.deliveryRun.palletCount==10)
+    check('company_route_reload_preserves_fuel_and_fleet_mileage',company.fuelLiters==deliveryFuel
+        and state.home.truckFleet.box.service.totalMiles==deliveryMiles)
     for _=1,5 do
         if not company.deliveryRun then break end
+        if not company.nextActionAtHours then break end
         assert(Company.update(state,company.nextActionAtHours))
     end
+    check('company_driver_stays_away_until_physically_parked',company.status=='returning'
+        and company.deliveryRun and state.employment.staff[1].awayForDelivery)
+    local resumedReturn=false
+    for step=1,3000 do
+        require('src.commute.delivery_traffic').simulate(state,town,.1,epoch+200+step*.1,world)
+        if not resumedReturn and company.exterior and company.exterior.phase=='returning'
+            and company.exterior.index>3 then
+            local original=company.exterior.vehicle
+            assert(context.save.save(3,state,warehouse.snapshot()))
+            local returningPayload=assert(context.save.load(3));context.save.delete(3)
+            state=State.new();assert(State.applySave(state,returningPayload));company=Company.ensure(state)
+            check('company_physical_return_survives_disk_save_reload',company.exterior.vehicle.x==original.x
+                and company.exterior.vehicle.z==original.z and company.exterior.vehicle.speed==original.speed)
+            resumedReturn=true
+        end
+        if not company.deliveryRun then break end
+    end
+    world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil
     check('multi_job_employee_delivers_all_clients_pays_once_and_returns_empty',company.status=='parked'
         and not company.deliveryRun and #state.jobs.completed==3 and state.money==before+payment
         and Service.pickupInventory(state,overflow.id).status=='ready_for_pickup')
+    local parked=state.home.commute.truck
+    local odometer=company.odometerMeters
+    Company.syncFromVehicle(company,parked)
+    check('company_return_hands_back_truck_without_recounting_delivery_mileage',company.odometerMeters==odometer
+        and not parked.engine and parked.fuel==company.fuelLiters and not state.employment.staff[1].awayForDelivery)
     local receipts=require('src.receipt_book').list(state,'job');local paid=0
     for _,receipt in ipairs(receipts) do paid=paid+receipt.amountCents end
     check('archive_delivery_route_files_one_payment_per_completed_job',#receipts==3 and paid==payment*100

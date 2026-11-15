@@ -106,6 +106,18 @@ function Test.run(_,check)
     computer.draw(state)
     love.graphics.setCanvas()
     check('guest_wage_office_tab_draws',canvas~=nil)
+    local Remote=require('src.screens.workshop_remote_screen')
+    Remote.enter({resourceId='office_computer',leaseId='wage-guest-3',revision=1,view={}},state,reconnect.id)
+    Remote.sharedComputer.tab='financials';Remote.sharedComputer.financialSection='players'
+    local x,y=Remote.sharedComputer.playerWageControlCenter('propose',1)
+    local guestOffer
+    Remote.mousepressed(state,x,y,1,function(action,args)
+        guestOffer=action=='office_action' and args.officeIntent
+        return true
+    end)
+    check('guest_wage_remote_computer_uses_reconnected_player_id',guestOffer
+        and guestOffer.kind=='player_wage_propose' and guestOffer.residentId==id)
+    Remote.clear()
     local saved=0
     local office=require('src.office_authority').command({state=state,
         world={validateNetworkWorkshopAccess=function() return true end},

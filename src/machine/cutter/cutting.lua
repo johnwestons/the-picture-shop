@@ -18,17 +18,24 @@ function Component.run(Context)
         end
         Context.Machine.clamp, Context.Machine.leftDown, Context.Machine.rightDown = false, false, false
         if result.offSpec then
+            Context.Machine.autoMode = false
             Context.spoilLift(state, result)
             return true
         end
         if Context.Machine.paper.status == "complete" then
+            Context.applyAutoGauge(state, 1)
             Context.completeLift(state)
         else
             Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
             Context.syncProgram()
+            local autoSet = Context.applyAutoGauge(state, Context.Machine.programIndex)
             local direction = Context.PaperWork.rotationDirection(Context.Machine.paper) > 0
                 and "clockwise" or "counterclockwise"
-            Context.message(state, "Cut complete. Set the next gauge, rotate " .. direction
+            local nextStep = autoSet
+                and string.format("Cut complete. Auto set Cut %d to %.2f in. Rotate ",
+                    Context.Machine.programIndex, Context.Machine.gauge)
+                or "Cut complete. Set the next gauge, rotate "
+            Context.message(state, nextStep .. direction
                 .. " 90 degrees, and reposition.")
         end
         return true
@@ -57,7 +64,9 @@ function Component.run(Context)
             if Context.Machine.progress >= Context.Machine.transferTime then
                 if Context.Machine.step == "loading" then
                     Context.Machine.step, Context.Machine.paperTravel = "loaded", 0.35
-                    Context.message(state, "Paper is on the bed. Program the first backgauge position.")
+                    Context.message(state, Context.Machine.autoMode
+                        and "Paper is on the bed. Auto set the backgauge. Position the stack for Cut 1."
+                        or "Paper is on the bed. Set the backgauge for the current cut.")
                 elseif Context.Machine.step == "positioning" then
                     Context.Machine.step, Context.Machine.paperTravel = "positioned", 1
                     Context.message(state, "Paper is set with the yellow cut guide visible. Engage the clamp or pull it back to adjust.")
@@ -157,6 +166,7 @@ function Component.run(Context)
                         end
                     end
                     Context.Machine.loaded, Context.Machine.step, Context.Machine.paperTravel = false, "finished", 0
+                    Context.Machine.autoMode = false
                     Context.message(state, partialUnload
                         and "Unfinished paper returned to its pallet with its cut program preserved. Stage the pallet beside the cutter to continue."
                         or (Context.Machine.job and Context.Machine.job.press
@@ -247,8 +257,15 @@ function Component.run(Context)
             emergencyStopped = Context.Machine.emergencyStopped == true,
             gaugeCentiInch = Context.centi(Context.Machine.gauge, 0, 2500),
             programIndex = math.max(1, math.min(4, math.floor(Context.Machine.programIndex or 1))),
+            autoMode = Context.Machine.autoMode == true,
             memoryCentiInch = memory,
         }
+        local cutter = state and Context.MachineFleet.installed(state, "polar_115", Context.machineId)
+        if cutter then
+            local sharpness = tonumber(cutter.variables.bladeSharpness) or 100
+            view.bladeSharpness = math.ceil(math.max(0, math.min(100, sharpness)))
+            view.bladeRemoved = cutter.maintenance.cutter.bladeRemoved == true
+        end
         -- The runtime retains the previous paper after unloading/discarding. An
         -- empty, finished cutter must advertise next-load choices, not that old batch.
         if Context.Machine.paper and Context.Machine.pallet and Context.Machine.step ~= "idle" and Context.Machine.step ~= "finished" then

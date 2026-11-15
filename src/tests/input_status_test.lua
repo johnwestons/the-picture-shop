@@ -117,6 +117,10 @@ function Test.run(context, check)
     composer.textinput(promoState,string.rep("x",700))
     check("promotion_comment_respects_send_limit",#composer.promoText==600)
     composer.promoText="Thanks for your business"
+    -- Exercise rendering too: input-only coverage missed a nil viewport in
+    -- the independently-created computer screen's promotion composer.
+    local rendered,renderError=pcall(composer.draw,promoState,nil,nil,context.assets)
+    check("promotion_comment_renders_on_independent_computer",rendered,renderError)
     local sendX,sendY=composer.sendPromotionCenter()
     local sent=composer.mousepressed(promoState,sendX,sendY,1)
     check("promotion_comment_is_in_sent_offer",sent and sent.action=="promotion_sent"

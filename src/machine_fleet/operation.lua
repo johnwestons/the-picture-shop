@@ -101,7 +101,7 @@ function Component.install(Runtime)
             cutter.crankLubrication = Runtime.clamp(cutter.crankLubrication - cycles * 0.20, 0, 100)
             cutter.gearOilLevel = Runtime.clamp(cutter.gearOilLevel - cycles * 0.00035, 0, 1)
             local sharpness = Runtime.clamp(item.variables.bladeSharpness or 100, 0, 100)
-            if sharpness <= 50 and not cutter.bladeDullNoticeSent then
+            if sharpness <= BladeProfiles.DULL_THRESHOLD and not cutter.bladeDullNoticeSent then
                 cutter.bladeDullNoticeSent = true
                 local Speech = require("src.employee_speech")
                 local Calendar = require("src.business_calendar")

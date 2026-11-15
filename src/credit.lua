@@ -1,5 +1,6 @@
 local Calendar = require("src.business_calendar")
 local MachineFleet = require("src.machine_fleet")
+local Assets = require('src.credit_assets')
 
 local Credit = {}
 
@@ -42,9 +43,10 @@ local function loanValid(loan)
     return type(loan) == "table"
         and type(loan.id) == "string" and loan.id:match("^CR%-%d+$") ~= nil
         and type(loan.requestId) == "string" and #loan.requestId > 0 and #loan.requestId <= 64
-        and (loan.channel == nil or loan.channel == "online" or loan.channel == "dealer")
-        and type(loan.machineId) == "string" and loan.machineId:match("^MCH%-%d+$") ~= nil
-        and MachineFleet.definition(loan.modelId) ~= nil
+        and (loan.assetKind~=nil and Assets.validLoan(loan)
+            or loan.assetKind==nil and (loan.channel==nil or loan.channel=='online' or loan.channel=='dealer')
+            and type(loan.machineId)=='string' and loan.machineId:match('^MCH%-%d+$')~=nil
+            and MachineFleet.definition(loan.modelId)~=nil)
         and type(loan.machineName) == "string" and #loan.machineName <= 120
         and integer(loan.purchasePrice, 1, 100000000)
         and integer(loan.downPayment, 1, loan.purchasePrice)
@@ -180,12 +182,37 @@ function Credit.machineQuotes(state, channel)
             monthlyPayment = Credit.monthlyPayment(principal, profile.aprBasisPoints, profile.termMonths),
             eligible = eligible and (tonumber(state.money) or 0) >= downPayment,
             reason = profile.score < 500 and "Credit score is below the lender's 500-point minimum."
-                or profile.openLoans >= Credit.MAX_OPEN_LOANS and "Three machine loans are already open."
+                or profile.openLoans >= Credit.MAX_OPEN_LOANS and "Three equipment loans are already open."
                 or (tonumber(state.money) or 0) < downPayment and "Save enough cash for the required down payment."
                 or nil,
         }
     end
     return result
+end
+
+function Credit.assetQuotes(state)
+    local profile=Credit.profile(state)
+    local result={}
+    for index,id in ipairs(Assets.ORDER) do
+        local offer=Assets.offer(id)
+        local down=math.ceil(offer.price*profile.downPercent/100)
+        local principal=offer.price-down
+        local owned=Assets.owned(state,offer)
+        local reason=owned and 'The shop already owns this equipment.'
+            or profile.score<500 and "Credit score is below the lender's 500-point minimum."
+            or profile.openLoans>=Credit.MAX_OPEN_LOANS and 'Three equipment loans are already open.'
+            or (state.money or 0)<down and 'Save enough cash for the required down payment.' or nil
+        result[index]={offerIndex=index,listingId=id,assetKind=offer.assetKind,modelId=offer.model,
+            channel='fleet',name=offer.name,condition=offer.condition,price=offer.price,downPayment=down,
+            principal=principal,apr=profile.apr,aprBasisPoints=profile.aprBasisPoints,
+            termMonths=profile.termMonths,monthlyPayment=Credit.monthlyPayment(principal,profile.aprBasisPoints,profile.termMonths),
+            owned=owned,eligible=reason==nil,reason=reason}
+    end
+    return result
+end
+
+function Credit.quotes(state,channel)
+    return channel=='fleet' and Credit.assetQuotes(state) or Credit.machineQuotes(state,channel)
 end
 
 local function historyEntry(credit, state, delta, reason)
@@ -207,25 +234,31 @@ local function findRequest(credit, requestId)
     end
 end
 
-function Credit.financeMachine(state, offerIndex, requestId, channel)
+local function finance(state, offerIndex, requestId, channel)
     if type(requestId) ~= "string" or #requestId < 1 or #requestId > 64
         or not requestId:match("^[%w_.%-]+$") then return false, "Invalid finance request." end
-    channel = channel == "dealer" and "dealer" or "online"
     local credit = Credit.ensure(state)
+    local quote = Credit.quotes(state, channel)[tonumber(offerIndex) or 0]
+    if not quote then return false, "That equipment financing offer is no longer available." end
     local previous = findRequest(credit, requestId)
-    if previous then return true, { loan = previous, replayed = true }, "replayed" end
-    local quote = Credit.machineQuotes(state, channel)[tonumber(offerIndex) or 0]
-    if not quote then return false, "That machine financing offer is no longer available." end
-    if not quote.eligible then return false, quote.reason or "This machine financing offer is unavailable." end
+    if previous then
+        if (previous.channel or 'online')~=channel or previous.modelId~=quote.modelId
+            or previous.listingId~=quote.listingId then return false,'That request ID belongs to a different financing agreement.' end
+        return true, { loan = previous, replayed = true }, "replayed"
+    end
+    if #credit.loans>=100 then return false,'The credit account has reached its agreement limit.' end
+    if not quote.eligible then return false, quote.reason or "This equipment financing offer is unavailable." end
 
-    local fleet = MachineFleet.ensure(state)
     local loanId = string.format("CR-%04d", credit.nextLoanId)
     local now = math.max(0, math.floor(tonumber(state.calendar and state.calendar.totalDays) or 0))
-    local machineId = string.format("MCH-%04d", fleet.nextId)
-    local bought, purchase = MachineFleet.buy(state, channel, quote.offerIndex, {
-        cashPayment = quote.downPayment,
-        loanId = loanId,
-    })
+    local machineId,bought,purchase
+    local payment={cashPayment=quote.downPayment,loanId=loanId}
+    if quote.assetKind then
+        bought,purchase=Assets.purchase(state,Assets.offer(quote.listingId),requestId,payment)
+    else
+        machineId=string.format('MCH-%04d',MachineFleet.ensure(state).nextId)
+        bought,purchase=MachineFleet.buy(state,channel,quote.offerIndex,payment)
+    end
     if not bought then return false, tostring(purchase) end
     if channel == "dealer" then machineId = purchase.id end
 
@@ -234,6 +267,9 @@ function Credit.financeMachine(state, offerIndex, requestId, channel)
         requestId = requestId,
         channel = channel,
         machineId = machineId,
+        assetKind = quote.assetKind,
+        assetId = quote.assetKind and quote.modelId or nil,
+        listingId = quote.listingId,
         modelId = quote.modelId,
         machineName = quote.name,
         purchasePrice = quote.price,
@@ -263,15 +299,26 @@ function Credit.financeMachine(state, offerIndex, requestId, channel)
     loan.nextDueDay = Calendar.totalDayForDate(year, month, dueDay)
     credit.nextLoanId = credit.nextLoanId + 1
     credit.loans[#credit.loans + 1] = loan
-    historyEntry(credit, state, -4, "Machine loan application inquiry")
+    historyEntry(credit, state, -4, quote.assetKind and 'Equipment loan application inquiry' or "Machine loan application inquiry")
     if channel == "online" then purchase.loanId = loan.id end
     return true, { loan = loan, order = purchase }
+end
+
+function Credit.financeMachine(state,offerIndex,requestId,channel)
+    return finance(state,offerIndex,requestId,channel=='dealer' and 'dealer' or 'online')
+end
+function Credit.financeAsset(state,listingId,requestId)
+    for index,id in ipairs(Assets.ORDER) do
+        if listingId==id then return finance(state,index,requestId,'fleet') end
+    end
+    return false,'That equipment financing offer is no longer available.'
 end
 
 function Credit.hasLien(state, machineId)
     local credit = Credit.ensure(state)
     for _, loan in ipairs(credit.loans) do
-        if loan.machineId == machineId and not loan.lienReleased then return true, loan end
+        if machineId~=nil and (loan.machineId == machineId or loan.assetId==machineId)
+            and not loan.lienReleased then return true, loan end
     end
     return false
 end
@@ -283,9 +330,9 @@ function Credit.payLoan(state, loanId)
         if candidate.id == loanId then loan = candidate; break end
     end
     if not loan or (loan.status ~= "active" and loan.status ~= "defaulted") then
-        return false, "That machine loan is not open."
+        return false, "That equipment loan is not open."
     end
-    if loan.installmentsDue < 1 or loan.amountDue < 1 then return false, "No machine payment is due yet." end
+    if loan.installmentsDue < 1 or loan.amountDue < 1 then return false, "No equipment payment is due yet." end
     local totalDue = loan.amountDue + loan.feesDue
     if (tonumber(state.money) or 0) < totalDue then
         return false, string.format("Payment due is $%d, but only $%d is available.", totalDue,
@@ -294,7 +341,7 @@ function Credit.payLoan(state, loanId)
     local wasOnTime = loan.installmentsDue == 1 and loan.oldestDueDay ~= nil
         and (state.calendar.totalDays or 0) <= loan.oldestDueDay
     state.money = state.money - totalDue
-    require('src.receipt_book').add(state,{kind='bill',title='Machine loan payment',party='Equipment finance',
+    require('src.receipt_book').add(state,{kind='bill',title=loan.assetKind and 'Equipment loan payment' or 'Machine loan payment',party='Equipment finance',
         amountCents=totalDue*100,details=('Loan %s\nInstallment: $%.2f\nFees: $%.2f'):format(loanId,loan.amountDue,loan.feesDue)})
     loan.balance = math.max(0, loan.balance - loan.amountDue)
     loan.amountDue, loan.feesDue, loan.accruedInterest = 0, 0, 0
@@ -306,7 +353,7 @@ function Credit.payLoan(state, loanId)
         loan.status = "active"
     end
     historyEntry(credit, state, wasOnTime and 2 or 0,
-        wasOnTime and "Machine installment paid on time" or "Machine installment paid")
+        (loan.assetKind and 'Equipment' or 'Machine')..(wasOnTime and ' installment paid on time' or ' installment paid'))
     return true, { loan = loan, amount = totalDue, onTime = wasOnTime }
 end
 

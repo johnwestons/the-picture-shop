@@ -56,7 +56,7 @@ local function startingRecord(listing)
     return {damage=damage,repairRevision=0,service=service}
 end
 
-function Dealer.purchase(state,listingId,requestId,nowHours)
+function Dealer.purchase(state,listingId,requestId,nowHours,payment)
     local listing=Dealer.LISTINGS[listingId]
     if not listing then return false,'That vehicle is no longer listed.','product_changed' end
     if type(requestId)~='string' or #requestId<1 or #requestId>64
@@ -78,7 +78,13 @@ function Dealer.purchase(state,listingId,requestId,nowHours)
         return false,listing.model=='box' and 'The shop already owns a box truck.'
             or 'The shop already owns a kei truck.','vehicle_owned'
     end
-    if type(state.money)~='number' or state.money<listing.price then
+    payment=payment or {}
+    local cash=payment.cashPayment or listing.price
+    if type(cash)~='number' or cash~=math.floor(cash) or cash<1 or cash>listing.price
+        or cash<listing.price and (type(payment.loanId)~='string' or not payment.loanId:match('^CR%-%d+$')) then
+        return false,'Invalid vehicle financing payment.','invalid_payment'
+    end
+    if type(state.money)~='number' or state.money<cash then
         return false,'Not enough money for this vehicle.','insufficient_funds'
     end
     nowHours=nowHours or require('src.business_calendar').absoluteHours(state)
@@ -87,13 +93,15 @@ function Dealer.purchase(state,listingId,requestId,nowHours)
     state.home=state.home or require('src.home').new()
     state.home.truckFleet=TruckService.normalizeFleet(state.home.truckFleet)
     state.home.truckFleet[listing.model]=startingRecord(listing)
-    state.money=state.money-listing.price
+    state.money=state.money-cash
     warehouse[Dealer.ownershipField(listing.model)]=true
     local receipt={requestId=requestId,kind='vehicle',bayId=nil,optionId=listing.id,
-        targetId=listing.model,pricePaid=listing.price,purchasedAtHours=nowHours}
+        targetId=listing.model,pricePaid=listing.price,purchasedAtHours=nowHours,
+        cashPaid=payment.loanId and cash or nil,loanId=payment.loanId}
     warehouse.receipts[#warehouse.receipts+1]=receipt
-    require('src.receipt_book').expense(state,'Vehicle purchase',listing.price*100,
-        'CritterNet Vehicle Dealer','Shop',listing.name,'vehicle:'..requestId)
+    require('src.receipt_book').expense(state,'Vehicle purchase',cash*100,
+        'CritterNet Vehicle Dealer','Shop',listing.name..(payment.loanId
+            and ('\nFull price: $'..listing.price..'\nFinancing: '..payment.loanId) or ''),'vehicle:'..requestId)
     return true,copy(receipt),'purchased'
 end
 

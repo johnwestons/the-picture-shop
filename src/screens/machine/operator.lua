@@ -248,15 +248,20 @@ function Component.install(R)
     end
     local function drawComputer(state,assets,px,py)
         local g=love.graphics
+        if not S.gaugeFocused and not S.gaugeDraft then R.formatGauge() end
+        local item=R.MachineMaintenance.cutterStatus(state)
         housing=housing or g.newImage(ART)
         g.setColor(1,1,1);g.draw(housing,0,68,0,960/housing:getWidth(),570/housing:getHeight())
         -- Live readout is rendered separately from its physical housing/keys.
         local label=ComputerArt.label
         label('BACKGAUGE CONTROL',126,179,350,22,'metal',{.49,.80,1,1})
-        label('P'..(M.programIndex or 1),495,175,84,30,'lcd',{.49,.80,1,1},'right')
+        label('P'..(M.programIndex or 1),466,175,72,30,'lcd',{.49,.80,1,1},'right')
+        ComputerArt.bladeWarning(ComputerArt.bladeSharpness(item),554,179,1)
         label(S.gaugeText..(S.gaugeFocused and '_' or ''),126,204,355,56,'lcd',{.88,1,.81,1})
         label(S.gaugeUnit,500,231,80,24,'metal',{.66,.89,.85,1},'right')
         label(string.format('ACTUAL  %7.2f %s',(M.gauge or 0)*factor(),S.gaugeUnit),126,268,450,18,'program')
+        label(M.autoMode and 'AUTO' or 'MANUAL',425,268,155,18,'program',
+            M.autoMode and {.43,1,.74,1} or {.65,.84,1,1},'right')
         for _,column in ipairs({{'STEP',126},{'EDGE',167},{'TARGET',255},{'ANGLE',371}}) do
             label(column[1],column[2],300,90,16,'metal',{.49,.80,1,1})
         end
@@ -307,7 +312,8 @@ function Component.install(R)
             if not list or #list.options==0 then text(M.loaded and 'A run is already on the cutter. Switch to CUTTER to continue.' or 'No eligible pallets nearby. Move a paper pallet to the cutter staging area.',90,230,780,20,nil,'center') end
             key(rect(24,568,140,40),'PREVIOUS');key(rect(796,568,140,40),'NEXT')
         else
-            S.drawCutterScene(assets,M,scene)
+            local item=R.MachineMaintenance.cutterStatus(state)
+            S.drawCutterScene(assets,M,scene,S.gaugeUnit,ComputerArt.bladeSharpness(item))
             for _,b in ipairs(R.buttons) do
                 local hover=px and R.inside(b,px,py)
                 if b.action=='rotate' then rotationArrow(b,hover)

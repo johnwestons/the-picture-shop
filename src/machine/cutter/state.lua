@@ -10,7 +10,7 @@ function Component.run(Context)
         _leftAt = -math.huge, _rightAt = -math.huge, _clock = 0,
         simultaneity = 0.30, cycleTime = 1.25, transferTime = 0.45,
         repeatCycleTime = 1.0,
-        gauge = 0, programIndex = 1, savedGauge = nil, autoCycle = {},
+        gauge = 0, programIndex = 1, savedGauge = nil, autoMode = false,
         paper = nil, pallet = nil, job = nil, paperTravel = 0,
         pendingOutput = nil, unloadResumeStep = nil, outputResolver = nil,
         runtimeRevision = 0, _resetResume = nil, _blockedResume = nil,
@@ -104,7 +104,8 @@ function Component.run(Context)
         Context.Machine.clamp, Context.Machine.clampProgress, Context.Machine.bladeProgress = false, 0, 0
         Context.Machine.leftDown, Context.Machine.rightDown = false, false
         Context.Machine.barrierClear, Context.Machine.emergencyStopped = true, false
-        Context.Machine.gauge, Context.Machine.programIndex, Context.Machine.savedGauge, Context.Machine.autoCycle = 0, 1, nil, {}
+        Context.Machine.gauge, Context.Machine.programIndex, Context.Machine.savedGauge = 0, 1, nil
+        Context.Machine.autoMode = false
         Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = nil, nil, nil
         Context.Machine.paperTravel, Context.Machine.pendingOutput = 0, nil
         Context.Machine.unloadResumeStep = nil
@@ -190,6 +191,7 @@ function Component.run(Context)
                 if not transitioned then Context.message(state, transitionError); return false end
             end
             Context.Machine.paper, Context.Machine.pallet, Context.Machine.job = selected.paper, selected.pallet, selected.job
+            Context.Machine.autoMode = false
             Context.PaperWork.prepareFirstCut(Context.Machine.paper)
             Context.ensureLiftProgress(selected.pallet)
             if wasWarehouse and not alreadyInProcess and state and state.inventory then

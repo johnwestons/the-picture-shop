@@ -172,6 +172,10 @@ function Test.run(context, check)
     check("recent_jobs_offer_more_early_express_and_estimates_show_stock_eta",
         earlyExpressCount >= 3 and expressWindowsValid and type(etaText) == "string"
         and #etaText > 0 and etaText ~= "Not assigned")
+    local eta24=JobService.expectedStockArrivalText(etaState,
+        {id="JOB-ETA-RECENT",sequence=1,deliveryService={id="express",delayHours=3}},false)
+    check("stock_arrival_estimate_honors_24_hour_clock",eta24~=etaText
+        and not eta24:match("[AP]M"))
 
     local profiles = require("src.worker_catalog").profiles
     local readyToWrap, needsWrapTraining = false, false

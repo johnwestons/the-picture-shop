@@ -19,6 +19,7 @@ local fields = {
     player_wage_propose = {residentId="resident_id",expectedRevision="home_revision",wageCents="player_wage"},
     player_wage_accept = {residentId="resident_id",expectedRevision="home_revision"},
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
+    finance_asset = { listingId='finance_asset',requestId='token' },
     pay_machine_loan = { loanId = "token" },
     buy_upgrade = { bayId = "bay", optionId = "upgrade", requestId = "token", confirmUpperRows = "optional_boolean" },
     buy_forklift = { requestId = "token" },
@@ -128,6 +129,10 @@ function Intent.normalize(value)
             if item ~= "floor" and item ~= "storage" and item ~= "breakroom" then return nil, "Choose a warehouse upgrade." end
         elseif rule == "breakroom_fixture" then
             if not require("src.breakroom_games").IDS[item] then return nil, "Choose a break room game." end
+        elseif rule == 'finance_asset' then
+            if type(item)~='string' or not require('src.credit_assets').offer(item) then
+                return nil,'Choose a listed truck or forklift.'
+            end
         elseif rule == "vehicle_listing" then
             if type(item)~="string" or not require("src.vehicle_dealer").listing(item) then
                 return nil,"Choose a vehicle listing."
