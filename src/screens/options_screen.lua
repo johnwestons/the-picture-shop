@@ -32,11 +32,6 @@ local OptionsScreen = {
     context = nil,
 }
 
-local ACCESS = { x = 828, y = 14, width = 116, height = 42 }
-local ACCESS_HEADER = { x = 828, y = 0, width = 116, height = 42 }
-local ACCESS_FOOTER = { x = 828, y = 630, width = 116, height = 42 }
-local ACCESS_RACK = { x = 696, y = 28, width = 116, height = 42 }
-local ACCESS_MACHINE = { x = 662, y = 28, width = 116, height = 42 }
 local CLOSE = { x = 812, y = 20, width = 112, height = 42 }
 local MAIN_MENU = { x = 550, y = 20, width = 250, height = 42 }
 local MOTORCYCLE_MENU = { x = 710, y = 590, width = 180, height = 40 }
@@ -313,24 +308,7 @@ function OptionsScreen.wantsTextInput()
 end
 
 function OptionsScreen.accessRect(screen, bounds)
-    -- Keep the global shortcut clear of each console's own Back/Exit controls.
-    if screen == 'home_world' then
-        local right = bounds and bounds.right or Config.baseWidth
-        return {x=right-200,y=14,width=42,height=42}
-    elseif screen == "world" then
-        local right = bounds and bounds.right or Config.baseWidth
-        return { x = right - 272, y = 14, width = ACCESS.width, height = ACCESS.height }
-    elseif screen == "machine" then
-        return ACCESS_MACHINE
-    elseif screen == "machine_service" or screen == "workshop_remote"
-        or screen == "shop_clock" or screen == "job_offer" then
-        return ACCESS_FOOTER
-    elseif screen == "computer" or screen == "work_phone" then
-        return ACCESS_HEADER
-    elseif screen == "pallet_rack" then
-        return ACCESS_RACK
-    end
-    return ACCESS
+    return require('src.screens.warehouse_hud').layout(bounds,screen=='commute').menu
 end
 
 function OptionsScreen.accessHit(x, y, screen, bounds)
@@ -1026,46 +1004,12 @@ end
 
 function OptionsScreen.drawAccessButton(mouseX, mouseY, screen, bounds, assets)
     OptionsScreen.hover = mouseX and mouseY and { x = mouseX, y = mouseY } or nil
-    if screen == 'home_world' then
-        local g=love.graphics;local rect=OptionsScreen.accessRect(screen,bounds)
-        local hovered=mouseX and mouseY and Ui.contains(rect,mouseX,mouseY)
-        g.push('all');g.setShader()
-        g.setColor(hovered and .18 or .055,hovered and .29 or .12,.12,.96)
-        g.circle('fill',rect.x+21,rect.y+21,20)
-        g.setColor(.76,.66,.40,1);g.setLineWidth(2)
-        g.circle('line',rect.x+21,rect.y+21,18)
-        for i=0,7 do
-            local angle=i*math.pi/4
-            g.line(rect.x+21+math.cos(angle)*10,rect.y+21+math.sin(angle)*10,
-                rect.x+21+math.cos(angle)*15,rect.y+21+math.sin(angle)*15)
-        end
-        g.circle('line',rect.x+21,rect.y+21,9)
-        g.circle('line',rect.x+21,rect.y+21,3)
-        g.pop();return
-    end
-    if screen == "title" then
-        local rect = OptionsScreen.accessRect(screen, bounds)
-        local hovered = mouseX and mouseY and Ui.contains(rect, mouseX, mouseY)
-        require("src.screens.title_skin").button(assets or require("src.assets"), rect,
-            Ui.pressWithin(rect) and "pressed" or hovered and "hover" or "normal")
-        local previousFont = love.graphics.getFont()
-        local font = require("src.screens.title_fonts").get("metal", 16)
-        love.graphics.setFont(font)
-        love.graphics.setColor(0.94, 0.95, 0.89)
-        love.graphics.printf("OPTIONS", rect.x + 11, rect.y + (rect.height - font:getHeight()) / 2,
-            rect.width - 22, "center")
-        love.graphics.setFont(previousFont)
-        return
-    end
-    if screen == 'computer' then
-        local rect = OptionsScreen.accessRect(screen, bounds)
-        local hovered = mouseX and mouseY and Ui.contains(rect, mouseX, mouseY)
-        Ui.panel(rect, {0.12, 0.17, 0.18, hovered and 0.85 or 0.56}, {0.43, 0.53, 0.51, 0.7}, 4, 1)
-        love.graphics.setColor(0.94, 0.95, 0.89)
-        love.graphics.printf('OPTIONS', rect.x, rect.y + rect.height / 2 - 7, rect.width, 'center')
-        return
-    end
-    drawButton(OptionsScreen.accessRect(screen, bounds), "OPTIONS", false, false)
+    local rect=OptionsScreen.accessRect(screen,bounds)
+    local hovered=mouseX and mouseY and Ui.contains(rect,mouseX,mouseY)
+    local wide=(bounds and bounds.right or Config.baseWidth)-(bounds and bounds.left or 0)>1200
+    love.graphics.push('all');love.graphics.setShader()
+    require('src.screens.warehouse_hud').drawMenuIcon(rect,hovered,wide)
+    love.graphics.pop()
 end
 
 local function drawRows(rows, values, cheats)

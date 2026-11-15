@@ -37,6 +37,8 @@ function Component.install(Runtime)
             not (mobileWorld or mobileUi or wideCommute or wideBarn or wideNotifications), Runtime.App.officeUsesSafeArea())
         if require('src.story_opening').active(Runtime) then
             require('src.story_opening').draw(Runtime)
+            local _,bounds=Runtime.optionsAccessLayout()
+            require('src.screens.warehouse_hud').drawMenu(Runtime,bounds)
             Runtime.CharacterAssets.endFrame()
             Runtime.Viewport.endDraw()
             Runtime.Smoke.drawn()
@@ -44,6 +46,8 @@ function Component.install(Runtime)
         end
         if require('src.story_grand_opening').active(Runtime) then
             require('src.story_grand_opening').draw(Runtime)
+            local _,bounds=Runtime.optionsAccessLayout()
+            require('src.screens.warehouse_hud').drawMenu(Runtime,bounds)
             Runtime.CharacterAssets.endFrame()
             Runtime.Viewport.endDraw()
             Runtime.Smoke.drawn()
@@ -68,7 +72,7 @@ function Component.install(Runtime)
                 Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
             end
             if Runtime.controller and showHud then Runtime.controller:draw() end
-            local x,y=Runtime.pointerPosition();local screen,bounds=Runtime.optionsAccessLayout()
+            local x,y=Runtime.pointerPosition();local _,bounds=Runtime.optionsAccessLayout()
             if showHud then
             -- The grocery interior owns its header. Overlaying the outdoor
             -- status card obscures its title/cart and clips on wide phones.
@@ -78,10 +82,12 @@ function Component.install(Runtime)
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             end
             if not require('src.screens.warehouse_hud').active(Runtime) then
-                Runtime.OptionsScreen.drawAccessButton(x,y,screen,bounds,Runtime.Assets)
                 Runtime.RuntimeDependencies.Hud.drawExit(Runtime.Assets,x,y,bounds)
             end
             require('src.screens.notifications_screen').drawAccess(Runtime,bounds)
+            end
+            if not require('src.screens.warehouse_hud').active(Runtime) then
+                require('src.screens.warehouse_hud').drawMenu(Runtime,bounds)
             end
             HudVisibility.draw(Runtime)
             if Runtime.mobileControls and showHud then Runtime.mobileControls:draw() end
@@ -225,13 +231,9 @@ function Component.install(Runtime)
             end
         end
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
-            and Runtime.state.screen ~= 'notifications'
-            and Runtime.state.screen ~= "delivery_signature"
-            and Runtime.state.screen ~= "critter_kombat" and (Runtime.state.screen~='world' or showHud)
             and not require('src.screens.warehouse_hud').active(Runtime) then
-            local optionsX, optionsY = Runtime.pointerPosition()
-            local accessScreen, accessBounds = Runtime.optionsAccessLayout()
-            Runtime.OptionsScreen.drawAccessButton(optionsX, optionsY, accessScreen, accessBounds, Runtime.Assets)
+            local _, accessBounds = Runtime.optionsAccessLayout()
+            require('src.screens.warehouse_hud').drawMenu(Runtime,accessBounds)
         end
         if Runtime.App.playerFeedback and (Runtime.state.screen~='world' or showHud) and Runtime.state.screen ~= "title"
             and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"

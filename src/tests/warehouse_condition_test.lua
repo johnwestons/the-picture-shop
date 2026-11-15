@@ -12,6 +12,7 @@ local Rooms=require("src.shop_rooms")
 local Interaction=require("src.interaction")
 local Test={}
 function Test.run(context,check)
+    require('src.tests.warehouse_puddle_render_test').run(context,check)
     local quick=State.new()
     check("warehouse_condition_quick_start_remains_operational",
         Condition.valid(quick.warehouse.condition) and Condition.complete(quick)

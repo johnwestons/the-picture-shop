@@ -9,7 +9,8 @@ local Hud = {}
 local EXIT = { x = 816, y = 14, width = 126, height = 40 }
 
 function Hud.exitRect(bounds)
-    return {x=(bounds and bounds.right or Config.baseWidth)-EXIT.width-18,y=14,
+    local menu=WarehouseHud.layout(bounds,false).menu
+    return {x=menu.x-EXIT.width-8,y=14,
         width=EXIT.width,height=EXIT.height}
 end
 function Hud.exitHit(x,y,bounds)
@@ -44,7 +45,8 @@ function Hud.draw(state, prompt, assets, pointerX, pointerY, mobile, controller,
     local left, right, bottom = mobile and bounds.left or 0,
         mobile and bounds.right or Config.baseWidth,
         mobile and bounds.bottom or Config.baseHeight
-    EXIT.x, EXIT.y = right - EXIT.width - 18, 14
+    local exit=Hud.exitRect({left=left,right=right})
+    EXIT.x, EXIT.y = exit.x, exit.y
     local atHome=sceneId=="home" and state.home
     if sceneId=='warehouse' then
         WarehouseHud.drawStatus(state,feedback,{left=left,right=right},twelveHourTime)

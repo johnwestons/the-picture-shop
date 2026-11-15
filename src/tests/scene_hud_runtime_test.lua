@@ -80,7 +80,8 @@ function Test.run(context,check)
                         and line.y+line.height<=rect.y+rect.height
                 end
                 check('scene_hud_'..scene..'_'..width..'_text_and_menu_controls_do_not_overlap',fits
-                    and rect.x+rect.width+8<=options.x and options.x+options.width<=exit.x)
+                    and rect.x+rect.width+8<=exit.x
+                    and exit.x+exit.width+8<=options.x)
             end
         else
             check('scene_hud_'..scene..'_'..width..'_hidden_stats_and_menu_buttons_are_not_drawn',
@@ -159,7 +160,7 @@ function Test.run(context,check)
         local homeNotices=require('src.screens.notifications_screen').buttonRect(homeBounds,R)
         local homeVisibility=Visibility.buttons(R)[1]
         check('scene_hud_home_icon_buttons_have_separate_hit_targets',homeScreen=='home_world'
-            and homeOptions.x+homeOptions.width<=homeExit.x
+            and homeExit.x+homeExit.width<=homeOptions.x
             and homeVisibility.icon and homeVisibility.x+homeVisibility.width<=homeNotices.x
             and homeNotices.y>=homeExit.y+homeExit.height
             and R.OptionsScreen.accessHit(homeOptions.x+homeOptions.width/2,

@@ -54,11 +54,6 @@ function Visibility.buttons(R)
 end
 function Visibility.pointer(R,x,y,button)
     if button~=1 then return false end
-    local WarehouseHud=require('src.screens.warehouse_hud')
-    if WarehouseHud.active(R) then
-        local _,bounds=R.optionsAccessLayout()
-        if WarehouseHud.menuPointer(R,x,y,button,bounds) then return true end
-    end
     for _,b in ipairs(Visibility.buttons(R)) do
         if Ui.contains(b,x,y) then
             return b.id=='hud' and Visibility.toggle(R) or Visibility.toggleCameraLock(R)

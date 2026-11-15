@@ -6,18 +6,21 @@ function Component.install(Runtime)
     -- Scene panels and town loading can consume all pointer input. Keep the
     -- global menu controls reachable before those scene controls consume taps.
     function Runtime.menuAccessPointer(x,y,button)
+        if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error' then
+            return false
+        end
+        local bounds
+        if type(Runtime.optionsAccessLayout)=='function' then
+            local _;_,bounds=Runtime.optionsAccessLayout()
+        end
+        if require('src.screens.warehouse_hud').menuPointer(Runtime,x,y,button,bounds) then return true end
         if require('src.screens.notifications_screen').pointer(Runtime,x,y,button) then return true end
         local visibility=require('src.screens.hud_visibility')
         if visibility.pointer(Runtime,x,y,button) then return true end
         if require('src.screens.warehouse_hud').active(Runtime) then return false end
-        if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error'
-            or Runtime.state.screen=='critter_kombat' then return false end
-        local screen,bounds=Runtime.optionsAccessLayout()
         if Runtime.state.screen=='world' and not visibility.isVisible(Runtime) then
-            return Runtime.OptionsScreen.accessHit(x,y,screen,bounds)
-                or Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds)
+            return Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds)
         end
-        if Runtime.OptionsScreen.accessHit(x,y,screen,bounds) then Runtime.openOptions();return true end
         if Runtime.state.screen=='world' and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery'
             or Runtime.World.player.sceneId=='barn')
             and Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds) then Runtime.returnToTitle();return true end
@@ -96,9 +99,6 @@ function Component.install(Runtime)
             local result = Runtime.OptionsScreen.mousepressed(gameX, gameY, button)
             Runtime.syncMobileKeyboard()
             return result
-        elseif button == 1 and not require('src.screens.warehouse_hud').active(Runtime)
-            and Runtime.OptionsScreen.accessHit(gameX, gameY, Runtime.optionsAccessLayout()) then
-            return Runtime.openOptions()
         elseif Runtime.state.screen == "lan" then
             local result = Runtime.LanScreen.mousepressed(gameX, gameY, button)
             Runtime.syncMobileKeyboard()
@@ -141,8 +141,6 @@ function Component.install(Runtime)
             local result = Runtime.OptionsScreen.mousepressed(gameX, gameY, button)
             Runtime.syncMobileKeyboard()
             return result
-        elseif button == 1 and Runtime.OptionsScreen.accessHit(gameX, gameY, Runtime.optionsAccessLayout()) then
-            return Runtime.openOptions()
         elseif Runtime.state.screen == "lan" then
             local result = Runtime.LanScreen.mousepressed(gameX, gameY, button)
             Runtime.syncMobileKeyboard()

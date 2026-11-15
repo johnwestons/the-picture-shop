@@ -38,11 +38,9 @@ function Test.run(context,check)
     local function options()
         local screen,bounds=R.optionsAccessLayout()
         local shared=require('src.screens.warehouse_hud')
-        if shared.active(R) then
-            local layout=shared.layoutFor(R,bounds)
-            tap(layout.menu)
-            tap(shared.menuRow(layout,1))
-        else tap(R.OptionsScreen.accessRect(screen,bounds)) end
+        local layout=shared.layoutFor(R,bounds)
+        tap(layout.menu)
+        tap(shared.menuRow(layout,1))
         check('scene_exit_touch_opens_options_'..finger,R.state.screen=='options',
             ('from=%s to=%s scene=%s loadingAssets=%s'):format(tostring(screen),tostring(R.state.screen),
                 tostring(R.World.player.sceneId),tostring(R.Assets.isLoading())))

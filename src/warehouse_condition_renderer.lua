@@ -52,9 +52,12 @@ local function drawWipe(spot)
     love.graphics.pop()
 end
 local function ensureResources()
-    if not canvas then canvas=love.graphics.newCanvas(960,678) end
+    -- Shader pixels, interaction anchors and mop strokes share warehouse
+    -- coordinates. A phone's default canvas DPI would shrink/shift the spills
+    -- toward the breaker because fragment coordinates use physical pixels.
+    if not canvas then canvas=love.graphics.newCanvas(960,678,{dpiscale=1}) end
     if not eraseCanvas then
-        eraseCanvas=love.graphics.newCanvas(960,678)
+        eraseCanvas=love.graphics.newCanvas(960,678,{dpiscale=1})
         eraseCanvas:setFilter("linear","linear")
     end
     if not dirtShader then
@@ -97,6 +100,13 @@ local function sync(state)
     local reset=maskCondition~=c or maskSeed~=currentMask or counts.puddle1<rendered.puddle1
         or counts.puddle2<rendered.puddle2
     love.graphics.push("all")
+    -- Build the cached spill and eraser in warehouse space. The viewport and
+    -- camera apply once when drawStatic draws the finished canvas below.
+    love.graphics.origin()
+    love.graphics.setScissor()
+    love.graphics.setStencilTest()
+    love.graphics.setShader()
+    love.graphics.setBlendMode("alpha","alphamultiply")
     local changed=false
     if reset then
         love.graphics.setCanvas(eraseCanvas);love.graphics.clear(0,0,0,0)

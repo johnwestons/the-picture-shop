@@ -247,6 +247,18 @@ local function circleButton(r,active)
     g.setColor(active and .91 or .56,active and .76 or .63,active and .40 or .57,1)
     g.setLineWidth(2);g.circle('line',r.x+r.width/2,r.y+r.height/2,r.width/2-2)
 end
+function Hud.drawMenuIcon(rect,active,wide)
+    local g=love.graphics
+    circleButton(rect,active)
+    g.setColor(.96,.93,.77,1);g.setLineWidth(2.2)
+    local mid=rect.x+rect.width/2
+    local half=wide and 12 or 9
+    local gap=wide and 9 or 7
+    for i=-1,1 do
+        local y=rect.y+rect.height/2+i*gap
+        g.line(mid-half,y,mid+half,y)
+    end
+end
 function Hud.drawNoticeIcon(rect,count)
     local g=love.graphics;local scale=rect.width/38
     g.push('all');g.setShader()
@@ -345,18 +357,14 @@ function Hud.noticePointer(R,x,y,bounds)
 end
 
 function Hud.drawMenu(R,bounds)
-    if not Hud.active(R) then Hud.menuOpen=false;return end
+    if not R or not R.state or R.state.screen=='options' or R.state.screen=='asset_error' then
+        Hud.menuOpen=false;return
+    end
     local g=love.graphics;local r=Hud.layoutFor(R,bounds)
     local px,py=R.pointerPosition and R.pointerPosition()
     local hovered=px and py and fits(r.menu,px,py)
     g.push('all');g.setShader();g.setFont(font('typewriter',r.wide and 20 or 15))
-    circleButton(r.menu,Hud.menuOpen or hovered)
-    g.setColor(.96,.93,.77,1);g.setLineWidth(2.2)
-    local mid=r.menu.x+r.menu.width/2
-    for i=-1,1 do
-        local y=r.menu.y+r.menu.height/2+i*(r.wide and 9 or 7)
-        g.line(mid-(r.wide and 12 or 9),y,mid+(r.wide and 12 or 9),y)
-    end
+    Hud.drawMenuIcon(r.menu,Hud.menuOpen or hovered,r.wide)
     if Hud.menuOpen then
         drawImage('menu-panel',r.menuPanel,.83)
         local rows={'OPTIONS','EXIT TO MENU',
@@ -373,12 +381,13 @@ function Hud.drawMenu(R,bounds)
     elseif hovered then
         local tip={x=r.menu.x-94,y=r.menu.y+45,width=135,height=27}
         Ui.panel(tip,{.04,.09,.09,.95},{.53,.65,.53,1},4,1)
-        g.setColor(.96,.96,.87,1);g.printf('SHOP MENU',tip.x,tip.y+5,tip.width,'center')
+        g.setColor(.96,.96,.87,1);g.printf('MENU',tip.x,tip.y+5,tip.width,'center')
     end
     g.pop()
 end
 function Hud.menuPointer(R,x,y,button,bounds)
-    if not Hud.active(R) or button~=1 then return false end
+    if not R or not R.state or R.state.screen=='options' or R.state.screen=='asset_error'
+        or button~=1 then return false end
     local r=Hud.layoutFor(R,bounds)
     if fits(r.menu,x,y) then Hud.menuOpen=not Hud.menuOpen;return true end
     if not Hud.menuOpen then return false end
