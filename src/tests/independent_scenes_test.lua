@@ -4,6 +4,7 @@ function Test.run(context,check)
     local Protocol=require('src.net.protocol')
     local Harness=require('src.tests.support.network_impairment_harness')
     local Residents=require('src.home_residents')
+    local Apartments=require('src.client_apartments')
     local Travel=require('src.home_travel')
     local Trip=require('src.commute.trip')
     local C=require('src.commute.runtime')
@@ -39,7 +40,17 @@ function Test.run(context,check)
         if id then local okay,why=C.bind(R,p,connected);if not okay then return nil,why end;host:markShopDirty() end
         return id,reason
     end,resolveGuestSpawn=function(x,y,id)return x+id*20,y end,
-        getShopSnapshot=function()return {state=assert(Schema.snapshot(state)),player={x=hp.x,y=hp.y,sceneId=hp.sceneId,character=hp.character}}end,
+        getShopSnapshot=function()
+            assert(require('src.home').valid(state.home),
+                'invalid host home: residents='..tostring(Residents.valid(state.home.residents))
+                    ..' apartments='..tostring(require('src.client_apartments').valid(state.home))
+                    ..' clientHomes='..tostring(require('src.client_households').valid(state.home))
+                    ..' trip='..tostring(Trip.valid(state.home.commute,state.home))
+                    ..' town='..tostring(require('src.commute.town').valid(state.home.town))
+                    ..' shopping='..tostring(require('src.home_shopping').valid(state.home.shopping)))
+            return {state=assert(Schema.snapshot(state)),
+                player={x=hp.x,y=hp.y,sceneId=hp.sceneId,character=hp.character}}
+        end,
         performInteraction=function(p,kind,cmd)
             if kind=='homeTravel' then return depart(p,cmd) end
             if kind=='commute' then return C.command(R,p,cmd) end
@@ -73,6 +84,19 @@ function Test.run(context,check)
         return g
     end
     for i=1,3 do join(i) end
+    local bridgeState=Schema.copy(state)
+    local bridgeGuest=player(2);bridgeGuest.homeResidentId=guests[1].residentId
+    local bridgeRuntime={state=bridgeState,World={player=bridgeGuest},_commute={}}
+    assert(C.startGuestArrival(bridgeRuntime,bridgeGuest,{hp,bridgeGuest}))
+    local bridgePart=bridgeState.home.commute.participants[guests[1].residentId]
+    local BridgeBike=require('src.commute.motorcycle')
+    local initial=bridgePart.rider.bike
+    local probe=BridgeBike.new(initial.x,initial.z,initial.heading)
+    local bridgeWorld=C.world(bridgeRuntime)
+    probe.h=bridgeWorld:supportHeight(probe.x,probe.z);probe.grounded=true
+    BridgeBike.resetContact(probe,bridgeWorld)
+    BridgeBike.update(probe,{drive=-1,steer=0},.15,bridgeWorld)
+    check('independent_guest_bridge_spawn_can_accelerate',probe.speed>0 and probe.collisionKind~='travelLimit')
     local function entrance(p)
         local target=assert(Travel.target(p,state));p.x,p.y=target.x,target.y
     end
@@ -93,7 +117,7 @@ function Test.run(context,check)
     entrance(p3);assert(guests[2]:requestInteraction('homeTravel','explore'));pump()
     check('independent_second_departure_joins_same_town',t==state.home.commute and t.token==token
         and t.participants[guests[2].residentId] and p4.sceneId=='front_left')
-    local home=state.home.apartmentId
+    local home=state.home.residents[guests[1].residentId].apartmentId
     local function park(part,dest)
         local a=assert(Trip.parking(world,dest,part.slot));local door=world.sites.byId[dest].door
         local r=part.rider;r.bike.x,r.bike.z,r.bike.speed=a.x,a.z,0
@@ -199,7 +223,8 @@ function Test.run(context,check)
     driver.rider.ped.x,driver.rider.ped.z,driver.rider.ped.speed=store.door.x,store.door.z,0
     assert(guests[3]:requestInteraction('commute','deliver_stop:'..token));pump()
     check('independent_delivery_completes_in_shared_shop',received[3].interaction_result.accepted
-        and not t.deliveryRun and #state.jobs.completed==1 and driver.destination==state.home.apartmentId)
+        and not t.deliveryRun and #state.jobs.completed==1
+        and driver.destination==state.home.residents[guests[3].residentId].apartmentId)
     t.truck.x,t.truck.z,t.truck.speed=t.truck.homeX,t.truck.homeZ,0
     local warehouseDoor=world.sites.byId.warehouse.door
     driver.rider.ped.x,driver.rider.ped.z,driver.rider.ped.speed=warehouseDoor.x,warehouseDoor.z,0
@@ -208,16 +233,39 @@ function Test.run(context,check)
         and t.participants[outsideId] and host.players[2].sceneId=='home' and hp.sceneId=='warehouse')
     check('independent_shared_calendar_advances',require('src.weekend_flow').limitCalendarStep(state,.1)==.1)
     local oldJourney=t.participants[outsideId]
-    guests[2]:stop();pump();join(2,4)
+    guests[2]:stop();pump();join(2,2)
     local newcomer=host.players[3]
-    check('independent_reused_slot_does_not_adopt_offline_journey',newcomer.homeResidentId~=outsideId
-        and newcomer.sceneId=='warehouse' and t.participants[outsideId]==oldJourney)
-    entrance(newcomer);assert(guests[2]:requestInteraction('homeTravel','explore'));pump()
-    check('independent_new_resident_can_travel_in_reused_slot',newcomer.sceneId=='commute'
-        and t.participants[newcomer.homeResidentId]~=oldJourney and Trip.valid(t,state.home))
-    guests[3]:stop();pump();join(3,2)
-    check('independent_outdoor_resident_reconnects_in_different_slot',guests[3].residentId==outsideId
-        and host.players[4].sceneId=='commute' and t.participants[outsideId].slot==4
+    check('independent_saved_resident_reclaims_offline_journey',newcomer.homeResidentId==outsideId
+        and newcomer.sceneId=='commute' and t.participants[outsideId]==oldJourney)
+    local oldResident=state.home.residents[outsideId]
+    local oldHome=state.home.clientHomes[outsideId]
+    local oldSlot=oldResident.clientSlot
+    local oldCredentialHash=oldResident.credentialHash
+    local oldBalance=oldHome.balanceCents
+    oldResident.hunger=17
+    oldHome.balanceCents=4321
+    guests[2]:stop();pump()
+    local resetOkay=Apartments.resetSlot(state,oldSlot)
+    check('independent_client_save_reset_clears_offline_journey',resetOkay
+        and state.home.residents[outsideId]==nil and state.home.clientHomes[outsideId]==nil
+        and t.participants[outsideId]==nil)
+    local replacementProfile=assert(Residents.profileOptions(state,string.rep('4',64),host.players))
+    check('independent_client_save_reset_opens_slot_for_new_identity',not replacementProfile.matched
+        and replacementProfile.canCreate)
+    join(2,4)
+    local replacement=host.players[3]
+    local replacementResident=state.home.residents[replacement.homeResidentId]
+    local replacementHome=state.home.clientHomes[replacement.homeResidentId]
+    check('independent_reused_slot_does_not_adopt_offline_journey',replacement.homeResidentId==outsideId
+        and replacementResident.clientSlot==oldSlot
+        and replacementResident.credentialHash~=oldCredentialHash
+        and replacementResident.hunger==100
+        and replacementHome~=oldHome and replacementHome.balanceCents==oldBalance
+        and replacement.sceneId=='warehouse' and t.participants[outsideId]==nil
+        and oldJourney~=nil and Trip.valid(t,state.home))
+    guests[3]:stop();pump();join(3,3)
+    check('independent_delivery_resident_reconnects',guests[3].residentId==p4.homeResidentId
+        and host.players[4].sceneId=='warehouse' and not t.participants[p4.homeResidentId]
         and newcomer.sceneId=='commute' and Trip.valid(t,state.home))
     local startLog=#network.log;local samples={}
     for i=1,100 do local start=love.timer.getTime();pump(1);samples[i]=(love.timer.getTime()-start)*1000 end

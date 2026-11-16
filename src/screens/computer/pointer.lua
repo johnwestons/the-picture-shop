@@ -10,6 +10,41 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.quoteFocused = false
         Runtime.ComputerScreen.deliveryQuoteFocused = false
         Runtime.ComputerScreen.promoFocused = false
+        if Runtime.ComputerScreen.tab=='calendar'
+            and Runtime.ComputerScreen.calendarEventComposerOpen then
+            local screen=Runtime.ComputerScreen
+            screen.calendarEventTitleFocused=false
+            screen.calendarEventDetailFocused=false
+            if Runtime.contains(Runtime.CAL_EVENT_TITLE_INPUT,x,y) then
+                screen.calendarEventTitleFocused=true
+                screen.calendarEventError=nil
+                return {action='calendar_event_title_focus'}
+            elseif Runtime.contains(Runtime.CAL_EVENT_DETAIL_INPUT,x,y) then
+                screen.calendarEventDetailFocused=true
+                screen.calendarEventError=nil
+                return {action='calendar_event_detail_focus'}
+            elseif Runtime.contains(Runtime.CAL_EVENT_CANCEL,x,y) then
+                Runtime.cancelCalendarEventComposer()
+                return {action='calendar_event_cancelled'}
+            elseif Runtime.contains(Runtime.CAL_EVENT_TIME_TOGGLE,x,y) then
+                screen.calendarEventHour=screen.calendarEventHour==nil and 12 or nil
+                screen.calendarEventError=nil
+                return {action='calendar_event_time_changed'}
+            elseif screen.calendarEventHour~=nil
+                and Runtime.contains(Runtime.CAL_EVENT_HOUR_PREVIOUS,x,y) then
+                screen.calendarEventHour=(screen.calendarEventHour+23)%24
+                screen.calendarEventError=nil
+                return {action='calendar_event_time_changed'}
+            elseif screen.calendarEventHour~=nil
+                and Runtime.contains(Runtime.CAL_EVENT_HOUR_NEXT,x,y) then
+                screen.calendarEventHour=(screen.calendarEventHour+1)%24
+                screen.calendarEventError=nil
+                return {action='calendar_event_time_changed'}
+            elseif Runtime.contains(Runtime.CAL_EVENT_SAVE,x,y) then
+                return Runtime.saveCalendarEventDraft(state)
+            end
+            return nil
+        end
         if Runtime.ComputerScreen.promoJobId and Runtime.contains(Runtime.PROMO_INPUT, x, y) then
             Runtime.ComputerScreen.promoFocused = true
             Runtime.ComputerScreen.tabDropdownOpen = false
@@ -87,6 +122,12 @@ function Component.install(Runtime)
             if Runtime.contains(Runtime.CART_BACK, x, y) then
                 Runtime.ComputerScreen.cartOpen = false
                 return { action = "cart_closed" }
+            elseif Runtime.cartContainsPaper() and Runtime.contains(Runtime.CART_SAME_DAY,x,y) then
+                Runtime.ComputerScreen.deliveryService="same_day"
+                return {action="cart_shipping"}
+            elseif Runtime.cartContainsPaper() and Runtime.contains(Runtime.CART_THREE_DAY,x,y) then
+                Runtime.ComputerScreen.deliveryService="three_day"
+                return {action="cart_shipping"}
             elseif Runtime.contains(Runtime.CART_CLEAR, x, y) then
                 Runtime.ComputerScreen.cart, Runtime.ComputerScreen.cartPage = {}, 1
                 state.message = "Online cart cleared."
@@ -104,9 +145,10 @@ function Component.install(Runtime)
                         items[#items + 1] = { kind = entry.kind, quantity = entry.quantity,
                             categoryIndex = entry.categoryIndex, itemIndex = entry.itemIndex, offerIndex = entry.offerIndex }
                     end
-                    return Runtime.remoteAction("checkout", { items = items })
+                    return Runtime.remoteAction("checkout", { items = items,
+                        deliveryService=Runtime.cartContainsPaper() and Runtime.ComputerScreen.deliveryService or nil })
                 end
-                local succeeded, result = Runtime.checkoutCart(state)
+                local succeeded, result = Runtime.checkoutCart(state,Runtime.ComputerScreen.deliveryService)
                 if not succeeded then state.message = result; return { action = "blocked" } end
                 state.message = string.format(
                     "Checkout complete: %d item%s, $%d total. Receipt email%s received.",
@@ -202,6 +244,7 @@ function Component.install(Runtime)
             if Runtime.ComputerScreen.calendarDayOpen then
                 if Runtime.contains(Runtime.CAL_DAY_CLOSE,x,y) then
                     Runtime.ComputerScreen.calendarDayOpen=false
+                    Runtime.ComputerScreen.calendarSelectedEventId=nil
                     return {action='calendar_day_closed'}
                 elseif Runtime.contains(Runtime.CAL_DAY_SCROLL_UP,x,y) then
                     Runtime.ComputerScreen.calendarDayScroll=math.max(0,
@@ -212,6 +255,31 @@ function Component.install(Runtime)
                     Runtime.ComputerScreen.calendarDayScroll=math.min(maximum,
                         (Runtime.ComputerScreen.calendarDayScroll or 0)+1)
                     return {action='calendar_day_scroll'}
+                elseif Runtime.contains(Runtime.CAL_DAY_ADD_EVENT,x,y) then
+                    Runtime.openCalendarEventComposer(state)
+                    return {action='calendar_event_compose'}
+                elseif Runtime.contains(Runtime.CAL_DAY_EDIT_EVENT,x,y) then
+                    if Runtime.ComputerScreen.calendarSelectedEventId then
+                        Runtime.openCalendarEventComposer(state,
+                            Runtime.ComputerScreen.calendarSelectedEventId)
+                        return {action='calendar_event_edit'}
+                    end
+                    return {action='blocked'}
+                elseif Runtime.contains(Runtime.CAL_DAY_REMOVE_EVENT,x,y) then
+                    return Runtime.removeSelectedCalendarEvent(state)
+                elseif Runtime.contains(Runtime.CAL_DAY_LIST.town,x,y) then
+                    local list=Runtime.CAL_DAY_LIST
+                    local startY=list.town.y+51
+                    local row=math.floor((y-startY)/list.rowHeight)+1
+                    if row>=1 and row<=list.visibleRows then
+                        local events=Runtime.calendarDayEvents(state,
+                            Runtime.ComputerScreen.calendarYear,Runtime.ComputerScreen.calendarMonth,
+                            Runtime.ComputerScreen.calendarSelectedDay)[2]
+                        local event=events[(Runtime.ComputerScreen.calendarDayScroll or 0)+row]
+                        Runtime.ComputerScreen.calendarSelectedEventId=event and event.customEventId or nil
+                        return {action='calendar_event_select'}
+                    end
+                    return nil
                 elseif Runtime.contains(Runtime.CAL_DAY_DIALOG,x,y) then
                     return nil
                 end
@@ -222,11 +290,13 @@ function Component.install(Runtime)
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, -1)
                 Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
+                Runtime.ComputerScreen.calendarSelectedEventId=nil
                 return { action = "calendar_month" }
             elseif Runtime.contains(Runtime.CAL_NEXT, x, y) then
                 Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth = Runtime.BusinessCalendar.shiftMonth(
                     Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, 1)
                 Runtime.ComputerScreen.calendarSelectedDay,Runtime.ComputerScreen.calendarDayScroll=nil,0
+                Runtime.ComputerScreen.calendarSelectedEventId=nil
                 return { action = "calendar_month" }
             end
             local day = Runtime.calendarDayAt(Runtime.ComputerScreen.calendarYear, Runtime.ComputerScreen.calendarMonth, x, y)
@@ -234,6 +304,7 @@ function Component.install(Runtime)
                 Runtime.ComputerScreen.calendarSelectedDay = day
                 Runtime.ComputerScreen.calendarDayOpen=true
                 Runtime.ComputerScreen.calendarDayScroll=0
+                Runtime.ComputerScreen.calendarSelectedEventId=nil
                 return { action = "calendar_day", day = day }
             end
             return nil

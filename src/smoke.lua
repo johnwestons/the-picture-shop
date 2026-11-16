@@ -143,7 +143,14 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='warehouse-condition' then
+        if focus=='client-apartments' then
+            require('src.tests.client_apartments_test').run(context,check)
+            require('src.tests.client_employment_test').run(context,check)
+        elseif focus=='medical-world' then
+            require('src.tests.medical_world_test').run(context,check)
+        elseif focus=='medical' then
+            require('src.tests.player_medical_test').run(context,check)
+        elseif focus=='warehouse-condition' then
             require('src.tests.warehouse_condition_test').run(context,check)
             require('src.tests.player_footprints_test').run(context,check)
         elseif focus=='fleet-finance' then
@@ -268,6 +275,7 @@ function Smoke.start(context)
             require('src.tests.employee_capacity_test').run(context,check)
         elseif focus=='progression' then
             require('src.tests.progression_balance_test').run(context,check)
+            require('src.tests.press_economics_test').run(context,check)
         elseif focus=='shop-workflow' then
             require('src.tests.shop_workflow_test').run(context,check)
         elseif focus=='mechanic-paint' then
@@ -408,13 +416,21 @@ function Smoke.start(context)
             require('src.commute.tests.truck_multiplayer_test').run(context,check)
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
-            for _,name in ipairs({'lua_limits','weekend_flow','home_travel_session','network_protocol','save_contract'}) do
+            for _,name in ipairs({'lua_limits','weekend_flow','private_home_session','network_protocol','save_contract'}) do
                 require('src.tests.'..name..'_test').run(context,check)
             end
         elseif focus=='weekend-playthrough' then
             require('src.tests.weekend_runtime_test').run(context,check)
+        elseif focus=='home-progression' then
+            require('src.tests.home_progression_test').run(context,check)
+        elseif focus=='shared-gui' then
+            require('src.tests.shared_gui_test').run(context,check)
         elseif focus=='domain-tail' then
             Suites.runDomainTail(context,check)
+        elseif focus=='domain-late' then
+            Suites.runDomainLate(context,check)
+        elseif focus=='domain-end' then
+            Suites.runDomainEnd(context,check)
         elseif focus=='recent-features' then
             require('src.commute.tests.sprint_test').run(check)
             require('src.commute.tests.structure_geometry_test').run(check)
@@ -426,7 +442,7 @@ function Smoke.start(context)
         elseif focus=="home-production" then
             require("src.tests.home_production_budget_test").run(context,check)
         elseif focus=="home-furniture" then
-            for _,name in ipairs({"lua_limits","home_furniture","home_scene","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+            for _,name in ipairs({"lua_limits","home_furniture","home_scene","home_shopping","home_residents","weekend_runtime","private_home_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="home-privacy" then
@@ -434,28 +450,28 @@ function Smoke.start(context)
         elseif focus=="home-held" then
             require("src.tests.home_held_art_test").run(context,check)
         elseif focus=="home-shopping" then
-            for _,name in ipairs({"lua_limits","home_shopping","home_residents","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+            for _,name in ipairs({"lua_limits","home_shopping","home_residents","weekend_runtime","private_home_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="home-residents" then
-            for _,name in ipairs({"lua_limits","home_residents","home_scene","weekend_runtime","home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+            for _,name in ipairs({"lua_limits","home_residents","home_scene","weekend_runtime","private_home_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="home-needs" then
             for _,name in ipairs({"lua_limits","home_residents","home_chores","weekend_flow","weekend_runtime",
-                "home_travel_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
+                "private_home_session","home","save_contract","network_protocol","multiplayer_capabilities"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="household-finances" then
-            for _,name in ipairs({"lua_limits","household_finances","weekend_flow","weekend_runtime","home_travel_session","home","save_contract","network_protocol"}) do
+            for _,name in ipairs({"lua_limits","household_finances","weekend_flow","weekend_runtime","private_home_session","home","save_contract","network_protocol"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="weekend-flow" then
-            for _,name in ipairs({"lua_limits","weekend_flow","weekend_runtime","home_travel_session","business_deadlines","home","save_contract","network_protocol"}) do
+            for _,name in ipairs({"lua_limits","weekend_flow","weekend_runtime","private_home_session","business_deadlines","home","save_contract","network_protocol"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end
         elseif focus=="friday-closing" then
-            for _,name in ipairs({"weekend_flow","weekend_runtime","employee_schedule","home_travel_session",
+            for _,name in ipairs({"weekend_flow","weekend_runtime","employee_schedule","private_home_session",
                 "room_shipping","truck_authority","multiplayer_session","network_protocol","save_contract"}) do
                 require("src.tests."..name.."_test").run(context,check)
             end

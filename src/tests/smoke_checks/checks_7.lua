@@ -33,7 +33,7 @@ function Component.run(Context)
         and Context.wwwTabResult.tab == "www" and Context.paperSiteResult
         and Context.paperSiteResult.site.url == "www.thecritternet.com/paper-depot" and Context.cartAdd
         and Context.cartAdd.action == "cart_item_added"
-        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 26
+        and Context.cartBeforeCheckout.count == 1 and Context.cartBeforeCheckout.total == 31
         and Context.computerCheckout.action == "cart_checked_out"
         and Context.computerOrder.channel == "computer"
         and Context.computerOrder.pallets[1].quantity == 250

@@ -109,10 +109,11 @@ function Test.run(context,check)
     local intent={kind="checkout",items={{kind="supply",categoryIndex=1,itemIndex=1,quantity=2}}}
     reply=command("office_action",{officeIntent=intent},true)
     local price=context.procurement.retailPrice(state,1,1)
+    local shipping=context.procurement.paperShippingFeeCents(1,1,"computer")/100
     local cartDetail=string.format("accepted=%s code=%s message=%s orders=%d money=%d expectedMoney=%d saves=%d",
-        tostring(reply.accepted),tostring(reply.code),tostring(reply.message),#state.procurement.orders,state.money,before-price*2,saves)
+        tostring(reply.accepted),tostring(reply.code),tostring(reply.message),#state.procurement.orders,state.money,before-(price+shipping)*2,saves)
     check("office_cart_round_trip_uses_host_prices_exactly_once",reply.accepted and #state.procurement.orders==3
-        and state.money==before-price*2 and saves==5,cartDetail)
+        and state.money==before-(price+shipping)*2 and saves==5,cartDetail)
     Calendar.addCharge(state,"Spoiled customer stock",123,"GUI-CLAIM")
     before=state.money
     reply=command("office_action",{officeIntent={kind="pay_bills"}},true)

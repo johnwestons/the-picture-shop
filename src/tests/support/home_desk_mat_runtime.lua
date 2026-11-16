@@ -26,12 +26,17 @@ function Test.run(context,check)
     for _=1,5 do click("previous") end;for _=1,4 do click("next") end
     capture("home-desk-mat-catalog","computer")
     for i=1,2 do click("buy",i);click("confirm");click("cancel") end
-    check("home_desk_mat_runtime_checkout",s.home.balanceCents==14475,s.message)
-    s.screen="world";R.App.update(Calendar.secondsPerDay(s)/12)
-    p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
+    local Shopping=require('src.home_shopping')
+    local total=Shopping.quote('desk',1,'same_day').totalCents+Shopping.quote('guest_mat',1,'same_day').totalCents
+    check("home_desk_mat_runtime_checkout",s.home.balanceCents==30000-total,s.message)
+    s.screen="world"
+    local latest=0
+    for _,order in ipairs(s.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    s.calendar.elapsed=latest/24*Calendar.secondsPerDay(s);R.App.update(.1)
+    local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
-    check("home_desk_mat_runtime_collect",#s.home.furniture.items==3,s.message)
-    for index=2,3 do
+    check("home_desk_mat_runtime_collect",#s.home.furniture.items==4,s.message)
+    for index=3,4 do
         local item=s.home.furniture.items[index]
         if item.location=="floor" then p.x,p.y=item.x,item.y end
         local spot=assert(require("src.tests.home_tables_lamp_test").findSpot(s,item.kind,{p},item.id))
@@ -65,8 +70,9 @@ function Test.run(context,check)
     R.App.keypressed("escape");computer=assert(Layout.targets(p,s).computer);p.x,p.y=computer.x,computer.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,computer.hoverX,computer.hoverY);R.App.keypressed("e")
     check("home_desk_runtime_laptop_opens_on_desk",s.screen=="computer",s.screen)
-    R.App.keypressed("escape");local target=assert(Furniture.targets(s,p)["furniture"..mat.id]);p.x,p.y=target.x,target.y
-    R.World.updateNetworkPlayer(0,0,0,R.Assets,s,target.hoverX,target.hoverY);R.App.keypressed("e")
+    R.App.keypressed("escape");s.screen='world'
+    local target=assert(Furniture.targets(s,p)["furniture"..mat.id]);p.x,p.y=target.x,target.y
+    Activity.target='furniture'..mat.id;Activity.mode='routines';Activity.page=1;s.screen='home_activity'
     Activity.mousepressed(400,322,1,R)
     check("home_mat_runtime_touch_nap",s.home.residents.owner.activity and s.home.residents.owner.activity.kind=="matrest",s.message)
     R.App.keypressed("backspace");R.App.keypressed("t");capture("home-guest-mat-sleep-menu","activity")

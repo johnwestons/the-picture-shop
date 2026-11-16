@@ -36,7 +36,7 @@ function Screen.draw(state, assets, pointerX, pointerY)
     love.graphics.setColor(0.84, 0.91, 0.92)
     love.graphics.print(category.kind == "machines"
         and (category.salesman .. " offers used dealer machines. Inspect the condition before buying.")
-        or (category.salesman .. " offers discounted bulk pallet deals."), 104, 116)
+        or (category.salesman .. " has a visit-only deal: 25% off every bulk stock item."), 104, 116)
     love.graphics.print(string.format("AVAILABLE CASH: $%d", state.money or 0), 104, 150)
     BackButton.draw(assets, CLOSE, "BACK", pointerX, pointerY, false)
     if category.kind == "machines" then
@@ -63,18 +63,20 @@ function Screen.draw(state, assets, pointerX, pointerY)
         for index, item in ipairs(category.items) do
             local r, buy = row(index), buyRect(index)
             local available = item.available ~= false
-            local affordable = available and (state.money or 0) >= item.price
+            local visitPrice,regularPrice,discount=Procurement.salesmanVisitPrice(
+                state.vendorCategory,index)
+            local affordable = available and visitPrice and (state.money or 0) >= visitPrice
             box(r, { 0.075, 0.11, 0.14, 1 }, { 0.26, 0.43, 0.49, 1 })
             love.graphics.setColor(0.94, 0.97, 0.95); love.graphics.print(item.name, r.x + 22, r.y + 9)
-            love.graphics.setColor(0.68, 0.78, 0.81)
-            local bulkLine = string.format("Bulk $%.2f/%s  |  computer $%.2f/%s  |  dock delivery",
-                item.price / item.quantity, item.unit, (item.retailPrice or item.price) / (item.retailQuantity or item.quantity), item.unit)
+            love.graphics.setColor(0.66, 0.91, 0.70)
+            local bulkLine = string.format("VISIT DEAL: $%d  •  SAVE $%d (%d%% off)  •  dock delivery",
+                visitPrice or item.price, (regularPrice or item.price)-(visitPrice or item.price),discount or 0)
             love.graphics.print(available and bulkLine or item.unavailableReason, r.x + 22, r.y + 30)
             box(buy, affordable and { 0.16, 0.45, 0.31, 1 } or { 0.18, 0.19, 0.20, 1 },
                 affordable and { 0.48, 0.86, 0.58, 1 } or { 0.36, 0.38, 0.40, 1 })
             love.graphics.setColor(affordable and 0.95 or 0.58, affordable and 0.98 or 0.62,
                 affordable and 0.95 or 0.64)
-            love.graphics.printf(available and string.format("BUY  $%d", item.price) or "LOCKED",
+            love.graphics.printf(available and string.format("BUY  $%d", visitPrice or item.price) or "LOCKED",
                 buy.x, buy.y + 12, buy.width, "center")
         end
     end
@@ -109,7 +111,7 @@ function Screen.mousepressed(state, x, y, button)
     end
     for index = 1, #category.items do
         if inside(buyRect(index), x, y) then
-            local ok, result = Procurement.buy(state, state.vendorCategory, index)
+            local ok, result = Procurement.buy(state,state.vendorCategory,index,"salesman_special")
             if ok then
                 state.message = string.format("Purchased %s. %s is awaiting truck delivery.", result.productName, result.id)
                 return { action = "purchased", order = result }

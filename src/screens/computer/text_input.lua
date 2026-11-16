@@ -4,6 +4,28 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.ComputerScreen.keypressed(state, key)
+        if Runtime.ComputerScreen.tab=='calendar'
+            and Runtime.ComputerScreen.calendarEventComposerOpen then
+            local screen=Runtime.ComputerScreen
+            if key=='escape' then
+                Runtime.cancelCalendarEventComposer()
+                return {action='calendar_event_cancelled'}
+            elseif key=='return' or key=='kpenter' then
+                return Runtime.saveCalendarEventDraft(state)
+            elseif key=='backspace' then
+                local field=screen.calendarEventTitleFocused and 'calendarEventTitle'
+                    or screen.calendarEventDetailFocused and 'calendarEventDetail'
+                if field then
+                    local value=screen[field] or ''
+                    local offset=Runtime.utf8.offset(value,-1)
+                    screen[field]=offset and value:sub(1,offset-1) or ''
+                    screen.calendarEventError=nil
+                    return true
+                end
+                return false
+            end
+            return false
+        end
         if Runtime.ComputerScreen.tab=='receipts' then
             if key=='up' or key=='pageup' then return Runtime.ComputerScreen.receiptScroll(state,-1) end
             if key=='down' or key=='pagedown' then return Runtime.ComputerScreen.receiptScroll(state,1) end
@@ -38,7 +60,23 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.textinput(state, text)
-        if Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused then
+        if Runtime.ComputerScreen.tab=='calendar'
+            and Runtime.ComputerScreen.calendarEventComposerOpen then
+            local screen=Runtime.ComputerScreen
+            local field,maximum
+            if screen.calendarEventTitleFocused then field,maximum='calendarEventTitle',60
+            elseif screen.calendarEventDetailFocused then field,maximum='calendarEventDetail',120 end
+            if not field then return false end
+            local current=screen[field] or ''
+            local addition=tostring(text or ''):gsub('[%c]',' ')
+            local existing=Runtime.utf8.len(current) or #current
+            local capacity=math.max(0,maximum-existing)
+            local offset=Runtime.utf8.offset(addition,capacity+1)
+            if offset then addition=addition:sub(1,offset-1) end
+            screen[field]=current..addition
+            screen.calendarEventError=nil
+            return true
+        elseif Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused then
             local current=Runtime.ComputerScreen.promoText
             local addition=tostring(text or ""):sub(1,math.max(0,600-#current))
             while #addition>0 and not Runtime.utf8.len(addition) do
@@ -73,7 +111,11 @@ function Component.install(Runtime)
     end
 
     function Runtime.ComputerScreen.wantsTextInput()
-        return Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused
+        return Runtime.ComputerScreen.tab=='calendar'
+            and Runtime.ComputerScreen.calendarEventComposerOpen
+            and (Runtime.ComputerScreen.calendarEventTitleFocused
+                or Runtime.ComputerScreen.calendarEventDetailFocused)
+            or Runtime.ComputerScreen.promoJobId and Runtime.ComputerScreen.promoFocused
             or Runtime.ComputerScreen.tab == "estimating" and (Runtime.ComputerScreen.quoteFocused
                 or Runtime.ComputerScreen.deliveryQuoteFocused)
     end

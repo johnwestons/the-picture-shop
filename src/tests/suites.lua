@@ -72,7 +72,7 @@ local DOMAIN_SUITES = {
     require("src.tests.weekend_flow_test"),
     require("src.tests.weekend_runtime_test"),
     require("src.tests.background_warehouse_test"),
-    require("src.tests.home_travel_session_test"),
+    require("src.tests.private_home_session_test"),
     require("src.tests.lua_limits_test"),
     require("src.tests.basketball_test"),
     require("src.tests.critter_kombat_test"),
@@ -229,6 +229,10 @@ local DOMAIN_SUITES = {
     require("src.tests.windmill_integration_test"),
     require("src.tests.multiplayer_world_layers_test"),
     require("src.tests.gameplay_journey_audit_test"),
+    require("src.tests.player_medical_test"),
+    require("src.tests.medical_world_test"),
+    require('src.tests.client_apartments_test'),
+    require('src.tests.client_employment_test'),
     require("src.tests.recent_feature_regression_test"),
 }
 
@@ -237,6 +241,12 @@ function Suites.runDomain(context, check)
 end
 function Suites.runDomainTail(context, check)
     for index=20,#DOMAIN_SUITES do DOMAIN_SUITES[index].run(context, check) end
+end
+function Suites.runDomainLate(context, check)
+    for index=38,#DOMAIN_SUITES do DOMAIN_SUITES[index].run(context, check) end
+end
+function Suites.runDomainEnd(context, check)
+    for index=93,#DOMAIN_SUITES do DOMAIN_SUITES[index].run(context, check) end
 end
 function Suites.runWarehouseRooms(context,check)
     for _,name in ipairs({"shop_rooms","warehouse_upgrades","construction_service","warehouse_construction",

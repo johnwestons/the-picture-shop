@@ -171,7 +171,7 @@ function Screen.enter(state)
     clearPhoneNotice()
 end
 
-function Screen.draw(state, pointerX, pointerY, assets, waiting)
+function Screen.draw(state, pointerX, pointerY, assets, waiting, twelveHourTime)
     local phone = WorkPhone.ensure(state)
     local call = phone.incoming
     panel({ x = 42, y = 34, width = 876, height = 608 },
@@ -260,7 +260,9 @@ function Screen.draw(state, pointerX, pointerY, assets, waiting)
         love.graphics.setColor(0.90, 0.94, 0.92, 1)
         love.graphics.printf("Select a directory contact to place a call.", 458, 170, 372, "left")
         love.graphics.setColor(0.64, 0.75, 0.77, 1)
-        love.graphics.printf("Supplier hours: Mon–Fri, 09:00–20:00.", 458, 184, 372, "left")
+        local supplierHours=BusinessCalendar.formatTime(9,0,twelveHourTime)
+            .."–"..BusinessCalendar.formatTime(20,0,twelveHourTime)
+        love.graphics.printf("Supplier hours: Mon–Fri, "..supplierHours..".", 458, 184, 372, "left")
         local supplierLinesOpen = BusinessCalendar.isBusinessOpen(state)
         for index, contact in ipairs(WorkPhone.contacts()) do
             local row = directoryRow(index)

@@ -347,8 +347,7 @@ function Component.install(Runtime)
         self.sessionStartedAt=self.clock()
         self.networkKind = options.networkKind == "direct" and "direct"
             or options.networkKind == "server" and "server" or "lan"
-        self.clientConnectTimeout = self.networkKind == "direct"
-            and Runtime.DIRECT_CLIENT_TIMEOUT or Runtime.CONNECT_TIMEOUT
+        self.clientConnectTimeout = Runtime.DIRECT_CLIENT_TIMEOUT
         self.port = parsed.port
         self.hostAddress = parsed.host
         self.localName = tostring(options.name or "LAN Worker")

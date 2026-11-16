@@ -19,6 +19,7 @@ local PLAYER_NOTE = "Player names are self-entered. Verify who you invited."
 local opened = false
 local pressed = nil
 local confirmPlayerId = nil
+local profileRequestId = nil
 
 local function contains(rect, x, y)
     return type(rect) == "table"
@@ -35,7 +36,6 @@ end
 local function manageable(info)
     return type(info) == "table"
         and info.mode == "host"
-        and info.networkKind == "direct"
         and info.canManage == true
 end
 
@@ -168,6 +168,7 @@ local function pendingRows(info, panel)
             rows[#rows + 1] = {
                 requestId = requestId,
                 name = displayName(join.name),
+                unmatched = join.unmatched == true,
                 bounds = { x = panel.x + 8, y = y, width = panel.width - 16, height = ROW_HEIGHT },
                 approve = { x = panel.x + 270, y = y + 3, width = 96, height = ACTION_HEIGHT },
                 deny = { x = panel.x + 374, y = y + 3, width = 68, height = ACTION_HEIGHT },
@@ -202,6 +203,7 @@ function MultiplayerHud.reset()
     opened = false
     pressed = nil
     confirmPlayerId = nil
+    profileRequestId = nil
 end
 
 function MultiplayerHud.open(info)
@@ -212,6 +214,7 @@ function MultiplayerHud.open(info)
     opened = true
     pressed = nil
     confirmPlayerId = nil
+    profileRequestId = nil
     return true
 end
 
@@ -261,6 +264,28 @@ function MultiplayerHud.layout(info)
     end
     result.pending = pendingRows(info, result.panel)
     result.guests = guestRows(info, result.panel)
+    if profileRequestId then
+        for _,join in ipairs(info.pendingJoins or {}) do
+            if join.requestId==profileRequestId and join.unmatched then
+                local choices={}
+                if join.canCreate then
+                    choices[#choices+1]={choice='new',label='CREATE NEW CLIENT SAVE'}
+                end
+                for _,saved in ipairs(join.profileChoices or {}) do
+                    choices[#choices+1]={choice=saved.slot,
+                        label='CLAIM SLOT '..saved.slot..'  '..displayName(saved.name)}
+                end
+                for index,row in ipairs(choices) do
+                    row.bounds={x=result.panel.x+12,y=266+(index-1)*56,width=result.panel.width-24,height=46}
+                end
+                result.profile={requestId=profileRequestId,name=displayName(join.name),choices=choices,
+                    back={x=result.panel.x+12,y=514,width=120,height=40},
+                    deny={x=result.panel.x+result.panel.width-132,y=514,width=120,height=40}}
+                break
+            end
+        end
+        if not result.profile then profileRequestId=nil end
+    end
     if info.canInvite == true then
         result.invite = {
             x = result.panel.x + 12,
@@ -277,15 +302,28 @@ function MultiplayerHud.hitTest(x, y, info)
     if not layout.viewable then return nil end
     if contains(layout.toggle, x, y) then return { kind = "toggle" } end
     if not layout.open then return nil end
+    if layout.profile then
+        for _,row in ipairs(layout.profile.choices) do
+            if contains(row.bounds,x,y) then
+                return {kind='approve',requestId=layout.profile.requestId,profileChoice=row.choice}
+            end
+        end
+        if contains(layout.profile.back,x,y) then return {kind='profile_back'} end
+        if contains(layout.profile.deny,x,y) then
+            return {kind='deny',requestId=layout.profile.requestId}
+        end
+        if contains(layout.panel,x,y) then return {kind='panel'} end
+        return nil
+    end
     for _, row in ipairs(layout.manageable and layout.pending or {}) do
         if contains(row.approve, x, y) then
-            return { kind = "approve", requestId = row.requestId }
+            return { kind = row.unmatched and 'choose_profile' or 'approve', requestId = row.requestId }
         end
         if contains(row.deny, x, y) then
             return { kind = "deny", requestId = row.requestId }
         end
     end
-    for _, row in ipairs(layout.manageable and layout.guests or {}) do
+    for _, row in ipairs(layout.manageable and info.networkKind=='direct' and layout.guests or {}) do
         if contains(row.remove, x, y) then
             return { kind = "remove", playerId = row.playerId }
         end
@@ -349,6 +387,11 @@ function MultiplayerHud.mousepressed(x, y, button, info)
         confirmPlayerId = nil
         return true
     end
+    if target.kind=='choose_profile' then
+        profileRequestId=target.requestId
+        return true
+    end
+    if target.kind=='profile_back' then profileRequestId=nil;return true end
     pressed = target
     if target.kind == "remove" then
         if confirmPlayerId ~= target.playerId then
@@ -360,9 +403,11 @@ function MultiplayerHud.mousepressed(x, y, button, info)
     end
     confirmPlayerId = nil
     if target.kind == "approve" then
-        return { kind = "approve", requestId = target.requestId }
+        profileRequestId=nil
+        return { kind = "approve", requestId = target.requestId,profileChoice=target.profileChoice }
     end
     if target.kind == "invite" then return { kind = "invite" } end
+    profileRequestId=nil
     return { kind = "deny", requestId = target.requestId }
 end
 
@@ -472,7 +517,27 @@ function MultiplayerHud.draw(info)
     love.graphics.rectangle("fill", panel.x, panel.y, panel.width, panel.height, 6, 6)
     love.graphics.setColor(0.95, 0.78, 0.23, 1)
     love.graphics.rectangle("line", panel.x, panel.y, panel.width, panel.height, 6, 6)
-    love.graphics.printf("DIRECT PLAYERS", panel.x + 12, panel.y + 14, panel.width - 24, "left")
+    love.graphics.printf(direct and "DIRECT PLAYERS" or "LAN CLIENT ACCESS",
+        panel.x + 12, panel.y + 14, panel.width - 24, "left")
+
+    if layout.profile then
+        love.graphics.setColor(.91,.93,.90,1)
+        love.graphics.printf('Choose a profile for '..layout.profile.name,
+            panel.x+12,214,panel.width-24,'left')
+        love.graphics.setColor(.67,.75,.74,1)
+        love.graphics.printf('Claiming transfers this saved profile to the joining device.',
+            panel.x+12,240,panel.width-24,'left')
+        for _,row in ipairs(layout.profile.choices) do
+            drawButton(row.bounds,row.label,false,false)
+        end
+        if #layout.profile.choices==0 then
+            love.graphics.printf('All client slots are connected. No profile is available.',
+                panel.x+12,290,panel.width-24,'left')
+        end
+        drawButton(layout.profile.back,'BACK',false,false)
+        drawButton(layout.profile.deny,'DENY',false,true)
+        return
+    end
 
     love.graphics.setColor(0.67, 0.75, 0.74, 1)
     love.graphics.printf("WAITING FOR APPROVAL", panel.x + 12, 204, 245, "left")
@@ -482,7 +547,8 @@ function MultiplayerHud.draw(info)
     for _, row in ipairs(layout.pending) do
         love.graphics.setColor(0.91, 0.93, 0.90, 1)
         love.graphics.printf(row.name, panel.x + 12, row.bounds.y + 16, 248, "left")
-        drawButton(row.approve, "APPROVE", isPressed("approve", row.requestId), false)
+        drawButton(row.approve, row.unmatched and 'CHOOSE' or 'APPROVE',
+            isPressed('approve', row.requestId), false)
         drawButton(row.deny, "DENY", isPressed("deny", row.requestId), true)
     end
 
@@ -495,8 +561,10 @@ function MultiplayerHud.draw(info)
         love.graphics.setColor(0.91, 0.93, 0.90, 1)
         love.graphics.printf(row.name, panel.x + 12, row.bounds.y + 16, 300, "left")
         local confirming = confirmPlayerId == row.playerId
-        drawButton(row.remove, confirming and "CONFIRM" or "REMOVE",
-            isPressed("remove", row.playerId), true)
+        if direct then
+            drawButton(row.remove, confirming and "CONFIRM" or "REMOVE",
+                isPressed("remove", row.playerId), true)
+        end
     end
 
     if layout.invite then

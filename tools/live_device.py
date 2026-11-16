@@ -3,7 +3,7 @@ import argparse, json, os, subprocess, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = 'com.thepictureshop.game'
+PACKAGE = os.environ.get('TPS_ANDROID_PACKAGE', 'com.thepictureshop.game')
 REMOTE = 'files/save/the-picture-shop'
 DEFAULT_SERIAL = os.environ.get('TPS_ANDROID_SERIAL', '')
 

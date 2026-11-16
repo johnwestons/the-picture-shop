@@ -183,11 +183,11 @@ function Store.purchase(state,player,rider,world,storeId,intent)
     end
     local shop=require('src.home_shopping').ensure(state)
     local _,spent,remaining=require('src.home_shopping').budget(state)
-    if residentId~='owner' and quote.totalCents>remaining then
+    if residentId~='owner' and not state.home.hostApartmentId and quote.totalCents>remaining then
         return false,'This purchase exceeds the household\'s remaining shared guest food budget.'
     end
     if state.home.balanceCents<quote.totalCents then return false,'Not enough household funds.' end
-    if residentId~='owner' then
+    if residentId~='owner' and not state.home.hostApartmentId then
         local period=state.home.weekend.closesAtHours
         if period>shop.budgetCloseHours then shop.budgetCloseHours=period;shop.guestSpentCents=0;spent=0 end
         shop.guestSpentCents=spent+quote.totalCents
@@ -236,10 +236,10 @@ function Store.purchaseCart(state,player,rider,world,intent)
     if state.home.balanceCents<totalCents then return false,'Not enough household funds for this cart.' end
     local shop=require('src.home_shopping').ensure(state)
     local _,spent,remaining=require('src.home_shopping').budget(state)
-    if residentId~='owner' and totalCents>remaining then
+    if residentId~='owner' and not state.home.hostApartmentId and totalCents>remaining then
         return false,'This cart exceeds the household\'s remaining shared guest food budget.'
     end
-    if residentId~='owner' then
+    if residentId~='owner' and not state.home.hostApartmentId then
         local period=state.home.weekend.closesAtHours
         if period>shop.budgetCloseHours then shop.budgetCloseHours=period;shop.guestSpentCents=0;spent=0 end
         shop.guestSpentCents=spent+totalCents

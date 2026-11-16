@@ -2,6 +2,8 @@
 local Component={}
 local CustomerDemand=require('src.customer_demand')
 local BusinessHours=require('src.business_hours')
+local CalendarArt=require('src.screens.computer.calendar_art')
+local CalendarSponsors=require('src.calendar_sponsors')
 
 local COLORS={
     shop={.35,.78,.57,1},
@@ -12,6 +14,8 @@ local COLORS={
     shipment={.96,.72,.32,1},
     credit={.55,.72,.96,1},
     email={.49,.72,.93,1},
+    personal={.96,.72,.30,1},
+    holiday={.91,.58,.78,1},
 }
 
 local function eventColor(event)
@@ -30,7 +34,9 @@ end
 local function dayCounts(events)
     local shop,town=0,0
     for _,event in ipairs(events or {}) do
-        if event.kind=='town' then town=town+1 else shop=shop+1 end
+        if event.kind=='town' or event.kind=='personal' or event.kind=='holiday' then
+            town=town+1
+        else shop=shop+1 end
     end
     return shop,town
 end
@@ -52,7 +58,7 @@ local function eventTime(event,twelveHourTime)
     return require('src.business_calendar').formatTime(event.hour,event.minute or 0,twelveHourTime)
 end
 
-local function drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage)
+local function drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage,selectedEventId)
     local g=love.graphics
     local list=Runtime.CAL_DAY_LIST
     local startY=rect.y+51
@@ -69,8 +75,10 @@ local function drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMess
         local x,y=rect.x+8,startY+(row-1)*rowHeight
         local width=rect.width-16
         local color=eventColor(event)
+        local selected=event.customEventId and event.customEventId==selectedEventId
         Runtime.panel({x=x,y=y,width=width,height=rowHeight-4},
-            { .055,.085,.10,1 },{ .16,.25,.28,1 },2,1)
+            selected and {.16,.22,.16,1} or { .055,.085,.10,1 },
+            selected and {.96,.72,.30,1} or { .16,.25,.28,1 },2,selected and 2 or 1)
         g.setColor(color);g.rectangle('fill',x,y,3,rowHeight-4)
         g.setColor(.70,.78,.78,1)
         drawFit(eventTime(event,twelveHourTime),x+9,y+5,68,false)
@@ -90,6 +98,7 @@ local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,
         Runtime.BusinessCalendar.totalDayForDate(year,month,day))
     local shopRect,townRect=Runtime.CAL_DAY_LIST.shop,Runtime.CAL_DAY_LIST.town
     local scroll=Runtime.ComputerScreen.calendarDayScroll or 0
+    local screen=Runtime.ComputerScreen
     local current=year==state.calendar.year and month==state.calendar.month and day==state.calendar.day
     local totalDay=Runtime.BusinessCalendar.totalDayForDate(year,month,day)
     local shopHours=shopHoursLabel(totalDay,twelveHourTime)
@@ -108,7 +117,7 @@ local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,
         closeHovered and 'hover' or 'secondary')
     g.setColor(current and .38 or .63,current and .86 or .72,current and .55 or .73,1)
     g.printf((current and 'TODAY' or 'DAY PLAN')..'   •   SHOP '..shopHours
-        ..'   •   '..(#shopEvents..' shop item(s) / '..#townEvents..' town event(s)'),
+        ..'   •   '..(#shopEvents..' shop item(s) / '..#townEvents..' community & personal event(s)'),
         dialog.x+18,dialog.y+44,dialog.width-36,'left')
 
     local function section(rect,title,accent,events,emptyMessage)
@@ -120,11 +129,12 @@ local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,
         g.print(title,rect.x+12,dialog.y+86)
         g.setColor(.58,.70,.70,1)
         g.print(string.format('%d scheduled',#events),rect.x+12,dialog.y+105)
-        drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage)
+        drawEventList(Runtime,rect,events,scroll,twelveHourTime,emptyMessage,
+            screen.calendarSelectedEventId)
     end
     section(shopRect,'SHOP SCHEDULE',COLORS.shop,shopEvents,'No shop items are scheduled for this day.')
-    section(townRect,'TOWN EVENTS & GATHERINGS',COLORS.town,townEvents,
-        'No town events or gatherings are scheduled for this day.')
+    section(townRect,'TOWN, HOLIDAYS & YOU',COLORS.town,townEvents,
+        'No town events or personal reminders yet.')
 
     local _,_,maximum=Runtime.clampCalendarDayScroll(state)
     if maximum>0 then
@@ -132,15 +142,75 @@ local function drawDayDialog(Runtime,state,year,month,day,shopEvents,townEvents,
         g.printf(string.format('Showing %d–%d of %d in each list  •  scroll or use arrows',
             scroll+1,math.min(scroll+Runtime.CAL_DAY_LIST.visibleRows,
                 math.max(#shopEvents,#townEvents)),math.max(#shopEvents,#townEvents)),
-            dialog.x+16,dialog.y+372,dialog.width-180,'left')
+            dialog.x+16,dialog.y+372,Runtime.CAL_DAY_LIST.shop.width,'left')
         Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_UP,'UP',
             scroll>0 and 'secondary' or 'disabled')
         Runtime.drawComputerButton(Runtime.CAL_DAY_SCROLL_DOWN,'DOWN',
             scroll<maximum and 'secondary' or 'disabled')
     else
         g.setColor(.55,.65,.66,1)
-        g.print('Click another date to see its plan.',dialog.x+18,dialog.y+370)
+        g.print('Choose a reminder to edit it, or add one here.',dialog.x+18,dialog.y+370)
     end
+    local writable=not Runtime.ComputerScreen.radioReadOnly()
+    Runtime.drawComputerButton(Runtime.CAL_DAY_ADD_EVENT,'ADD',writable and 'primary' or 'disabled')
+    Runtime.drawComputerButton(Runtime.CAL_DAY_EDIT_EVENT,'EDIT',
+        writable and screen.calendarSelectedEventId and 'secondary' or 'disabled')
+    Runtime.drawComputerButton(Runtime.CAL_DAY_REMOVE_EVENT,'REMOVE',
+        writable and screen.calendarSelectedEventId and 'danger' or 'disabled')
+end
+
+local function drawEventComposer(Runtime,state,year,month,day,twelveHourTime)
+    local g=love.graphics
+    local screen=Runtime.ComputerScreen
+    local dialog=Runtime.CAL_EVENT_DIALOG
+    g.setColor(.005,.012,.018,.78)
+    g.rectangle('fill',Runtime.CAL_DAY_DIALOG.x,Runtime.CAL_DAY_DIALOG.y,
+        Runtime.CAL_DAY_DIALOG.width,Runtime.CAL_DAY_DIALOG.height)
+    Runtime.panel(dialog,{.025,.045,.055,.99},{.42,.70,.68,1},6,2)
+    g.setColor(.96,.84,.30,1)
+    g.print(screen.calendarEventEditingId and 'EDIT PERSONAL EVENT' or 'NEW PERSONAL EVENT',
+        dialog.x+24,dialog.y+19)
+    g.setColor(.68,.78,.76,1)
+    g.print(string.format('%s %d, %d',Runtime.BusinessCalendar.monthName(month),day,year),
+        dialog.x+24,dialog.y+39)
+
+    g.setColor(.72,.82,.80,1);g.print('TITLE  •  UP TO 60 CHARACTERS',Runtime.CAL_EVENT_TITLE_INPUT.x,
+        Runtime.CAL_EVENT_TITLE_INPUT.y-17)
+    local titleRect=Runtime.CAL_EVENT_TITLE_INPUT
+    Runtime.panel(titleRect,{.035,.065,.075,1},screen.calendarEventTitleFocused
+        and {.96,.72,.30,1} or {.20,.34,.36,1},3,screen.calendarEventTitleFocused and 2 or 1)
+    g.setColor(.94,.95,.88,1)
+    drawFit(screen.calendarEventTitle~='' and screen.calendarEventTitle or 'Event name',
+        titleRect.x+10,titleRect.y+9,titleRect.width-20,false)
+    g.setColor(.72,.82,.80,1);g.print('NOTE  •  OPTIONAL, UP TO 120 CHARACTERS',
+        Runtime.CAL_EVENT_DETAIL_INPUT.x,Runtime.CAL_EVENT_DETAIL_INPUT.y-17)
+    local detailRect=Runtime.CAL_EVENT_DETAIL_INPUT
+    Runtime.panel(detailRect,{.035,.065,.075,1},screen.calendarEventDetailFocused
+        and {.96,.72,.30,1} or {.20,.34,.36,1},3,screen.calendarEventDetailFocused and 2 or 1)
+    g.setColor(.84,.88,.83,1)
+    local detail=screen.calendarEventDetail~='' and screen.calendarEventDetail or 'Add a reminder note'
+    g.printf(detail,detailRect.x+10,detailRect.y+10,detailRect.width-20,'left')
+
+    if screen.calendarEventHour==nil then
+        Runtime.drawComputerButton(Runtime.CAL_EVENT_TIME_TOGGLE,'ALL DAY','secondary')
+        g.setColor(.66,.76,.75,1)
+        g.print('Optional time',Runtime.CAL_EVENT_TIME.x+132,Runtime.CAL_EVENT_TIME.y+9)
+    else
+        Runtime.drawComputerButton(Runtime.CAL_EVENT_TIME_TOGGLE,'TIME','secondary')
+        Runtime.drawComputerButton(Runtime.CAL_EVENT_HOUR_PREVIOUS,'−','secondary')
+        g.setColor(.93,.92,.83,1)
+        g.printf(Runtime.BusinessCalendar.formatTime(screen.calendarEventHour,0,twelveHourTime),
+            Runtime.CAL_EVENT_TIME.x+176,Runtime.CAL_EVENT_TIME.y+8,220,'center')
+        Runtime.drawComputerButton(Runtime.CAL_EVENT_HOUR_NEXT,'+','secondary')
+    end
+
+    if screen.calendarEventError then
+        g.setColor(.98,.52,.43,1)
+        drawFit(screen.calendarEventError,dialog.x+24,dialog.y+265,dialog.width-48,false)
+    end
+    Runtime.drawComputerButton(Runtime.CAL_EVENT_CANCEL,'CANCEL','secondary')
+    Runtime.drawComputerButton(Runtime.CAL_EVENT_SAVE,'SAVE EVENT',
+        Runtime.ComputerScreen.radioReadOnly() and 'disabled' or 'primary')
 end
 
 function Component.install(Runtime)
@@ -149,6 +219,7 @@ function Component.install(Runtime)
         local year=screen.calendarYear or state.calendar.year
         local month=screen.calendarMonth or state.calendar.month
         Runtime.panel(Runtime.CAL_PANEL,{.055,.07,.09,1},{.23,.35,.38,1})
+        CalendarArt.draw(month,Runtime.CAL_PANEL)
         local function navButton(rect,label)
             local hovered=pointerX and Runtime.contains(rect,pointerX,pointerY)
             Runtime.drawComputerButton(rect,label,hovered and 'hover' or 'secondary')
@@ -162,8 +233,9 @@ function Component.install(Runtime)
         love.graphics.setColor(.63,.75,.75,1)
         local originalFont=love.graphics.getFont()
         love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
-        love.graphics.printf(string.format('%s  •  Seasonal demand %d%%  •  Click a date for its day plan',
-            season.name,math.floor(season.demand*100+.5)),116,235,726,'center')
+        local sponsor=CalendarSponsors[month] or CalendarSponsors[1]
+        love.graphics.printf(string.format('%s  •  SPONSORED BY %s  •  Seasonal demand %d%%',
+            season.name,string.upper(sponsor.sponsor),math.floor(season.demand*100+.5)),116,235,726,'center')
         love.graphics.setFont(originalFont)
 
         local weekdayLabels={'MON','TUE','WED','THU','FRI','SAT','SUN'}
@@ -192,6 +264,7 @@ function Component.install(Runtime)
             local rect={x=x+2,y=y+1,width=cellW-4,height=cellH-3}
             local fill=selected and {.09,.30,.31,1} or today and {.08,.20,.22,1}
                 or hovered and {.08,.15,.18,1} or {.045,.075,.095,1}
+            fill[4]=selected and .92 or today and .78 or hovered and .70 or .58
             local border=selected and {.96,.72,.27,1} or today and {.30,.62,.49,1}
                 or hovered and {.24,.49,.54,1} or {.15,.27,.33,1}
             Runtime.panel(rect,fill,border,2,selected and 2 or 1)
@@ -222,6 +295,9 @@ function Component.install(Runtime)
                 screen.calendarSelectedDay,twelveHourTime)
             Runtime.drawCalendarDayDialog(Runtime,state,year,month,screen.calendarSelectedDay,
                 shopEvents,townEvents,twelveHourTime)
+            if screen.calendarEventComposerOpen then
+                drawEventComposer(Runtime,state,year,month,screen.calendarSelectedDay,twelveHourTime)
+            end
         end
     end
 

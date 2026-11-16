@@ -226,7 +226,7 @@ local function captions(g,w,run,shot)
     end
 end
 
-function Scene.draw(w,h,run,vehicle,art,elapsed)
+function Scene.draw(w,h,run,vehicle,art,elapsed,presentation)
     elapsed=elapsed or Scene.elapsed(run)
     local shot=Scene.shot(run,elapsed)
     vehicle=vehicle or {model=run.vehicleModel or 'box'}
@@ -235,7 +235,9 @@ function Scene.draw(w,h,run,vehicle,art,elapsed)
     local scale=h/H;local width=w/scale
     g.push('all');g.scale(scale,scale)
     sky(g,width,shot.travel)
-    if shot.id=='dock' then docks(g,width) else waterfront(g,width,shot.travel) end
+    if shot.id=='dock' then
+        if presentation and presentation.destination then presentation.destination(g,width) else docks(g,width) end
+    else waterfront(g,width,shot.travel) end
     road(g,width,shot)
     local zoom=1.95*math.min(1,width/860)
     local drift=shot.id=='dock' and 0 or (smooth(shot.localProgress)-.5)*22
@@ -251,7 +253,8 @@ function Scene.draw(w,h,run,vehicle,art,elapsed)
     if shot.fade>0 then
         g.setColor(.035,.075,.09,shot.fade);g.rectangle('fill',0,148,width,439)
     end
-    captions(g,width,run,shot)
+    if presentation and presentation.captions then presentation.captions(g,width,run,shot)
+    else captions(g,width,run,shot) end
     g.pop()
 end
 

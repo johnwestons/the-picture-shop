@@ -35,7 +35,7 @@ local function changed(state)
 end
 function Furniture.materialize(state,starter)
     local home=state.home;home.furniture=home.furniture or Furniture.new();local data=home.furniture
-    for _,kind in ipairs(Catalog.ORDER) do
+    local function materializeKind(kind)
         local count=home.inventory[kind] or 0
         for i=1,count do
             if #data.items>=128 then break end
@@ -45,6 +45,8 @@ function Furniture.materialize(state,starter)
             data.nextId=data.nextId+1;data.items[#data.items+1]=item;home.inventory[kind]=home.inventory[kind]-1
         end
     end
+    for _,kind in ipairs(Catalog.ORDER) do materializeKind(kind) end
+    for _,kind in ipairs(Catalog.STARTER_ORDER or {}) do materializeKind(kind) end
     return data
 end
 function Furniture.ensure(state)
@@ -70,7 +72,9 @@ function Furniture.find(state,id)
     for _,item in ipairs(state.home.furniture and state.home.furniture.items or {}) do if item.id==id then return item end end
 end
 function Furniture.allowed(state,player,action)
-    return Residents.get(state,player)~=nil and ((player.id or 1)==1 or Furniture.ensure(state).permissions[action]==true)
+    return Residents.get(state,player)~=nil and ((player.id or 1)==1
+        or state.home.hostApartmentId and require('src.client_apartments').forPlayer(state,player)==state.home.apartmentId
+        or Furniture.ensure(state).permissions[action]==true)
 end
 function Furniture.footprint(item)
     local entry=Catalog.ITEMS[item.kind]

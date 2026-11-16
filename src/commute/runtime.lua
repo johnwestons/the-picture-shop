@@ -12,6 +12,7 @@ local TruckMechanic=require('src.commute.truck_mechanic')
 local Station=require('src.commute.gas_station')
 local TownStore=require('src.commute.town_store')
 local Residents=require('src.home_residents')
+local ClientApartments=require('src.client_apartments')
 local M=require('src.commute.vendor.mathx')
 local CameraControls=require('src.commute.camera_controls')
 local CameraMenu=require('src.commute.camera_menu')
@@ -22,6 +23,9 @@ local Icons=require('src.commute.ui_icons')
 local DoorTransition=require('src.commute.door_transition')
 local C={}
 local DOOR_PROMPT_RADIUS=3.0
+local function apartmentFor(R,player)
+    return ClientApartments.forPlayer(R.state,player or R.World.player)
+end
 local function sceneTransform(R)
     local width,height=R.Config.baseWidth,R.Config.baseHeight
     if R.Viewport and R.Viewport.fullScreenDevice and R.Viewport.fullScreenDevice() then
@@ -351,6 +355,7 @@ function C.controlContext(R,part,controlsTop)
         elseif atFuelPump then worldActionLabel='FUEL'
         elseif nearDoor(sites['gas-station']) then worldActionLabel='ENTER'
         elseif nearDoor(sites.mechanic) then worldActionLabel='ENTER'
+        elseif nearDoor(sites.clinic) then worldActionLabel='CLINIC'
         else
             local storeId
             for _,id in ipairs({'grocery','general-store','diner'}) do
@@ -359,7 +364,7 @@ function C.controlContext(R,part,controlsTop)
             if storeId then
                 worldActionLabel=storeId=='grocery' and 'ENTER' or 'SHOP'
             elseif trip.independent and (nearDoor(sites.warehouse)
-                or nearDoor(sites[R.state.home.apartmentId])) then worldActionLabel='ENTER'
+                or nearDoor(sites[apartmentFor(R)])) then worldActionLabel='ENTER'
             elseif nearDoor(sites[part.destination or trip.destination]) then worldActionLabel='ENTER'
             elseif nearDoor(sites[part.origin or trip.origin]) then worldActionLabel='ENTER'
             elseif run and run.status=='loading' and nearTruck and Trip.truckAtLoadingBay(world,truck)
@@ -367,11 +372,17 @@ function C.controlContext(R,part,controlsTop)
         end
     end
     if require('src.story_intro').near(R,part) then worldActionLabel='ENTER' end
+    local directable=part and rider and not gear.mounted and rider.vehicle~='truck'
+        and not part.interior and not part.arrived and not gear.transition and not rider.ped.crash
+        and require('src.commute.delivery_traffic').directable(R.state,rider.ped,7)
+    if view.directTruckId then worldActionLabel='RESUME'
+    elseif not worldActionLabel and directable then worldActionLabel='DIRECT' end
     if not controlsTop then controlsTop=select(3,Cockpit.infoLayout(C.mobileInputEnabled(R),rideNotice(R,part))) end
     return {
         cameraMenu=true,controlsTop=controlsTop,mounted=gear.mounted==true or rider and rider.vehicle=='truck',
-        vehicle=rider and rider.vehicle,nearTruck=nearTruck,nearBike=nearBike,gearNearBike=gearNearBike,
-        bikeInventoryAvailable=bikeInventoryAvailable,
+        vehicle=rider and rider.vehicle,nearTruck=nearTruck and not view.directTruckId,
+        nearBike=nearBike and not view.directTruckId,gearNearBike=gearNearBike and not view.directTruckId,
+        bikeInventoryAvailable=bikeInventoryAvailable,directing=view.directTruckId~=nil,
         cardX=C.cardX(R),
         vehicleActionLabel=vehicleActionLabel,worldActionLabel=worldActionLabel,atFuelPump=atFuelPump,
         engine=isTruck and truck.engine~=false or not isTruck and gear.engine==true,gearOutfit=gear.outfit,
@@ -414,7 +425,7 @@ local function nearbyDoor(R,part,trip,view)
         add('general-store')
         add('diner')
         if trip.independent then
-            add('warehouse');add(R.state.home.apartmentId)
+            add('warehouse');add(apartmentFor(R))
         else
             add(part.destination or trip.destination)
             add(part.origin or trip.origin)
@@ -575,7 +586,7 @@ function C.setWaypoint(R,id)
     local condition=require('src.warehouse_condition').of(R.state)
     if trip.independent and part and condition and condition.mode=='story'
         and condition.grandpaMet and not condition.grandOpened
-        and (id=='warehouse' or id==R.state.home.apartmentId) then
+        and (id=='warehouse' or id==apartmentFor(R)) then
         local clearing=C.activeWaypoint(R)==id
         local action=clearing and 'routeclear:'
             or (id=='warehouse' and 'routework:' or 'routehome:')
@@ -585,7 +596,7 @@ function C.setWaypoint(R,id)
         C.refreshNavigation(R,C.localPart(R),0,true)
         return true
     end
-    if trip.independent and part and (id=='warehouse' or id==R.state.home.apartmentId) then
+    if trip.independent and part and (id=='warehouse' or id==apartmentFor(R)) then
         if not C.request(R,(id=='warehouse' and 'routework:' or 'routehome:')..trip.token) then return false end
     end
     local view=R._commute
@@ -636,7 +647,7 @@ function C.mapPointer(R,x,y,source)
             local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
             if view.routeMap:pressControl(mapRect,x,y,mobile,button.x-8,actor) then return true end
             local mapOptions=view.routeMap:uiOptions(mobile,button.x-8)
-            mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
+            mapOptions.destination=C.activeWaypoint(R);mapOptions.home=apartmentFor(R)
             local id=view.routeMap:hit(mapRect,x,y,actor,mapOptions)
             if id then C.setWaypoint(R,id) end
             if not id and view.routeMap.mainZoom>1 then
@@ -664,7 +675,7 @@ function C.mapPointer(R,x,y,source)
             if view.routeMap:pressMiniFollow(rect,x,y,actor) then return true end
             if view.routeMap:pressMiniZoom(rect,x,y) then return true end
             local id=view.routeMap:hitMini(rect,x,y,actor,{destination=C.activeWaypoint(R),
-                home=R.state.home.apartmentId})
+                home=apartmentFor(R)})
             if id then C.setWaypoint(R,id) end
             -- Marker taps choose a route in place. The separate MAP button
             -- remains the deliberate way to open the full town map.
@@ -725,7 +736,7 @@ function C.drawMap(R,part)
         local trip=C.localTrip(R)
         local mobile=C.mobileInputEnabled(R)
         local mapOptions=view.routeMap:uiOptions(mobile,button.x-8)
-        mapOptions.origin=trip.origin;mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
+        mapOptions.origin=trip.origin;mapOptions.destination=C.activeWaypoint(R);mapOptions.home=apartmentFor(R)
         mapOptions.bike=not part.rider.gear.mounted and part.rider.bike or nil
         mapOptions.route=view.navigationRoute
         mapOptions.traffic=mapTraffic
@@ -742,7 +753,7 @@ function C.drawMap(R,part)
         end
         local miniRect=C.miniMapRect(R)
         view.routeMap:drawMini(miniRect,Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token)),{
-            destination=C.activeWaypoint(R),home=R.state.home.apartmentId,route=view.navigationRoute,
+            destination=C.activeWaypoint(R),home=apartmentFor(R),route=view.navigationRoute,
             players=otherPlayers,traffic=mapTraffic,resizeHandle=true})
         C.drawMiniMapResizeHandle(miniRect)
     end
@@ -930,7 +941,16 @@ function C.restore(R)
     local part=C.localPart(R);if part then C.syncPlayer(R.World.player,part) end
 end
 function C.bind(R,player,connected)
-    if not C.hasWorld(R) then return true end
+    if not C.hasWorld(R) then
+        local resident=Residents.get(R.state,player)
+        if (player.id or 1)>1 and resident and resident.clientArrivalDone then
+            require('src.home_travel').placeArrival(R.state,{player},resident.sceneId=='home',{
+                resolveShopSpawn=function(x,y,id,party)
+                    return R.World.resolveNetworkSpawn(x,y,id,R.Assets,R.state,party)
+                end})
+        end
+        return true
+    end
     local okay,part=Trip.rebind(R.state,player,connected,C.world(R))
     if okay and part then C.syncPlayer(player,part)
     elseif okay then
@@ -940,6 +960,61 @@ function C.bind(R,player,connected)
     end
     return okay,part
 end
+-- A first-time client enters the same town road as the story rider, with
+-- motorcycle controls available immediately. The participant remains in the
+-- shared outdoor trip, so the host and other clients can travel independently.
+function C.startGuestArrival(R,player,connected)
+    local apartment=ClientApartments.forPlayer(R.state,player)
+    if not apartment then return false,'This client has no assigned apartment.' end
+    local world=C.world(R)
+    local plan,reason=require('src.story_arrival').plan(world)
+    if not plan then return false,reason end
+    local trip=R.state.home.commute
+    if trip and not trip.independent then
+        return false,'Finish the current group journey before a new client joins.'
+    end
+    local part=trip and trip.participants[Residents.key(player)]
+    if not part then
+        local entered
+        entered,reason=require('src.commute.free_travel').enter(R.state,player,world,nil,connected)
+        if not entered then return false,reason end
+        trip=R.state.home.commute
+        part=trip.participants[Residents.key(player)]
+    end
+    -- The route begins exactly on the map edge. A motorcycle's collision
+    -- circle would overlap the travel limit there and prevent all movement.
+    local first,second
+    local radius=require('src.commute.motorcycle').RADIUS+.2
+    for i=2,math.min(#plan.points-1,12) do
+        local candidate=plan.points[i]
+        local clear=true
+        for _,offset in ipairs({{-1,0},{1,0},{0,-1},{0,1},{-.71,-.71},{-.71,.71},{.71,-.71},{.71,.71}}) do
+            if world.roads:blocked(world,candidate.x+offset[1]*radius,candidate.z+offset[2]*radius,true) then
+                clear=false;break
+            end
+        end
+        if clear then first,second=candidate,plan.points[i+1];break end
+    end
+    if not first then return false,'The bridge has no clear motorcycle arrival point.' end
+    local heading=math.atan2(second.z-first.z,second.x-first.x)
+    local rider=part.rider
+    rider.vehicle=nil;rider.transport=nil
+    rider.gear.outfit='geared';rider.gear.mounted=true;rider.gear.engine=true
+    rider.gear.transition=nil;rider.gear.revision=(rider.gear.revision or 0)+1
+    local bike=rider.bike
+    bike.x,bike.z,bike.heading=first.x,first.z,heading
+    bike.speed=0;bike.vx=0;bike.vz=0;bike.throttle=0;bike.brake=0
+    bike.h=world:supportHeight(first.x,first.z)
+    bike.vy=0;bike.grounded=true
+    bike.safeX,bike.safeZ,bike.safeHeading=first.x,first.z,heading
+    rider.ped.x,rider.ped.z,rider.ped.heading=first.x,first.z,heading
+    require('src.commute.motorcycle').resetContact(bike,world)
+    part.origin='warehouse';part.destination=apartment;part.arrived=false
+    part.presentation=nil
+    C.syncPlayer(player,part)
+    R.state.home.revision=R.state.home.revision+1
+    return true
+end
 local actions={grocery=true,exitgrocery=true,equip=true,remove=true,mount=true,dismount=true,arrive=true,load_delivery=true,deliver_stop=true,finish=true,force=true,cancel=true,
     enterhome=true,enterwork=true,
     routehome=true,routework=true,routeclear=true,
@@ -947,6 +1022,14 @@ local actions={grocery=true,exitgrocery=true,equip=true,remove=true,mount=true,d
     signalLeft=true,signalRight=true,radioPrevious=true,radioPlay=true,radioNext=true,radioMute=true}
 function C.decode(command)
     if type(command)~='string' or #command>80 then return nil end
+    local clinicToken,clinicRevision,clinicPrice=command:match('^clinic:(%d+):(%d+):(%d+)$')
+    if clinicToken then
+        clinicToken,clinicRevision,clinicPrice=tonumber(clinicToken),tonumber(clinicRevision),tonumber(clinicPrice)
+        if clinicToken>=1 and clinicToken<=1e12 and clinicRevision<=1e12 and clinicPrice<=1e12 then
+            return 'clinic',clinicToken,{revision=clinicRevision,price=clinicPrice}
+        end
+        return nil
+    end
     local stationToken,revision,item,amount=command:match('^station:(%d+):(%d+):([a-z]+):(%d+)$')
     if stationToken then
         local token,rev=tonumber(stationToken),tonumber(revision)
@@ -1078,6 +1161,22 @@ function C.decode(command)
         return nil
     end
     if command=='remove' then return 'remove',0 end
+    local directToken,directId=command:match('^directstart:(%d+):([%w_:%-]+)$')
+    if directToken and tonumber(directToken)>=1 and tonumber(directToken)<=1e12
+        and #directId<=64 then return 'directstart',tonumber(directToken),{id=directId} end
+    local moveToken,moveX,moveZ=command:match('^directmove:(%d+):([%-]?%d+):([%-]?%d+)$')
+    if moveToken then
+        moveX,moveZ=tonumber(moveX),tonumber(moveZ)
+        if tonumber(moveToken)>=1 and tonumber(moveToken)<=1e12
+            and moveX>=-100 and moveX<=100 and moveZ>=-100 and moveZ<=100 then
+            return 'directmove',tonumber(moveToken),{x=moveX/100,z=moveZ/100}
+        end
+        return nil
+    end
+    local stopToken=command:match('^directstop:(%d+)$')
+    if stopToken and tonumber(stopToken)>=1 and tonumber(stopToken)<=1e12 then
+        return 'directstop',tonumber(stopToken)
+    end
     local action;action,token=command:match('^([%a_]+):(%d+)$');token=tonumber(token)
     if not actions[action] or not token or token<1 or token>1e12 then return nil end
     return action,token
@@ -1086,14 +1185,40 @@ function C.command(R,player,command)
     local action,token,intent=C.decode(command)
     if not action then return false,'invalid_action','Choose an available riding action.','commute' end
     local okay,message,event
-    if action=='enterhome' or action=='enterwork' then
+    if require('src.player_medical').blocked(R.state,player) then return false,'busy','Recover before continuing.','commute' end
+    if action=='directstart' or action=='directmove' or action=='directstop' then
+        local part=Trip.participant(R.state,player,token)
+        if not part or player.sceneId~='commute' or part.interior or part.arrived
+            or part.rider.vehicle=='truck' or part.rider.gear.mounted or part.rider.gear.transition
+            or part.rider.ped.crash then
+            return false,'wrong_scene','Stand beside the stopped delivery truck.','commute'
+        end
+        local traffic=require('src.commute.delivery_traffic')
+        local accepted,detail
+        if action=='directstart' then
+            accepted,detail=traffic.beginDirect(R.state,player.id or 1,part.rider.ped,intent.id)
+        elseif action=='directstop' then
+            accepted,detail=traffic.endDirect(R.state,player.id or 1)
+        else
+            accepted,detail=traffic.moveDirect(R.state,player.id or 1,part.rider.ped,
+                intent.x,intent.z,C.world(R))
+        end
+        if accepted and action=='directmove' and R.multiplayer:isHost() then R.multiplayer:markShopDirty() end
+        if accepted and action=='directstop' then R.saveCurrent() end
+        return accepted,accepted and 'accepted' or 'not_allowed',detail,'commute'
+    end
+    if action=='clinic' then
+        local part=Trip.participant(R.state,player,token)
+        if not part then return false,'wrong_scene','This clinic visit has ended.','commute' end
+        okay,message=require('src.player_medical').treat(R.state,player,intent.revision,C.world(R),intent.price)
+    elseif action=='enterhome' or action=='enterwork' then
         local part,t=Trip.participant(R.state,player,token)
         if not part or not t.independent or part.arrived or part.interior
             or player.sceneId~='commute' or t.deliveryRun then
             okay,message=false,'Walk up to the apartment or Picture Shop entrance.'
         else
             local previous=part.destination
-            part.destination=action=='enterwork' and 'warehouse' or R.state.home.apartmentId
+            part.destination=action=='enterwork' and 'warehouse' or apartmentFor(R,player)
             local accepted,code,detail,kind=C.command(R,player,'finish:'..token)
             if not accepted then part.destination=previous end
             return accepted,code,detail,kind
@@ -1109,7 +1234,7 @@ function C.command(R,player,command)
         end
     elseif action=='routehome' or action=='routework' then
         local part,t=Trip.participant(R.state,player,token)
-        local id=action=='routework' and 'warehouse' or R.state.home.apartmentId
+        local id=action=='routework' and 'warehouse' or apartmentFor(R,player)
         if not part or not t.independent or part.arrived or part.interior
             or player.sceneId~='commute' or t.deliveryRun
             or not C.world(R).roads.destinations[id] then
@@ -1249,6 +1374,7 @@ function C.request(R,command)
     return okay
 end
 function C.localInput(R)
+    if require('src.medical_ui').modal(R) then return 0,0,false end
     if R._commute and R._commute.doorTransition then return 0,0,false end
     local x,y=R.Input.movement();local part=C.localPart(R)
     if part and part.interior then
@@ -1301,6 +1427,7 @@ local function input(rider,x,y,boost)
         or {walkX=x,walkZ=y,sprint=boost==true}
 end
 function C.update(R,dt,x,y,boost,cinematic)
+    if require('src.medical_ui').modal(R) then x,y,boost=0,0,false end
     if require('src.story_intro').dialogueOpen(R) then x,y,boost=0,0,false end
     local transitionView=R._commute
     if transitionView and transitionView.doorTransition
@@ -1318,8 +1445,26 @@ function C.update(R,dt,x,y,boost,cinematic)
         require('src.commute.mechanic_shop').close(R,true)
     end
     if R._commute and R._commute.mechanicOffer then require('src.commute.mechanic_shop').update(R,dt) end
+    local directView=R._commute
+    if directView and directView.directTruckId and not cinematic then
+        directView.directClock=(directView.directClock or 0)+dt
+        if directView.directClock>=.12 then
+            directView.directClock=0
+            local trip=C.localTrip(R)
+            if trip then
+                local dx=math.floor(math.max(-1,math.min(1,x or 0))*100+.5)
+                local dz=math.floor(math.max(-1,math.min(1,y or 0))*100+.5)
+                if C.request(R,('directmove:%d:%d:%d'):format(trip.token,dx,dz))==false then
+                    directView.directTruckId=nil
+                end
+            end
+        end
+        x,y,boost=0,0,false
+    end
     local dirty=false
-    if not cinematic and not R.multiplayer:isClient() then
+    -- A disconnected guest retains the last replicated trip until the next
+    -- join replaces its state. Its snapshot rider is not a live physics actor.
+    if not cinematic and not R.multiplayer:isClient() and (R.World.player.id or 1)==1 then
         local players=require('src.weekend_runtime').players(R)
         R._commute=R._commute or {}
         local traffic= require('src.commute.delivery_traffic')
@@ -1463,10 +1608,20 @@ function C.update(R,dt,x,y,boost,cinematic)
             view.camera:setOutsideMode('follow',actor,rider.gear.mounted and not rider.gear.transition)
             view.camera.targetZoom=rider.gear.mounted and 1.18 or 1.35
             view.camera.offsetY=rider.gear.mounted and -110 or 0
-        else C.applyCameraPreference(R,view.camera,rider) end
+        elseif not view.directTruckId then C.applyCameraPreference(R,view.camera,rider) end
         view.camera.persistentFollowOrbit=storyRide==true
         if not rider.gear.mounted or rider.vehicle=='truck' or not M.finite(actor.h) then actor.h=world:supportHeight(actor.x,actor.z) end
-        view.camera:updateRide(rider,dt,visual)
+        local directed=view.directTruckId
+            and require('src.commute.delivery_traffic').directedVehicle(R.state,view.directTruckId)
+        if directed and not cinematic then
+            if view.camera.firstPerson then view.camera:setFirstPerson(false,directed) end
+            if view.camera.outsideMode~='follow' then view.camera:setOutsideMode('follow',directed,true) end
+            view.camera.followMounted=true
+            view.camera:update(directed,dt)
+        else
+            if view.directTruckId then view.directTruckId=nil end
+            view.camera:updateRide(rider,dt,visual)
+        end
         C.refreshNavigation(R,part,dt,false)
         if (not cinematic or storyRide) and R.state.screen=='world' and not view.mechanicOffer
             and not view.loading and not view.mapOpen and (storyRide
@@ -1557,6 +1712,8 @@ function C.draw(R,cinematic)
         local player=p.slot==localId and R.World.player or playersById[p.slot]
         if player and Residents.key(player)~=id then player=nil end
         local r=C.visualRider(p,player,R.state.home.commute.token)
+        local health=R.state.home.residents[id] and R.state.home.residents[id].medical
+        r.ped.medicalCollapsed=health and health.phase~=nil or false
         if view.renderer and view.renderer.footTracks then
             local localWalking=p==part and view.controlFeedback and (view.controlFeedback.speed or 0)>.01
             local walking=player~=nil and player.sceneId=='commute'
@@ -1660,6 +1817,16 @@ function C.draw(R,cinematic)
     g.push()
     if cabViewport then g.translate(cabViewport.x,cabViewport.y) end
     view.renderer:draw(renderCamera,actor,actors,R.App.settings)
+    if view.directTruckId then
+        local directed=require('src.commute.delivery_traffic').directedVehicle(R.state,view.directTruckId)
+        if directed then
+            local sx,sy=renderCamera:screen(directed.x,directed.z,(directed.h or 0)+2)
+            g.setColor(1,.83,.28,.95);g.setLineWidth(3)
+            g.circle('line',sx,sy,48+6*math.sin(love.timer.getTime()*5))
+            g.setColor(1,1,1,1)
+            C.touch(R):drawAim(view.camera,directed,directed)
+        end
+    end
     require('src.story_intro').drawWorld(R,renderCamera)
     local labelCamera=renderCamera.shoulderView or renderCamera
     for _,entry in ipairs(nameplates) do
@@ -1815,6 +1982,13 @@ end
 local function performWorldAction(R)
     local trip=C.localTrip(R);local part=C.localPart(R)
     if not trip or not part then return false end
+    local view=R._commute
+    if view and view.directTruckId then
+        C.request(R,'directstop:'..trip.token)
+        view.directTruckId=nil;view.directClock=nil
+        return true
+    end
+    if require('src.medical_ui').openClinic(R) then return true end
     if require('src.story_intro').open(R) then return true end
     if trip.deliveryRun and trip.deliveryRun.status=='offmap' then return true end
     if part.arrived then
@@ -1851,8 +2025,8 @@ local function performWorldAction(R)
     if trip.independent and not trip.deliveryRun and onFootAtDoor(sites.warehouse) then
         return beginDoorTransition(R,'enterwork',trip.token,'warehouse')
     end
-    if trip.independent and not trip.deliveryRun and onFootAtDoor(sites[R.state.home.apartmentId]) then
-        return beginDoorTransition(R,'enterhome',trip.token,R.state.home.apartmentId)
+    if trip.independent and not trip.deliveryRun and onFootAtDoor(sites[apartmentFor(R)]) then
+        return beginDoorTransition(R,'enterhome',trip.token,apartmentFor(R))
     end
     if near(sites[part.destination or trip.destination]) then
         return beginDoorTransition(R,'arrive',trip.token,part.destination or trip.destination)
@@ -1865,6 +2039,12 @@ local function performWorldAction(R)
         local selected=Trip.truckFor(rider,trip)
         if selected and selected.model~=truck.model then return true end
         return C.request(R,'load_delivery:'..trip.token)
+    end
+    local candidate=require('src.commute.delivery_traffic').directable(R.state,rider.ped,7)
+    if candidate and C.request(R,'directstart:'..trip.token..':'..candidate.id) then
+        R._commute.directTruckId=candidate.id;R._commute.directClock=0
+        C.cancelCameraDrag(R)
+        return true
     end
     return true
 end
@@ -1990,6 +2170,10 @@ function C.perform(R,id)
         return true
     end
     local part=C.localPart(R)
+    if R._commute and R._commute.directTruckId
+        and (id=='interact' or id=='worldAction' or id=='dismount') then
+        return performWorldAction(R)
+    end
     if part and part.interior=='barn' then
         if id=='interact' or id=='worldAction' then
             require('src.commute.barn_interior').interact(R,part)

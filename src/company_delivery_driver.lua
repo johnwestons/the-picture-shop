@@ -146,10 +146,10 @@ function CompanyTruck.vehicleHidden(state,vehicle)
     local truck=state and state.employment and state.employment.companyTruck
     if not truck or not truck.deliveryRun or (vehicle.model or 'box')~=(truck.vehicleModel or 'box') then return false end
     local stage=truck.departureStage
-    return stage~='warehouse_exit' and stage~='outside_walk' and stage~='boarding'
+    return truck.exterior~=nil or stage~='warehouse_exit' and stage~='outside_walk' and stage~='boarding'
 end
 
-function CompanyTruck.updateExterior(state,world,epoch,now,dt)
+function CompanyTruck.updateExterior(state,world,epoch,now,dt,assignment)
     local truck=state and state.employment and state.employment.companyTruck
     if not truck or not world or not world.sites or not world.sites.byId.warehouse then return false end
     epoch=finite(epoch) and epoch or os.time()
@@ -158,24 +158,33 @@ function CompanyTruck.updateExterior(state,world,epoch,now,dt)
     local changed=false
     local stage=truck.departureStage
     local started=truck.departureStartedAtEpoch
-    if stage=='outside_walk' or stage=='boarding' then
-        if not started then truck.departureStartedAtEpoch=epoch;return true end
-        if epoch-started<(stage=='outside_walk' and 2.2 or 1.15) then return false end
-        truck.departureStage=stage=='outside_walk' and 'boarding' or 'truck_departure'
-        truck.departureStartedAtEpoch=epoch;truck.revision=truck.revision+1
-        return true
-    end
-    if stage=='truck_departure' and not truck.exterior then
+    if stage and not truck.exterior then
         vehicle=vehicle or require('src.commute.trip').truckParking(world,truck,truck.vehicleModel)
         if not vehicle then return false end
         truck.exterior=Motion.start(vehicle,world)
+        truck.exterior.toDock=truck.deliveryRun and truck.deliveryRun.status=='loading' or false
+        truck.exterior.departedAtEpoch=epoch
+        if truck.exterior.toDock and require('src.commute.trip').truckAtLoadingBay(world,vehicle) then
+            truck.exterior.phase='queue';truck.exterior.vehicle.phase='at_bay'
+        end
         truck.exterior.vehicle.fuel=truck.fuelLiters
         TruckService.applyFleet(truck.exterior.vehicle,state.home.truckFleet)
         truck.exterior.vehicle.engine=truck.fuelLiters>0
             and not truck.exterior.vehicle.service.mechanicalFailure
         changed=true
     end
+    if stage=='warehouse_exit' then return changed end
+    if stage=='outside_walk' or stage=='boarding' then
+        if not started then truck.departureStartedAtEpoch=epoch;return true end
+        if epoch-started<(stage=='outside_walk' and 2.2 or 1.15) then return changed end
+        truck.departureStage=stage=='outside_walk' and 'boarding' or 'truck_departure'
+        truck.departureStartedAtEpoch=epoch;truck.revision=truck.revision+1
+        return true
+    end
     local motion=truck.exterior
+    if motion and motion.phase=='loading' and truck.deliveryRun and truck.deliveryRun.status=='driving' then
+        truck.exterior=Motion.start(motion.vehicle,world);motion=truck.exterior
+    end
     if not motion and truck.status=='returning' and truck.nextActionAtHours==nil then
         local home=world.sites.byId.warehouse.truckHomeParking[truck.vehicleModel or 'box']
         local source=vehicle or DeliveryTruck.new(home.x,home.z,home.heading,'picture_shop',truck.vehicleModel)
@@ -193,7 +202,7 @@ function CompanyTruck.updateExterior(state,world,epoch,now,dt)
     local okay,result=require('src.ai_watchdog').protect(state,'company-yard-controller:'..(truck.vehicleModel or 'box'),
         {system='Shop yard protocol',subject='Company truck',stage=motion.phase,
             x=motion.vehicle.x,z=motion.vehicle.z,visible=Motion.visible(motion),scope='world-simulation'},
-        function()return Motion.update(motion,world,dt,state)end,
+        function()return Motion.update(motion,world,dt,state,assignment)end,
         function()
             world.activeTruck=nil;require('src.commute.yard_rail').stop(motion.vehicle)
             local moved,reason=Motion.recover(motion,world,state)
@@ -646,7 +655,11 @@ function CompanyTruck.update(state,now,activeRunOnly)
         end
         return false
     end
-    if playerHasTruck(state) then return false end
+    if playerHasTruck(state) then
+        local worker=workerById(state,truck.preferredDriverEmployeeId or truck.pendingDriverEmployeeId)
+        if worker then worker.activity='Release the delivery truck; it is assigned to a player.' end
+        return false
+    end
     local worker=availableDriver(state,now,truck)
     if not worker then return false end
     if truck.pendingDriverEmployeeId==worker.id and (worker.assignment or worker.training) then return false end
@@ -682,7 +695,25 @@ function CompanyTruck.update(state,now,activeRunOnly)
             return true
         end
     end
-    local loaded,message=Run.load(state,run)
+    local trip=state.home and state.home.commute
+    local vehicle=trip and trip[run.vehicleModel=='kei' and 'keiTruck' or 'truck']
+    local fleet=state.home.truckFleet and state.home.truckFleet[run.vehicleModel]
+    if fleet and fleet.service and fleet.service.mechanicalFailure then
+        worker.activity='Repair the delivery truck before I can drive it.'
+        state.message=worker.activity;return false
+    end
+    if vehicle then
+        local sites=require('src.commute.sites').create(state.home.town and
+            {placements=state.home.town.placements,designs=state.home.town.designs} or nil)
+        local site=sites.byId.warehouse
+        local x,z=site:toLocal(vehicle.x,vehicle.z)
+        local reason
+        if math.abs(x)>32 or math.abs(z)>40 then reason='Bring the delivery truck back to the shop parking lot.'
+        elseif vehicle.service and vehicle.service.mechanicalFailure then reason='Repair the delivery truck before I can drive it.'
+        elseif vehicle.owner or vehicle.driver then reason='Release the delivery truck; it is assigned to a player.' end
+        if reason then worker.activity=reason;state.message=reason;return false end
+    end
+    local loaded,message=Run.reserve(state,run)
     if not loaded then
         state.message=message
         if truck.pendingDriverEmployeeId==worker.id then

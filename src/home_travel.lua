@@ -163,7 +163,9 @@ function Travel.placeArrival(state,players,goingHome,context)
     context=context or {}
     for _,p in ipairs(players) do
         local x,y
-        if goingHome then x,y=Layout.spawn(state,p.id or 1)
+        if goingHome then
+            local home=require('src.client_households').forPlayer(state,p) or state.home
+            x,y=Layout.spawn({home=home},p.homeResidentId and 1 or p.id or 1)
         else
             local points=require("src.warehouse_registration").exitPoints
             local point=points[p.id or 1] or points[1];x,y=point.x,point.y

@@ -130,8 +130,10 @@ local Config = {
     vendor = {
         character = "tan-cat", drawScale = 0.30, speed = 68, walkAnimationRate = 4,
         useAnimationRate = 2.5,
-        initialArrivalDelayMin = 15, initialArrivalDelayMax = 35,
-        arrivalDelayMin = 120, arrivalDelayMax = 240,
+        -- Visit timers advance during the shop's 11 weekday open hours.
+        -- A 10–20 weekday cooldown yields roughly one or two visits per month.
+        initialArrivalDelayMin = 5500, initialArrivalDelayMax = 11000,
+        arrivalDelayMin = 5500, arrivalDelayMax = 11000,
         interactionRadius = 58,
         route = {
             { x = 645, y = 235 }, { x = 650, y = 245 }, { x = 640, y = 270 },

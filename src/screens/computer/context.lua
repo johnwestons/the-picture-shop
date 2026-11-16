@@ -54,11 +54,21 @@ function Component.install(Runtime)
         calendarSelectedDay = nil,
         calendarDayOpen = false,
         calendarDayScroll = 0,
+        calendarSelectedEventId = nil,
+        calendarEventComposerOpen = false,
+        calendarEventTitle = "",
+        calendarEventDetail = "",
+        calendarEventHour = nil,
+        calendarEventTitleFocused = false,
+        calendarEventDetailFocused = false,
+        calendarEventEditingId = nil,
+        calendarEventError = nil,
         retailPage = 1,
         wwwSite = 1,
         cart = {},
         cartOpen = false,
         cartPage = 1,
+        deliveryService = "same_day",
         machinePage = 1,
         wwwSiteChangedAt = 0,
         tabDropdownOpen = false,
@@ -159,15 +169,17 @@ function Component.install(Runtime)
     Runtime.CART_BACK = { x = 116, y = 540, width = 126, height = 40 }
     Runtime.CART_CLEAR = { x = 252, y = 540, width = 126, height = 40 }
     Runtime.CART_CHECKOUT = { x = 648, y = 540, width = 190, height = 40 }
+    Runtime.CART_SAME_DAY = { x = 450, y = 202, width = 126, height = 32 }
+    Runtime.CART_THREE_DAY = { x = 584, y = 202, width = 126, height = 32 }
     Runtime.CART_PREVIOUS = { x = 410, y = 544, width = 42, height = 32 }
     Runtime.CART_NEXT = { x = 516, y = 544, width = 42, height = 32 }
     Runtime.CART_PAGE_SIZE = 7
     Runtime.PAY_BILLS = { x = 612, y = 508, width = 196, height = 42 }
-    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 484, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 484, width = 186, height = 36 }
-    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 444, width = 392, height = 20 }
-    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 540, width = 186, height = 44 }
-    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 540, width = 186, height = 44 }
+    Runtime.EMAIL_QUOTE_INPUT = { x = 434, y = 514, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_QUOTE_INPUT = { x = 640, y = 514, width = 186, height = 36 }
+    Runtime.EMAIL_DELIVERY_TOGGLE = { x = 434, y = 456, width = 392, height = 36 }
+    Runtime.EMAIL_ESTIMATE_SEND = { x = 640, y = 572, width = 186, height = 44 }
+    Runtime.EMAIL_ESTIMATE_DECLINE = { x = 434, y = 572, width = 186, height = 44 }
     Runtime.EMAIL_ACCEPT = { x = 640, y = 470, width = 186, height = 40 }
     Runtime.EMAIL_DECLINE = { x = 434, y = 526, width = 186, height = 44 }
     Runtime.EMAIL_DELETE = { x = 640, y = 526, width = 186, height = 44 }
@@ -187,10 +199,22 @@ function Component.install(Runtime)
     Runtime.CAL_DAY_DIALOG = { x = 112, y = 190, width = 736, height = 394 }
     Runtime.CAL_DAY_CLOSE = { x = 794, y = 199, width = 38, height = 30 }
     Runtime.CAL_DAY_LIST = { visibleRows = 5, rowHeight = 45,
-        shop = { x = 128, y = 266, width = 430, height = 264 },
-        town = { x = 572, y = 266, width = 260, height = 264 } }
+        shop = { x = 128, y = 266, width = 430, height = 276 },
+        town = { x = 572, y = 266, width = 260, height = 276 } }
     Runtime.CAL_DAY_SCROLL_UP = { x = 460, y = 541, width = 44, height = 24 }
     Runtime.CAL_DAY_SCROLL_DOWN = { x = 510, y = 541, width = 48, height = 24 }
+    Runtime.CAL_DAY_ADD_EVENT = { x = 572, y = 541, width = 78, height = 24 }
+    Runtime.CAL_DAY_EDIT_EVENT = { x = 654, y = 541, width = 78, height = 24 }
+    Runtime.CAL_DAY_REMOVE_EVENT = { x = 736, y = 541, width = 96, height = 24 }
+    Runtime.CAL_EVENT_DIALOG = { x = 220, y = 203, width = 520, height = 370 }
+    Runtime.CAL_EVENT_TITLE_INPUT = { x = 244, y = 283, width = 472, height = 36 }
+    Runtime.CAL_EVENT_DETAIL_INPUT = { x = 244, y = 347, width = 472, height = 66 }
+    Runtime.CAL_EVENT_TIME = { x = 244, y = 424, width = 472, height = 34 }
+    Runtime.CAL_EVENT_TIME_TOGGLE = { x = 244, y = 424, width = 116, height = 34 }
+    Runtime.CAL_EVENT_HOUR_PREVIOUS = { x = 370, y = 424, width = 42, height = 34 }
+    Runtime.CAL_EVENT_HOUR_NEXT = { x = 664, y = 424, width = 52, height = 34 }
+    Runtime.CAL_EVENT_CANCEL = { x = 470, y = 510, width = 112, height = 36 }
+    Runtime.CAL_EVENT_SAVE = { x = 594, y = 510, width = 122, height = 36 }
     Runtime.MACHINE_OFFER = { x = 116, y = 304, width = 354, height = 50, gap = 5 }
     Runtime.OWNED_MACHINE = { x = 484, y = 304, width = 354, height = 56, gap = 5 }
     Runtime.ComputerScreen.machinePageSize = 4

@@ -183,6 +183,21 @@ local function employeeRun(context,check,town,world)
         and Company.ensure(state).pendingDriverEmployeeId==worker.id and JackFleet.owned(state,worker.id))
     AI.worker(state,worker,.1,now,{jackParkingPoint=function()return nil end})
     check('employee_delivery_releases_jack_before_boarding',not JackFleet.owned(state,worker.id))
+    -- An employee must never fetch a distant or broken truck by teleporting it.
+    local parked=assert(require('src.commute.trip').truckParking(world,Company.ensure(state),'box'))
+    local px,pz=parked.x,parked.z
+    state.home.commute={truck=parked}
+    parked.x,parked.z=world.sites.byId.warehouse:toWorld(60,0,0)
+    Company.update(state,now)
+    check('employee_delivery_reports_truck_outside_shop',not Company.ensure(state).deliveryRun
+        and require('src.employee_speech').reason(worker.activity)==require('src.employee_speech').DELIVERY_TRUCK_AWAY
+        and a.pallets[1].location=='warehouse')
+    parked.x,parked.z=px,pz
+    parked.service=require('src.commute.truck_service').new();parked.service.mechanicalFailure=true
+    Company.update(state,now)
+    check('employee_delivery_reports_broken_truck',not Company.ensure(state).deliveryRun
+        and require('src.employee_speech').reason(worker.activity)==require('src.employee_speech').DELIVERY_TRUCK_REPAIR)
+    state.home.commute=nil
     -- Coordinates belong to the current room until scene travel completes.
     worker.sceneId='front_left'
     local startX,startY=worker.x,worker.y
@@ -198,9 +213,12 @@ local function employeeRun(context,check,town,world)
     worker.sceneId='warehouse'
     local company=Company.ensure(state)
     local run=company.deliveryRun
+    Company.updateExterior(state,world,os.time(),now,0)
+    check('employee_delivery_truck_visible_before_driver_boards',company.exterior
+        and #Company.actors(state,world,os.time())==1 and company.exterior.vehicle.speed==0)
     check('multi_job_employee_dispatch_batches_ten_pallets_from_three_clients',run and run.palletCount==10
         and #run.jobIds==3 and run.stops[1].id=='grocery' and #run.stops==3
-        and company.vehicleModel=='box' and select(1,Run.loadingProgress(state,run))==10,
+        and company.vehicleModel=='box' and select(1,Run.loadingProgress(state,run))==0,
         ('run=%s status=%s pending=%s activity=%s shift=%.2f-%.2f message=%s'):
             format(tostring(run and run.palletCount),tostring(company.status),
                 tostring(company.pendingDriverEmployeeId),tostring(worker.activity),
@@ -211,12 +229,36 @@ local function employeeRun(context,check,town,world)
     local warehouse=context.world;warehouse.load();warehouse._state=state
     warehouse.player.x,warehouse.player.y=930,640
     warehouse.configureEmployees({players=function()return {} end,canClaim=function()return false end})
+    local Routes=require('src.commute.routes')
+    local Path=require('src.commute.driving_path')
+    local queuePlanner=Routes.new(world.roads,{includeTruckOnly=true,pavedOnly=true,destinations=world.truckDestinations})
+    local inward=assert(queuePlanner:findFromPoint(world.mainlandExit.x,world.mainlandExit.z,'warehouse_truck_dock')).points
+    local freight={id='freight',delivery={status='pending_arrival',route={departedAtEpoch=1,vehicle={phase='at_bay'}}}}
+    local own={id='company-delivery-truck',delivery={status='pending_arrival',route={departedAtEpoch=2}}}
+    local routing={world=world,inward=inward,length=Path.length(inward)}
+    local plan=require('src.commute.warehouse_queue').plan({own,freight},routing,false,3,require('src.commute.delivery_traffic').lanePosition)
+    check('employee_delivery_shares_freight_dock_queue',plan[freight.delivery.route].target=='dock'
+        and plan[own.delivery.route].target=='waiting-1')
+    plan=require('src.commute.warehouse_queue').plan({own},routing,false,3,require('src.commute.delivery_traffic').lanePosition)
+    check('employee_delivery_queue_advances_when_freight_clears',plan[own.delivery.route].target=='dock')
+    customer.pickup.dispatchAtHours=now+100
     local epoch=os.time()
-    local resumedDeparture=false
-    for step=1,1800 do
+    local resumedDeparture=false;local loadDone=false
+    for step=1,4000 do
         Calendar.update(state,.1);now=Calendar.absoluteHours(state)
         warehouse.updateSimulation(.1,context.assets,state,.1)
         require('src.commute.delivery_traffic').simulate(state,town,.1,epoch+step*.1,world)
+        if not loadDone and company.exterior and company.exterior.phase=='loading' and run.status=='loading' then
+            loadDone=true
+            check('employee_delivery_arrives_at_dock_before_loading',require('src.commute.trip').truckAtLoadingBay(world,company.exterior.vehicle)
+                and select(1,Run.loadingProgress(state,run))==0)
+            Loading.sync(state,warehouse.truck,warehouse.bayDoor)
+            warehouse.truck.state='cargo_open';warehouse.truck.cargoProgress=1
+            for _,id in ipairs(run.jobIds) do
+                local _,items=Service.pickupInventory(state,id)
+                for _,item in ipairs(items) do assert(warehouse.loadPickupPallet(state,item.id)) end
+            end
+        end
         if not resumedDeparture and company.exterior and company.exterior.vehicle.distance>1 then
             local original=company.exterior.vehicle
             company=assert(Company.normalize(company));state.employment.companyTruck=company

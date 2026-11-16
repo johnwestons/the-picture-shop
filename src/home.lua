@@ -57,7 +57,7 @@ function Home.new(options,day)
     require("src.home_furniture").ensure({home=result})
     return result
 end
-function Home.valid(home)
+function Home.valid(home,skipClients)
     if type(home)~="table" or home.version~=1 or not Catalog.APARTMENTS[home.apartmentId]
         or (home.town~=nil and not Town.valid(home.town))
         or (home.townCharacters~=nil and not TownCharacters.valid(home.townCharacters,home.town))
@@ -69,6 +69,8 @@ function Home.valid(home)
         or not require("src.weekend_flow").valid(home.weekend)
         or not require("src.household_finances").valid(home.finance)
         or not require("src.home_residents").valid(home.residents)
+        or not skipClients and not require('src.client_apartments').valid(home)
+        or not skipClients and not require('src.client_households').valid(home)
         or not require('src.commute.trip').valid(home.commute,home)
         or not TruckService.validFleet(home.truckFleet)
         or not require("src.home_shopping").valid(home.shopping)
@@ -142,15 +144,17 @@ function Home.normalize(home,day,hours)
     return result
 end
 function Home.amountDue(home) return home.lease.chargedCents-home.lease.paidCents end
-function Home.advance(state)
+function Home.advance(state,suppressReceipt)
     local home=state.home
     if not home then return false end
     local lease,changed=home.lease,false
     local day=state.calendar.totalDays
     while day>=lease.nextDueDay do
-        require('src.receipt_book').add(state,{source='rent:'..lease.nextDueDay,kind='bill',title='Apartment rent',
-            party='Apartment landlord',account='Household',status='unpaid',amountCents=lease.monthlyCents,
-            atHours=lease.nextDueDay*24,details='Monthly apartment rent.'})
+        if not suppressReceipt then
+            require('src.receipt_book').add(state,{source='rent:'..lease.nextDueDay,kind='bill',title='Apartment rent',
+                party='Apartment landlord',account='Household',status='unpaid',amountCents=lease.monthlyCents,
+                atHours=lease.nextDueDay*24,details='Monthly apartment rent.'})
+        end
         lease.chargedCents=lease.chargedCents+lease.monthlyCents
         lease.invoiceCount=lease.invoiceCount+1
         lease.nextDueDay=nextMonth(lease.nextDueDay)
@@ -189,12 +193,17 @@ function Home.payRent(home,expectedRevision,state)
 end
 function Home.isIntent(kind) return kind=="home_pay_rent" or kind=="home_set_pay" or kind=="home_set_reserve"
     or kind=="home_order_food" or kind=="home_order_furniture" or kind=="home_set_food_limit" end
-function Home.ownerOnly(kind) return Home.isIntent(kind) and kind~="home_order_food" and kind~="home_order_furniture" end
+function Home.ownerOnly(kind)
+    return kind=='home_set_pay' or kind=='home_set_reserve' or kind=='home_set_food_limit'
+end
 function Home.command(state,intent,player,twelveHourTime)
     player=player or {id=1}
     if intent.kind=="home_order_food" or intent.kind=="home_order_furniture" then return require("src.home_shopping").order(state,player,intent,twelveHourTime) end
     if intent.kind=="home_set_food_limit" then return require("src.home_shopping").setLimit(state,player,intent) end
-    if intent.kind=="home_pay_rent" then return Home.payRent(state.home,intent.expectedRevision,state) end
+    if intent.kind=="home_pay_rent" then
+        return Home.payRent(state.home,intent.expectedRevision,
+            state.home.hostApartmentId and nil or state)
+    end
     if intent.kind=="home_set_pay" then return Home.setPayPercent(state.home,intent.percent,intent.expectedRevision) end
     if intent.kind=="home_set_reserve" then
         if intent.expectedRevision~=state.home.revision then return false,"Home details changed. Please try again." end

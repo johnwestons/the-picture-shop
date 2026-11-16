@@ -78,6 +78,12 @@ Catalog.ITEMS.guest_mat={name="Thin guest sleeping mat",length=96,width=32,heigh
     columns={{0,416},{416,272},{688,432},{1120,416}},
     frameScaleY={.80,.72,.80,.85,.72,.65,.74,.85},
     pivots={{225,287},{144,278},{230,287},{200,289},{225,232},{144,218},{230,232},{200,247}}}
+Catalog.STARTER_ORDER={"sleeping_bag"}
+Catalog.ITEMS.sleeping_bag={name="Worn sleeping bag",length=88,width=32,height=10,priceCents=0,shippingCents=0,minutes=0,
+    dimensions="1.9 m x 0.7 m / starter sleeping bag",art="sleeping-bag-eight-directions.png",scale=.25,
+    frames=front,defaultDirection="southeast",frameScaleY={.80,.72,.80,.85,.72,.65,.74,.85},
+    pivots={{192,256},{192,256},{192,256},{192,256},{192,256},{192,256},{192,256},{192,256}},
+    starterOnly=true}
 local utilityFront={southeast=1,south=2,southwest=3,west=4,northwest=5,north=6,northeast=7,east=8}
 for _,kind in ipairs({"wardrobe","cabinet","old_tv","trash_can"}) do Catalog.ORDER[#Catalog.ORDER+1]=kind end
 Catalog.ITEMS.wardrobe={name="Worn wooden wardrobe",length=26,width=44,height=95,priceCents=9000,shippingCents=1000,minutes=120,

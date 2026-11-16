@@ -205,7 +205,7 @@ function Renderer.drawBubble(entry,characterAssets,state)
     local a=entry.actor
     local message=a.phase=="delivery_talking" and "I can sign for this delivery."
         or a.phase=="delivery_signing" and "Signing the delivery receipt."
-        or Speech.message(code,owner and owner.name)
+        or Speech.message(code,owner and owner.name,entry.application)
     local character,action,frame,_,_,anchorY,scale,originX,originY=drawPose(entry,characterAssets,state)
     local fullMessage
     if a.phase~="delivery_talking" and a.phase~="delivery_signing" then

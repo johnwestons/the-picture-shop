@@ -268,7 +268,7 @@ function Test.run(context,check)
     assert(Intro.open(R))
     check('story_intro_repeat_visit_uses_casual_dialogue',Intro.dialogueOpen(R)
         and pcall(Intro.drawHud,R))
-    assert(Intro.advance(R));assert(Intro.advance(R))
+    assert(Intro.advance(R));assert(Intro.advance(R));assert(Intro.advance(R))
     check('story_intro_quick_chat_does_not_reopen_campaign',not Intro.dialogueOpen(R)
         and Condition.openForBusiness(R.state))
     for _,seed in ipairs({712347,845001,991337}) do

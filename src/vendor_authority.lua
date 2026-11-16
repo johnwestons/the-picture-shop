@@ -97,7 +97,8 @@ function VendorAuthority.resource(options)
         if machines then
             accepted, result = MachineFleet.buy(state, "dealer", arguments.itemIndex)
         else
-            accepted, result = Procurement.buy(state, state.vendorCategory, arguments.itemIndex)
+            accepted, result = Procurement.buy(state,state.vendorCategory,arguments.itemIndex,
+                "salesman_special")
         end
         if not accepted then
             return false, "purchase_blocked", tostring(result), VendorAuthority.view(state)

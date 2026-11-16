@@ -235,8 +235,13 @@ local function run(context,check)
     check("home_food_runtime_reload_preserves_order_and_remaining_food",state.home.inventory.pizza_slice==pizzaRemaining
         and state.home.shopping.orders[1].status=="collected")
     check("home_runtime_needs_survive_reload_without_offline_decay",state.home.residents.owner.thirst==homeSave.state.home.residents.owner.thirst)
-    local remaining=107-Calendar.absoluteHours(state)
-    R.App.update(remaining*Calendar.secondsPerDay(state)/24)
+    -- This travel/payroll fixture abbreviates a cared-for weekend. Skipping
+    -- sixty hours without food or sleep now correctly triggers medical care.
+    for _=1,32 do
+        local remaining=107-Calendar.absoluteHours(state);if remaining<=1e-7 then break end
+        for _,need in ipairs(Residents.NEEDS) do state.home.residents.owner[need]=100 end
+        R.App.update(math.min(4,remaining)*Calendar.secondsPerDay(state)/24)
+    end
     local homeDoor=Travel.target(host,state);host.x,host.y=homeDoor.x,homeDoor.y
     state.screen='world'
     R.World.updateNetworkPlayer(0,0,0,R.Assets,state,homeDoor.hoverX,homeDoor.hoverY)

@@ -448,8 +448,14 @@ function Employees.requestResume(state,id,now)
     end
     if a.status~="visiting" then return true,"The resume has already been requested." end
     a.status="resume_requested";a.replyAtHours=now+.5;a.revision=a.revision+1
-    if a.actor.visible then a.actor.phase="leaving" end
-    return true,a.name..' says, "I will email my resume before I leave."'
+    if a.actor.visible then
+        a.actor.greetingKind=Speech.APPLICANT_SKILL_REPLY
+        -- Hold the skill bubble for part of the exit walk before the resume confirmation.
+        a.actor.waitTimer=(a.actor.distance or 0)+150
+        a.actor.speechCode=nil
+        a.actor.phase="leaving"
+    end
+    return true,a.name..' says, "Thank you so much. I\'ll email you my resume right away."'
 end
 function Employees.advance(state,now)
     local e=Employees.ensure(state)

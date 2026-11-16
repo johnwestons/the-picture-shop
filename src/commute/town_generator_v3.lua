@@ -654,6 +654,7 @@ local function attempt(seed,options,attemptIndex,pattern)
     local result={version=1,generatorVersion=options.generatorVersion or 3,seed=seed,size=512,bounds=Frontage.copy(options.bounds),
         terrain=terrain,roads={},placements={},destinations={},designs=Frontage.copy(Sites.designs)}
     if result.generatorVersion<11 then result.designs.farm=nil end
+    if result.generatorVersion<14 then result.designs.clinic=nil end
     local countryBypass=result.generatorVersion>=8 and options.settings and options.settings.roads==1
         and Terrain.random(seed,70)()<.5
     local nodes,branches=createNodes(rng,frame,plan,result.generatorVersion,options.settings,countryBypass)

@@ -555,9 +555,10 @@ function Component.install(Runtime)
             end
         elseif envelope.type == "error" then
             self.status = payload.message
-            if self.networkKind == "direct" and (payload.code == "join_rejected"
+            if (payload.code == "join_rejected"
                 or payload.code == "approval_timeout" or payload.code == "kicked"
-                or payload.code == "invalid_join" or payload.code == "approval_required")
+                or payload.code == "invalid_join" or payload.code == "approval_required"
+                or payload.code == 'resident_identity')
             then
                 self.disconnectReason = payload.message
             end

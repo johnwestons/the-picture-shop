@@ -36,7 +36,8 @@ local function adjustAlarmMinutes(delta)
 end
 function Controls.command(R,player,command)
     local now=Calendar.absoluteHours(R.state)
-    Residents.advance(R.state,require("src.weekend_runtime").players(R),now,now)
+    Residents.advance(R.state,require('src.client_households').playersHere(R,player),now,now,
+        (player.id or 1)==1 and 'owner' or player.homeResidentId)
     local okay,code,message=Residents.command(R.state,player,command,nil,useTwelveHourTime(R))
     if okay then
         R.state.message=message;R.saveCurrent()
@@ -80,13 +81,18 @@ local function rows(state,player)
     end
     if Controls.mode=="sleep" then
         if Sleep.prepare(state,"sleepfloor") then
-            for _,kind in ipairs({"workbed","workcouch","workmat","workfloor","sleepbed","sleepcouch","sleepmat"}) do
+            for _,kind in ipairs({"workbed","workcouch","workmat","workbag","workfloor","sleepbed","sleepcouch","sleepmat","sleepbag"}) do
                 local target=kind=="workfloor" and "floor" or Controls.target
                 local startable=Residents.prepareActivity(state,player,kind,target)
                 if startable then result[#result+1]={label=Sleep.ACTIONS[kind].label,command=kind..":"..target} end
             end
             local floorStartable=Residents.prepareActivity(state,player,"sleepfloor","floor")
             if floorStartable then result[#result+1]={label=Sleep.ACTIONS.sleepfloor.label,command="sleepfloor:floor"} end
+        end
+        local napStartable=Residents.prepareActivity(state,player,"nap",Controls.target)
+        if napStartable then
+            local nap=Residents.ACTIONS.nap
+            result[#result+1]={label=nap.label.." / "..nap.minutes.." game min",command="nap:"..Controls.target}
         end
         return result
     end
@@ -232,7 +238,8 @@ function Controls.keypressed(key,R)
         if Controls.appliance=="bike" then return Controls.openBikeCargo(R) end
         Controls.appliancePage=1;Controls.applianceHint=nil
         Controls.applianceOpenedAt=applianceNow()
-        Controls.mode=item and item.kind=="clock" and "sleep" or "routines"
+        local sleepTarget=item and (item.kind=="clock" or item.kind=="bed" or item.kind=="guest_mat" or item.kind=="sleeping_bag")
+        Controls.mode=sleepTarget and "sleep" or "routines"
         if Controls.mode=="sleep" then Controls.prepareAlarmSelection(R.state,Controls.localPlayer(R),true) end
         Controls.page=1
         R.state.screen="home_activity";return true
@@ -785,7 +792,7 @@ function Controls.draw(R)
             ..". Shop opens: "..Calendar.formatTime(9,0,twelveHourTime)..". Use the apartment entrance to return.")
         or Controls.mode=="dining" and "Use a table/counter or the kitchen sink's dry counter. For seated meals, place a chair/couch close to and facing the surface. Take food out of storage first."
     love.graphics.printf(paneDescription or Cooking.description(R.state,Controls.localPlayer(R),Controls.target) or Objects.description(R.state,Controls.localPlayer(R),Controls.target) or Chores.description(R.state,Controls.target)
-        or "Order groceries or takeout on the laptop; collect them by the entrance. Floor rest is always available.",
+        or "Order groceries or takeout on the laptop; collect them from the living-room parcel spot. Floor rest is always available.",
         140,253,Controls.mode=="sleep" and 470 or 680,"left")
     if Controls.mode=="sleep" then
         alarmLabelFont=alarmLabelFont or love.graphics.newFont(11)

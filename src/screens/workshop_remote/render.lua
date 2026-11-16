@@ -38,7 +38,8 @@ function Component.install(Runtime)
             return
         end
         if Runtime.Screen.resourceId == "work_phone" then
-            Runtime.WorkPhoneScreen.draw(Runtime.Projection.copy(state), pointerX, pointerY, assets, Runtime.Screen.waiting)
+            Runtime.WorkPhoneScreen.draw(Runtime.Projection.copy(state), pointerX, pointerY, assets,
+                Runtime.Screen.waiting,Runtime.Screen.twelveHourTime)
             love.graphics.setColor(0.8, 0.9, 0.9)
             love.graphics.printf(Runtime.Screen.status, 68, 612, 812, "center")
             return

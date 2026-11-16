@@ -12,6 +12,7 @@ local buttons={previous={x=104,y=554,width=125,height=44},next={x=244,y=554,widt
     orders={x=390,y=554,width=190,height=44},groceries={x=104,y=554,width=180,height=44},
     minus={x=544,y=554,width=48,height=44},plus={x=790,y=554,width=48,height=44},
     cancel={x=104,y=540,width=220,height=44},confirm={x=608,y=540,width=230,height=44},
+    sameDay={x=414,y=434,width=194,height=30},threeDay={x=620,y=434,width=194,height=30},
     quantityMinus={x=548,y=396,width=48,height=44},quantityPlus={x=790,y=396,width=48,height=44}}
 function Component.install(Runtime)
     local page,confirmation,sequence,lastTab=1,nil,0,nil
@@ -50,9 +51,13 @@ function Component.install(Runtime)
             if recorded(state) then return {action="home_view"} end
             if Runtime.contains(buttons.quantityMinus,x,y) and not confirmation.requestId then confirmation.quantity=math.max(1,confirmation.quantity-1)
             elseif Runtime.contains(buttons.quantityPlus,x,y) and not confirmation.requestId then confirmation.quantity=math.min(10,confirmation.quantity+1)
+            elseif Runtime.contains(buttons.sameDay,x,y) and not confirmation.requestId then confirmation.deliveryService="same_day"
+            elseif Runtime.contains(buttons.threeDay,x,y) and not confirmation.requestId then confirmation.deliveryService="three_day"
             elseif Runtime.contains(buttons.confirm,x,y) then
                 if not confirmation.requestId then sequence=sequence+1;confirmation.requestId=Runtime.nextFinanceRequestId(sequence) end
-                return send(state,{kind=Catalog.PRODUCTS[confirmation.productId].furnitureId and "home_order_furniture" or "home_order_food",productId=confirmation.productId,quantity=confirmation.quantity,
+                local product=Catalog.PRODUCTS[confirmation.productId]
+                return send(state,{kind=product.furnitureId and "home_order_furniture" or "home_order_food",productId=confirmation.productId,quantity=confirmation.quantity,
+                    deliveryService=product.furnitureId and confirmation.deliveryService or nil,
                     requestId=confirmation.requestId,expectedRevision=state.home.revision})
             end
             return {action="home_view"}
@@ -77,7 +82,7 @@ function Component.install(Runtime)
         for i=1,4 do
             if x>=706 and x<=838 and y>=298+(i-1)*58 and y<=342+(i-1)*58 then
                 local id=list[(page-1)*4+i]
-                if id then confirmation={productId=id,quantity=1};return {action="home_view"} end
+                if id then confirmation={productId=id,quantity=1,deliveryService="same_day"};return {action="home_view"} end
             end
         end
         return nil
@@ -95,8 +100,10 @@ function Component.install(Runtime)
         end
         local address=require("src.home_catalog").APARTMENTS[home.apartmentId].name
         if confirmation then
-            local q=Shopping.quote(confirmation.productId,confirmation.quantity)
             local ordered=recorded(state)
+            local product=Catalog.PRODUCTS[confirmation.productId]
+            local deliveryService=ordered and ordered.deliveryService or confirmation.deliveryService
+            local q=Shopping.quote(confirmation.productId,confirmation.quantity,deliveryService)
             if ordered then
                 q.subtotalCents=ordered.unitPriceCents*ordered.quantity
                 q.shippingCents,q.totalCents=ordered.shippingCents,ordered.totalCents
@@ -110,16 +117,30 @@ function Component.install(Runtime)
                 local small=require("src.home_furniture_catalog").ITEMS[q.product.furnitureId].small
                 text(q.product.dimensions.." · 8 directions"..(small and "" or " · clear floor required"),414,331,424)
             end
-            text("Deliver to: "..address.."\nArrival: "..Calendar.dateTimeTextAtHours(ordered and ordered.dueAt or Calendar.absoluteHours(state)+q.minutes/60,twelveHourTime),414,350,424)
+            local now=Calendar.absoluteHours(state)
+            local arrival=ordered and ordered.dueAt or product.furnitureId
+                and Shopping.estimateArrivalAt(now,deliveryService) or now+q.minutes/60
+            text("Deliver to: "..address.."\nArrival: "..Calendar.dateTimeTextAtHours(arrival,twelveHourTime),414,350,424)
             text("Quantity: "..confirmation.quantity,614,410,160)
             button(buttons.quantityMinus,"-",not confirmation.requestId and confirmation.quantity>1);button(buttons.quantityPlus,"+",not confirmation.requestId and confirmation.quantity<10)
+            if product.furnitureId and not ordered then
+                local selected=deliveryService or "same_day"
+                local sameQuote=Shopping.quote(confirmation.productId,confirmation.quantity,"same_day")
+                local threeQuote=Shopping.quote(confirmation.productId,confirmation.quantity,"three_day")
+                local sameStyle=selected=="same_day" and "primaryHover" or "secondary"
+                local threeStyle=selected=="three_day" and "primaryHover" or "secondary"
+                Runtime.drawComputerButton(buttons.sameDay,"SAME DAY · "..Runtime.money(sameQuote.shippingCents/100),sameStyle)
+                Runtime.drawComputerButton(buttons.threeDay,"3-DAY · "..Runtime.money(threeQuote.shippingCents/100),threeStyle)
+            end
             local _,_,remaining=Shopping.budget(state)
             text(q.product.furnitureId and string.format("Household funds $%.2f  |  Guest furniture buying: %s",home.balanceCents/100,
                 home.furniture.permissions.purchase and "enabled by host" or "disabled")
                 or string.format("Household funds $%.2f  |  Shared guest budget remaining $%.2f",home.balanceCents/100,remaining/100),104,465,730)
-            text(ordered and "Order recorded. See Home deliveries for its saved arrival time."
-                or ("Delivery: %d%% of items, $%.2f minimum. Parcels wait at your apartment entrance."):format(
-                    Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100),104,494,730)
+            local deliveryNote=product.furnitureId
+                and "Same-day orders before 4 PM arrive today by 6 PM; later orders arrive tomorrow. Three-day costs less."
+                or ("Delivery: %d%% of item value, $%.2f minimum. Food arrives in paper bags."):format(
+                    Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100)
+            text(ordered and "Order recorded. See Home deliveries for its saved arrival time." or deliveryNote,104,494,730)
             button(buttons.cancel,ordered and "DONE" or "BACK",true)
             button(buttons.confirm,ordered and "ORDER RECORDED" or "CONFIRM ORDER",not ordered and home.balanceCents>=q.totalCents)
             return
@@ -127,15 +148,22 @@ function Component.install(Runtime)
         if Runtime.ComputerScreen.tab=="home_orders" then
             local count=#shop.orders;local pages=math.max(1,math.ceil(count/6));page=(page-1)%pages+1
             text("HOME DELIVERIES / "..address,104,208,730,{1,.86,.41,1})
-            text("Collect ready parcels at your apartment entrance. They never block the door.",104,240,720)
+            text("Living-room pickup: food in paper bags; household items in size-matched boxes.",104,240,720)
             button({x=750,y=250,width=88,height=44},page.."/"..pages.." >",pages>1)
             for i=1,6 do
                 local row=shop.orders[count-(page-1)*6-i+1]
                 if row then
                     local y=298+(i-1)*33;local product=Catalog.PRODUCTS[row.productId]
                     text("#"..row.id.."  "..product.name.." x"..row.quantity,104,y,340)
-                    text(row.status=="transit" and Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime)
-                        or row.status=="waiting" and "AT APARTMENT DOOR" or "RECEIVED",458,y,380)
+                    local arrival=row.status=="transit" and Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime)
+                    if row.status=="transit" and row.deliveryService then
+                        local label=row.deliveryService=="same_day"
+                            and (math.floor(row.dueAt/24)==math.floor(row.orderedAt/24)
+                                and "SAME DAY · " or "NEXT DAY · ") or "3-DAY · "
+                        arrival=label..arrival
+                    end
+                    text(row.status=="transit" and arrival
+                        or row.status=="waiting" and "IN LIVING ROOM" or "RECEIVED",458,y,380)
                 end
             end
             if count==0 then text("No orders yet. Affordable ready meals need no stove or fridge.",104,322,700) end
@@ -150,7 +178,7 @@ function Component.install(Runtime)
         local group=Runtime.ComputerScreen.tab;local list=products(group);page=math.max(1,math.min(page,math.ceil(#list/4)))
         text(group=="furniture" and "CRITTERNET HOME & LIVING" or group=="takeout" and "CRITTERNET TAKEOUT" or "CRITTERNET GROCERIES",104,208,500,{1,.86,.41,1})
         text(string.format("Household funds: $%.2f  |  Deliver to: %s",home.balanceCents/100,address),104,239,730)
-        text(("Apartment delivery: %d%% of item value ($%.2f minimum). Review the total before paying."):format(
+        text(("Food: %d%% of item value ($%.2f minimum). Household items offer same-day or lower-cost three-day shipping."):format(
             Shopping.DELIVERY_PERCENT,Shopping.MINIMUM_DELIVERY_CENTS/100),104,267,730)
         for i=1,4 do
             local id=list[(page-1)*4+i];local p=id and Catalog.PRODUCTS[id]
@@ -158,7 +186,8 @@ function Component.install(Runtime)
                 local y=298+(i-1)*58
                 productArt(id,p,128,y+22,52)
                 text(p.name,166,y+2,365)
-                text(p.furnitureId and p.dimensions.." · 8 directions · "..p.minutes.." game min" or p.servings.." serving(s)/item(s) · "..p.minutes.." game min delivery",166,y+24,440,{.62,.78,.76,1})
+                text(p.furnitureId and p.dimensions.." · 8 directions · same-day or three-day shipping"
+                    or p.servings.." serving(s)/item(s) · "..p.minutes.." game min delivery",166,y+24,440,{.62,.78,.76,1})
                 text(string.format("$%.2f",p.priceCents/100),602,y+13,90)
                 button({x=706,y=y,width=132,height=44},"REVIEW",true)
             end

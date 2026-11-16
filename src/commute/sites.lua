@@ -80,6 +80,7 @@ Sites.designs['gas-station'].obstacles={rect(-3.4,-2.6,4.5,5.1),rect(2.6,3.4,4.5
 Sites.gasPumpLayout={pumps={{x=-3,z=4.8},{x=3,z=4.8}},
     motorcycleBays={{x=-2.2,z=6.5},{x=2.2,z=6.5}},truckBay={x=0,z=11.1},
     forecourt=rect(-5.5,5.5,4,13.5)}
+service('clinic','Critter Clinic',10,8,4.3,1)
 service('grocery','Town grocery',18,11,5,1)
 service('post-office','Post office',13,9,5.5,1)
 service('police','Police station',16,12,7.2,2)

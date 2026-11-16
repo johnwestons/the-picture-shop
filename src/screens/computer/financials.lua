@@ -7,7 +7,7 @@ local tabs={
     {id='overview',label='OVERVIEW'},
     {id='bills',label='BILLS + WAGES'},
     {id='staff',label='STAFF PAYROLL'},
-    {id='players',label='PLAYER WAGES'},
+    {id='players',label='PLAYER JOBS'},
 }
 local tabRects={}
 for index,tab in ipairs(tabs) do

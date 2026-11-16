@@ -9,15 +9,23 @@ local fields = {
     mark_email_read = { id = "token" }, sell = { id = "token" },
     quality_inspect = { jobId = "token" }, quality_rework = { jobId = "token" },
     customer_case = { jobId = "token", response = "case_response" },
-    pay_bills = {}, checkout = { items = "cart" },
+    pay_bills = {}, checkout = { items = "cart", deliveryService="optional_delivery_service" },
     home_pay_rent = { expectedRevision="home_revision" },
     home_set_pay = { expectedRevision="home_revision",percent="home_percent" },
     home_set_reserve = { expectedRevision="home_revision",reserveCents="home_reserve" },
     home_order_food = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
-    home_order_furniture = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token"},
+    home_order_furniture = {expectedRevision="home_revision",productId="home_product",quantity="home_quantity",requestId="token",
+        deliveryService="optional_delivery_service"},
     home_set_food_limit = {expectedRevision="home_revision",limitCents="home_food_limit"},
     player_wage_propose = {residentId="resident_id",expectedRevision="home_revision",wageCents="player_wage"},
     player_wage_accept = {residentId="resident_id",expectedRevision="home_revision"},
+    player_job_apply = {residentId='resident_id'},
+    player_job_decline = {residentId='resident_id',expectedRevision='home_revision'},
+    player_job_offer = {residentId='resident_id',expectedRevision='home_revision',
+        wageCents='player_wage',days='days',startHour='hour',endHour='hour'},
+    player_job_accept = {residentId='resident_id',expectedRevision='home_revision'},
+    player_clock_in = {residentId='resident_id',expectedRevision='home_revision'},
+    player_clock_out = {residentId='resident_id',expectedRevision='home_revision'},
     finance_machine = { offerIndex = "machine_offer", requestId = "token", channel = "machine_channel" },
     finance_asset = { listingId='finance_asset',requestId='token' },
     pay_machine_loan = { loanId = "token" },
@@ -74,6 +82,10 @@ function Intent.normalize(value)
             if not integer(item,1,10) then return nil,"Choose a quantity from 1 to 10." end
         elseif rule == "home_food_limit" then
             if not integer(item,0,1000000) then return nil,"Choose a valid shared guest food budget." end
+        elseif rule == "optional_delivery_service" then
+            if item~=nil and item~="same_day" and item~="three_day" then
+                return nil,"Choose same-day or three-day delivery."
+            end
         elseif rule == "resident_id" then
             if not require('src.home_residents').validId(item) then return nil,'Choose a saved guest resident.' end
         elseif rule == "revision" then

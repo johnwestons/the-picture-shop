@@ -8,6 +8,9 @@ local Test={}
 function Test.run(R,check)
     local state,host=R.state,R.World.player
     local owner=state.home.residents.owner
+    -- The old itinerary could ignore hunger between its three demonstration
+    -- breakfasts. Supply snacks and maintain needs during the waiting periods.
+    state.home.inventory.basic_meal=(state.home.inventory.basic_meal or 0)+6
     local secondsPerHour=Calendar.secondsPerDay(state)/24
     local folder=os.getenv('PICTURE_SHOP_HOME_PREVIEW_DIR')
     local function hour() return Calendar.absoluteHours(state) end
@@ -29,7 +32,18 @@ function Test.run(R,check)
             local remaining=target-hour()
             if remaining<=.00001 then break end
             state.screen='world'
-            R.App.update(math.min(1,remaining)*secondsPerHour)
+            local command,minutes
+            if owner.energy<20 then command,minutes='rest:floor',math.min(60,remaining*60)
+            elseif owner.thirst<25 and remaining>=2/60 then
+                local fixture=Layout.get(state).fixtures.sink
+                host.x,host.y=Layout.toWorld(unpack(fixture.approach))
+                command,minutes='drink:sink',2
+            elseif owner.hunger<20 and remaining>=15/60 then command,minutes='eat:floor',15 end
+            if command then
+                assert(require('src.home_residents').command(state,host,command))
+                R.App.update(minutes/60*secondsPerHour)
+                if owner.activity then assert(require('src.home_residents').command(state,host,'cancel')) end
+            else R.App.update(math.min(1,remaining)*secondsPerHour) end
         end
         check('weekend_playthrough_'..label,math.abs(hour()-target)<.001
             and state.home.weekend.phase=='home' and host.sceneId=='home',hour())

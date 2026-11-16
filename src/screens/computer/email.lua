@@ -7,9 +7,9 @@ function Component.install(Runtime)
     function Runtime.drawEmail(state, pointerX, pointerY, assets)
         local estimating = Runtime.ComputerScreen.tab == "estimating"
         local inbox = Runtime.inboxForTab(state)
-        Runtime.panel({ x = 110, y = 190, width = 288, height = 394 },
+        Runtime.panel({ x = 110, y = 190, width = 288, height = estimating and 444 or 394 },
             { 0.055, 0.07, 0.09, 1 }, { 0.23, 0.35, 0.38, 1 })
-        Runtime.panel({ x = 410, y = 190, width = 438, height = 394 },
+        Runtime.panel({ x = 410, y = 190, width = 438, height = estimating and 444 or 394 },
             { 0.065, 0.08, 0.10, 1 }, { 0.23, 0.35, 0.38, 1 })
         love.graphics.setColor(0.95, 0.84, 0.30)
         love.graphics.print(estimating and "JOB ESTIMATING" or "EMAIL INBOX", 124, 202)
@@ -305,29 +305,47 @@ function Component.install(Runtime)
             return
         end
         local job = selected.job
+        local detailFont = require('src.screens.computer.fonts').get('typewriter', 15)
+        local previousDetailFont = love.graphics.getFont()
+        love.graphics.setFont(detailFont)
+        local function fitLine(text, width, font)
+            text = tostring(text or "")
+            font = font or detailFont
+            if font:getWidth(text) <= width then return text end
+            local suffix = "…"
+            local utf8 = require("utf8")
+            local last = utf8.offset(text, -1)
+            while last and last > 1 do
+                text = text:sub(1, last - 1)
+                if font:getWidth(text .. suffix) <= width then return text .. suffix end
+                last = utf8.offset(text, -1)
+            end
+            return suffix
+        end
         love.graphics.setColor(0.86, 0.89, 0.88)
-        love.graphics.print("PROPOSED JOB  " .. job.id, 434, 350)
-        love.graphics.print(string.format("Sheets: %g × %g in → %g × %g in",
-            job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 434, 372)
+        love.graphics.print(fitLine("PROPOSED JOB  " .. job.id, 392), 434, 350)
+        love.graphics.print(fitLine(string.format("Sheets: %g × %g in → %g × %g in",
+            job.sourceSize.width, job.sourceSize.height, job.finishedSize.width, job.finishedSize.height), 392), 434, 372)
         local stockSource = job.press and job.stockSpec and job.stockSpec.suppliedBy == "house"
             and "HOUSE PAPER" or "CUSTOMER STOCK"
         local paperText = job.stockSpec and job.stockSpec.description
             or job.details and job.details.stockDescription or "Customer supplied"
-        love.graphics.printf((job.press and (stockSource .. " — ") or "Paper: ") .. paperText, 434, 394,
-            job.press and 292 or 392, "left")
+        love.graphics.print(fitLine((job.press and (stockSource .. " — ") or "Paper: ") .. paperText,
+            job.press and 292 or 392), 434, 394)
         if job.press then
-            love.graphics.printf(string.format("Order: %s good / %s supplied",
+            love.graphics.print(fitLine(string.format("Order: %s good / %s supplied",
                 Runtime.commaNumber(job.quote.orderedCopies or job.press.orderedQuantity),
-                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 434, 414, 392, "left")
-            love.graphics.printf(string.format("Press: %d color%s • %s", job.press.colors or 1,
+                Runtime.commaNumber(job.quote.suppliedSheets or job.quote.totalSheets)), 392), 434, 414)
+            love.graphics.print(fitLine(string.format("Press: %d color%s • %s", job.press.colors or 1,
                 (job.press.colors or 1) == 1 and "" or "s",
-                table.concat(job.press.colorSequence or { "Black" }, " → ")), 434, 434, 292, "left")
+                table.concat(job.press.colorSequence or { "Black" }, " → ")), 292), 434, 434)
             Runtime.drawArtworkPreview(assets, job, 766, 354, 48)
         else
-            love.graphics.print(string.format("%d pallet%s · %s sheets · %s, wrapped",
+            love.graphics.print(fitLine(string.format("%d pallet%s · %s sheets · %s, wrapped",
                 job.quote.palletCount, job.quote.palletCount == 1 and "" or "s",
-                Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 434, 414)
+                Runtime.commaNumber(job.quote.totalSheets),job.packaging=="boxed" and "Boxed" or "Flat"), 392), 434, 414)
         end
+        love.graphics.setFont(previousDetailFont)
         local terms = Runtime.JobService.quoteTerms(state, job, tonumber(Runtime.ComputerScreen.quoteText))
         local deliveryRequested = job.outboundDelivery and job.outboundDelivery.requested == true
         local deliveryTerms = deliveryRequested
@@ -335,7 +353,10 @@ function Component.install(Runtime)
                 tonumber(Runtime.ComputerScreen.deliveryQuoteText)) or nil
         if terms and terms.employeeBudget and not job.press then
             love.graphics.setColor(.67,.78,.69,1)
-            love.graphics.printf(string.format("Cutter labor budget %s at %s/hr",Runtime.money(terms.employeeBudget.laborCost),Runtime.money(terms.employeeBudget.wagePerHour)),434,426,392,"left")
+            love.graphics.setFont(detailFont)
+            love.graphics.print(fitLine(string.format("Cutter labor budget %s at %s/hr",
+                Runtime.money(terms.employeeBudget.laborCost), Runtime.money(terms.employeeBudget.wagePerHour)), 392), 434, 434)
+            love.graphics.setFont(previousDetailFont)
         end
         if deliveryRequested then
             local included = Runtime.ComputerScreen.includeDeliveryQuote == true
@@ -345,38 +366,53 @@ function Component.install(Runtime)
                 hovered and { 0.39, 0.70, 0.57, 1 } or { 0.20, 0.38, 0.34, 1 }, 3, 1)
             love.graphics.setColor(included and 0.74 or 0.70, included and 0.91 or 0.77,
                 included and 0.77 or 0.78)
+            local fonts = require('src.screens.computer.fonts')
+            love.graphics.setFont(fonts.get('typewriter', 13))
             love.graphics.print(included and "[✓] OFFER SHOP DELIVERY" or "[ ] CLIENT ARRANGES TRANSPORT",
-                Runtime.EMAIL_DELIVERY_TOGGLE.x + 9, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3)
+                Runtime.EMAIL_DELIVERY_TOGGLE.x + 9, Runtime.EMAIL_DELIVERY_TOGGLE.y + 2)
+            love.graphics.setFont(fonts.get('sans', 12))
             love.graphics.setColor(0.68, 0.76, 0.76)
-            love.graphics.printf(included and "Client can accept or decline this fee separately"
-                or "No delivery fee will be quoted", 620, Runtime.EMAIL_DELIVERY_TOGGLE.y + 3, 198, "right")
+            love.graphics.print(included and "Client can accept or decline the quoted fee separately"
+                or "No delivery fee will be quoted", Runtime.EMAIL_DELIVERY_TOGGLE.x + 10,
+                Runtime.EMAIL_DELIVERY_TOGGLE.y + 19)
+            love.graphics.setFont(previousDetailFont)
         else
             love.graphics.setColor(0.68, 0.76, 0.76)
-            love.graphics.print("CLIENT ARRANGES TRANSPORT", 434, 446)
+            love.graphics.print("CLIENT ARRANGES TRANSPORT", 434, 462)
         end
 
+        local fonts = require('src.screens.computer.fonts')
+        love.graphics.setFont(fonts.get('typewriter', 14))
         love.graphics.setColor(0.58, 0.78, 0.72)
-        love.graphics.print(selected.discountedTotal and "PRODUCTION · COUPON" or "PRODUCTION",
-            Runtime.EMAIL_QUOTE_INPUT.x, 464)
+        love.graphics.print("PRODUCTION", Runtime.EMAIL_QUOTE_INPUT.x, 496)
+        local recommendationFont = fonts.get('sans', 12)
+        love.graphics.setFont(recommendationFont)
         love.graphics.setColor(0.58, 0.67, 0.68)
-        love.graphics.printf("Rec. " .. Runtime.money(terms and terms.recommendedPrice or job.quote.totalPrice),
-            Runtime.EMAIL_QUOTE_INPUT.x + 90, 464, Runtime.EMAIL_QUOTE_INPUT.width - 90, "right")
+        local productionRecommendation = fitLine("Rec. "
+            .. Runtime.money(terms and terms.recommendedPrice or job.quote.totalPrice), 85, recommendationFont)
+        love.graphics.print(productionRecommendation, Runtime.EMAIL_QUOTE_INPUT.x + 101, 497)
         Runtime.panel(Runtime.EMAIL_QUOTE_INPUT, { 0.045, 0.085, 0.10, 1 },
             Runtime.ComputerScreen.quoteFocused and { 0.32, 0.78, 0.73, 1 }
                 or { 0.20, 0.34, 0.39, 1 }, 3, 1)
         love.graphics.setColor(0.96, 0.96, 0.92)
+        local quoteFont = fonts.get('sans', 18)
+        love.graphics.setFont(quoteFont)
         love.graphics.print("$", Runtime.EMAIL_QUOTE_INPUT.x + 8, Runtime.EMAIL_QUOTE_INPUT.y + 11)
-        love.graphics.printf(Runtime.ComputerScreen.quoteText .. (Runtime.ComputerScreen.quoteFocused and "_" or ""),
-            Runtime.EMAIL_QUOTE_INPUT.x + 25, Runtime.EMAIL_QUOTE_INPUT.y + 11,
-            Runtime.EMAIL_QUOTE_INPUT.width - 32, "right")
+        local productionQuote = fitLine(Runtime.ComputerScreen.quoteText
+            .. (Runtime.ComputerScreen.quoteFocused and "_" or ""), Runtime.EMAIL_QUOTE_INPUT.width - 32, quoteFont)
+        love.graphics.print(productionQuote,
+            Runtime.EMAIL_QUOTE_INPUT.x + Runtime.EMAIL_QUOTE_INPUT.width - 8 - quoteFont:getWidth(productionQuote),
+            Runtime.EMAIL_QUOTE_INPUT.y + 11)
 
         if deliveryRequested then
+            love.graphics.setFont(fonts.get('typewriter', 14))
             love.graphics.setColor(0.58, 0.78, 0.72)
-            love.graphics.print("DELIVERY", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x, 464)
+            love.graphics.print("DELIVERY", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x, 496)
+            love.graphics.setFont(recommendationFont)
             love.graphics.setColor(0.58, 0.67, 0.68)
-            love.graphics.printf("Rec. " .. Runtime.money(deliveryTerms and deliveryTerms.recommendedPrice or 0),
-                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 90, 464,
-                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 90, "right")
+            local deliveryRecommendation = fitLine("Rec. "
+                .. Runtime.money(deliveryTerms and deliveryTerms.recommendedPrice or 0), 85, recommendationFont)
+            love.graphics.print(deliveryRecommendation, Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 101, 497)
             Runtime.panel(Runtime.EMAIL_DELIVERY_QUOTE_INPUT,
                 Runtime.ComputerScreen.includeDeliveryQuote and { 0.045, 0.085, 0.10, 1 }
                     or { 0.07, 0.08, 0.09, 1 },
@@ -385,19 +421,27 @@ function Component.install(Runtime)
             love.graphics.setColor(Runtime.ComputerScreen.includeDeliveryQuote and 0.96 or 0.48,
                 Runtime.ComputerScreen.includeDeliveryQuote and 0.96 or 0.53,
                 Runtime.ComputerScreen.includeDeliveryQuote and 0.92 or 0.54)
+            love.graphics.setFont(quoteFont)
             love.graphics.print("$", Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 8,
                 Runtime.EMAIL_DELIVERY_QUOTE_INPUT.y + 11)
-            love.graphics.printf(Runtime.ComputerScreen.deliveryQuoteText
+            local deliveryQuote = fitLine(Runtime.ComputerScreen.deliveryQuoteText
                 .. (Runtime.ComputerScreen.deliveryQuoteFocused and "_" or ""),
-                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + 25, Runtime.EMAIL_DELIVERY_QUOTE_INPUT.y + 11,
-                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 32, "right")
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width - 32, quoteFont)
+            love.graphics.print(deliveryQuote,
+                Runtime.EMAIL_DELIVERY_QUOTE_INPUT.x + Runtime.EMAIL_DELIVERY_QUOTE_INPUT.width
+                    - 8 - quoteFont:getWidth(deliveryQuote), Runtime.EMAIL_DELIVERY_QUOTE_INPUT.y + 11)
         end
         love.graphics.setColor(0.64, 0.72, 0.73)
         local deliverySummary = Runtime.ComputerScreen.includeDeliveryQuote and deliveryTerms
             and ("Quoted total if both accepted: " .. Runtime.money(terms.amount + deliveryTerms.amount))
             or deliveryRequested and "Client will arrange its own transportation"
             or "This client arranges its own transportation"
-        love.graphics.printf(deliverySummary, 434, 521, 392, "center")
+        if selected.discountedTotal then deliverySummary = "Coupon applied · " .. deliverySummary end
+        local summaryFont = fonts.get('sans', 13)
+        love.graphics.setFont(summaryFont)
+        deliverySummary = fitLine(deliverySummary, 392, summaryFont)
+        love.graphics.printf(deliverySummary, 434, 552, 392, "center")
+        love.graphics.setFont(previousDetailFont)
 
         local function responseButton(rect, label, green)
             local hovered = pointerX and Runtime.contains(rect, pointerX, pointerY)
@@ -409,10 +453,13 @@ function Component.install(Runtime)
         responseButton(Runtime.EMAIL_ESTIMATE_SEND, "SEND ESTIMATE", true)
         if terms and terms.employeeBudget and terms.amount<terms.recommendedPrice then
             love.graphics.setColor(.98,.71,.35,1)
-            love.graphics.printf("Below staff cost target",434,592,190,"left")
+            love.graphics.setFont(fonts.get('sans', 11))
+            love.graphics.printf("Below staff cost target",434,618,186,"left")
         end
         love.graphics.setColor(0.58, 0.67, 0.68)
-        love.graphics.printf("The client replies within 3 days.", 630, 592, 196, "center")
+        love.graphics.setFont(fonts.get('sans', 11))
+        love.graphics.printf("The client replies within 3 days.", 630, 618, 196, "center")
+        love.graphics.setFont(previousDetailFont)
     end
 end
 

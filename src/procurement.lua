@@ -5,6 +5,7 @@ local Receiving = require("src.receiving")
 local Config = require("src.config")
 local BusinessCalendar = require("src.business_calendar")
 local Inbox = require("src.inbox")
+local DeliveryService = require("src.delivery_service")
 
 local GROUP_WINDOW_HOURS = 1
 local DELIVERY_DELAY_HOURS = 4
@@ -142,10 +143,20 @@ end
 
 function Procurement.currentSale(state) return currentSale(state) end
 
-local function canAppendToShipment(state,shipment,now)
+Procurement.SALESMAN_VISIT_DISCOUNT_PERCENT=25
+
+function Procurement.salesmanVisitPrice(categoryIndex,itemIndex)
+    local category=Procurement.categories[math.floor(tonumber(categoryIndex) or 0)]
+    local item=category and category.items[math.floor(tonumber(itemIndex) or 0)]
+    if not item or item.available==false or not item.price then return nil end
+    local percent=Procurement.SALESMAN_VISIT_DISCOUNT_PERCENT
+    return math.max(1,math.floor(item.price*(100-percent)/100+.5)),item.price,percent
+end
+
+local function canAppendToShipment(state,shipment,now,shippingService)
     local delivery=shipment and shipment.delivery
     if not shipment or shipment.status~="awaiting_delivery" or not delivery
-        or delivery.status=="received" then return false end
+        or delivery.status=="received" or delivery.shippingService~=shippingService then return false end
     local traffic=require("src.commute.delivery_traffic")
     local route=delivery.route
     local load,canLoad
@@ -158,6 +169,14 @@ local function canAppendToShipment(state,shipment,now)
         canLoad=true
     end
     return canLoad and load+1<=traffic.TRUCK_CAPACITY
+end
+
+function Procurement.paperShippingFeeCents(categoryIndex,itemIndex,channel,shippingService)
+    local category=Procurement.category(categoryIndex)
+    local item=category and category.items[math.floor(tonumber(itemIndex) or 0)]
+    if channel~="computer" or not category or category.id~="paper" or not item then return 0 end
+    local service=DeliveryService.normalize(shippingService,DeliveryService.SAME_DAY)
+    return service and DeliveryService.PAPER_SHIPPING_CENTS[service] or nil
 end
 
 function Procurement.retailPrice(state,categoryIndex,itemIndex)
@@ -174,7 +193,7 @@ function Procurement.retailPrice(state,categoryIndex,itemIndex)
     return regularPrice, regularPrice, 0
 end
 
-function Procurement.buy(state, categoryIndex, itemIndex, channel)
+function Procurement.buy(state, categoryIndex, itemIndex, channel, shippingService)
     local procurement = ensure(state)
     categoryIndex=math.floor(tonumber(categoryIndex) or 1)
     itemIndex=math.floor(tonumber(itemIndex) or 0)
@@ -182,10 +201,21 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local item = category.items[itemIndex]
     if not item then return false, "That product is not in this sales catalog." end
     if item.available == false then return false, item.unavailableReason or "That product is not available yet." end
+    local salesmanVisitSpecial=channel=="salesman_special"
     channel = channel == "computer" and "computer" or "salesman"
+    local deliveryService,deliveryFeeCents
+    if channel=="computer" and category.id=="paper" then
+        deliveryService=DeliveryService.normalize(shippingService,DeliveryService.SAME_DAY)
+        if not deliveryService then return false,"Choose same-day or three-day paper delivery." end
+        deliveryFeeCents=DeliveryService.PAPER_SHIPPING_CENTS[deliveryService]
+    else
+        deliveryFeeCents=0
+    end
     local price, regularPrice, salePercent
     if channel=="computer" then
         price,regularPrice,salePercent=Procurement.retailPrice(state,categoryIndex,itemIndex)
+    elseif salesmanVisitSpecial then
+        price,regularPrice,salePercent=Procurement.salesmanVisitPrice(categoryIndex,itemIndex)
     else
         price=item.price
     end
@@ -193,7 +223,8 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local productName = channel == "computer" and item.retailName or item.name
     local onlineVendor = CRITTER_NET_VENDORS[category.id] or "CritterNet Marketplace"
     if not price or not quantity then return false, "That product is not offered through this sales channel." end
-    if (state.money or 0) < price then return false, "Not enough money for this purchase." end
+    local totalPrice=price+deliveryFeeCents/100
+    if (state.money or 0)<totalPrice then return false,"Not enough money for this purchase and delivery." end
     local number = procurement.nextOrderId
     procurement.nextOrderId = number + 1
     local id = string.format("PO-%04d", number)
@@ -201,7 +232,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
     local shipment
     for index = #procurement.shipments, 1, -1 do
         local candidate = procurement.shipments[index]
-        if canAppendToShipment(state,candidate,now) then shipment = candidate; break end
+        if canAppendToShipment(state,candidate,now,deliveryService) then shipment = candidate; break end
     end
     if not shipment then
         local shipmentNumber = procurement.nextShipmentId
@@ -210,7 +241,10 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
             id = string.format("SHIP-%04d", shipmentNumber), orderIds = {},
             status = "awaiting_delivery", openedAtHours = now,
             closesAtHours = now + GROUP_WINDOW_HOURS,
-            delivery = { status = "awaiting_schedule", expectedAtHours = require('src.business_hours').nextService(now + DELIVERY_DELAY_HOURS) },
+            delivery = { status = "awaiting_schedule",
+                expectedAtHours = deliveryService and DeliveryService.paperArrival(now,deliveryService)
+                    or require('src.business_hours').nextService(now + DELIVERY_DELAY_HOURS),
+                shippingService=deliveryService },
         }
         procurement.shipments[#procurement.shipments + 1] = shipment
     end
@@ -225,25 +259,47 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
         company = channel == "computer" and onlineVendor:upper() or category.name,
         category = category.id, item = item.id, productName = productName, channel = channel,
         price = price, status = "awaiting_delivery", orderedAt = os.time(), shipmentId = shipment.id,
+        regularPrice=salesmanVisitSpecial and regularPrice or nil,
+        discountPercent=salesmanVisitSpecial and salePercent or nil,
         delivery = {
             status = "awaiting_schedule",
             expectedAtHours = shipment.delivery.expectedAtHours,
+            shippingService=deliveryService,shippingFeeCents=deliveryFeeCents,
         }, pallets = { pallet },
     }
     require("src.household_finances").purchase(state,item.id,quantity,math.floor(price*100+.5))
+    if deliveryFeeCents>0 then require("src.household_finances").record(state,"operating",deliveryFeeCents) end
     procurement.orders[#procurement.orders + 1] = order
     shipment.orderIds[#shipment.orderIds + 1] = order.id
-    state.money = state.money - price
-    require('src.receipt_book').expense(state,'Supply order '..id,price*100,onlineVendor or category.salesman,
-        'Shop',tostring(quantity)..' '..tostring(item.unit or 'units')..' - '..productName,'order:'..id)
+    state.money = state.money - totalPrice
+    local totalCents=math.floor(price*100+.5)+deliveryFeeCents
+    local shippingLabel=deliveryService==DeliveryService.SAME_DAY
+        and (math.floor(shipment.delivery.expectedAtHours/24)==math.floor(now/24)
+            and "Same-day" or "Next receiving day") or "Three-day"
+    require('src.receipt_book').expense(state,'Supply order '..id,totalCents,onlineVendor or category.salesman,
+        'Shop',tostring(quantity)..' '..tostring(item.unit or 'units')..' - '..productName
+            ..(salesmanVisitSpecial and string.format("\nSalesman visit deal: %d%% off (regular $%d)",
+                salePercent,regularPrice) or "")
+            ..(deliveryFeeCents>0 and ("\n"..shippingLabel.." shipping: $"..string.format("%.2f",deliveryFeeCents/100)) or ""),'order:'..id)
     if channel == "computer" then
         local receiptBody=string.format(
             "Payment received for %s from www.thecritternet.com. Order %s total: $%d. Keep this email as your receipt. Your order will arrive at the loading dock.",
             productName,id,price)
+        if deliveryFeeCents>0 then
+            receiptBody=string.format("Payment received for %s from www.thecritternet.com. Order %s: item $%d + $%.2f %s shipping. "..
+                "Expected loading-dock arrival: %s.",productName,id,price,deliveryFeeCents/100,
+                shippingLabel:lower(),BusinessCalendar.dateTimeTextAtHours(shipment.delivery.expectedAtHours))
+        end
         if (salePercent or 0)>0 then
             receiptBody=string.format(
                 "CritterNet sale: %d%% off %s (regular price $%d). You paid $%d. Order %s will arrive at the loading dock.",
                 salePercent,productName,regularPrice,price,id)
+            if deliveryFeeCents>0 then
+                receiptBody=string.format("CritterNet sale: %d%% off %s (regular price $%d). Order %s: item $%d + $%.2f %s shipping. "..
+                    "Expected loading-dock arrival: %s.",salePercent,productName,regularPrice,id,price,
+                    deliveryFeeCents/100,shippingLabel:lower(),
+                    BusinessCalendar.dateTimeTextAtHours(shipment.delivery.expectedAtHours))
+            end
         end
         Inbox.addNotice(state, {
             id = "RECEIPT-" .. id,
@@ -252,7 +308,7 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel)
             body = receiptBody,
             noticeKind = "receipt",
             orderId = id,
-            total = price,
+            total = totalCents/100,
         })
     else
         Inbox.addNotice(state, {
@@ -285,8 +341,8 @@ function Procurement.retailCatalog(state)
     return result
 end
 
-function Procurement.buyRetail(state, categoryIndex, itemIndex)
-    return Procurement.buy(state, categoryIndex, itemIndex, "computer")
+function Procurement.buyRetail(state, categoryIndex, itemIndex, shippingService)
+    return Procurement.buy(state, categoryIndex, itemIndex, "computer",shippingService)
 end
 
 local paperProducts = { "house_sheets", "cover_stock" }

@@ -46,8 +46,13 @@ function Test.run(R,check)
     check("home_food_runtime_eating_restores_need",state.home.residents.owner.hunger>54 and state.home.inventory.pizza_slice==3)
     Controls.keypressed("h",R);Controls.keypressed("1",R);Controls.mousepressed(750,230,1,R)
     check("home_food_runtime_stop_available_without_paging",not state.home.residents.owner.activity)
+    -- Pagination needs more than three available actions; do not depend on
+    -- whichever furniture happens to be in the starter apartment.
+    local oldMeal,oldSandwich=state.home.inventory.basic_meal,state.home.inventory.sandwich
+    state.home.inventory.basic_meal=1;state.home.inventory.sandwich=1
     Controls.keypressed("right",R)
     check("home_food_runtime_food_menu_pages",Controls.page==2)
+    state.home.inventory.basic_meal=oldMeal;state.home.inventory.sandwich=oldSandwich
     Controls.keypressed("escape",R)
     return balance-state.home.balanceCents
 end

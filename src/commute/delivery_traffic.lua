@@ -21,6 +21,8 @@ local TrafficBudget=require('src.commute.traffic_budget')
 local Network={CITY='Millhaven',AVERAGE_SPEED=8,MAX_ACTIVE_TRUCKS=16,
     DISPATCH_HEADWAY_SECONDS=8,TRUCK_CAPACITY=10}
 local stuckWatch=setmetatable({}, {__mode='k'})
+local manualSessions=setmetatable({}, {__mode='k'})
+local directedVehicles=setmetatable({}, {__mode='k'})
 local ruleWatch=setmetatable({}, {__mode='k'})
 local maneuverPaths=setmetatable({}, {__mode='k'})
 local yardPaths=setmetatable({}, {__mode='k'})
@@ -481,7 +483,9 @@ local function truckAtDock(world,truck)
     local anchor=site and site.design.truckParking
     if not site or not anchor or type(truck)~='table' then return false end
     local x,z=site:toLocal(truck.x,truck.z)
-    return math.abs(x-anchor.x)<=1.1/site.scale.x and math.abs(z-anchor.z)<=.9/site.scale.z
+    -- Reserve the apron around every accepted rear-door pose, including a
+    -- slightly angled or offset player truck and its departure clearance.
+    return math.abs(x-anchor.x)<=3.5/site.scale.x and math.abs(z-anchor.z)<=3/site.scale.z
 end
 
 local function eachDelivery(state,callback)
@@ -1304,7 +1308,15 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
                     -- Motorcycle recovery already checks terrain and traffic.
                     rescued,reason=Bike.rescue(vehicle,world)
                 else
-                    rescued,reason=TrafficRecovery.rescue(vehicle,watch.recoveryRoute,world)
+                    if vehicle.collisionContact and not WarehouseYard.controls(vehicle,world) then
+                        for _,direction in ipairs({{-math.sin(vehicle.heading),math.cos(vehicle.heading)},
+                            {math.sin(vehicle.heading),-math.cos(vehicle.heading)},
+                            {-math.cos(vehicle.heading),-math.sin(vehicle.heading)}}) do
+                            rescued=TrafficRecovery.nudge(vehicle,direction[1],direction[2],world)
+                            if rescued then reason='Shifted clear of local geometry';break end
+                        end
+                    end
+                    if not rescued then rescued,reason=TrafficRecovery.rescue(vehicle,watch.recoveryRoute,world) end
                 end
             end
             local action='Backing away under collision control, then retrying the route'
@@ -1318,7 +1330,9 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
                 watch.cooldown=2
                 updateTrafficActorIndex(world,vehicle,
                     (vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle') and 'bike' or 'vehicle')
-                action='Rescue moved the vehicle to a clear road position behind the obstruction; route retained'
+                action=reason=='Shifted clear of local geometry'
+                    and 'Nudged the truck clear of geometry and replanned its route'
+                    or 'Rescue moved the vehicle to a clear road position behind the obstruction; route retained'
             else
                 watch.reverseTime=1.6
                 if reason then action='No clear rescue position; backing away and retrying' end
@@ -1370,7 +1384,16 @@ local function driveForward(vehicle,points,dt,world,targetName,watchdogState)
                 if vehicle.trafficKind=='motorcycle' or vehicle.aiKind=='motorcycle' then
                     rescued,rescueReason=Bike.rescue(vehicle,world)
                 else
-                    rescued,rescueReason=Truck.command(vehicle,'rescue',world)
+                    if vehicle.collisionContact and not WarehouseYard.controls(vehicle,world) then
+                        for _,direction in ipairs({{-math.sin(vehicle.heading),math.cos(vehicle.heading)},
+                            {math.sin(vehicle.heading),-math.cos(vehicle.heading)},
+                            {-math.cos(vehicle.heading),-math.sin(vehicle.heading)}}) do
+                            rescued=TrafficRecovery.nudge(vehicle,direction[1],direction[2],world)
+                            if rescued then rescueReason='Shifted clear of local geometry';break end
+                        end
+                    end
+                    if not rescued then rescued,rescueReason=TrafficRecovery.rescue(vehicle,watch.recoveryRoute,world) end
+                    if not rescued then rescued,rescueReason=Truck.command(vehicle,'rescue',world) end
                 end
                 if rescued then
                     action='Moved to a collision-checked clear road position and replanned'
@@ -1651,7 +1674,10 @@ function Network.update(state,town,now,epoch,activeWorld)
     local outboundDurationHours=route.outboundLength/Network.AVERAGE_SPEED*24/math.max(1,Calendar.secondsPerDay(state))
     local changed=false
     if companyActive then
-        changed=companyTruck.update(state,now,true) or changed
+        local exterior=companyState and companyState.exterior
+        if not (exterior and directedVehicles[exterior.vehicle]) then
+            changed=companyTruck.update(state,now,true) or changed
+        end
         companyTruck.syncTripVehicle(state)
     end
     for _,shipment in ipairs(shipments) do
@@ -2041,11 +2067,39 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
     local step=elapsed/stepCount
     trafficClock=trafficClock+elapsed
     local changed,moving=motorcyclesCreated,false
+    local sessions=manualSessions[state]
+    if sessions then
+        for id,session in pairs(sessions) do
+            if love.timer.getTime()-session.lastAt>1.5 then
+                directedVehicles[session.vehicle]=nil
+                session.vehicle.pathTarget=nil;session.vehicle.localManeuver=true
+                session.vehicle.replanRoute=true
+                stuckWatch[session.vehicle]=nil;ruleWatch[session.vehicle]=nil
+                maneuverPaths[session.vehicle]=nil;yardPaths[session.vehicle]=nil
+                local company=state.employment and state.employment.companyTruck
+                local motion=company and company.exterior
+                if motion and motion.vehicle==session.vehicle then motion.rail=nil;motion.wait=0 end
+                DockManeuver.clear(session.vehicle,state,'Driver direction timed out')
+                sessions[id]=nil
+                changed=true
+            end
+        end
+    end
     for _=1,stepCount do
         -- Prepare a saved company vehicle before building the shared collision
         -- index. Zero dt may prepare a phase, but never advances its physics.
-        changed=Company.updateExterior(state,world,epoch,nil,0) or changed
-        local queue=WarehouseQueue.plan(deliveryEntries(state),route,dockBlocked(state,world),epoch,Network.lanePosition)
+        local companyExterior=state.employment and state.employment.companyTruck
+            and state.employment.companyTruck.exterior
+        if not (companyExterior and directedVehicles[companyExterior.vehicle]) then
+            changed=Company.updateExterior(state,world,epoch,nil,0) or changed
+        end
+        local entries=deliveryEntries(state)
+        local company=state.employment and state.employment.companyTruck
+        local queued=company and company.exterior
+        if queued and (queued.phase=='queue' or queued.phase=='loading') then
+            entries[#entries+1]={id='company-delivery-truck',delivery={status='pending_arrival',route=queued}}
+        end
+        local queue=WarehouseQueue.plan(entries,route,dockBlocked(state,world),epoch,Network.lanePosition)
         -- Rebuild the shared actor index for each substep so every driver sees
         -- road users at their latest pose, including vehicles created during
         -- the preceding substep.
@@ -2054,7 +2108,8 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
         world.trafficActorIndex=TrafficActorIndex.shouldUse(#trafficActors)
             and TrafficActorIndex.new(trafficActors) or nil
         installVehicleCollision(world,trafficActors,world.trafficActorIndex)
-        local companyMoved=Company.updateExterior(state,world,epoch,nil,step)
+        local companyMoved=not (companyExterior and directedVehicles[companyExterior.vehicle])
+            and Company.updateExterior(state,world,epoch,nil,step,queued and queue[queued]) or false
         changed=companyMoved or changed
         local company=state.employment and state.employment.companyTruck
         local motion=company and company.exterior
@@ -2079,9 +2134,15 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
         local bikeChanged,bikeMoving=AIMotorcycleTraffic.update(commute,world,step,driveRoute,state)
         changed=bikeChanged or changed
         moving=moving or bikeMoving or companyMoved
+            or (companyExterior and directedVehicles[companyExterior.vehicle]~=nil) or false
         eachDelivery(state,function(id,delivery)
             local localChanged
-            if delivery and delivery.route and delivery.route.transportId then
+            local manualVehicle=delivery and (delivery.status=='received'
+                and delivery.returnRoute and delivery.returnRoute.vehicle
+                or delivery.route and delivery.route.vehicle)
+            if manualVehicle and directedVehicles[manualVehicle] then
+                localChanged=false
+            elseif delivery and delivery.route and delivery.route.transportId then
                 localChanged=false
             else
                 localChanged=simulateDelivery(delivery,route,step,state,epoch,world,id,queue)
@@ -2103,7 +2164,8 @@ function Network.simulate(state,town,dt,epoch,activeWorld,visitors)
                         halfLength=dimensions.halfLength,halfWidth=dimensions.halfWidth}
                 end
             end
-            moving=moving or active~=nil and active.phase~='at_bay'
+            moving=moving or active~=nil and directedVehicles[active]~=nil
+                or active~=nil and active.phase~='at_bay'
                 and active.phase~='waiting_bay' and active.phase~='offmap'
         end)
         world.vehicleObstacles=nil;world.sweepTrafficObstacles=nil;world.activeTruck=nil
@@ -2322,7 +2384,105 @@ function Network.physicalActors(state)
             end
         end
     end
+    local motion=state and state.employment and state.employment.companyTruck
+        and state.employment.companyTruck.exterior
+    if motion and motion.vehicle and (motion.phase=='reverse_out'
+        or motion.phase=='departing' or motion.phase=='returning'
+        or motion.phase=='collecting') then
+        result[#result+1]={id='company-delivery-truck',actor=motion.vehicle,
+            truck=true,phase=motion.phase,companyMotion=motion}
+    end
     return result
+end
+local function directEntry(state,id)
+    for _,entry in ipairs(Network.physicalActors(state)) do
+        if entry.id==id then return entry end
+    end
+end
+function Network.directable(state,ped,range)
+    if not ped then return nil end
+    local best,bestDistance
+    for _,entry in ipairs(Network.physicalActors(state)) do
+        local vehicle=entry.actor
+        local distance=(vehicle.x-ped.x)^2+(vehicle.z-ped.z)^2
+        if distance<=(range or 7)^2 and (vehicle.speed or 0)<.35
+            and entry.phase~='at_bay' and entry.phase~='waiting_bay'
+            and not directedVehicles[vehicle]
+            and (not bestDistance or distance<bestDistance) then
+            best,bestDistance=entry,distance
+        end
+    end
+    return best
+end
+local function endDirectSession(state,playerId)
+    local sessions=manualSessions[state]
+    local session=sessions and sessions[playerId]
+    if not session then return false end
+    local vehicle=session.vehicle
+    directedVehicles[vehicle]=nil
+    vehicle.speed=0;vehicle.throttle=0;vehicle.brake=1
+    vehicle.pathTarget=nil;vehicle.pathIndex=2;vehicle.localManeuver=true;vehicle.replanRoute=true
+    stuckWatch[vehicle]=nil;ruleWatch[vehicle]=nil;maneuverPaths[vehicle]=nil;yardPaths[vehicle]=nil
+    DockManeuver.clear(vehicle,state,'Player finished directing driver')
+    local company=state.employment and state.employment.companyTruck
+    local motion=company and company.exterior
+    if motion and motion.vehicle==vehicle then motion.rail=nil;motion.wait=0 end
+    sessions[playerId]=nil
+    return true
+end
+function Network.beginDirect(state,playerId,ped,id)
+    local entry=directEntry(state,id)
+    local eligible=Network.directable(state,ped,7)
+    if not entry or not eligible or eligible.id~=id then return false,'Stand near a stopped delivery truck.' end
+    local sessions=manualSessions[state] or {};manualSessions[state]=sessions
+    endDirectSession(state,playerId)
+    local session={vehicle=entry.actor,id=id,lastAt=love.timer.getTime()}
+    sessions[playerId]=session;directedVehicles[entry.actor]=session
+    entry.actor.speed=0;entry.actor.throttle=0;entry.actor.brake=1
+    return true,'Directing the driver. Use the thumbstick or movement keys; finish to resume the route.'
+end
+function Network.directedVehicle(state,id)
+    local entry=directEntry(state,id)
+    return entry and entry.actor or nil
+end
+function Network.endDirect(state,playerId)
+    local ended=endDirectSession(state,playerId)
+    return ended,ended and 'Driver resuming the delivery route.'
+        or 'The driver is no longer waiting for directions.'
+end
+function Network.moveDirect(state,playerId,ped,x,z,world)
+    local session=manualSessions[state] and manualSessions[state][playerId]
+    if not session or not world or not ped then return false,'The driver is no longer waiting for directions.' end
+    local vehicle=session.vehicle
+    if (vehicle.x-ped.x)^2+(vehicle.z-ped.z)^2>14^2 then
+        endDirectSession(state,playerId)
+        return false,'Move closer to the truck to direct it.'
+    end
+    session.lastAt=love.timer.getTime()
+    local length=math.sqrt(x*x+z*z)
+    if length<.12 then return true end
+    x,z=x/math.max(1,length),z/math.max(1,length)
+    local oldObstacles,oldSweep,oldActive=world.vehicleObstacles,world.sweepTrafficObstacles,world.activeTruck
+    Network.installVehicleObstacles(state,world)
+    world.activeTruck=vehicle
+    local moved=false
+    for _=1,4 do
+        local nx,nz=vehicle.x+x*.075,vehicle.z+z*.075
+        if Truck.blocked(world,nx,nz,vehicle.heading,vehicle) then break end
+        vehicle.x,vehicle.z=nx,nz;moved=true
+    end
+    if not moved and Truck.blocked(world,vehicle.x,vehicle.z,vehicle.heading,vehicle) then
+        moved=TrafficRecovery.nudge(vehicle,x,z,world)
+    end
+    world.vehicleObstacles,world.sweepTrafficObstacles,world.activeTruck=oldObstacles,oldSweep,oldActive
+    if moved then
+        vehicle.h=world:supportHeight(vehicle.x,vehicle.z)
+        vehicle.speed=0;vehicle.reverse=false;vehicle.steering=0;vehicle.slipAngle=0
+        vehicle.collisionContact=false;vehicle.collisionStun=0
+        vehicle.replanRoute=true;vehicle.localManeuver=true
+        return true
+    end
+    return true,'That direction is blocked; try another angle.'
 end
 function Network.actors(state,town,now,epoch,activeWorld,visitors)
     local route=townWorld(town,activeWorld)

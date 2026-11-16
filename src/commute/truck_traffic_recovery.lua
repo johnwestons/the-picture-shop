@@ -24,6 +24,27 @@ local function trafficClear(vehicle,x,z,heading,world)
     return true
 end
 
+-- A truck already intersecting a tree or curb cannot pass an ordinary sweep.
+-- Look for the first nearby fully clear pose in the player's chosen direction.
+function Recovery.nudge(vehicle,dx,dz,world)
+    local length=math.sqrt(dx*dx+dz*dz)
+    if length<.1 then return false end
+    dx,dz=dx/length,dz/length
+    for distance=.35,3.5,.35 do
+        local x,z=vehicle.x+dx*distance,vehicle.z+dz*distance
+        if trafficClear(vehicle,x,z,vehicle.heading,world)
+            and not Truck.blocked(world,x,z,vehicle.heading,vehicle) then
+            vehicle.x,vehicle.z=x,z
+            vehicle.h=world:supportHeight(x,z)
+            vehicle.speed,vehicle.throttle,vehicle.brake,vehicle.steering=0,0,1,0
+            vehicle.slipAngle,vehicle.collisionStun=0,0
+            vehicle.collisionContact=false
+            return true
+        end
+    end
+    return false
+end
+
 function Recovery.rescue(vehicle,points,world)
     local length=Path.length(points)
     if length<=0 then return false,'No road route available for recovery' end

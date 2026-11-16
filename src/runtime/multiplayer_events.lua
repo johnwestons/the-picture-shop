@@ -18,6 +18,8 @@ function Component.install(Runtime)
                         "The host sent a shop snapshot this build could not apply.",
                         "Invalid shared shop snapshot")
                 else
+                    require('src.client_households').activateClient(Runtime.state,
+                        Runtime.multiplayer.residentId)
                     if Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan" then
                         Runtime.lanReconnectArmed = true
                         Runtime.lanReconnect:succeeded()
@@ -40,6 +42,8 @@ function Component.install(Runtime)
                         "The host sent a shop update this build could not apply.",
                         "Invalid durable shop update")
                 else
+                    require('src.client_households').activateClient(Runtime.state,
+                        Runtime.multiplayer.residentId)
                     local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
                         Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
                     if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
@@ -116,7 +120,8 @@ function Component.install(Runtime)
                         Runtime.state.screen = "world"
                     else
                         event.useHostLayout = true
-                        Runtime.WorkshopRemoteScreen.enter(event, Runtime.state, Runtime.multiplayer.localId)
+                        Runtime.WorkshopRemoteScreen.enter(event, Runtime.state, Runtime.multiplayer.localId,
+                            Runtime.App.settings and Runtime.App.settings.twelveHourTime)
                     end
                 end
                 if not event.granted and event.resourceId=="warehouse" then
@@ -242,13 +247,15 @@ function Component.install(Runtime)
             elseif event.type == "join_requested" then
                 Runtime.MultiplayerHud.open(Runtime.multiplayerHudInfo())
                 Runtime.state.message = tostring(event.name or "A player")
-                    .. " requested access. Choose APPROVE or DENY in the Players panel."
+                    .. (event.unmatched
+                        and " is using an unrecognized identity. Choose a client profile in the Players panel."
+                        or " requested access. Choose APPROVE or DENY in the Players panel.")
             elseif event.type == "join_cancelled" then
-                Runtime.state.message = "The pending Direct player disconnected. That invitation is now closed."
+                Runtime.state.message = "The pending player disconnected."
             elseif event.type == "join_rejected" then
-                Runtime.state.message = "Join declined. The old Direct codes can no longer be used."
+                Runtime.state.message = "Join declined."
             elseif event.type == "join_expired" then
-                Runtime.state.message = "The Direct join request expired. Create fresh codes to try again."
+                Runtime.state.message = "The join request expired. Please try connecting again."
             elseif event.type == "player_joined" then
                 Runtime.state.message = tostring(event.name or "A worker") .. " joined the shop."
                 if Runtime.privateServerMode then

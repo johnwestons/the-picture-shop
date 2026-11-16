@@ -230,7 +230,9 @@ function Test.run(check)
     if sampleTown then
         local Codec=require('src.net.codec')
         local Schema=require('src.save_schema')
-        local limits={maxBytes=512*1024,maxDepth=32,maxEntries=32768,
+        -- Keep this round-trip within the same snapshot budget used by the
+        -- multiplayer protocol; generated towns now include more service routes.
+        local limits={maxBytes=1024*1024,maxDepth=32,maxEntries=65536,
             maxStringBytes=128*1024,maxNumberBytes=32}
         local state=Schema.defaultState()
         state.home=assert(require('src.home').new({town=sampleTown},state.calendar.totalDays))

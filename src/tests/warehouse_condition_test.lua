@@ -107,7 +107,7 @@ function Test.run(context,check)
     imageLoader.setEnabled(oldImageLoaderEnabled)
     c.powerConnected,c.breakerRepaired,c.lightsOn=false,false,false
     conditionRenderer.clear()
-    local overlay=love.graphics.newCanvas(960,678)
+    local overlay=love.graphics.newCanvas(960,678,{dpiscale=1})
     local function overlayAlpha(x,y,drawState)
         love.graphics.push("all")
         love.graphics.setCanvas(overlay)

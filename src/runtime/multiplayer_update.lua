@@ -154,7 +154,12 @@ function Component.install(Runtime)
                 if require('src.story_grand_opening').active(Runtime) then moveX,moveY=0,0 end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 local startX,startY=player.x,player.y
+                local hostHome=Runtime.state.home
+                if player.sceneId=='home' then
+                    Runtime.state.home=require('src.client_households').forPlayer(Runtime.state,player) or hostHome
+                end
                 Runtime.World.updateRemotePlayer(player, moveDt, moveX, moveY, Runtime.Assets, Runtime.state)
+                Runtime.state.home=hostHome
                 local puddle=type(player.taskAction)=="string"
                     and player.taskAction:match("^mop_(puddle[12])$")
                 local id=tonumber(player.id) or 1
@@ -189,14 +194,61 @@ function Component.install(Runtime)
                     player._warehouseMopElapsed=nil
                 end
             end,
-            bindResident = function(player,token,players)
-                local id,reason=require("src.home_residents").bind(Runtime.state,player,token,players)
-                if id then
-                    local okay,commuteReason=require('src.commute.runtime').bind(Runtime,player,players)
-                    if not okay then return nil,commuteReason end
+            profileOptions = function(token,players)
+                return require('src.home_residents').profileOptions(Runtime.state,token,players)
+            end,
+            bindResident = function(player,token,players,claimSlot)
+                local id,reason,created,assigned,oldCredential=require("src.home_residents").bind(
+                    Runtime.state,player,token,players,claimSlot)
+                local priorArrival,priorScene,arrivalStarted=nil,nil,false
+                local function failed(message)
+                    if id then
+                        local home=Runtime.state.home
+                        local resident=home.residents and home.residents[id]
+                        if resident then resident.activePlayerId=nil end
+                        if resident and oldCredential then resident.credentialHash=oldCredential end
+                        if resident then
+                            resident.clientArrivalDone=priorArrival
+                            resident.sceneId=priorScene
+                        end
+                        if (assigned or arrivalStarted) and home.commute
+                            and home.commute.participants then
+                            home.commute.participants[id]=nil
+                        end
+                        if assigned then
+                            home.clientHomes[id]=nil
+                            if created then home.residents[id]=nil
+                            elseif resident then resident.clientSlot=nil;resident.apartmentId=nil end
+                        end
+                        home.revision=home.revision+1
+                        player.homeResidentId=nil
+                    end
+                    return nil,message
                 end
-                if id then Runtime.multiplayer:markShopDirty();Runtime.saveCurrent() end
-                return id,reason
+                if id then
+                    local resident=Runtime.state.home.residents[id]
+                    priorArrival,priorScene=resident.clientArrivalDone,resident.sceneId
+                    if not resident.clientArrivalDone and Runtime.state.home.commute
+                        and not Runtime.state.home.commute.independent then
+                        return failed('Finish the current group journey before a new client joins.')
+                    end
+                    local okay,commuteReason=require('src.commute.runtime').bind(Runtime,player,players)
+                    if not okay then return failed(commuteReason) end
+                    if not resident.clientArrivalDone then
+                        local started,arrivalReason=require('src.commute.runtime').startGuestArrival(
+                            Runtime,player,players)
+                        if not started then return failed(arrivalReason) end
+                        arrivalStarted=true
+                        resident.clientArrivalDone=true
+                        resident.sceneId='commute'
+                        resident.revision=resident.revision+1
+                    end
+                end
+                return id,reason,id and function() failed('Join did not finish.') end or nil
+            end,
+            residentJoined = function()
+                Runtime.multiplayer:markShopDirty()
+                Runtime.saveCurrent()
             end,
             updatePlayerProfile = function(player)
                 if require('src.home_residents').setName(Runtime.state,player,player.name) then
@@ -323,11 +375,20 @@ function Component.install(Runtime)
                 if require('src.story_grand_opening').active(Runtime) then
                     return false,'opening_in_progress','Please wait for the grand opening to finish.',targetKind
                 end
-                if targetKind=='commute' then return require('src.commute.runtime').command(Runtime,player,desiredState) end
-                if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
-                if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end
-                if targetKind=="homeDelivery" then return require("src.home_delivery_controls").command(Runtime,player) end
-                if targetKind=="homeFurniture" then return require("src.home_furniture_controls").command(Runtime,player,desiredState) end
+                if targetKind=='commute' then
+                    return require('src.client_households').withPlayer(Runtime,player,function()
+                        return require('src.commute.runtime').command(Runtime,player,desiredState)
+                    end)
+                end
+                if targetKind=="homeTravel" or targetKind=="homeActivity"
+                    or targetKind=="homeDelivery" or targetKind=="homeFurniture" then
+                    return require('src.client_households').withPlayer(Runtime,player,function()
+                        if targetKind=="homeTravel" then return require("src.weekend_runtime").command(Runtime,player,desiredState) end
+                        if targetKind=="homeActivity" then return require("src.home_activity_controls").command(Runtime,player,desiredState) end
+                        if targetKind=="homeDelivery" then return require("src.home_delivery_controls").command(Runtime,player) end
+                        return require("src.home_furniture_controls").command(Runtime,player,desiredState)
+                    end)
+                end
                 local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim,signature)
                 if okay and targetKind=='deliverySignature' then Runtime.saveCurrent() end
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end

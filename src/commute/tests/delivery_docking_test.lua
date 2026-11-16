@@ -47,6 +47,17 @@ local function run(state,town,world,truck,seconds,wanted)
 end
 
 function Test.run(check)
+    do
+        local state,town,world,truck,delivery=fixture(712345)
+        state.employment={staff={}}
+        local departure=delivery.route.departedAtEpoch
+        Network.update(state,town,44,epoch+10,world)
+        local arrived,collision,_,trace=run(state,town,world,truck,100,'at_bay')
+        check('dispatched_truck_reverses_to_dock_after_receiving_hours_without_staff',
+            arrived and not collision and delivery.route.departedAtEpoch==departure
+                and delivery.status=='pending_arrival',trace)
+    end
+
     for _,seed in ipairs({712345,712346,43127}) do
         local state,town,world,truck,delivery,site=fixture(seed)
         local arrived,collision,reversed,trace=run(state,town,world,truck,100,'at_bay')

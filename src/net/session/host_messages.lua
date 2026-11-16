@@ -10,12 +10,13 @@ function Component.install(Runtime)
             return false
         end
         local pending = self.pendingPeers[peer]
-        if self.requireHostApproval and (type(pending) ~= "table"
+        if (self.requireHostApproval or type(pending)=='table' and pending.profileStatus=='unmatched')
+            and (type(pending) ~= "table"
             or pending.stage ~= "approval" or pending.decision ~= "approved"
             or pending.hello ~= hello)
         then
             self:_sendError(peer, "approval_required",
-                "The Direct host must approve this join before shop data is available.")
+                "The host must approve this join before shop data is available.")
             return false
         end
         if Runtime.countEntries(self.players) >= Runtime.Protocol.MAX_PLAYERS then
@@ -58,14 +59,17 @@ function Component.install(Runtime)
             sceneId = spawnScene,
         })
         player.lastInputAt = self.clock()
+        local undoResident
         if context and context.bindResident then
-            local residentId,reason=context.bindResident(player,hello.payload.residentToken,self.players)
+            local residentId,reason,undo=context.bindResident(player,hello.payload.residentToken,self.players,
+                pending and pending.claimSlot)
             if not residentId then
                 self:_sendError(peer,"resident_identity",reason or "Unable to connect this resident.")
                 self.transport:disconnect(peer,4,false);self:_discardPendingPeer(peer)
                 return false
             end
             player.homeResidentId=residentId
+            undoResident=undo
         end
         player.lastInputSequence = -1
         player.inputX, player.inputY = 0, 0
@@ -115,6 +119,7 @@ function Component.install(Runtime)
             positionMs = radio.positionMs,
         })
         if not welcomeOk or not shopOk or not radioOk then
+            if undoResident then undoResident() end
             self:_queue("error", { message = tostring(welcomeError or shopError or radioError) })
             self:_sendError(peer, "snapshot_failed", tostring(welcomeError or shopError or radioError))
             self.transport:disconnect(peer, 5, false)
@@ -123,6 +128,7 @@ function Component.install(Runtime)
             self.status = tostring(Runtime.countEntries(self.players)) .. "/4 workers connected"
             return false
         end
+        if context and context.residentJoined then context.residentJoined(player) end
         self.status = tostring(Runtime.countEntries(self.players)) .. "/4 workers connected"
         self:_queue("player_joined", { playerId = id, name = player.name })
         return true
@@ -166,6 +172,27 @@ function Component.install(Runtime)
     function Runtime.Session:_handleHostEnvelope(peer, envelope, context)
         if envelope.type == "hello" then
             if self.networkKind ~= "direct" then
+                local pending=self.pendingPeers[peer]
+                if type(pending)=='table' and pending.stage=='approval' then
+                    if not Runtime.sameHello(pending.hello and pending.hello.payload,envelope.payload) then
+                        self:_rejectDirectPending(peer,'invalid_join',
+                            'The join request changed while awaiting approval.',
+                            'One join request changed while awaiting approval.')
+                    end
+                    return
+                end
+                if context and type(context.profileOptions)=='function' then
+                    local profile,reason=context.profileOptions(envelope.payload.residentToken,self.players)
+                    if not profile then
+                        self:_sendError(peer,'resident_identity',reason or 'Resident identity unavailable.')
+                        self.transport:disconnect(peer,4,false);self:_discardPendingPeer(peer)
+                        return
+                    end
+                    if not profile.matched and not self.dedicatedServer then
+                        self:_queueDirectApproval(peer,envelope,context)
+                        return
+                    end
+                end
                 self:_hostWelcome(peer, envelope, context)
                 return
             end
@@ -180,7 +207,7 @@ function Component.install(Runtime)
                 return
             end
             if pending.stage == "hello" then
-                self:_queueDirectApproval(peer, envelope)
+                self:_queueDirectApproval(peer, envelope, context)
             elseif pending.stage == "approval" then
                 -- ENet reliable delivery does not duplicate messages. Still ignore
                 -- an exact replay defensively and revoke on any attempted rewrite.

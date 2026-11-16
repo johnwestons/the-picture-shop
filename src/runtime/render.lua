@@ -25,6 +25,7 @@ function Component.install(Runtime)
         if Runtime.mobileControls then Runtime.mobileControls:setBounds(viewBounds) end
         local mobileWorld = Runtime.App.cameraTransformsWorld()
         local mobileUi = Runtime.App.cameraTransformsUi()
+        local cutterZoom = Runtime.App.cutterPinchZoomActive()
         local wideCommute=Runtime.Viewport and Runtime.Viewport.fullScreenDevice
             and Runtime.Viewport.fullScreenDevice() and Runtime.state.screen=='world'
             and Runtime.World.player.sceneId=='commute'
@@ -95,6 +96,7 @@ function Component.install(Runtime)
                 and not require('src.screens.warehouse_hud').active(Runtime) then
                 Runtime.App.playerFeedback:drawToast(bounds,'commute')
             end
+            require('src.medical_ui').draw(Runtime)
             Runtime.CharacterAssets.endFrame();Runtime.Viewport.endDraw();Runtime.Smoke.drawn()
             return
         end
@@ -124,6 +126,7 @@ function Component.install(Runtime)
             local clock=love.timer.getTime()
             love.graphics.arc("line","open",380,328,10,clock*4,clock*4+4.5)
             love.graphics.printf("Loading...",402,319,180,"left")
+            require('src.medical_ui').draw(Runtime)
             Runtime.WorldRenderer.endFrame()
             Runtime.CharacterAssets.endFrame()
             Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
@@ -207,9 +210,12 @@ function Component.install(Runtime)
                 require("src.screens.shop_clock").draw(Runtime.state,mouseX,mouseY,
                     Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             elseif Runtime.state.screen == "work_phone" then
-                Runtime.WorkPhoneScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets)
+                Runtime.WorkPhoneScreen.draw(Runtime.state, mouseX, mouseY, Runtime.Assets, nil,
+                    Runtime.App.settings and Runtime.App.settings.twelveHourTime)
             elseif Runtime.state.screen == "machine" then
+                if cutterZoom then Runtime.App.mobileCamera:beginDraw() end
                 Runtime.MachineScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
+                if cutterZoom then Runtime.App.mobileCamera:endDraw() end
             elseif Runtime.state.screen == "press" then
                 Runtime.PressScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             elseif Runtime.state.screen == "job_offer" then
@@ -233,7 +239,14 @@ function Component.install(Runtime)
         if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
             and not require('src.screens.warehouse_hud').active(Runtime) then
             local _, accessBounds = Runtime.optionsAccessLayout()
-            require('src.screens.warehouse_hud').drawMenu(Runtime,accessBounds)
+            local hud=require('src.screens.warehouse_hud')
+            if cutterZoom then
+                local pointerX,pointerY=Runtime.overlayPointerPosition()
+                hud.drawMenu(Runtime,accessBounds,pointerX,pointerY)
+                hud.drawCutterRecenter(Runtime,accessBounds,pointerX,pointerY)
+            else
+                hud.drawMenu(Runtime,accessBounds)
+            end
         end
         if Runtime.App.playerFeedback and (Runtime.state.screen~='world' or showHud) and Runtime.state.screen ~= "title"
             and Runtime.state.screen ~= "lan" and Runtime.state.screen ~= "direct"
@@ -252,6 +265,7 @@ function Component.install(Runtime)
         if mobileUi then Runtime.App.mobileCamera:endDraw() end
         if Runtime.mobileControls and Runtime.state.screen~='delivery_signature'
             and (Runtime.state.screen~='world' or showHud) then Runtime.mobileControls:draw() end
+        require('src.medical_ui').draw(Runtime)
         Runtime.WorldRenderer.endFrame()
         Runtime.CharacterAssets.endFrame()
         Runtime.Viewport.endDraw()

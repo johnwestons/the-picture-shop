@@ -1,5 +1,6 @@
 local Config = require("src.config")
 local GroceryInventory = require("src.commute.grocery_inventory")
+local utf8 = require("utf8")
 
 local Calendar = {}
 local WEEKDAYS = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" }
@@ -32,6 +33,8 @@ local function dateFromTotalDay(totalDay)
         totalDays = totalDay,
         elapsed = 0,
         secondsPerDay = settings().secondsPerDay or 1200,
+        customEvents = {},
+        nextCustomEventId = 1,
     }
 end
 
@@ -43,6 +46,50 @@ local function totalDayForDate(year, month, day)
     for current = 1, month - 1 do total = total + daysInMonth(year, current) end
     return total + day - 1
 end
+
+local MAX_CUSTOM_EVENTS=200
+local MAX_EVENT_DAY
+
+local function textLength(value)
+    local length=utf8.len(value)
+    return length or math.huge
+end
+
+local function cleanEventText(value,maximum,required)
+    if type(value)~="string" then return nil end
+    value=value:gsub("[%c]"," "):gsub("%s+"," "):match("^%s*(.-)%s*$") or ""
+    if (required and value=="") or textLength(value)>maximum then return nil end
+    return value
+end
+
+local function storedCustomEventValid(event)
+    if type(event)~="table" or type(event.id)~="string"
+        or not event.id:match("^CUSTOM%-%d+$")
+        or type(event.totalDay)~="number" or event.totalDay~=math.floor(event.totalDay)
+        or event.totalDay<0 or event.totalDay>MAX_EVENT_DAY
+        or cleanEventText(event.title,60,true)~=event.title
+        or cleanEventText(event.detail or "",120,false)~=(event.detail or "")
+        or event.hour~=nil and (type(event.hour)~="number" or event.hour~=math.floor(event.hour)
+            or event.hour<0 or event.hour>23) then return false end
+    for key in pairs(event) do
+        if key~="id" and key~="totalDay" and key~="title" and key~="detail" and key~="hour" then
+            return false
+        end
+    end
+    return true
+end
+
+Calendar.HOLIDAYS={
+    {month=1,day=21,title="Snowglow Night",detail="Neighbors gather with lanterns to share warm drinks and stories."},
+    {month=3,day=17,title="First Thaw Frolic",detail="A small welcome to longer days, muddy paths and returning birds."},
+    {month=4,day=21,title="Seedshare Day",detail="Swap saved seeds, starter plants and garden advice."},
+    {month=6,day=21,title="Longlight Picnic",detail="An easy evening picnic that lasts as long as the summer light."},
+    {month=8,day=9,title="Firefly Evening",detail="The town dims its lamps and watches the meadow glow."},
+    {month=9,day=23,title="Amberleaf Gathering",detail="Bring a favorite autumn dish and trade the season's first finds."},
+    {month=10,day=19,title="Lanternleaf Walk",detail="A gentle dusk walk beneath the turning trees."},
+    {month=11,day=17,title="Warmthshare Supper",detail="Share soup, blankets and useful things before the cold settles in."},
+    {month=12,day=19,title="Burrowlight Night",detail="Homes and shop windows glow with handmade lights for the longest nights."},
+}
 
 local function expenses()
     return settings().monthlyExpenses or {}
@@ -57,10 +104,11 @@ daysInMonth = function(year, month)
     if month == 4 or month == 6 or month == 9 or month == 11 then return 30 end
     return 31
 end
+MAX_EVENT_DAY=totalDayForDate(9999,12,31)
 
 function Calendar.defaultCalendar()
     return { year = 2026, month = 1, day = 1, weekday = 4, elapsed = 0, totalDays = 0,
-        secondsPerDay = settings().secondsPerDay or 1200 }
+        secondsPerDay = settings().secondsPerDay or 1200,customEvents={},nextCustomEventId=1 }
 end
 
 function Calendar.validDayLength(seconds)
@@ -87,6 +135,17 @@ function Calendar.ensure(state)
     -- Saves written before shop setup used a five-minute day. Keep their
     -- clock and wage checkpoints on the same time basis when migrating.
     if date.secondsPerDay==nil then date.secondsPerDay=300 end
+    local customEvents=type(date.customEvents)=="table" and date.customEvents or {}
+    local kept,seen,maxId={}, {},0
+    for _,event in ipairs(customEvents) do
+        if #kept<MAX_CUSTOM_EVENTS and storedCustomEventValid(event) and not seen[event.id] then
+            kept[#kept+1]=event
+            seen[event.id]=true
+            maxId=math.max(maxId,tonumber(event.id:match("(%d+)$")) or 0)
+        end
+    end
+    date.customEvents=kept
+    date.nextCustomEventId=math.max(maxId+1,math.floor(tonumber(date.nextCustomEventId) or 1),1)
 
     state.bills = type(state.bills) == "table" and state.bills or Calendar.defaultBills()
     local bills = state.bills
@@ -107,11 +166,23 @@ function Calendar.valid(date, bills)
         or type(date.elapsed) ~= "number" or date.elapsed < 0
         or type(date.totalDays) ~= "number" or date.totalDays < 0 or date.totalDays ~= math.floor(date.totalDays)
         or not Calendar.validDayLength(date.secondsPerDay)
+        or type(date.customEvents)~="table" or #date.customEvents>MAX_CUSTOM_EVENTS
+        or type(date.nextCustomEventId)~="number" or date.nextCustomEventId<1
+        or date.nextCustomEventId~=math.floor(date.nextCustomEventId)
         or type(bills.balance) ~= "number" or bills.balance < 0
         or type(bills.nextInvoiceId) ~= "number" or bills.nextInvoiceId < 1
         or bills.nextInvoiceId ~= math.floor(bills.nextInvoiceId)
         or type(bills.ledger) ~= "table"
     then return false end
+    local eventCount,eventIds=0,{}
+    for key,event in pairs(date.customEvents) do
+        if type(key)~="number" or key~=math.floor(key) or key<1 or key>#date.customEvents
+            or not storedCustomEventValid(event) or eventIds[event.id] then return false end
+        eventCount=eventCount+1;eventIds[event.id]=true
+        local serial=tonumber(event.id:match("(%d+)$")) or 0
+        if serial>=date.nextCustomEventId then return false end
+    end
+    if eventCount~=#date.customEvents then return false end
     for index, invoice in ipairs(bills.ledger) do
         if index ~= math.floor(index) or type(invoice) ~= "table"
             or type(invoice.id) ~= "string" or type(invoice.total) ~= "number" or invoice.total < 0
@@ -119,6 +190,53 @@ function Calendar.valid(date, bills)
         then return false end
     end
     return true
+end
+
+function Calendar.saveCustomEvent(state,year,month,day,title,detail,hour,eventId)
+    local date=Calendar.ensure(state)
+    if type(year)~="number" or year~=math.floor(year) or year<2026 or year>9999
+        or type(month)~="number" or month~=math.floor(month) or month<1 or month>12
+        or type(day)~="number" or day~=math.floor(day) or day<1 or day>daysInMonth(year,month) then
+        return false,"Choose a valid calendar date."
+    end
+    local totalDay=totalDayForDate(year,month,day)
+    local cleanTitle=cleanEventText(title,60,true)
+    local cleanDetail=cleanEventText(detail or "",120,false)
+    if not cleanTitle then return false,"Enter a title of 1–60 characters." end
+    if cleanDetail==nil then return false,"Notes can be up to 120 characters." end
+    if hour~=nil and (type(hour)~="number" or hour~=math.floor(hour) or hour<0 or hour>23) then
+        return false,"Choose all day or a valid hour."
+    end
+    local existing
+    if eventId~=nil then
+        for _,event in ipairs(date.customEvents) do
+            if event.id==eventId then existing=event;break end
+        end
+        if not existing then return false,"That personal event is no longer on the calendar." end
+    elseif #date.customEvents>=MAX_CUSTOM_EVENTS then
+        return false,"The calendar is full. Remove an old personal event first."
+    end
+    local event=existing or {id=string.format("CUSTOM-%06d",date.nextCustomEventId)}
+    event.totalDay=totalDay
+    event.title=cleanTitle
+    event.detail=cleanDetail
+    event.hour=hour
+    if not existing then
+        date.customEvents[#date.customEvents+1]=event
+        date.nextCustomEventId=date.nextCustomEventId+1
+    end
+    return true,event
+end
+
+function Calendar.removeCustomEvent(state,eventId)
+    local date=Calendar.ensure(state)
+    for index,event in ipairs(date.customEvents) do
+        if event.id==eventId then
+            table.remove(date.customEvents,index)
+            return true,event
+        end
+    end
+    return false,"That personal event is no longer on the calendar."
 end
 
 function Calendar.monthlyCharges(state)
@@ -204,14 +322,15 @@ function Calendar.update(state, dt)
     require("src.household_finances").accrue(state)
     local homeRentPosted=require("src.home").advance(state)
     local homeDeliveryPosted=require("src.home_shopping").advance(state)
+    local clientHomeChanged=require('src.client_households').advance(state)
     if newestInvoice then
         state.message = string.format("Monthly bills posted: $%d due. Pay them on the office computer.", state.bills.balance)
     elseif homeRentPosted then
         state.message="Apartment rent is due. Check My Home on CritterNet."
     elseif homeDeliveryPosted then
-        state.message="A home delivery is waiting at your apartment entrance."
+        state.message="A home delivery is waiting in your apartment living room."
     end
-    return daysAdvanced > 0 or homeRentPosted or homeDeliveryPosted, newestInvoice
+    return daysAdvanced > 0 or homeRentPosted or homeDeliveryPosted or clientHomeChanged, newestInvoice
 end
 
 function Calendar.amountDue(state)
@@ -383,7 +502,7 @@ function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
         scheduleEndDay=scheduleStartDay+daysInMonth(requestedYear,requestedMonth)-1
     end
     local result, seen = {}, {}
-    local function add(totalDay, title, kind, detail, id, atHours)
+    local function add(totalDay, title, kind, detail, id, atHours, customEventId)
         totalDay = tonumber(totalDay)
         if not totalDay then return end
         totalDay = math.max(0, math.floor(totalDay))
@@ -396,6 +515,7 @@ function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
             title = title, kind = kind or "general", detail = detail, atHours=atHours,
             hour=atHours and math.floor(atHours)%24 or nil,
             minute=atHours and math.floor((atHours%1)*60+.5)%60 or nil,
+            customEventId=customEventId,
         }
     end
     local function addHours(hours, title, kind, detail, id)
@@ -499,6 +619,21 @@ function Calendar.events(state,twelveHour,requestedYear,requestedMonth)
                     totalDay=totalDayForDate(event.year,event.month,event.day)
                 end
                 if totalDay then add(totalDay,event.title,"town",detail,id) end
+            end
+        end
+    end
+    for _,event in ipairs(state.calendar.customEvents or {}) do
+        local atHours=event.hour~=nil and event.totalDay*24+event.hour or nil
+        add(event.totalDay,event.title,"personal",event.detail,event.id,atHours,event.id)
+    end
+    local firstYear=dateFromTotalDay(math.max(0,scheduleStartDay)).year
+    local lastYear=dateFromTotalDay(math.max(0,scheduleEndDay)).year
+    for year=firstYear,lastYear do
+        for _,holiday in ipairs(Calendar.HOLIDAYS) do
+            local holidayDay=totalDayForDate(year,holiday.month,holiday.day)
+            if holidayDay and holidayDay>=scheduleStartDay and holidayDay<=scheduleEndDay then
+                add(holidayDay,holiday.title,"holiday",holiday.detail,
+                    string.format("holiday:%04d:%02d:%02d",year,holiday.month,holiday.day))
             end
         end
     end

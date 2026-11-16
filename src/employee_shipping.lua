@@ -41,6 +41,12 @@ local function unloadInbound(state,worker,dt,context,truck)
     if not selected then
         worker._inboundDeliveryPalletId=nil
         if context.inboundDeliveryRemaining and context.inboundDeliveryRemaining()==0 then
+            if context.closeInboundDelivery then
+                local closed=context.closeInboundDelivery()==true
+                worker.activity=closed and "Closing the delivery truck cargo door"
+                    or "Delivery unloaded; waiting for the cargo door to close"
+                return true,closed
+            end
             worker.activity="Delivery unloaded; close the cargo door from the manifest"
             return false,false
         end

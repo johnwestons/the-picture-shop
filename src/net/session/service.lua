@@ -162,7 +162,7 @@ function Component.install(Runtime)
             local peer = expired.peer
             self:connectionNote('worker handshake expired','RESOLVED','An incoming worker did not finish joining',
                 'Retired the incomplete connection; host remains open','network:peer')
-            if self.networkKind == "direct" then
+            if expired.stage == 'approval' or self.networkKind == "direct" then
                 local approval = expired.stage == "approval"
                 self:_rejectDirectPending(peer,
                     approval and "approval_timeout" or "hello_timeout",

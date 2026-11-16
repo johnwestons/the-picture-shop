@@ -111,6 +111,12 @@ function Test.run(context,check)
         check('independent_runtime_reload_does_not_follow_remote_guest',R.World.player.sceneId=='warehouse'
             and R.state.home.commute.participants[Residents.key(outside)]~=nil)
         check('independent_runtime_reload_retains_shared_truck',Trip.valid(R.state.home.commute,R.state.home))
+        -- A former client must not simulate a serialized host trip offline.
+        local localPlayer=R.World.player
+        localPlayer.id,localPlayer.homeResidentId=2,Residents.key(outside)
+        local safe=pcall(C.update,R,.05,0,0,false)
+        localPlayer.id,localPlayer.homeResidentId=1,nil
+        check('independent_disconnected_guest_snapshot_skips_authority_physics',safe)
     end,debug.traceback)
     restore();assert(okay,why)
 end

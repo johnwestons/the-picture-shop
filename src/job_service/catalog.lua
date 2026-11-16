@@ -88,7 +88,7 @@ function Component.install(Runtime)
     -- Regular cutter offers used to cycle three production specs and therefore
     -- three customer names. Keep those specs and introduce a broader customer
     -- rotation after the five established early-game clients.
-    Runtime.additionalCuttingCompanies = {
+    Runtime.additionalCompanies = {
         "Cedar & Finch Packaging",
         "Hightide Paper Works",
         "Town Grocery",
@@ -190,6 +190,25 @@ function Component.install(Runtime)
             suppliedBy = "client",
             orientation = artworkSize and artworkSize.width > artworkSize.height and "landscape" or "portrait",
         }
+    end
+
+    -- Every company in the starter, cutter, expansion, and press catalogs joins
+    -- one rotation. Keep insertion order stable so job IDs map to names alike
+    -- across save/load and multiplayer sessions.
+    Runtime.customerCompanies = {}
+    local companySeen = {}
+    local function addCompany(name)
+        if type(name) == "string" and name ~= "" and not companySeen[name] then
+            companySeen[name] = true
+            Runtime.customerCompanies[#Runtime.customerCompanies + 1] = name
+        end
+    end
+    addCompany(Runtime.starterTemplate.company)
+    for _, template in ipairs(Runtime.templates) do addCompany(template.company) end
+    for _, name in ipairs(Runtime.additionalCompanies) do addCompany(name) end
+    for _, template in ipairs(Runtime.pressTemplates) do addCompany(template.company) end
+    function Runtime.JobService.companyNames()
+        return Runtime.copy(Runtime.customerCompanies)
     end
 
     function Runtime.nextSequence(state)

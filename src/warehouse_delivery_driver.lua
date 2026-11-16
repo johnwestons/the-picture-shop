@@ -86,6 +86,17 @@ local function playerAtShop(context)
     return false
 end
 
+local function employeeOnShift(state,now)
+    local Contracts=require("src.employment_contracts")
+    if not require("src.weekend_flow").acceptsNewWork(state) then return false end
+    for _,worker in ipairs(state.employment and state.employment.staff or {}) do
+        if worker.status=="employed" and worker.visible and worker.clockedIn
+            and (worker.sceneId or "warehouse")=="warehouse"
+            and Contracts.onShift(worker.contract,now) then return true end
+    end
+    return false
+end
+
 local function reputationPenalty(state)
     local reputation=require("src.reputation").ensure(state)
     reputation.score=math.max(-100,reputation.score-2)
@@ -351,7 +362,13 @@ function Driver.update(state,dt,context)
     end
     employeeSigning=AI.deliverySignatureActive(state,value.deliveryId)
     if value.status=="approaching" or value.status=="waiting" then
-        if not employeeSigning then
+        -- A driver cannot time out a delivery while the shop has no receiver
+        -- on duty. Keep the truck and its dock lease until the player returns
+        -- or another shift can sign and unload it. When someone is present,
+        -- retain the bounded wait for an unanswered signature.
+        local receiverAvailable=playerAtShop(context)
+            or employeeOnShift(state,require("src.business_calendar").absoluteHours(state))
+        if receiverAvailable and not employeeSigning then
             local previous=math.floor(value.waitSeconds or 0)
             value.waitSeconds=math.min(Driver.WAIT_SECONDS,(value.waitSeconds or 0)+dt)
             if math.floor(value.waitSeconds)~=previous then changed=true end

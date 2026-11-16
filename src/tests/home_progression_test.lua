@@ -162,12 +162,12 @@ end
 function Test.run(context,check)
     local report={"Nine-week household scenarios. Controlled business receipts, not a warehouse throughput benchmark.",
         "First week: no income. Following weeks: $2400 collected / $700 consumed supplies / actual operating costs.",
-        "Cheaper rents: solo pay 25%, four-player 40%. Higher rents: solo 40%, four-player 50%.",
+        "Cheaper rents: solo pay 25%, four-player 40%. Higher rents: solo 42%, four-player 50%.",
         "Separate Corner/25% runs incur arrears, then raise pay to 60% after week 9 and recover over four more weekends.",
         "Empty starts buy one $160 delivered bed; others can floor-rest.",
         "Meals, free sink water, shared floor sleep, bathroom access, delivery and rent use production commands."}
     for index,id in ipairs(Catalog.ORDER) do for _,preset in ipairs({"empty","modest"}) do for _,count in ipairs({1,4}) do
-        local percent=index<=2 and (count==4 and 40 or 25) or (count==4 and 50 or 40)
+        local percent=index<=2 and (count==4 and 40 or 25) or (count==4 and 50 or 42)
         scenario(context,check,id,preset,count,({300,1200,3600})[(index+count)%3+1],percent,report)
     end end end
     for _,count in ipairs({1,4}) do scenario(context,check,"corner","empty",count,1200,25,report,true) end

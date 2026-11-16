@@ -29,17 +29,22 @@ function Test.run(context,check)
     for _,id in ipairs(require("src.home_catalog").ORDER) do for _,preset in ipairs({"empty","modest"}) do
         local s,p=fresh(id,preset)
         for _,kind in ipairs(kinds) do check("home_utilities_clear_rotations_"..id..preset..kind,require("src.tests.home_tables_lamp_test").findSpot(s,kind,{p})~=nil) end
-        check("home_utilities_no_free_starter_extras_"..id..preset,#s.home.furniture.items==(preset=="empty" and 1 or 9))
+        check("home_utilities_no_free_starter_extras_"..id..preset,#s.home.furniture.items==(preset=="empty" and 2 or 10))
     end end
     local s,p=fresh();local business=s.money
     for _,kind in ipairs(kinds) do
         local q={productId=kind,quantity=1,requestId="utility-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,q));assert(Shopping.order(s,p,q))
     end
-    check("home_utilities_checkout_household_once",s.home.balanceCents==7000 and s.money==business)
-    time(s,46);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
-    assert(Shopping.collect(s,p));check("home_utilities_delivery_once",#s.home.furniture.items==5 and not Shopping.collect(s,p))
-    local wardrobe,cabinet,tv,bin=unpack(s.home.furniture.items,2)
+    local quoted=0
+    for _,kind in ipairs(kinds) do quoted=quoted+Shopping.quote(kind,1,'same_day').totalCents end
+    check("home_utilities_checkout_household_once",s.home.balanceCents==30000-quoted and s.money==business)
+    local latest=46
+    for _,order in ipairs(s.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    time(s,latest);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
+    assert(Shopping.collect(s,p));check("home_utilities_delivery_once",#s.home.furniture.items==6 and not Shopping.collect(s,p))
+    time(s,46)
+    local wardrobe,cabinet,tv,bin=unpack(s.home.furniture.items,3)
     for _,item in ipairs({wardrobe,cabinet,tv,bin}) do place(s,p,item) end
     local g={id=2,sceneId="home",x=p.x,y=p.y};assert(Residents.bind(s,g,string.rep("e",64),{p}))
     local c=require("src.home_chores").ensure(s);c.laundry.clean=2;near(s,g,wardrobe)
@@ -115,6 +120,6 @@ function Test.run(context,check)
     assert(context.save.save(3,s,{sceneId="home",x=p.x,y=p.y}));local saved=assert(context.save.load(3))
     check("home_utilities_disk_contents_and_power",require("src.home_surfaces").find(saved.state,tv.id).powered and saved.state.home.chores.trash==2)
     local migrated=assert(Schema.migrate({version=37,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_utilities_v37_no_free_items",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_utilities_v37_starts_with_sleeping_bag",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==2 and migrated.state.home.balanceCents==30000)
 end
 return Test

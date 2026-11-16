@@ -49,6 +49,7 @@ end
 local function drawPlayer(R,pose)
     local assets=R.CharacterAssets
     if not assets then return end
+    if require('src.medical_ui').fallen(assets,R.World.player,R.state,pose.x,pose.y) then return end
     local character=pose.character or Config.player.character
     local action,mirror
     if pose.moving then action,mirror=Animation.actorWalkAction(pose)

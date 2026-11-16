@@ -38,10 +38,15 @@ function Component.install(Runtime)
         return true
     end
 
-    function Runtime.Session:_queueDirectApproval(peer, hello)
+    function Runtime.Session:_queueDirectApproval(peer, hello, context)
         local pending = self.pendingPeers[peer]
         if type(pending) ~= "table" or pending.stage ~= "hello" then return false end
-        local name = Runtime.directDisplayName(hello and hello.payload and hello.payload.name)
+        local name
+        if self.networkKind=='direct' then
+            name=Runtime.directDisplayName(hello and hello.payload and hello.payload.name)
+        else
+            name=hello and hello.payload and hello.payload.name
+        end
         if not name then
             return self:_rejectDirectPending(peer, "invalid_join",
                 "That Direct player name cannot be displayed safely.",
@@ -71,6 +76,7 @@ function Component.install(Runtime)
             type = "hello",
             payload = {
                 clientNonce = hello.payload.clientNonce,
+                residentToken = hello.payload.residentToken,
                 name = name,
                 character = hello.payload.character,
                 furColorway = hello.payload.furColorway,
@@ -81,20 +87,34 @@ function Component.install(Runtime)
         pending.character = hello.payload.character
         pending.furColorway = hello.payload.furColorway
         pending.overallsColorway = hello.payload.overallsColorway
+        if context and type(context.profileOptions)=='function' then
+            local profile,reason=context.profileOptions(hello.payload.residentToken,self.players)
+            if not profile then
+                return self:_rejectDirectPending(peer,'resident_identity',reason,
+                    'A client profile could not be checked safely.')
+            end
+            pending.profileStatus=profile.matched and 'matched' or 'unmatched'
+            pending.matchedSlot=profile.matchedSlot
+            pending.profileChoices=profile.choices or {}
+            pending.canCreate=profile.canCreate==true
+        end
         self.approvalRequests[requestId] = pending
-        self.status = "Direct worker waiting for host approval"
+        self.status = pending.profileStatus=='unmatched'
+            and 'Unrecognized resident waiting for host profile choice'
+            or 'Worker waiting for host approval'
         self:_queue("join_requested", {
             requestId = requestId,
             name = name,
             character = pending.character,
+            unmatched = pending.profileStatus=='unmatched',
             expiresIn = Runtime.DIRECT_APPROVAL_TIMEOUT,
         })
         return true
     end
 
-    function Runtime.Session:approveJoin(requestId)
-        if not self:isHost() or self.networkKind ~= "direct" or self.terminal then
-            return false, "No Direct join request is available."
+    function Runtime.Session:approveJoin(requestId,profileChoice)
+        if not self:isHost() or self.terminal then
+            return false, "No join request is available."
         end
         if type(requestId) ~= "number" or requestId ~= math.floor(requestId) then
             return false, "That Direct join request is no longer available."
@@ -120,14 +140,31 @@ function Component.install(Runtime)
                 "One Direct join was declined because the shop is full.")
             return false, "The Direct shop is full."
         end
+        if pending.profileStatus=='unmatched' then
+            if profileChoice=='new' and pending.canCreate then
+                pending.claimSlot=nil
+            elseif type(profileChoice)=='number' and profileChoice==math.floor(profileChoice) then
+                local available=false
+                for _,row in ipairs(pending.profileChoices or {}) do
+                    if row.slot==profileChoice then available=true;break end
+                end
+                if not available then return false,'That saved client profile is unavailable.' end
+                pending.claimSlot=profileChoice
+            else
+                return false,'Choose NEW CLIENT or a saved client profile.'
+            end
+        elseif profileChoice~=nil then
+            return false,'This resident identity already matches its saved profile.'
+        end
         pending.decision = "approved"
-        self.status = "Approving Direct worker"
-        return true, "Worker approved. Finishing the encrypted join."
+        self.status = "Approving worker"
+        return true, pending.claimSlot and ('Client slot '..pending.claimSlot..' granted to this player.')
+            or 'Worker approved. Finishing the join.'
     end
 
     function Runtime.Session:rejectJoin(requestId)
-        if not self:isHost() or self.networkKind ~= "direct" or self.terminal then
-            return false, "No Direct join request is available."
+        if not self:isHost() or self.terminal then
+            return false, "No join request is available."
         end
         local pending = type(requestId) == "number" and self.approvalRequests[requestId] or nil
         if type(pending) ~= "table" or self.pendingPeers[pending.peer] ~= pending then

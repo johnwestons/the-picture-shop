@@ -3,6 +3,7 @@
 local Condition={VERSION=4,POWER_FEE_CENTS=6000,WATER_FEE_CENTS=3500,GRANDPA_ALLOWANCE=420}
 local anchors,legacyAnchors,version3Anchors
 local WarehouseMap=require("src.warehouse_registration")
+local MAX_WIPE_STROKES=4096
 Condition.ACTIONS={call_power=true,call_water=true,repair_breaker=true,lights_on=true,lights_off=true,
     clean_puddle1=true,clean_puddle2=true,grand_opening=true}
 local regions={"west","center","east"}
@@ -107,7 +108,8 @@ function Condition.valid(c)
         if type(c.puddleStrokes.puddle1)~="table"
             or type(c.puddleStrokes.puddle2)~="table" then return false end
         for name,strokes in pairs(c.puddleStrokes) do
-            if name~="puddle1" and name~="puddle2" or type(strokes)~="table" or #strokes>1600 then return false end
+            if name~="puddle1" and name~="puddle2" or type(strokes)~="table"
+                or #strokes>MAX_WIPE_STROKES then return false end
             for index,point in pairs(strokes) do
                 if type(index)~="number" or index~=math.floor(index) or index<1 or index>#strokes
                     or type(point)~="table" or type(point.x)~="number" or type(point.y)~="number"
@@ -265,7 +267,7 @@ function Condition.spillFootprint(name,x,y)
     return point~=nil and type(x)=="number" and type(y)=="number"
         and withinSpill(point,x,y) or false
 end
-local Wipe={radiusX=12,radiusY=7,completionCoverage=.92,maxStrokes=1600}
+local Wipe={radiusX=36,radiusY=21,completionCoverage=.88,maxStrokes=MAX_WIPE_STROKES}
 local progressCache=setmetatable({},{__mode="k"})
 local function stampOpacity(spot,x,y)
     local angle=tonumber(spot.angle) or 0
@@ -361,15 +363,25 @@ function Condition.mopContact(state,name,x,y,angle,deferCompletion)
     end
     c.puddleStrokes=c.puddleStrokes or {puddle1={},puddle2={}}
     local strokes=c.puddleStrokes[name]
-    if #strokes>=1600 then return false,false end
-    strokes[#strokes+1]={x=math.floor(x*10+.5)/10,y=math.floor(y*10+.5)/10,
-        angle=math.floor(angle*1000+.5)/1000}
-    local done=Condition.puddleProgress(state,name)>=Wipe.completionCoverage
-    if done and not deferCompletion then
+    local function finishPuddle()
         c.cleanedPuddles[name]=true
         if c.cleanedPuddles.puddle1 and c.cleanedPuddles.puddle2 then
             c.cleaned.west,c.cleaned.center,c.cleaned.east=true,true,true
         end
+    end
+    -- Older saves could reach their 1,600-mark ceiling while still dirty.
+    -- Recheck coverage before rejecting a contact so the larger brush can
+    -- finish those spills as soon as their saved marks cover enough floor.
+    if Condition.puddleProgress(state,name)>=Wipe.completionCoverage then
+        if not deferCompletion then finishPuddle() end
+        return false,not deferCompletion
+    end
+    if #strokes>=Wipe.maxStrokes then return false,false end
+    strokes[#strokes+1]={x=math.floor(x*10+.5)/10,y=math.floor(y*10+.5)/10,
+        angle=math.floor(angle*1000+.5)/1000}
+    local done=Condition.puddleProgress(state,name)>=Wipe.completionCoverage
+    if done and not deferCompletion then
+        finishPuddle()
     end
     return true,done and not deferCompletion
 end

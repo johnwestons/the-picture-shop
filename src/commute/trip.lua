@@ -71,18 +71,18 @@ local function truckParkedInBay(world,id,truck)
     return M.length(truck.x-pad.x,truck.z-pad.z)<=3
 end
 function Trip.truckAtLoadingBay(world,truck)
-    if not truck or (truck.speed or 0)>.05 then return false end
+    if not truck or math.abs(truck.speed or 0)>.15 then return false end
     local site=world and world.sites and world.sites.byId.warehouse
     local anchor=site and site.design.truckParking
     if not anchor then return false end
     local F=require('src.commute.truck_footprint')
-    if math.cos((truck.heading or 0)-site.yaw)<math.cos(math.rad(12)) then return false end
+    if math.cos((truck.heading or 0)-site.yaw)<math.cos(math.rad(25)) then return false end
     local length=F.dimensions(truck).halfLength
     local rearX,rearZ=truck.x-math.cos(truck.heading)*length,truck.z-math.sin(truck.heading)*length
     local dockX,dockZ=site:toWorld(anchor.x,anchor.z,0)
     dockX,dockZ=dockX-site.cos*F.halfLength,dockZ-site.sin*F.halfLength
     local dx,dz=rearX-dockX,rearZ-dockZ
-    return math.abs(dx*site.cos+dz*site.sin)<=.8 and math.abs(-dx*site.sin+dz*site.cos)<=.65
+    return math.abs(dx*site.cos+dz*site.sin)<=1.6 and math.abs(-dx*site.sin+dz*site.cos)<=1.8
 end
 function Trip.truckParking(world,companyTruck,model,boxTruck)
     local site=world and world.sites and world.sites.byId.warehouse
@@ -224,9 +224,10 @@ function Trip.valid(t,home)
             if v.boost~=nil and type(v.boost)~='boolean' or v.grounded~=nil and type(v.grounded)~='boolean' then return false end
         end
         if home then
-            if independent and (p.origin~='warehouse' and p.origin~=home.apartmentId
-                or p.destination~='warehouse' and p.destination~=home.apartmentId) then return false end
             local resident=home.residents and home.residents[id]
+            local apartment=resident and resident.apartmentId or home.apartmentId
+            if independent and (p.origin~='warehouse' and p.origin~=apartment
+                or p.destination~='warehouse' and p.destination~=apartment) then return false end
             if not resident or (p.rider.bike.paintId or Paint.DEFAULT)~=(resident.ridingPaintId or Paint.DEFAULT)
                 or (p.rider.bike.damage or 0)~=(resident.ridingDamage or 0) then return false end
         end
@@ -614,6 +615,9 @@ function Trip.update(state,player,input,dt,world)
     local t=state.home.commute;if not t then return false end
     local part=Trip.participant(state,player,t.token)
     if not part or part.arrived then return false end
+    if require('src.player_medical').blocked(state,player) then return false end
+    input.walkScale=require('src.player_medical').speed(state,player)
+    if part.interiorPose then part.interiorPose.id=player.id;part.interiorPose.homeResidentId=player.homeResidentId end
     if part.interior then
         local dx,dz=input.walkX or 0,input.walkZ or 0
         if part.interior=='barn' then
@@ -693,6 +697,7 @@ function Trip.update(state,player,input,dt,world)
     if part.rider.vehicle=='truck' then
         local truck=Trip.truckFor(part.rider,t)
         if not truck or truck.driver~=Residents.key(player) then return false end
+        local gateEntryX,gateEntryZ,gateEntrySpeed=truck.x,truck.z,truck.speed or 0
         if run and run.status=='loading' then
             local loaded=require('src.commute.delivery_run').loadingProgress(state,run)
             if (loaded or 0)>0 and Trip.truckAtLoadingBay(world,truck) then input={drive=0,steer=0,brake=1} end
@@ -711,12 +716,23 @@ function Trip.update(state,player,input,dt,world)
         if run and run.status=='driving' then
             local stop=run.stops[run.stopIndex]
             local gate=world.mainlandExit
-            if stop and stop.kind=='city' and gate and truck.speed>.4 then
+            if stop and stop.kind=='city' and gate then
                 local dx,dz=math.cos(gate.heading),math.sin(gate.heading)
                 local along=(truck.x-gate.x)*dx+(truck.z-gate.z)*dz
                 local across=math.abs((truck.x-gate.x)*(-dz)+(truck.z-gate.z)*dx)
                 local facing=math.cos(truck.heading)*dx+math.sin(truck.heading)*dz
-                if along>=-16 and along<=3 and across<=8 and facing>.45 then
+                -- Collision resolution can reduce speed to zero when the
+                -- truck footprint reaches the playable map boundary, just
+                -- before this portal check runs. On touch controls, a low
+                -- forward throttle may also never exceed the old speed gate.
+                -- Honor a clear forward-driving intent inside the final gate
+                -- approach so neither case strands the player with the load.
+                local forwardIntent=(input.drive or 0)<-.04 and (input.brake or 0)<.05
+                    and truck.engine~=false and (truck.fuel or Truck.TANK_LITERS)>0 and not truck.reverse
+                local arrivedAtGate=(along>=-16 and along<=4 and across<=10 and facing>.35)
+                    and ((truck.speed or 0)>.15 or gateEntrySpeed>.15 or forwardIntent
+                        and math.abs(gateEntryX-truck.x)+math.abs(gateEntryZ-truck.z)<1.5)
+                if arrivedAtGate then
                     local now=require('src.business_calendar').absoluteHours(state)
                     local duration=5*24/require('src.business_calendar').secondsPerDay(state)
                     local opens=require('src.business_hours').nextService(now,duration)
@@ -738,7 +754,15 @@ function Trip.update(state,player,input,dt,world)
                 end
             end
         end
-    else changed=Rider.update(part.rider,input,dt,world) end
+    else
+        local wasFalling=part.rider.ped.crash~=nil
+        changed=Rider.update(part.rider,input,dt,world)
+        if not wasFalling and part.rider.ped.crash then
+            local injured=require('src.player_medical').crash(Residents.get(state,player),require('src.business_calendar').absoluteHours(state))
+            if injured then state.message='You are injured. Walking speed is reduced. Visit Critter Clinic.' end
+            changed=true
+        end
+    end
     local resident=state.home.residents[Residents.key(player)]
     resident.ridingService=part.rider.bike.service
     local damage=part.rider.bike.damage or 0

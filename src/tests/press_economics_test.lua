@@ -118,10 +118,14 @@ function Test.run(context, check)
     end
     check("installed_press_guarantees_first_print_then_alternates_job_families", pressBought
         and cadence[1] and not cadence[2] and cadence[3] and not cadence[4] and cadence[5])
-    check("print_offer_rotation_respects_reliable_tier",
-        companies[1] == "Foundry Coffee Roasters"
-        and companies[3] == "Maple Street Books"
-        and companies[5] == "Foundry Coffee Roasters")
+    local uniqueCompanies = {}
+    for _, company in ipairs(companies) do uniqueCompanies[company] = true end
+    local uniqueCompanyCount=0
+    for _ in pairs(uniqueCompanies) do uniqueCompanyCount=uniqueCompanyCount+1 end
+    check("generated_company_names_rotate_across_print_and_cut_offers",
+        companies[1] == "Corner Copy & Mail" and companies[2] == "Blue Ridge Packaging"
+        and companies[3] == "Northstar Bindery" and #companies == 5
+        and uniqueCompanyCount==5)
 
     structured.status = "completed"
     local repeatState = context.State.new()

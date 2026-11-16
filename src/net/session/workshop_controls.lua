@@ -158,7 +158,7 @@ function Component.install(Runtime)
 
     function Runtime.Session:hudInfo()
         local pendingJoins = {}
-        if self:isHost() and self.networkKind == "direct" and not self.terminal then
+        if self:isHost() and not self.terminal then
             local now = self.clock()
             for requestId, pending in pairs(self.approvalRequests) do
                 if type(pending) == "table" and pending.stage == "approval" then
@@ -169,6 +169,10 @@ function Component.install(Runtime)
                         name = pending.name,
                         character = pending.character,
                         expiresIn = math.floor(remaining + 0.5),
+                        unmatched = pending.profileStatus=='unmatched',
+                        matchedSlot = pending.matchedSlot,
+                        profileChoices = pending.profileChoices,
+                        canCreate = pending.canCreate,
                     }
                 end
             end
@@ -239,7 +243,8 @@ function Component.install(Runtime)
             address = self.localAddress,
             port = self.port,
             rtt = self.rtt,
-            canManage = self:isHost() and self.networkKind == "direct" and not self.terminal,
+            canManage = self:isHost() and not self.terminal
+                and (self.networkKind == "direct" or #pendingJoins>0),
             pendingJoinCount = #pendingJoins,
             pendingJoins = pendingJoins,
             connectedGuests = connectedGuests,

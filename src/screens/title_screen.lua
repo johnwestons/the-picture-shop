@@ -24,6 +24,7 @@ local BUTTONS = {
     quit = { x = 666, y = 522, width = 168, height = 44, label = "QUIT" },
     localPlay = { x = 373, y = 604, width = 214, height = 44, label = "LOCAL PLAY" },
     directPlay = { x = 494, y = 604, width = 206, height = 44, label = "DIRECT PLAY" },
+    clients = { x = 373, y = 570, width = 214, height = 30, label = "CLIENT SAVES" },
     yes = { x = 330, y = 386, width = 130, height = 48, label = "DELETE" },
     no = { x = 500, y = 386, width = 130, height = 48, label = "CANCEL" },
 }
@@ -76,8 +77,10 @@ function TitleScreen.enter(onStart, onLocal, onDirect)
     TitleScreen.cycleTime, TitleScreen.feedbackRemaining, TitleScreen.observedMessage = 0, 0, ""
     TitleScreen.pendingAction, TitleScreen.keyboardFocus = nil, nil
     TitleScreen.pointerX, TitleScreen.pointerY = nil, nil
+    TitleScreen.startModeHover=nil
     TitleScreen.setup, TitleScreen.townSetup = nil, nil
     TitleScreen.bakeJob, TitleScreen.pendingNewPayload = nil, nil
+    TitleScreen.clientPayload,TitleScreen.clientSlot=nil,nil
     Motion.reset()
 end
 -- Pass nil to return to live menu feedback. The sprite's LCD stays unlettered,
@@ -172,6 +175,7 @@ local function startNew()
 end
 local function beginSetup()
     TitleScreen.setup=ShopSetup.new();TitleScreen.townSetup=nil;TitleScreen.mode="shop-setup"
+    TitleScreen.startModeHover=nil
     TitleScreen.setup.startMode=TitleScreen.startMode or "quick"
     TitleScreen.message="Choose the clock pace before creating this shop."
 end
@@ -183,6 +187,7 @@ end
 local function showStartModes()
     TitleScreen.mode="start-mode"
     TitleScreen.startMode="quick"
+    TitleScreen.startModeHover=nil
     TitleScreen.message="Choose how your new shop begins."
     return true
 end
@@ -231,6 +236,30 @@ local function requestDelete()
     return true
 end
 
+local function clientRow(slot)
+    local home=TitleScreen.clientPayload and TitleScreen.clientPayload.state.home
+    for id,resident in pairs(home and home.residents or {}) do
+        if resident.clientSlot==slot then return id,resident end
+    end
+end
+local function openClientSaves()
+    local payload,status=Save.load(TitleScreen.selected)
+    if not payload then
+        TitleScreen.message=status=='corrupted' and 'This shop save is damaged.' or 'Choose a saved shop first.'
+        return false
+    end
+    TitleScreen.clientPayload=payload
+    TitleScreen.mode='clients'
+    return true
+end
+local function selectClientSave(slot)
+    local id=clientRow(slot)
+    if not id then TitleScreen.message='Client slot '..slot..' is empty.';return true end
+    TitleScreen.clientSlot=slot
+    TitleScreen.mode='client-delete-confirm'
+    return true
+end
+
 local function confirmPending()
     if TitleScreen.mode == "overwrite-confirm" then
         showStartModes()
@@ -240,6 +269,18 @@ local function confirmPending()
         Save.delete(TitleScreen.selected)
         TitleScreen.mode = "normal"
         TitleScreen.message = "Slot deleted."
+        return true
+    end
+    if TitleScreen.mode=='client-delete-confirm' then
+        local payload=TitleScreen.clientPayload
+        local reset,reason=require('src.client_apartments').resetSlot(payload.state,TitleScreen.clientSlot)
+        if not reset then TitleScreen.message=reason;TitleScreen.mode='clients';return true end
+        local saved,saveReason=Save.save(TitleScreen.selected,payload.state,payload.player)
+        if not saved then
+            TitleScreen.message='Client save could not be reset: '..tostring(saveReason)
+            TitleScreen.clientPayload=Save.load(TitleScreen.selected)
+        else TitleScreen.message='Client slot '..TitleScreen.clientSlot..' reset. It is available for a new player.' end
+        TitleScreen.mode='clients'
         return true
     end
     return false
@@ -256,6 +297,7 @@ local function cancelPending()
         TitleScreen.message = "Delete cancelled."
         return true
     end
+    if TitleScreen.mode=='client-delete-confirm' then TitleScreen.mode='clients';return true end
     return false
 end
 
@@ -288,11 +330,12 @@ local function disabledButton(name)
     local slot = TitleScreen.slots()[TitleScreen.selected]
     return (name == "continue" and (not slot or slot.empty or slot.corrupted))
         or (name == "delete" and (not slot or slot.empty))
+        or (name == "clients" and (not slot or slot.empty or slot.corrupted))
         or (name == "localPlay" and not TitleScreen.onLocal)
         or (name == "directPlay" and not TitleScreen.onDirect)
 end
 
-local actions = { new = requestNew, continue = continueGame, delete = requestDelete,
+local actions = { new = requestNew, continue = continueGame, delete = requestDelete, clients=openClientSaves,
     localPlay = openLocalPlay, directPlay = openDirectPlay, quit = function() love.event.quit() end }
 local function activate(name)
     if disabledButton(name) then
@@ -311,7 +354,7 @@ end
 
 local function nextFocus(delta)
     local order = { "slot-1", "slot-2", "slot-3", "new" }
-    for _, name in ipairs({ "continue", "delete", "quit", "localPlay", "directPlay" }) do
+    for _, name in ipairs({ "continue", "delete", "quit", "localPlay", "directPlay", "clients" }) do
         if not disabledButton(name) then order[#order + 1] = name end
     end
     local current = TitleScreen.selected
@@ -326,6 +369,12 @@ end
 function TitleScreen.keypressed(key)
     if TitleScreen.mode=="terrain-bake" then return true end
     if TitleScreen.pendingAction then return true end
+    if TitleScreen.mode=='clients' then
+        if key=='escape' or key=='back' then TitleScreen.mode='normal';return true end
+        local slot=tonumber(key)
+        if slot and slot>=1 and slot<=3 then return selectClientSave(slot) end
+        return true
+    end
     if TitleScreen.mode=="start-mode" then
         if key=="escape" or key=="back" then TitleScreen.mode="normal";return true end
         if key=="1" or key=="q" then return chooseStart("quick") end
@@ -357,7 +406,7 @@ function TitleScreen.keypressed(key)
         local backwards = key == "left" or (key == "tab" and love.keyboard.isDown("lshift", "rshift"))
         nextFocus(backwards and -1 or 1); return true
     end
-    local name = ({ n = "new", c = "continue", d = "delete", l = "localPlay", i = "directPlay",
+    local name = ({ n = "new", c = "continue", d = "delete", p = "clients", l = "localPlay", i = "directPlay",
         q = "quit", escape = "quit" })[key]
     if key == "return" or key == "kpenter" or key == "space" then
         name = actions[TitleScreen.keyboardFocus] and TitleScreen.keyboardFocus or "continue"
@@ -377,6 +426,15 @@ function TitleScreen.mousepressed(x, y, button)
     if TitleScreen.mode=="terrain-bake" then return true end
     if button ~= 1 then return false end
     if TitleScreen.pendingAction then return true end
+    if TitleScreen.mode=='clients' then
+        for slot=1,3 do
+            if inside({x=260,y=350+(slot-1)*52,width=440,height=45},x,y) then
+                return selectClientSave(slot)
+            end
+        end
+        if inside({x=390,y=515,width=180,height=40},x,y) then TitleScreen.mode='normal' end
+        return true
+    end
     if TitleScreen.mode=="start-mode" then
         if inside({x=260,y=351,width=440,height=55},x,y) then return chooseStart("quick") end
         if inside({x=260,y=415,width=440,height=55},x,y) then return chooseStart("story") end
@@ -421,6 +479,14 @@ function TitleScreen.setHover(x, y)
     end
     TitleScreen.pointerX, TitleScreen.pointerY = x, y
     TitleScreen.hover, TitleScreen.hoverSlot = buttonAt(x, y), nil
+    TitleScreen.startModeHover=nil
+    if TitleScreen.mode=="start-mode" then
+        if inside({x=260,y=351,width=440,height=55},x,y) then
+            TitleScreen.startModeHover="quick"
+        elseif inside({x=260,y=415,width=440,height=55},x,y) then
+            TitleScreen.startModeHover="story"
+        end
+    end
     if TitleScreen.mode == "normal" then
         for index = 1, Save.SLOT_COUNT do
             if inside(slotRect(index), x, y) then TitleScreen.hoverSlot = index; break end
@@ -524,7 +590,7 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         local choices={{"quick","QUICK START","Open shop with the current setup",351},
             {"story","STORY","Meet Grandpa and restore the closed shop",415}}
         for _,item in ipairs(choices) do
-            local selected=TitleScreen.startMode==item[1]
+            local selected=(TitleScreen.startModeHover or TitleScreen.startMode)==item[1]
             love.graphics.setColor(selected and .13 or .06,selected and .31 or .12,selected and .32 or .14,.96)
             love.graphics.rectangle("fill",260,item[4],440,55,5)
             love.graphics.setColor(selected and .46 or .33,selected and .80 or .51,selected and .72 or .48)
@@ -534,13 +600,34 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         end
         love.graphics.setColor(.75,.81,.75);love.graphics.setFont(footerFont)
         love.graphics.printf("1 / 2 choose   ·   Enter confirm   ·   Esc back",260,489,440,"center")
+    elseif TitleScreen.mode=='clients' then
+        Skin.panel(assets,{x=225,y=295,width=510,height=290})
+        love.graphics.setFont(sectionFont);love.graphics.setColor(.96,.89,.65)
+        love.graphics.printf('CLIENT SAVES / SHOP '..TitleScreen.selected,240,315,480,'center')
+        for slot=1,3 do
+            local _,resident=clientRow(slot)
+            local y=350+(slot-1)*52
+            love.graphics.setColor(.06,.15,.16,.96)
+            love.graphics.rectangle('fill',260,y,440,45,5)
+            love.graphics.setColor(.39,.63,.59);love.graphics.rectangle('line',260,y,440,45,5)
+            love.graphics.setFont(bodyFont);love.graphics.setColor(.93,.92,.80)
+            local apartment=resident and require('src.home_catalog').APARTMENTS[resident.apartmentId]
+            local label=resident and string.format('%d  %s  /  %s  /  RESET',slot,resident.name,
+                apartment and apartment.name or resident.apartmentId)
+                or string.format('%d  EMPTY  /  available for a new player',slot)
+            love.graphics.printf(label,270,y+13,420,'center')
+        end
+        love.graphics.setFont(footerFont);love.graphics.setColor(.74,.81,.75)
+        love.graphics.printf('1–3 choose a client  ·  Esc back',260,515,440,'center')
     elseif TitleScreen.mode ~= "normal" then
         local overwriting = TitleScreen.mode == "overwrite-confirm"
         Skin.panel(assets, { x = 260, y = 330, width = 440, height = 146 })
         love.graphics.setFont(sectionFont)
         love.graphics.setColor(0.94, 0.38, 0.30)
-        love.graphics.printf((overwriting and "OVERWRITE SLOT " or "DELETE SLOT ") .. TitleScreen.selected .. "?", 260, 348, 440, "center")
-        drawButton(assets, "yes", true, overwriting and "OVERWRITE" or "DELETE")
+        local clientDelete=TitleScreen.mode=='client-delete-confirm'
+        love.graphics.printf(clientDelete and ('RESET CLIENT '..TitleScreen.clientSlot..'?')
+            or ((overwriting and "OVERWRITE SLOT " or "DELETE SLOT ") .. TitleScreen.selected .. "?"), 260, 348, 440, "center")
+        drawButton(assets, "yes", true, clientDelete and 'RESET' or overwriting and "OVERWRITE" or "DELETE")
         drawButton(assets, "no", false, "CANCEL")
         love.graphics.setFont(footerFont)
         love.graphics.setColor(0.68, 0.72, 0.70)
@@ -550,14 +637,15 @@ function TitleScreen.draw(assets, mouseX, mouseY)
         drawButton(assets, "delete", true); drawButton(assets, "quit", true)
         drawButton(assets, "localPlay", false)
         if TitleScreen.onDirect then drawButton(assets, "directPlay", false) end
+        drawButton(assets, "clients", false)
     end
     love.graphics.setColor(0.68, 0.72, 0.70)
     love.graphics.setFont(footerFont)
     local mobile = love.system and love.system.getOS and love.system.getOS() == "Android"
     love.graphics.printf(mobile and "Tap a slot and button  |  Controller: D-pad or cursor + A"
             or (TitleScreen.onDirect
-                and "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | I Direct | Q Quit"
-                or "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | L Local | Q Quit"),
+                and "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | P Clients | L Local | I Direct | Q Quit"
+                or "Tab/Arrows focus | Enter activate | N New | C Continue | D Delete | P Clients | L Local | Q Quit"),
         12, 652, Config.baseWidth - 24, "center")
     love.graphics.setColor(0.94, 0.82, 0.50, 0.95)
     love.graphics.printf(TitleScreen.versionText(), 0, 663, Config.baseWidth, "center")

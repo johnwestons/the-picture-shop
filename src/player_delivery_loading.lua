@@ -22,7 +22,8 @@ end
 
 local function manifestRun(state,truck)
     local trip=state.home and state.home.commute
-    local run=trip and trip.deliveryRun
+    local company=state.employment and state.employment.companyTruck
+    local run=trip and trip.deliveryRun or company and company.deliveryRun
     if not run or truck.mode~='pickup' or (truck.sceneId or 'warehouse')~='warehouse' then return nil end
     for _,id in ipairs(run.jobIds) do if id==truck.jobId then return run end end
 end
@@ -58,7 +59,8 @@ end
 function Loading.context(state)
     local home=state and state.home
     local trip=home and home.commute
-    local run=trip and trip.deliveryRun
+    local company=state.employment and state.employment.companyTruck
+    local run=trip and trip.deliveryRun or company and company.deliveryRun
     if not run then return nil end
     local world
     if home.town then
@@ -70,7 +72,10 @@ function Loading.context(state)
     else
         legacySites=legacySites or {sites=Sites.create()};world=legacySites
     end
-    local vehicle=trip.deliveryVehicleModel=='kei' and trip.keiTruck or trip.truck
+    local vehicle
+    if trip and trip.deliveryRun then
+        vehicle=trip.deliveryVehicleModel=='kei' and trip.keiTruck or trip.truck
+    else vehicle=company and company.exterior and company.exterior.vehicle end
     return run,vehicle,world
 end
 

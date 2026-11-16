@@ -37,7 +37,8 @@ function Test.run(check)
     check('receipt_ok_completes_delivery_once',signed==1 and saved==1 and context.state.screen=='world' and Screen.item==nil)
     Screen.enter(item);context.state.screen='delivery_signature'
     local runtime={App={},Assets={},state=context.state,Input=Input,inputContext=context,
-        toPointerCoordinates=function(x,y)return x/2,y/2 end}
+        toPointerCoordinates=function(x,y)return x/2,y/2 end,
+        toViewportCoordinates=function(x,y)return x/2,y/2 end}
     require('src.runtime.input_callbacks').install(runtime)
     runtime.App.touchpressed('finger-a',760,880)
     runtime.App.touchpressed('finger-b',1500,1138)
@@ -98,11 +99,48 @@ function Test.run(check)
     local shipment=assert(Driver.receipt(state,order.shipmentId))
     check('receipt_resolves_company_from_grouped_supplier_orders',shipment.supplier==order.company
         and shipment.previews[1].quad==supply.previews[1].quad)
-    local boughtOther,other=require('src.procurement').buy(state,1,1,'computer');assert(boughtOther,other)
+    local boughtOther,other=require('src.procurement').buy(state,3,1,'computer');assert(boughtOther,other)
     assert(other.shipmentId==order.shipmentId and other.company~=order.company)
     shipment=assert(Driver.receipt(state,order.shipmentId))
     check('receipt_mixed_supplier_load_uses_freight_brand_and_both_cargo_sprites',shipment.supplier=='Millhaven Freight'
         and shipment.palletCount==2 and shipment.previews[1].quad~=shipment.previews[2].quad)
     Driver.reset(state)
+
+    local unattended=require('src.state').new()
+    unattended.money=10000
+    unattended.employment={staff={}}
+    local ordered,waitingOrder=require('src.procurement').buy(unattended,1,1,'computer')
+    assert(ordered and waitingOrder)
+    assert(Driver.start(unattended,waitingOrder.id,'vendor_delivery'))
+    unattended.deliveryDriver.status='waiting'
+    Driver.update(unattended,Driver.WAIT_SECONDS+1,{players=function()return {} end})
+    check('delivery_signature_waits_through_unstaffed_shift',unattended.deliveryDriver.status=='waiting'
+        and unattended.deliveryDriver.waitSeconds==0)
+    local Calendar=require('src.business_calendar')
+    local Contracts=require('src.employment_contracts')
+    local function setHours(hours)
+        unattended.calendar=Calendar.dateFromTotalDay(math.floor(hours/24))
+        unattended.calendar.elapsed=hours%24/24*Calendar.secondsPerDay(unattended)
+    end
+    local function contract(startHour,endHour)
+        local terms=Contracts.terms(2200,127,startHour,endHour,1,'cutter')
+        terms.revision=1;terms.startDay=0;terms.signedAtHours=0
+        return terms
+    end
+    unattended.employment.staff={
+        {id='first-shift',status='employed',visible=true,clockedIn=true,sceneId='warehouse',contract=contract(8,17)},
+        {id='second-shift',status='employed',visible=true,clockedIn=true,sceneId='warehouse',contract=contract(14,22)},
+    }
+    setHours(16.99)
+    Driver.update(unattended,1,{players=function()return {} end})
+    setHours(17.01)
+    Driver.update(unattended,1,{players=function()return {} end})
+    check('delivery_signature_receiver_survives_first_to_second_shift_handoff',
+        unattended.deliveryDriver.status=='waiting' and unattended.deliveryDriver.waitSeconds==2)
+    Driver.update(unattended,Driver.WAIT_SECONDS+1,{players=function()return {{sceneId='warehouse'}} end})
+    check('delivery_signature_timeout_remains_bounded_when_player_is_present',
+        unattended.deliveryDriver.status=='missed'
+        and unattended.deliveryDriver.waitSeconds==Driver.WAIT_SECONDS)
+    Driver.reset(unattended)
 end
 return Test

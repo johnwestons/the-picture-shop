@@ -4,6 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.App.keypressed(key)
+        if require('src.medical_ui').key(Runtime,key) then return true end
         if require('src.story_opening').active(Runtime) then
             return require('src.story_opening').keypressed(Runtime,key)
         end
@@ -64,6 +65,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.mousepressed(x, y, button, isTouch)
+        local mx,my=Runtime.toViewportCoordinates(x,y)
+        if require('src.medical_ui').pointer(Runtime,mx,my,button) then return true end
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
             if isTouch then return true end
@@ -81,7 +84,8 @@ function Component.install(Runtime)
             return Runtime.OptionsScreen.mousepressed(px,py,button)
         end
         local px,py=Runtime.toPointerCoordinates(x,y)
-        if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,button) then return true end
+        local overlayX,overlayY=Runtime.toViewportCoordinates(x,y)
+        if Runtime.menuAccessPointerScreen and Runtime.menuAccessPointerScreen(overlayX,overlayY,button) then return true end
         if not isTouch and require('src.commute.runtime').cameraPointerPressed(Runtime,button) then return true end
         if not isTouch and button~=1 and require('src.commute.runtime').deviceInput(Runtime,'mouse','mouse'..button) then return true end
         if button==1 and require('src.commute.runtime').pointer(Runtime,px,py,'mouse') then return true end
@@ -146,6 +150,8 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchpressed(id, x, y)
+        local mx,my=Runtime.toViewportCoordinates(x,y)
+        if require('src.medical_ui').pointer(Runtime,mx,my) then return true end
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
             return require('src.story_opening').touchpressed(Runtime,id,px,py)
@@ -159,7 +165,8 @@ function Component.install(Runtime)
         if Runtime.state.screen=='delivery_signature' then
             return Runtime.Input.signaturePointerPressed(id,px,py,Runtime.inputContext)
         end
-        if Runtime.menuAccessPointer and Runtime.menuAccessPointer(px,py,1) then return true end
+        local overlayX,overlayY=Runtime.toViewportCoordinates(x,y)
+        if Runtime.menuAccessPointerScreen and Runtime.menuAccessPointerScreen(overlayX,overlayY,1) then return true end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousepressed(px,py,1) end
         if require('src.commute.runtime').touchPressed(Runtime,id,px,py) then return true end
         if require("src.basketball_controls").touchpressed(id,px,py,Runtime) then return true end
@@ -227,6 +234,9 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.gamepadpressed(joystick, button)
+        if require('src.medical_ui').modal(Runtime) then
+            return require('src.medical_ui').key(Runtime,button=='a' and 'return' or button=='b' and 'escape' or '')
+        end
         if require('src.story_opening').active(Runtime) then
             if button=='a' or button=='b' or button=='start' or button=='back' then
                 return require('src.story_opening').finish(Runtime,true)

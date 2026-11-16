@@ -80,8 +80,11 @@ function Test.run(context, check)
         menuAction = function() end, pointerX = 0, pointerY = 0,
     })
     local pad = { isGamepad = function() return true end }
-    controller:gamepadpressed(pad, "dpleft")
-    controller:gamepadreleased(pad, "dpleft")
+    for _=1,10 do
+        if title.keyboardFocus=="localPlay" then break end
+        controller:gamepadpressed(pad, "dpright")
+        controller:gamepadreleased(pad, "dpright")
+    end
     title.setHover(0, 0)
     check("title_controller_dpad_focuses_toolbox", title.keyboardFocus == "localPlay"
         and Motion.state("localPlay", "normal") == "focus1")

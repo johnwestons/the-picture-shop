@@ -3,7 +3,8 @@
 local Component = {}
 
 function Component.install(Runtime)
-    function Runtime.Screen.enter(grant, state, localPlayerId)
+    function Runtime.Screen.enter(grant, state, localPlayerId, twelveHourTime)
+        Runtime.Screen.twelveHourTime = twelveHourTime ~= false
         Runtime.Screen.leaseResourceId = grant and grant.resourceId or nil
         Runtime.Screen.resourceId = Runtime.MachineResource.parse(Runtime.Screen.leaseResourceId)
             or Runtime.Screen.leaseResourceId
@@ -78,6 +79,7 @@ function Component.install(Runtime)
         Runtime.Screen.sharedComputer, Runtime.Screen.guiState, Runtime.Screen.sendCommand, Runtime.Screen.officePending = nil, nil, nil, nil
         Runtime.Screen.cutterPresentation = Runtime.CutterPresentation.new()
         Runtime.Screen.resourceId, Runtime.Screen.leaseResourceId, Runtime.Screen.leaseId, Runtime.Screen.view = nil, nil, nil, nil
+        Runtime.Screen.twelveHourTime = nil
         Runtime.Screen.quoteFocused, Runtime.Screen.waiting, Runtime.Screen.safetyWaiting = false, false, false
         Runtime.Screen.selectedJobId, Runtime.Screen.selectedPalletId = nil, nil
         Runtime.Screen.gaugeFocused, Runtime.Screen.gaugeReplaceOnType = false, true

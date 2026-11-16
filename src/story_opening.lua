@@ -3,6 +3,7 @@
 -- an interrupted opening safely replays from its first beat.
 local Opening={DURATION=19.2}
 local Condition=require('src.warehouse_condition')
+local Calendar=require('src.business_calendar')
 local Lettering=require('src.story_lettering')
 local Arrival=require('src.story_arrival')
 local packingPath='assets/generated/story-intro/packing-poses-v1.png'
@@ -140,7 +141,11 @@ local function startMusic(R)
     musicBaseVolume=volume;musicGain=0;musicFadeOut=nil
     return true
 end
-local function interior(t)
+local function campaignDate(R)
+    local date=Calendar.ensure(R.state)
+    return string.format('%s %d, %d',Calendar.monthName(date.month),date.day,date.year)
+end
+local function interior(t,R)
     local g=love.graphics
     local progress=ease(t/8)
     drawPlateParallax(art.apartment,16-progress*34,24-progress*52,564,1,1.06)
@@ -154,9 +159,10 @@ local function interior(t)
         drawPose(pose,x,225+bob,.72,1-blend)
         drawPose(pose+1,x,225+bob,.72,blend)
     else drawPose(pose,x,225+bob,.72) end
-    location('MILLHAVEN CITY','The morning before the return')
-    caption(t<3 and 'Packing up for a new adventure.' or t<5.4 and 'Ten years since the Picture Shop closed.'
-        or 'Grandpa is waiting in the town where it all began.')
+    location('MILLHAVEN CITY',campaignDate(R))
+    caption(t<3 and 'A new opportunity awaits in a small town outside the city.'
+        or t<5.4 and 'You\'ve been asked to reopen an old print shop.'
+        or 'You still know your way back to the farm, where Grandpa is waiting to hand over the keys to the picture shop.')
 end
 local function street(t)
     local travel=ease((t-8)/2.7)
@@ -168,7 +174,7 @@ local function street(t)
     drawPose(3,110+walk*323,257,.53,1-mounted)
     drawBike(art.bike,bikeX,287+math.sin(t*12)*1.5,.72,mounted)
     location('MILLHAVEN CITY','Leaving the apartment behind')
-    caption('Packed and ready for the road to Grandpa\'s farm.')
+    caption('Packed and ready for the road.')
 end
 local function road(t)
     local p=clamp((t-10.7)/(Opening.DURATION-10.7),0,1)
@@ -192,8 +198,8 @@ local function road(t)
     location(p<.28 and 'LEAVING MILLHAVEN' or p<.62 and 'RIVER BRIDGE' or 'THE ROAD TO MILLER FARM',
         p<.28 and 'City streets give way to the highway' or p<.62 and 'Across the river toward home'
         or 'The town and Grandpa are just ahead')
-    caption(p<.62 and 'It\'s a long yet familiar journey back towards Grandpa\'s.'
-        or 'Finally made it. Adventure awaits.')
+    caption(p<.62 and 'A lot has changed since you\'ve been here last.'
+        or 'Finally made it.')
 end
 function Opening.active(R) return R._storyOpening~=nil end
 function Opening.cameraActive(R)
@@ -371,7 +377,7 @@ function Opening.draw(R)
     if state.arrival and R._commute and R._commute.renderer and not R._commute.loading then
         require('src.commute.runtime').draw(R,true)
     else
-        if t<8 then interior(t)
+        if t<8 then interior(t,R)
         elseif t<10.7 then street(t)
         else road(t) end
         local cut=math.max(0,1-math.abs(t-8)/.17,1-math.abs(t-10.7)/.17)

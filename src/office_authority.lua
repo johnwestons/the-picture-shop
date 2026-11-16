@@ -11,6 +11,7 @@ local Credit = require("src.credit")
 local Employees = require("src.employees")
 local StagingAreas = require("src.staging_areas")
 local Home = require("src.home")
+local ClientHouseholds=require('src.client_households')
 
 local Office = {}
 local function merge(target, source)
@@ -70,10 +71,23 @@ function Office.command(options)
             end
             local staged = Projection.copy(state)
             local ok, result, domainCode
-            if Home.isIntent(intent.kind) then ok,result,domainCode=Home.command(staged,intent,player)
+            if Home.isIntent(intent.kind) then
+                if player.id~=1 then
+                    local hostHome=staged.home
+                    local private=hostHome.clientHomes and hostHome.clientHomes[player.homeResidentId]
+                    if not private then return false,'resident_required','This client has no saved apartment.',{} end
+                    local view=ClientHouseholds.runtimeView(hostHome,private)
+                    staged.home=view
+                    ok,result,domainCode=Home.command(staged,intent,player)
+                    staged.home=hostHome
+                    if ok then ClientHouseholds.commit(hostHome,player.homeResidentId,view) end
+                else ok,result,domainCode=Home.command(staged,intent,player) end
             elseif intent.kind=='player_wage_propose' or intent.kind=='player_wage_accept' then
                 ok,result=require('src.guest_payroll').command(staged,intent,player,
                     type(options.players)=='function' and options.players() or nil)
+            elseif intent.kind:match('^player_job_') or intent.kind=='player_clock_in'
+                or intent.kind=='player_clock_out' then
+                ok,result=require('src.client_employment').command(staged,intent,player)
             elseif Employees.isIntent(intent.kind) then ok,result=Employees.command(staged,intent)
             elseif intent.kind == "estimate" then
                 ok, result = JobService.submitEmailQuote(staged, intent.id, intent.amount, os.time(),
@@ -131,7 +145,7 @@ function Office.command(options)
                     end
                     entries[#entries + 1] = entry
                 end
-                ok, result = screen.checkout(staged, entries)
+                ok, result = screen.checkout(staged, entries, intent.deliveryService)
             end
             if not ok then return false, "office_blocked", type(result) == "string" and result or "That office action is no longer available.", {} end
             if warehousePurchase and domainCode == "replayed" then
@@ -144,6 +158,8 @@ function Office.command(options)
                 return true, "replayed", "This financing agreement was already signed; no second loan was created.", {}
             end
             local wageAction=intent.kind=='player_wage_propose' or intent.kind=='player_wage_accept'
+                or intent.kind:match('^player_job_')~=nil
+                or intent.kind=='player_clock_in' or intent.kind=='player_clock_out'
             local before=wageAction and Projection.copy(state) or nil
             merge(state, staged)
             local saved,saveReason=options.save(wageAction)

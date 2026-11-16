@@ -8,6 +8,22 @@ local Recovery=require('src.commute.truck_traffic_recovery')
 local Service=require('src.job_service')
 local Test={}
 
+local function geometryNudgeCase(check)
+    local truck=Truck.new(0,0,0)
+    local world={
+        roads={sample=function() return 0,{width=10,id='test-road'} end,
+            blocked=function() return false end},
+        infrastructure={blocksTruck=function(_,x) return x<2 end},
+        supportHeight=function() return 0 end,
+    }
+    local moved=Recovery.nudge(truck,1,0,world)
+    check('stuck_truck_nudges_to_first_clear_geometry_pose',
+        moved and truck.x>=2 and truck.x<=2.45 and truck.z==0 and truck.speed==0)
+    local x=truck.x
+    check('stuck_truck_refuses_nudge_into_blocked_geometry',
+        not Recovery.nudge(truck,-1,0,world) and truck.x==x)
+end
+
 local function straight(world)
     for _,road in ipairs(world.roads.paths) do
         if road.lanes==2 and not road.oneWay and road.role~='drive'
@@ -113,6 +129,7 @@ local function dispatchCases(check,town,world,epoch)
 end
 
 function Test.run(check,town)
+    geometryNudgeCase(check)
     town=town or assert(Town.generate(712345))
     local world=Town.world(town)
     local epoch=1700000000

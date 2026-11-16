@@ -1,6 +1,7 @@
 -- One shared outdoor world, with independent resident journeys. Interior
 -- locations live on residents; only outdoor travelers need physics records.
 local Residents=require('src.home_residents')
+local ClientApartments=require('src.client_apartments')
 local Gear=require('src.commute.gear')
 local Rider=require('src.commute.rider')
 local TruckService=require('src.commute.truck_service')
@@ -11,12 +12,17 @@ function Free.enter(state,player,world,run,players)
     local Trip=require('src.commute.trip')
     local id=Residents.key(player);local resident=Residents.get(state,player)
     if not resident then return false,'Join the household before leaving.' end
+    local apartment=ClientApartments.forPlayer(state,player)
+    if not apartment then return false,'This resident has no assigned apartment.' end
     local scene=player.sceneId or 'warehouse'
     if scene~='home' and scene~='warehouse' then return false,'Use the apartment or warehouse exit.' end
     local t=state.home.commute
     if t and not t.independent then return false,'Finish the existing household trip first.' end
     if t and t.participants[id] then return false,'You are already outside.' end
     local deliveryModel
+    if run and require('src.company_delivery_driver').busy(state) then
+        return false,'Wait for the employee delivery truck to return before planning a player run.'
+    end
     if run then
         deliveryModel=run.vehicleModel
         if deliveryModel==nil then
@@ -34,7 +40,7 @@ function Free.enter(state,player,world,run,players)
         return false,'The truck is already in use.'
     end
     local slot=tonumber(player.id) or 1
-    local origin=scene=='home' and state.home.apartmentId or 'warehouse'
+    local origin=scene=='home' and apartment or 'warehouse'
     local anchor=Trip.parking(world,origin,slot)
     if not anchor then return false,'There is no safe parking space at this exit.' end
     local gear=Gear.restore(resident.ridingGear)
@@ -83,7 +89,7 @@ function Free.enter(state,player,world,run,players)
     end
     local resuming=t.deliveryRun and t.deliveryDriver==id
     t.participants[id]={slot=slot,arrived=false,rider=rider,origin=origin,
-        destination=resuming and 'warehouse' or scene=='home' and 'warehouse' or state.home.apartmentId,
+        destination=resuming and 'warehouse' or scene=='home' and 'warehouse' or apartment,
         appearance=require('src.commute.normal_art').appearance(player)}
     resident.bikeParkedAtHome=false;resident.sceneId='commute';resident.activity=nil
     state.home.commute=t;state.home.revision=state.home.revision+1
@@ -95,7 +101,8 @@ function Free.leave(state,player,token,destination,world)
     local part,t=Trip.participant(state,player,token)
     if not part then return false,t end
     local id=Residents.key(player)
-    if destination~='warehouse' and destination~=state.home.apartmentId then return false,'Unknown entrance.' end
+    local apartment=ClientApartments.forPlayer(state,player)
+    if destination~='warehouse' and destination~=apartment then return false,'Unknown entrance.' end
     if t.deliveryDriver==id and destination~='warehouse' then return false,'Finish your customer deliveries before going home.' end
     local previous=part.destination;part.destination=destination
     local okay,message=Trip.command(state,player,token,'arrive',world)
@@ -107,7 +114,7 @@ function Free.leave(state,player,token,destination,world)
     resident.ridingPaintId=r.bike.paintId
     resident.ridingService=require('src.commute.bike_service').copy(r.bike.service)
     resident.ridingDamage=r.bike.damage or 0
-    resident.bikeParkedAtHome=destination==state.home.apartmentId and r.transport~='truck'
+    resident.bikeParkedAtHome=destination==apartment and r.transport~='truck'
     resident.sceneId=destination=='warehouse' and 'warehouse' or 'home'
     resident.revision=resident.revision+1
     TruckService.syncFleet(state.home,Trip.trucks(t))

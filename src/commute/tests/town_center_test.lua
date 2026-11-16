@@ -60,7 +60,7 @@ function Test.run(check)
             end
         end
         check('town_center_core_frontages_join_main_and_residences_join_side_streets_'..seed,
-            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==9,
+            town.generatorVersion==Town.GENERATOR_VERSION and proper and centerCount==10,
             table.concat(frontageFailures,'; ')..' centerCount='..centerCount..' generator='..town.generatorVersion)
         local expectedArms=main.pattern=='crossroads' and 4 or 2
         check('town_center_has_promised_junction_and_two_way_neighborhood_'..seed,
@@ -125,7 +125,9 @@ function Test.run(check)
     local old=assert(Town.generate(712345,{generatorVersion=2}))
     check('town_center_older_seed_and_presets_keep_original_road_plan',
         old.id=='town-v2-712345-1664945830' and Town.valid(old) and old.recreation==nil
-        and assert(Town.generate(99,{generatorVersion=0})).id==Town.legacy().id)
+        and assert(Town.generate(99,{generatorVersion=0})).id==Town.legacy().id,
+        'id='..tostring(old.id)..' valid='..tostring(Town.valid(old))..' recreation='..tostring(old.recreation)
+            ..' legacy='..tostring(assert(Town.generate(99,{generatorVersion=0})).id))
     local fingerprint=Town.fingerprint(old)
     check('town_center_current_mechanic_name_keeps_saved_seed_fingerprint',
         Town.world(old).roads.destinations.mechanic.label=='Majic Blue' and Town.fingerprint(old)==fingerprint

@@ -199,6 +199,12 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
     if not characterAssets or type(gear)~='table' then return false end
     local Normal=require('src.commute.normal_art')
     local selected=Normal.appearance(appearance)
+    if actor.medicalCollapsed then
+        local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
+        love.graphics.push();love.graphics.translate(x,y);love.graphics.rotate(math.pi*.48);love.graphics.translate(-x,-y)
+        local drawn=Normal.draw(characterAssets,actor,camera,world,selected,nil,clock,1)
+        love.graphics.pop();return drawn
+    end
     local pose,progress=visualPose(gear,visual,actor)
     if selected.character=='rabbit-worker' then
         local x,y=camera:screen(actor.x,actor.z,actor.h or world:supportHeight(actor.x,actor.z))
@@ -238,6 +244,7 @@ function P.world(characterAssets,actor,camera,world,gear,appearance,visual,clock
 end
 
 function P.indoor(player,state,characterAssets,gearOverride,statureScale)
+    if require('src.medical_ui').fallen(characterAssets,player,state) then return true end
     local resident=require('src.home_residents').display(state,player)
     local gear=gearOverride or resident and resident.ridingGear
     if not gear or gear.outfit=='normal' and not gear.transition then return false end

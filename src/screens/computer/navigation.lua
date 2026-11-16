@@ -61,11 +61,97 @@ function Component.install(Runtime)
         local shop,town={},{}
         for _,event in ipairs(Runtime.calendarMonthEvents(state,year,month,twelveHourTime)) do
             if event.day==day then
-                local target=event.kind=='town' and town or shop
+                local target=(event.kind=='town' or event.kind=='personal' or event.kind=='holiday')
+                    and town or shop
                 target[#target+1]=event
             end
         end
         return shop,town
+    end
+
+    function Runtime.openCalendarEventComposer(state,eventId)
+        local screen=Runtime.ComputerScreen
+        if Runtime.ComputerScreen.radioReadOnly() then
+            state.message="Only the host can change calendar events."
+            return false
+        end
+        local event
+        if eventId then
+            for _,candidate in ipairs(state.calendar.customEvents or {}) do
+                if candidate.id==eventId then event=candidate;break end
+            end
+            if not event then
+                state.message="That personal event is no longer on the calendar."
+                return false
+            end
+        end
+        screen.calendarEventComposerOpen=true
+        screen.calendarEventEditingId=event and event.id or nil
+        screen.calendarEventTitle=event and event.title or ""
+        screen.calendarEventDetail=event and event.detail or ""
+        screen.calendarEventHour=event and event.hour or nil
+        screen.calendarEventTitleFocused=true
+        screen.calendarEventDetailFocused=false
+        screen.calendarEventError=nil
+        return true
+    end
+
+    function Runtime.cancelCalendarEventComposer()
+        local screen=Runtime.ComputerScreen
+        screen.calendarEventComposerOpen=false
+        screen.calendarEventTitleFocused=false
+        screen.calendarEventDetailFocused=false
+        screen.calendarEventEditingId=nil
+        screen.calendarEventError=nil
+    end
+
+    function Runtime.saveCalendarEventDraft(state)
+        local screen=Runtime.ComputerScreen
+        if Runtime.ComputerScreen.radioReadOnly() then
+            screen.calendarEventError="Only the host can change calendar events."
+            return {action="blocked"}
+        end
+        local succeeded,event=Runtime.BusinessCalendar.saveCustomEvent(state,
+            screen.calendarYear,screen.calendarMonth,screen.calendarSelectedDay,
+            screen.calendarEventTitle,screen.calendarEventDetail,screen.calendarEventHour,
+            screen.calendarEventEditingId)
+        if not succeeded then
+            screen.calendarEventError=tostring(event)
+            return {action="blocked"}
+        end
+        local editing=screen.calendarEventEditingId~=nil
+        screen.calendarSelectedEventId=event.id
+        Runtime.cancelCalendarEventComposer()
+        local _,dayEvents=Runtime.calendarDayEvents(state,screen.calendarYear,screen.calendarMonth,
+            screen.calendarSelectedDay)
+        for index,candidate in ipairs(dayEvents) do
+            if candidate.customEventId==event.id then
+                screen.calendarDayScroll=math.max(0,index-Runtime.CAL_DAY_LIST.visibleRows)
+                break
+            end
+        end
+        Runtime.clampCalendarDayScroll(state)
+        state.message=editing and "Calendar event updated." or "Calendar event added."
+        return {action="calendar_event_saved",eventId=event.id}
+    end
+
+    function Runtime.removeSelectedCalendarEvent(state)
+        local screen=Runtime.ComputerScreen
+        if Runtime.ComputerScreen.radioReadOnly() then
+            state.message="Only the host can change calendar events."
+            return {action="blocked"}
+        end
+        if not screen.calendarSelectedEventId then return nil end
+        local succeeded,event=Runtime.BusinessCalendar.removeCustomEvent(state,
+            screen.calendarSelectedEventId)
+        if not succeeded then
+            state.message=tostring(event)
+            screen.calendarSelectedEventId=nil
+            return {action="blocked"}
+        end
+        screen.calendarSelectedEventId=nil
+        state.message="Calendar event removed."
+        return {action="calendar_event_removed",eventId=event.id}
     end
 
     function Runtime.calendarDayRect(year, month, day)

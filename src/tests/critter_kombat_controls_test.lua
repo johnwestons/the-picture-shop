@@ -92,7 +92,10 @@ local function uiChecks(check)
     end
     local Runtime={state={screen="critter_kombat"},World={player={id=1,sceneId="front_left"}},
         Config={baseWidth=960,baseHeight=678},Viewport={toGame=function(x,y)return x/2,y/2 end},
-        App={officeFitsScreen=function()return true end},toPointerCoordinates=function(x,y)return x/2,y/2 end,
+        App={officeFitsScreen=function()return true end,cameraTransformsUi=function()return false end,
+            cutterPinchZoomActive=function()return false end},
+        toPointerCoordinates=function(x,y)return x/2,y/2 end,
+        toViewportCoordinates=function(x,y)return x/2,y/2 end,
         multiplayer={isClient=function()return false end,isActive=function()return false end,
             isHost=function()return false end,sendNeutralInput=function()end},
         Assets={clearCache=function()end},CharacterAssets={clearCache=function()end},WorldRenderer={clearCache=function()end},

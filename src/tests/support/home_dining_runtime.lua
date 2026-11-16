@@ -17,14 +17,20 @@ function Test.run(R,check)
     local screen=R.ComputerScreen
     local function tab(name) local x,y=screen.dropdownCenter();screen.mousepressed(s,x,y,1);x,y=screen.tabCenter(name);screen.mousepressed(s,x,y,1) end
     local function click(name,index) local x,y=screen.homeShopControlCenter(name,index);screen.mousepressed(s,x,y,1) end
-    local money=s.home.balanceCents
+    s.home.balanceCents=100000
+    local money=s.home.balanceCents;local previousOrders=#s.home.shopping.orders
     tab("furniture");for _=1,6 do click("previous") end;for _=1,3 do click("next") end
     click("buy",1);click("confirm");click("cancel")
     for _=1,6 do click("previous") end;click("buy",2);click("confirm");click("cancel")
     tab("groceries");click("buy",2);click("confirm");click("cancel")
-    check("home_dining_runtime_buys_table_chair_food",s.home.balanceCents==money-11270,s.message)
-    s.screen="world";R.App.update(Calendar.secondsPerDay(s)/12);p.x,p.y=Layout.spawn(s,1)
-    local parcel=assert(require("src.home_shopping").target(p,s));R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
+    local total,latest=0,0
+    for i=previousOrders+1,#s.home.shopping.orders do
+        local order=s.home.shopping.orders[i];total=total+order.totalCents;latest=math.max(latest,order.dueAt+.1)
+    end
+    check("home_dining_runtime_buys_table_chair_food",#s.home.shopping.orders==previousOrders+3 and s.home.balanceCents==money-total,s.message)
+    s.screen="world";s.calendar.elapsed=latest/24*Calendar.secondsPerDay(s);R.App.update(.1);p.x,p.y=Layout.spawn(s,1)
+    local parcel=assert(require("src.home_shopping").target(p,s));p.x,p.y=parcel.x,parcel.y
+    R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
     local function itemOf(kind)
         for _,item in ipairs(s.home.furniture.items) do if item.kind==kind then return item end end
         error("Missing delivered "..kind)
@@ -68,8 +74,11 @@ function Test.run(R,check)
     check("home_dining_runtime_saved_served_and_active_meal",#saved.state.home.dining.items==1 and saved.state.home.residents.owner.activity.diningSlot==1)
     R.App.keypressed("escape");capture("home-chair-eating");R.App.update(Calendar.secondsPerDay(s)/96)
     check("home_dining_runtime_meal_finishes_frees_slot",not s.home.residents.owner.activity and not Dining.occupied(s,tableItem.id,1))
-    Find.near(s,p,tableItem.id);R.App.keypressed("m");for _=2,5 do R.App.keypressed("down") end;R.App.keypressed("return");R.App.keypressed("p")
-    check("home_dining_runtime_packing_returns_uneaten_portion",tableItem.location=="storage" and #s.home.dining.items==0 and s.home.inventory.basic_meal==3,s.message)
+    Find.near(s,p,tableItem.id)
+    assert(Furniture.command(s,p,"begin:"..tableItem.id,{p}))
+    assert(Furniture.command(s,p,"store:"..tableItem.id..":"..tableItem.editToken,{p}))
+    check("home_dining_runtime_packing_returns_uneaten_portion",tableItem.location=="storage" and #s.home.dining.items==0 and s.home.inventory.basic_meal==3,
+        tostring(s.message).." location="..tostring(tableItem.location).." plates="..#s.home.dining.items.." meals="..tostring(s.home.inventory.basic_meal))
     R.App.keypressed("escape")
 end
 return Test

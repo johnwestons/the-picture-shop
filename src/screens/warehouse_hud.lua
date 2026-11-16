@@ -356,12 +356,13 @@ function Hud.noticePointer(R,x,y,bounds)
     return false
 end
 
-function Hud.drawMenu(R,bounds)
+function Hud.drawMenu(R,bounds,pointerX,pointerY)
     if not R or not R.state or R.state.screen=='options' or R.state.screen=='asset_error' then
         Hud.menuOpen=false;return
     end
     local g=love.graphics;local r=Hud.layoutFor(R,bounds)
-    local px,py=R.pointerPosition and R.pointerPosition()
+    local px,py=pointerX,pointerY
+    if px==nil and py==nil then px,py=R.pointerPosition and R.pointerPosition() end
     local hovered=px and py and fits(r.menu,px,py)
     g.push('all');g.setShader();g.setFont(font('typewriter',r.wide and 20 or 15))
     Hud.drawMenuIcon(r.menu,Hud.menuOpen or hovered,r.wide)
@@ -385,6 +386,43 @@ function Hud.drawMenu(R,bounds)
     end
     g.pop()
 end
+
+function Hud.cutterRecenterRect(R,bounds)
+    local menu=Hud.layoutFor(R,bounds).menu
+    local size=math.min(30,menu.width*.72)
+    return {x=menu.x+(menu.width-size)/2,y=menu.y+menu.height+5,width=size,height=size}
+end
+
+function Hud.drawCutterRecenter(R,bounds,pointerX,pointerY)
+    local camera=R and R.App and R.App.mobileCamera
+    if not (R and R.App and R.App.cutterPinchZoomActive and R.App.cutterPinchZoomActive())
+        or not camera or camera:isDefaultView() or Hud.menuOpen then return end
+    local rect=Hud.cutterRecenterRect(R,bounds)
+    local hovered=pointerX and pointerY and fits(rect,pointerX,pointerY)
+    local g=love.graphics;local cx=rect.x+rect.width/2;local cy=rect.y+rect.height/2
+    local radius=rect.width/2
+    g.push('all');g.setShader()
+    circleButton(rect,hovered)
+    g.setColor(.96,.93,.77,1);g.setLineWidth(1.8)
+    local arm=radius*.56;local inset=radius*.19
+    g.line(cx-arm,cy,cx-inset,cy);g.line(cx+inset,cy,cx+arm,cy)
+    g.line(cx,cy-arm,cx,cy-inset);g.line(cx,cy+inset,cx,cy+arm)
+    g.polygon('fill',cx-arm-2,cy,cx-arm+3,cy-3,cx-arm+3,cy+3)
+    g.polygon('fill',cx+arm+2,cy,cx+arm-3,cy-3,cx+arm-3,cy+3)
+    g.polygon('fill',cx,cy-arm-2,cx-3,cy-arm+3,cx+3,cy-arm+3)
+    g.polygon('fill',cx,cy+arm+2,cx-3,cy+arm-3,cx+3,cy+arm-3)
+    g.pop()
+end
+
+function Hud.cutterRecenterPointer(R,x,y,button,bounds)
+    local camera=R and R.App and R.App.mobileCamera
+    if button~=1 or not (R and R.App and R.App.cutterPinchZoomActive and R.App.cutterPinchZoomActive())
+        or not camera or camera:isDefaultView() or Hud.menuOpen then return false end
+    if not fits(Hud.cutterRecenterRect(R,bounds),x,y) then return false end
+    camera:resetView()
+    return true
+end
+
 function Hud.menuPointer(R,x,y,button,bounds)
     if not R or not R.state or R.state.screen=='options' or R.state.screen=='asset_error'
         or button~=1 then return false end

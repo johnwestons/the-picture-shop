@@ -150,6 +150,7 @@ function Room.update(view,R,dt)
     local magnitude=math.sqrt(dx*dx+dy*dy)
     if magnitude>.01 then view.path=nil;view.pathAction=nil
     else dx,dy=WalkMotion.pathInput(view.pose,view.path) end
+    view.pose.id=R.World.player.id;view.pose.homeResidentId=R.World.player.homeResidentId
     WalkMotion.update(view.pose,dx,dy,dt,Room.walkable,R.state)
     WalkMotion.consumeReached(view.pose,view.path)
     if view.pathAction and (not view.path or #view.path==0) then

@@ -166,7 +166,7 @@ function Component.install(Runtime)
         end
         function context.receptionBusy()
             local technician=state.technicianVisit
-            return Runtime.World.customer:isPresent() or Runtime.World.vendor:isPresent()
+            return Runtime.World.receptionVisitorCount(state)>=Runtime.World.RECEPTION_GUEST_CAPACITY
                 or (technician and technician.visible) or Runtime.WarehouseConstruction.worker(state)~=nil
         end
         function context.exitPoint(worker,dt)

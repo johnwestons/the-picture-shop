@@ -146,7 +146,7 @@ function Rider.update(r,input,dt,world)
         local p=r.ped;local dx,dz=input.walkX or 0,input.walkZ or 0
         local magnitude=M.length(dx,dz)
         if magnitude>1 then dx,dz=dx/magnitude,dz/magnitude end
-        local speed=Rider.WALK_SPEED*gait(speedCurve,p.distance)
+        local speed=Rider.WALK_SPEED*gait(speedCurve,p.distance)*(input.walkScale or 1)
             *(input.sprint==true and Rider.SPRINT_MULTIPLIER or 1)
         local tx,tz=dx*speed,dz*speed
         local reversal=p.vx*tx+p.vz*tz<0

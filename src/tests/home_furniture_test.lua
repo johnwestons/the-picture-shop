@@ -25,7 +25,7 @@ function Test.run(context,check)
     require("src.tests.home_routine_pose_test").run(context,check)
     for _,id in ipairs(require("src.home_catalog").ORDER) do
         local s,p=state(id)
-        check("home_furniture_"..id.."_starter_instances",#s.home.furniture.items==9 and s.home.inventory.bed==0 and s.home.inventory.chair==0 and Schema.validState(Schema.snapshot(s)))
+        check("home_furniture_"..id.."_starter_instances",#s.home.furniture.items==10 and s.home.inventory.bed==0 and s.home.inventory.chair==0 and Schema.validState(Schema.snapshot(s)))
         for _,item in ipairs(s.home.furniture.items) do
             local okay,why=true
             if item.location=="floor" then okay,why=Furniture.canPlace(s,item,{p}) end
@@ -82,11 +82,11 @@ function Test.run(context,check)
     check("home_furniture_store_keeps_identity_and_condition",bed.location=="storage" and bed.id==1 and bed.condition==100)
     assert(context.save.save(3,s,{x=p.x,y=p.y,sceneId="home"}))
     local reloaded=State.new();assert(State.applyLocalSave(reloaded,assert(context.save.load(3))))
-    check("home_furniture_reload_does_not_mint_items",#reloaded.home.furniture.items==9 and reloaded.home.inventory.bed==0 and reloaded.home.furniture.items[1].location=="storage")
+    check("home_furniture_reload_does_not_mint_items",#reloaded.home.furniture.items==10 and reloaded.home.inventory.bed==0 and reloaded.home.furniture.items[1].location=="storage")
     assert(Furniture.command(s,p,"begin:"..bed.id,{p}));token=bed.editToken
     local money=s.home.balanceCents
     assert(Furniture.command(s,p,"sell:"..bed.id..":"..token,{p}))
-    check("home_furniture_sale_credits_once",s.home.balanceCents==money+6000 and not Furniture.command(s,p,"sell:"..bed.id..":"..token,{p}) and #s.home.furniture.items==8)
+    check("home_furniture_sale_credits_once",s.home.balanceCents==money+6000 and not Furniture.command(s,p,"sell:"..bed.id..":"..token,{p}) and #s.home.furniture.items==9)
     for _,direction in ipairs(Catalog.DIRECTIONS) do
         local shape=Furniture.footprint({kind="bed",x=300,y=300,direction=direction})
         local vertices=Footprint.vertices(shape);local grown=Footprint.expand(shape,{x=6,y=3})
@@ -118,19 +118,21 @@ function Test.run(context,check)
     local legacy={version=29,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}
     legacy.state.home.furniture=nil;legacy.state.home.furnishingPreset="modest";legacy.state.home.inventory=Schema.copy(require("src.home_catalog").PRESETS.modest.contents)
     local migrated=assert(Schema.migrate(legacy))
-    check("home_furniture_legacy_contents_materialize_once",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==9 and migrated.state.home.inventory.bed==0)
+    check("home_furniture_legacy_contents_materialize_once",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==10 and migrated.state.home.inventory.bed==0)
     local Shopping=require("src.home_shopping");local shop,purchaser=state("brick-walkup")
     local buyer={id=2,sceneId="home",x=purchaser.x,y=purchaser.y};Residents.bind(shop,buyer,string.rep("f",64),{purchaser})
     local intent={kind="home_order_furniture",productId="chair",quantity=1,requestId="furniture-guest",expectedRevision=shop.home.revision}
     check("home_furniture_guest_buy_permission_separate",not Shopping.order(shop,buyer,intent))
     assert(Furniture.command(shop,purchaser,"permission:purchase:1",{purchaser,buyer}));intent.expectedRevision=shop.home.revision
     assert(Shopping.order(shop,buyer,intent));local moneyAfter=shop.home.balanceCents
-    check("home_furniture_purchase_does_not_use_food_budget",shop.home.shopping.guestSpentCents==0 and moneyAfter==27125)
+    check("home_furniture_purchase_does_not_use_food_budget",shop.home.shopping.guestSpentCents==0
+        and moneyAfter==30000-Shopping.quote('chair',1,'same_day').totalCents)
     assert(Shopping.order(shop,buyer,intent));check("home_furniture_order_replay_single_charge",shop.home.balanceCents==moneyAfter)
-    shop.calendar.elapsed=2/24*shop.calendar.secondsPerDay;assert(Shopping.advance(shop))
+    shop.calendar.elapsed=(shop.home.shopping.orders[1].dueAt+.1)/24*shop.calendar.secondsPerDay;assert(Shopping.advance(shop))
+    local parcel=assert(Shopping.target(buyer,shop));buyer.x,buyer.y=parcel.x,parcel.y
     assert(Shopping.collect(shop,buyer))
-    local delivered=shop.home.furniture.items[10]
-    check("home_furniture_delivery_creates_one_instance",#shop.home.furniture.items==10 and delivered.kind=="chair"
+    local delivered=shop.home.furniture.items[11]
+    check("home_furniture_delivery_creates_one_instance",#shop.home.furniture.items==11 and delivered.kind=="chair"
         and (delivered.location=="floor" or delivered.location=="storage")
         and shop.home.inventory.chair==0 and not Shopping.collect(shop,buyer))
     require("src.tests.support.home_furniture_runtime").run(context,check)

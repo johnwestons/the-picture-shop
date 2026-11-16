@@ -38,6 +38,7 @@ function Component.install(Runtime)
     end
     local function readOnly() return Runtime.ComputerScreen.radioReadOnly() end
     function Runtime.homeMousepressed(state,x,y)
+        local private=state.home.hostApartmentId~=nil
         local guideAction
         if view=="guide" then
             guidePage,guideAction=Guide.mousepressed(state,guidePage,x,y,Runtime.contains)
@@ -58,7 +59,13 @@ function Component.install(Runtime)
             if Runtime.dependencies.remoteCommand then return {action="home_activity"} end
             state.screen="home_activity";return {action="home_view"}
         end
-        if view=="overview" and Runtime.contains(controls.earnings,x,y) then view="earnings";return {action="home_view"} end
+        if view=="overview" and Runtime.contains(controls.earnings,x,y) then
+            if private then
+                Runtime.ComputerScreen.financialSection='players'
+                return Runtime.activateTab(state,Runtime.tabById('financials'))
+            end
+            view="earnings";return {action="home_view"}
+        end
         if view~="overview" and Runtime.contains(controls.back,x,y) then view="overview";return {action="home_view"} end
         if view=="earnings" and Runtime.contains(controls.history,x,y) then view="history";page=1;return {action="home_view"} end
         if view=="history" then
@@ -79,7 +86,11 @@ function Component.install(Runtime)
             intent={kind="home_set_pay",percent=math.floor((x-slider.x)/slider.width*100+.5)}
         end
         if not intent then return nil end
-        if readOnly() then state.message="Only the host can pay rent or set personal pay and reserves.";return {action="blocked"} end
+        if readOnly() and (not private or intent.kind~='home_pay_rent') then
+            state.message=private and 'Your shop wages fund this apartment; pay rent from your own balance.'
+                or 'Only the host can change shop pay and reserves.'
+            return {action="blocked"}
+        end
         intent.expectedRevision=state.home.revision
         local ok,message,code
         if Runtime.dependencies.warehouseCommand then ok,code,message=Runtime.dependencies.warehouseCommand(intent)
@@ -89,6 +100,7 @@ function Component.install(Runtime)
     end
     function Runtime.drawHome(state,pointerX,pointerY)
         local home=state.home;local entry=Catalog.APARTMENTS[home.apartmentId]
+        local private=home.hostApartmentId~=nil
         local due=Home.amountDue(home);local lease=home.lease
         Runtime.panel({x=82,y=190,width=792,height=424},{.045,.08,.10,1},{.28,.50,.49,1})
         local function label(value,x,y,width,color,alignment)
@@ -168,9 +180,22 @@ function Component.install(Runtime)
         local date=Runtime.BusinessCalendar.dateFromTotalDay(lease.nextDueDay)
         label(string.format("Next rent: %s %d, %d",Runtime.BusinessCalendar.monthName(date.month),date.day,date.year),104,338,340)
         label(string.format("Rent outstanding: $%.2f",due/100),104,376,340,due>0 and {1,.78,.39,1} or nil)
-        label("Personal pay target",478,338,350,{1,.86,.41,1})
-        label(home.payPercent.."% household  /  "..(100-home.payPercent).."% business",478,373,205)
-        label("From eligible earnings after business costs and reserves.",478,404,205)
+        label(private and 'Your shop wages' or "Personal pay target",478,338,350,{1,.86,.41,1})
+        if private then
+            local player=Runtime.dependencies.localPlayerId
+            local resident
+            for _,row in pairs(home.residents or {}) do
+                if row.activePlayerId==player then resident=row;break end
+            end
+            label(resident and string.format('Paid $%.2f  /  Owed $%.2f',
+                (resident.wagePaidCents or 0)/100,
+                math.max(0,(resident.wageEarnedCents or 0)-(resident.wagePaidCents or 0))/100)
+                or 'Apply for a Picture Shop job',478,373,205)
+            label('Clock in during your agreed shift.',478,404,205)
+        else
+            label(home.payPercent.."% household  /  "..(100-home.payPercent).."% business",478,373,205)
+            label("From eligible earnings after business costs and reserves.",478,404,205)
+        end
         local covered=math.min(home.balanceCents,due)
         local rentPlan={
             {label="Rent covered",value=covered,color={.96,.77,.47,1},valueText=shortMoney(covered/100)},
@@ -179,14 +204,21 @@ function Component.install(Runtime)
         }
         FinanceCharts.donut(772,307,42,rentPlan,"RENT PLAN",shortMoney(due/100))
         FinanceCharts.legend(700,359,rentPlan,136,14,3)
-        local budgetLines,budgetWarning=Budget.lines(state)
-        label(table.concat(budgetLines,"\n"),104,422,350,budgetWarning and {1,.78,.39,1} or nil)
-        button(controls.pay,due>0 and "PAY RENT FROM HOUSEHOLD" or "RENT UP TO DATE",not readOnly() and due>0 and home.balanceCents>=due)
-        button(controls.minus,"-",not readOnly() and home.payPercent>0)
-        button(controls.plus,"+",not readOnly() and home.payPercent<100)
-        love.graphics.setColor(.19,.31,.32,1);love.graphics.rectangle("fill",slider.x,slider.y+14,slider.width,8,3,3)
-        love.graphics.setColor(.95,.79,.35,1);love.graphics.rectangle("fill",slider.x+slider.width*home.payPercent/100-5,slider.y+4,10,28,3,3)
-        button(controls.earnings,"EARNINGS, RESERVES & HISTORY",true)
+        if private then
+            label('Rent, orders and deliveries use this account only.',104,422,350)
+        else
+            local budgetLines,budgetWarning=Budget.lines(state)
+            label(table.concat(budgetLines,"\n"),104,422,350,budgetWarning and {1,.78,.39,1} or nil)
+        end
+        button(controls.pay,due>0 and "PAY RENT FROM HOUSEHOLD" or "RENT UP TO DATE",
+            (not readOnly() or private) and due>0 and home.balanceCents>=due)
+        if not private then
+            button(controls.minus,"-",not readOnly() and home.payPercent>0)
+            button(controls.plus,"+",not readOnly() and home.payPercent<100)
+            love.graphics.setColor(.19,.31,.32,1);love.graphics.rectangle("fill",slider.x,slider.y+14,slider.width,8,3,3)
+            love.graphics.setColor(.95,.79,.35,1);love.graphics.rectangle("fill",slider.x+slider.width*home.payPercent/100-5,slider.y+4,10,28,3,3)
+        end
+        button(controls.earnings,private and 'PLAYER JOBS & WAGES' or "EARNINGS, RESERVES & HISTORY",true)
         button(controls.sleep,"HOME SLEEP & ALARMS",require("src.weekend_flow").atHome(state))
         button(controls.guide,"HOME GUIDE & FIRST WEEKEND",true)
     end

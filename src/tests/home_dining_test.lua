@@ -49,6 +49,8 @@ function Test.run(context,check)
     end
     local s,p=Test.fresh();local tableItem=Test.table(s,p);local g={id=2,sceneId="home",x=p.x,y=p.y}
     assert(Residents.bind(s,g,string.rep("f",64),{p}))
+    local legacy=Residents.get(s,g)
+    s.home.clientHomes[g.homeResidentId]=nil;legacy.clientSlot=nil;legacy.apartmentId=nil
     s.home.inventory.basic_meal=3;s.home.inventory.good_meal=1;s.home.inventory.bottled_drink=1
     Test.near(s,p,tableItem.id);g.x,g.y=p.x,p.y
     local serve="dine:serve:"..tableItem.id..":1:basic_meal:"..s.home.dining.revision

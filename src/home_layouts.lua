@@ -118,6 +118,85 @@ function Layout.spawn(state,index)
     local p=Layout.get(state).spawn
     return Layout.toWorld(p[1]-((index or 1)-1)*31,p[2]-((index or 1)-1)*8)
 end
+local deliverySpotCache=setmetatable({}, {__mode="k"})
+function Layout.deliverySpot(state)
+    local id=state.home.apartmentId;local entry=Layout.get(state)
+    local furnitureRevision=state.home.furniture and state.home.furniture.revision or 0
+    local furnitureCount=state.home.furniture and #state.home.furniture.items or 0
+    local cached=deliverySpotCache[state]
+    if cached and cached.apartmentId==id and cached.furnitureRevision==furnitureRevision
+        and cached.furnitureCount==furnitureCount then return cached.x,cached.y end
+    local centerX,centerY=Layout.toWorld(unpack(entry.rooms.living))
+    local Navigation=require("src.navigation")
+    local Furniture=require("src.home_furniture")
+    local obstacles=Furniture.obstacles(state)
+    local assets={getData=function() return Layout.mask(id) end}
+    local essentials=Furniture.essential(state)
+    local startX,startY=Layout.spawn(state,1)
+    local reachable={}
+    if Navigation.isWalkable(assets,startX,startY,obstacles) then
+        local queue={{x=startX,y=startY,gx=0,gy=0}}
+        reachable["0:0"]=true
+        local head=1
+        local directions={{1,0},{-1,0},{0,1},{0,-1}}
+        while head<=#queue do
+            local point=queue[head];head=head+1
+            for _,direction in ipairs(directions) do
+                local gx,gy=point.gx+direction[1],point.gy+direction[2]
+                local key=gx..":"..gy
+                local x,y=startX+gx*8,startY+gy*8
+                if not reachable[key] and x>0 and x<960 and y>0 and y<678
+                    and Navigation.isWalkable(assets,x,y,obstacles)
+                    and Navigation.canTraverse(assets,point.x,point.y,x,y,obstacles) then
+                    reachable[key]=true;queue[#queue+1]={x=x,y=y,gx=gx,gy=gy}
+                end
+            end
+        end
+    end
+    local function connected(x,y)
+        local gx,gy=math.floor((x-startX)/8+.5),math.floor((y-startY)/8+.5)
+        for dx=-5,5 do for dy=-5,5 do
+            if reachable[(gx+dx)..":"..(gy+dy)] then
+                local px,py=startX+(gx+dx)*8,startY+(gy+dy)*8
+                if (px-x)^2+(py-y)^2<=38^2 then return true end
+            end
+        end end
+        return false
+    end
+    local function clear(x,y)
+        if not Navigation.isWalkable(assets,x,y,obstacles) then return false end
+        -- Leave room for the parcel pile and make sure it does not cover
+        -- furniture approaches, the computer, or an apartment entrance.
+        for _,offset in ipairs({{-18,0},{18,0},{0,-12},{0,12}}) do
+            if not Navigation.isWalkable(assets,x+offset[1],y+offset[2],obstacles) then return false end
+        end
+        for _,point in ipairs(essentials) do
+            if (point.x-x)^2+(point.y-y)^2<58^2 then return false end
+        end
+        return connected(x,y)
+    end
+    local function remember(x,y)
+        deliverySpotCache[state]={apartmentId=id,furnitureRevision=furnitureRevision,
+            furnitureCount=furnitureCount,x=x,y=y}
+        return x,y
+    end
+    if clear(centerX,centerY) then return remember(centerX,centerY) end
+    -- Every apartment has its own open living-room shape. Search outward in
+    -- small deterministic rings so deliveries adapt to furniture moved by the
+    -- player while staying in the most visible part of the room.
+    for radius=24,144,24 do
+        for step=0,7 do
+            local angle=step*math.pi/4
+            local x,y=centerX+math.cos(angle)*radius,centerY+math.sin(angle)*radius
+            if clear(x,y) then return remember(x,y) end
+        end
+    end
+    -- If the living room has been completely filled, retain a reachable floor
+    -- pickup point by the entrance rather than hiding the waiting delivery.
+    local x,y=Layout.spawn(state,1);x=x+28;y=y+4
+    if Navigation.isWalkable(assets,x,y,obstacles) then return remember(x,y) end
+    return remember(centerX,centerY)
+end
 local masks={}
 function Layout.mask(id)
     if masks[id] then return masks[id] end

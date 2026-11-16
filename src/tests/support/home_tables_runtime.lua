@@ -21,10 +21,17 @@ function Test.run(R,check)
     for _=1,3 do click("next") end
     capture("home-tables-catalog",true)
     local before=s.home.balanceCents;local count=#s.home.furniture.items
+    local previousOrders=#s.home.shopping.orders
     for index=2,4 do click("buy",index);click("confirm");click("cancel") end
-    check("home_tables_runtime_buys_three_from_catalog",s.home.balanceCents==before-9775,s.message)
-    s.screen="world";R.App.update(require("src.business_calendar").secondsPerDay(s)/12)
-    p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
+    local total,latest=0,0
+    for i=previousOrders+1,#s.home.shopping.orders do
+        local order=s.home.shopping.orders[i];total=total+order.totalCents;latest=math.max(latest,order.dueAt+.1)
+    end
+    check("home_tables_runtime_buys_three_from_catalog",#s.home.shopping.orders==previousOrders+3
+        and s.home.balanceCents==before-total,s.message)
+    s.screen="world";local Calendar=require('src.business_calendar')
+    s.calendar.elapsed=latest/24*Calendar.secondsPerDay(s);R.App.update(.1)
+    local parcel=assert(require("src.home_shopping").target(p,s));p.x,p.y=parcel.x,parcel.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
     check("home_tables_runtime_receives_three",#s.home.furniture.items==count+3,s.message)
     local byKind={};for i,item in ipairs(s.home.furniture.items) do byKind[item.kind]={item=item,index=i} end

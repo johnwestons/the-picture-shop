@@ -233,40 +233,50 @@ function Town.legacy()
         bounds=copy(Default.bounds),terrain={mode='inland-town-v1',seed=4261,size=512},
         roads=copy(Default.roads),destinations=copy(Default.destinations),placements=copy(Sites.defaultPlacements),designs=copy(Sites.designs)}
 end
--- Add a roadside station to pre-station towns on a runtime copy. Keep the
--- saved fingerprint and every existing address intact.
-local function stationLayout(t,world)
-    if t.destinations['gas-station'] then return t end
+-- Add missing services and a rescue farm to older towns on a runtime copy.
+-- Preserve the saved fingerprint and existing addresses. New towns persist
+-- these additions before compiling their navigation graph.
+local function stationLayout(t,world,id,label)
+    id=id or 'gas-station';label=label or 'Gas Station'
+    if t.destinations[id] then return t end
+    for _,p in ipairs(t.placements) do if p.id==id then return t end end
     local frontage=require('src.commute.town_generator_v2').frontage
     local placed=Sites.create({placements=t.placements,designs=t.designs}).all
     local pads={}
     for _,site in ipairs(placed) do pads[#pads+1]=site.parking end
     for index,road in ipairs(t.roads) do
-        if road.role~='drive' and road.role~='trail' and road.id~='east-bank' then
+        local country=t.terrain.settings and t.terrain.settings.roads==1
+        local districtRoad=id=='farm' and not country and 'local' or 'main'
+        if road.role~='drive' and road.role~='trail' and road.id~='east-bank'
+            and (t.generatorVersion<3 or road.role==districtRoad) and #road.points<64 then
             for edge=1,#road.points-1 do
                 local a,b=road.points[edge],road.points[edge+1]
                 local length=M.length(b[1]-a[1],b[2]-a[2])
-                if length>12 and not (road.bridgeEdges and road.bridgeEdges[edge]) then
+                if length>(id=='gas-station' and 12 or 1) and not (road.bridgeEdges and road.bridgeEdges[edge]) then
                     for _,fraction in ipairs({.5,.25,.75}) do
                         local anchor=frontage.mix(a,b,fraction)
                         for _,side in ipairs({1,-1}) do
                             local nx,nz=(a[2]-b[2])/length*side,(b[1]-a[1])/length*side
                             local pad={x=anchor[1]+nx*12,z=anchor[2]+nz*12,h=anchor[3]}
-                            local lot=frontage.placement('gas-station','gas-station',pad,nx,nz,1)
+                            local lot=frontage.placement(id,id,pad,nx,nz,1)
                             local site=Sites.create({placements={lot}}).all[1]
-                            if frontage.clear(site,pad,placed,pads,t.roads,world.plan,anchor) then
+                            local core=t.topology and t.topology.mainStreet
+                            local ruralOkay=id~='farm' or not core or M.length(lot.origin.x-core.x,lot.origin.z-core.z)>=100
+                            if ruralOkay and frontage.clear(site,pad,placed,pads,t.roads,world.plan,anchor,id=='farm') then
+                                lot.frontageRoadId=road.id;lot.district=id=='farm' and 'rural' or 'center'
                                 local out=copy(t)
                                 out.designs[lot.id]=copy(Sites.designs[lot.id])
                                 out.placements[#out.placements+1]=lot
-                                out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label='Gas Station'}
+                                if id~='farm' then out.destinations[lot.id]={x=pad.x,z=pad.z,h=pad.h,label=label} end
                                 local r=out.roads[index]
                                 table.insert(r.points,edge+1,anchor)
                                 if r.bridgeEdges then
                                     for i=#r.points-1,edge+1,-1 do r.bridgeEdges[i]=r.bridgeEdges[i-1] end
                                     r.bridgeEdges[edge]=false
                                 end
-                                out.roads[#out.roads+1]={id='station-drive',role='drive',lanes=1,surface='paved',
-                                    width=3.5,interpolation='linear',points={anchor,{pad.x,pad.z,pad.h}}}
+                                out.roads[#out.roads+1]={id=id=='gas-station' and 'station-drive' or id..'-drive',role='drive',lanes=1,surface='paved',
+                                    width=3.5,oneWay=false,turnLane=false,sidewalks=false,
+                                    interpolation='linear',points={anchor,{pad.x,pad.z,pad.h}}}
                                 return out
                             end
                         end
@@ -417,6 +427,8 @@ local function constructWorld(t,validate,pause)
     local world=require('src.commute.terrain').new(t.terrain,pause)
     if pause then pause()end
     t=stationLayout(t,world)
+    t=stationLayout(t,world,'clinic','Critter Clinic')
+    t=stationLayout(t,world,'farm','Miller Farm')
     local runtimeTown=t
     local sites=Sites.create({placements=runtimeTown.placements,designs=runtimeTown.designs})
     if pause then pause()end
@@ -663,6 +675,9 @@ function Town.generate(seed,options)
                 local worldOkay,world=pcall(constructWorld,candidate,false)
                 if not worldOkay then
                     lastRouteFailure=tostring(world);traceCandidate(lastRouteFailure);return false,lastRouteFailure
+                end
+                if not world.sites.byId.clinic then
+                    lastRouteFailure='No safe Critter Clinic frontage';return false,lastRouteFailure
                 end
                 if not world.truckAccess then
                     lastRouteFailure='warehouse frontage could not fit separate truck entry and exit lanes'

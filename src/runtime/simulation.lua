@@ -201,13 +201,18 @@ function Component.install(Runtime)
                 saveNeeded=true
                 if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             end
-            if require("src.home_residents").advance(Runtime.state,require("src.weekend_runtime").players(Runtime),homeBefore,
+            if require('src.client_households').advanceResidents(Runtime.state,require("src.weekend_runtime").players(Runtime),homeBefore,
                 Runtime.BusinessCalendar.absoluteHours(Runtime.state)) then
                 Runtime.homeNeedsSaveClock=(Runtime.homeNeedsSaveClock or 0)+dt
                 if Runtime.homeNeedsSaveClock>=1 then
                     Runtime.homeNeedsSaveClock=0;checkpointNeeded=true
                     if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
                 end
+            end
+            if require('src.medical_runtime').update(Runtime,dt,
+                math.max(0,Runtime.BusinessCalendar.absoluteHours(Runtime.state)-homeBefore)) then
+                checkpointNeeded=true
+                if Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             end
             if require('src.guest_payroll').advance(Runtime.state,
                 Runtime.multiplayer:isHost() and Runtime.multiplayer:remotePlayers() or {},

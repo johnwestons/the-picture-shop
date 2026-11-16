@@ -3,6 +3,13 @@ function Test.run(R,check)
     local state,p=R.state,R.World.player;local Calendar=require("src.business_calendar")
     local Activity=require("src.home_activity_controls");local Sleep=require("src.home_sleep")
     local Layout=require("src.home_layouts");local Shopping=require("src.home_shopping")
+    -- Earlier catalog scenarios advance through several delivery days.
+    -- Start the sleep interaction on a fresh Friday night fixture.
+    local week=state.home.weekend
+    local fridayNight=week.closesAtHours+2
+    state.calendar=Calendar.dateFromHours(fridayNight)
+    state.calendar.elapsed=fridayNight/24*Calendar.secondsPerDay(state)
+    week.phase='home';week.closedAtHours=week.closesAtHours;week.returnReminderSent=false
     local function capture(name)
         local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR");if not folder then return end
         local canvas=love.graphics.newCanvas(960,678);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear()
@@ -31,7 +38,7 @@ function Test.run(R,check)
     assert(Shopping.order(state,p,{productId="meal",quantity=1,requestId="sleep-runtime-food",expectedRevision=state.home.revision}))
     check("home_sleep_runtime_shop_speed_cannot_override_consent",not R.App.setGameClockSpeed(10))
     local sleepStarted=Calendar.absoluteHours(state)
-    owner.energy=0;R.App.keypressed("return")
+    owner.energy=0;Activity.keypressed("return",R)
     check("home_sleep_runtime_starts_opt_in_sleep",owner.activity and owner.activity.kind=="sleepfloor" and Sleep.status(state,{p}))
     capture("home-shared-sleep-menu")
     local updates=0
@@ -46,7 +53,7 @@ function Test.run(R,check)
     R.App.keypressed("r");capture("home-readiness-summary")
     check("home_sleep_runtime_readiness_panel_available",Activity.mode=="readiness")
     state.calendar=Calendar.dateFromHours(102.9);state.calendar.elapsed=6.9/24*Calendar.secondsPerDay(state)
-    state.screen="world";R.App.keypressed("h");R.App.keypressed("t");R.App.keypressed("return")
+    state.screen="world";R.App.keypressed("h");R.App.keypressed("t");Activity.keypressed("return",R)
     updates=0;while owner.activity and updates<30 do R.App.update(.5);updates=updates+1 end
     check("home_sleep_runtime_stops_at_monday_reminder",math.abs(Calendar.absoluteHours(state)-103)<1e-6
         and not owner.activity and state.home.weekend.returnReminderSent)

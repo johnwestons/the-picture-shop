@@ -22,21 +22,21 @@ function Guide.content(state,page)
         local bed=Shopping.quote("bed",1);local meals=Shopping.quote("meal_pack",1)
         local total=bed.totalCents+meals.totalCents
         return {title="Make yourself at home",blocks={
-            "Household funds: "..money(home.balanceCents)..". Ready-to-eat pantry portions: "..portions..". Parcels ready at the door: "..Shopping.waiting(state)..".",
-            "An empty start includes fixed plumbing and a movable laptop. Drink free tap water at a sink, wash in the bathroom, and use Home / Rest on floor while you furnish the apartment.",
-            "Optional first purchases: a single bed ("..money(bed.totalCents)..") and four ready meals ("..money(meals.totalCents).."). Total including delivery: "..money(total)..". "..(home.balanceCents>=total and "Your household can afford this now." or "Buy food first and rest on the floor while saving."),
-            "At the door, Receive arrived parcels. Meals go to shared supplies; furniture goes to Furnish storage. Extra guests need their own food and sleeping places. Time keeps passing while you browse."},
+            "Household funds: "..money(home.balanceCents)..". Ready-to-eat pantry portions: "..portions..". Parcels ready in the living room: "..Shopping.waiting(state)..".",
+            "An empty start includes fixed plumbing, a movable laptop and a personal sleeping bag. Sleep in the bag from day one, or choose bare-floor sleep from Home / Rest. Drink free tap water at a sink and wash in the bathroom.",
+            "Optional first purchases: a single bed ("..money(bed.totalCents)..") and four ready meals ("..money(meals.totalCents).."). Total including delivery: "..money(total)..". "..(home.balanceCents>=total and "Your household can afford this now." or "Buy food first; the sleeping bag or bare floor is ready while saving."),
+            "Use Receive at the visible parcel spot in the living room. Meals go to your pantry; furniture goes to Furnish storage. Time keeps passing while you browse."},
             action={"GROCERIES","groceries"},secondary={"DELIVERY STATUS","home_orders"}}
     elseif page==2 then
         return {title="Eat, drink and prepare meals",blocks={
-            "Buy groceries or pizza/Chinese takeout with household funds. Groceries arrive in one game hour; takeout in 30 minutes. Receive parcels at the entrance. Take food out of a fridge or cabinet before use.",
+            "Buy groceries or pizza/Chinese takeout with household funds. Groceries arrive in one game hour; takeout in 30 minutes. Receive parcels from the living-room spot. Take food out of a fridge or cabinet before use.",
             "At a table/counter or kitchen sink, choose Meals [D] to serve a portion in a clear slot. Eat there or from a nearby chair/couch facing the surface. Packing returns uneaten portions; stopping an eating activity does not.",
             "Tap water is free at either sink. A cup is optional: pick it up, fill it, drink, then wash before refilling. Home routines also eat directly from supplies; furniture is optional. Food does not spoil.",
             "Open the fridge to manage its portions. Prepare two sandwiches using 1 bread + 1 vegetable at a kitchen work area. The stove opens cooking; tend once in the green band. Moving or stopping discards the batch; poor timing still makes edible food."},
             action={"GROCERIES","groceries"},secondary={"TAKEOUT","takeout"}}
     elseif page==3 then
         return {title="Buy, unpack and arrange",blocks={
-            "Home & Living shows prices, sizes and placement requirements before checkout. Furniture arrives after two game hours. Receive it at the door; waiting parcels stay safe during sleep or while everyone is at work.",
+            "Home & Living shows prices, sizes and placement requirements before checkout. For same-day delivery, order before 4 PM for arrival by 6 PM; later same-day orders arrive the next day. Cheaper three-day shipping arrives in three days. Collect parcels from the visible living-room spot; they stay safe during sleep or while everyone is at work.",
             "Open Furnish to select a stored item. Choose a position, rotate, then confirm the green preview. Use the on-screen controls or arrows / Q / Enter; Escape cancels. On a controller use the D-pad / Y / A / B.",
             "Keep paths to the door, fixtures, laptop and residents clear. The stove snaps to its kitchen power point. Small objects use clear desk/table/counter slots and follow the supporting furniture. Interact with a placed lamp to switch it on or off.",
             "Store keeps an object for later. Selling shows its value first. Packing or selling a supporting surface puts its small objects in storage. An occupied object or one being edited by someone else cannot move."},
@@ -48,12 +48,26 @@ function Guide.content(state,page)
             "Wash dishes and wipe the kitchen at the sink, clean the bathroom, or use Home routines to sweep. A trash can collects loose waste; remove a bag, then take it out beside the entrance. New mess stays for the next batch.",
             "Move away or choose Stop to cancel. Unfinished cleaning gives no result; a washer already running continues by itself. Weekday routines cover basic needs, and absent guests' needs stay frozen."}}
     elseif page==5 then
+        if home.hostApartmentId then
+            return {title="Sleep and plan your shift",blocks={
+                "Interact with your bed, sleeping bag or guest mat to sleep and set an alarm. Home / Sleep & Alarms also offers bare-floor sleep.",
+                "Time belongs to the shared world. Fast sleep begins only when every connected player sleeps during the shop closure. Your own alarm wakes you.",
+                "Use Player Jobs at the shop office to review your agreed work days and hours. Clock in during your shift and clock out when you finish; paid wages enter your apartment account."},
+                action={"SLEEP & ALARMS","sleep"}}
+        end
         return {title="Sleep together, return on time",blocks={
-            "Interact with a bed to lie down, or a chair/couch to sit. If a TV is on and visible from the couch, that interaction starts watching. Home / Sleep & Alarms lets you choose overnight sleep and set an alarm. Each bed, couch or mat holds one sleeper.",
+            "Interact with a bed, sleeping bag or guest mat to choose overnight sleep and set an alarm. Home / Sleep & Alarms also keeps bare-floor sleep available. A chair or couch can still be used to sit or rest; each bed, couch, mat or sleeping bag holds one sleeper.",
             "Time speeds up only when every connected resident chooses sleep. An awake or joining guest, cancellation or the first alarm restores normal speed. Needs, rent, laundry and deliveries continue during sleep.",
             "From Sunday 20:00, choose Sleep until Monday 07:00. The wake reminder stops shared acceleration. Home / Readiness shows everyone's needs; eat, drink and wash before leaving.",
             "At the apartment door on Monday, the host starts Return to shop. Guests confirm readiness, or the host can bring everyone. Return becomes available at 07:30, before the 08:00 employee shift; the shop opens at 09:00, and a late return opens late. On Friday, shut down and leave through the shop's front entrance."},
             action={"SLEEP & ALARMS","sleep"}}
+    end
+    if home.hostApartmentId then
+        return {title="Your apartment account",blocks={
+            "Your apartment has its own rent, food, furniture, deliveries and household balance. The host saves this progress with the shared world.",
+            "Apply for a Picture Shop job in Player Jobs at the office PC. The host may decline or offer a wage and shift; accept the terms before clocking in. Only scheduled, clocked-in work earns wages.",
+            "Paid wages go into your apartment account. Order furniture and food from that balance, and pay your own rent. The title screen's Client Saves menu lets the host reset a client slot."},
+            action={"DELIVERIES","home_orders"}}
     end
     local limit,_,remaining=Shopping.budget(state)
     return {title="One home, two accounts",blocks={

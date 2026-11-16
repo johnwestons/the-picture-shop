@@ -67,9 +67,9 @@ function Test.run(check)
     local world=Town.world(town)
     -- Town.world attaches a generated fuel station to legacy and current
     -- saved towns without mutating their frozen placement records.
-    local coverage=#world.sites.all==18 and world.sites.byId.farm~=nil and world.town.destinations.farm==nil
+    local coverage=#world.sites.all==19 and world.sites.byId.farm~=nil and world.town.destinations.farm==nil
     for _,id in ipairs({'warehouse','brick-walkup','garden','courtyard','corner','mechanic','grocery',
-        'post-office','police','fire-station','diner','coffee-shop','general-store',
+        'post-office','police','fire-station','diner','coffee-shop','general-store','clinic',
         'residential-1','residential-2','residential-3'}) do
         local site=world.sites.byId[id]
         local pad=id=='gas-station' and world.town.destinations[id] or town.destinations[id]

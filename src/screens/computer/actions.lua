@@ -44,11 +44,16 @@ function Component.install(Runtime)
         Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
         Runtime.ComputerScreen.calendarDayOpen = false
         Runtime.ComputerScreen.calendarDayScroll = 0
+        Runtime.ComputerScreen.calendarSelectedEventId = nil
+        Runtime.ComputerScreen.calendarEventComposerOpen = false
+        Runtime.ComputerScreen.calendarEventTitleFocused = false
+        Runtime.ComputerScreen.calendarEventDetailFocused = false
         Runtime.ComputerScreen.retailPage = 1
         Runtime.ComputerScreen.wwwSite = 1
         Runtime.ComputerScreen.cart = {}
         Runtime.ComputerScreen.cartOpen = false
         Runtime.ComputerScreen.cartPage = 1
+        Runtime.ComputerScreen.deliveryService = "same_day"
         Runtime.ComputerScreen.machinePage = 1
         Runtime.ComputerScreen.wwwSiteChangedAt = 0
         Runtime.ComputerScreen.tabDropdownOpen = false
@@ -115,6 +120,10 @@ function Component.install(Runtime)
             Runtime.ComputerScreen.calendarSelectedDay = state.calendar.day
             Runtime.ComputerScreen.calendarDayOpen = false
             Runtime.ComputerScreen.calendarDayScroll = 0
+            Runtime.ComputerScreen.calendarSelectedEventId = nil
+            Runtime.ComputerScreen.calendarEventComposerOpen = false
+            Runtime.ComputerScreen.calendarEventTitleFocused = false
+            Runtime.ComputerScreen.calendarEventDetailFocused = false
         elseif tab.id == "inventory" then
             Runtime.ComputerScreen.retailPage = 1
         end

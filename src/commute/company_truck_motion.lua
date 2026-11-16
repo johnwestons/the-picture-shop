@@ -4,7 +4,7 @@ local Path=require('src.commute.driving_path')
 local Rail=require('src.commute.yard_rail')
 local Watchdog=require('src.ai_watchdog')
 local Motion={}
-local phases={reverse_out=true,departing=true,away=true,waiting_return=true,returning=true,return_walk=true}
+local phases={reverse_out=true,departing=true,away=true,waiting_return=true,returning=true,return_walk=true,collecting=true,queue=true,loading=true}
 local function finite(n)return type(n)=='number' and n==n and math.abs(n)<1e12 end
 local function clamp(n,a,b)return math.max(a,math.min(b,n))end
 local function wrap(n)return math.atan2(math.sin(n),math.cos(n))end
@@ -12,11 +12,14 @@ function Motion.valid(m)
     if type(m)~='table' or not phases[m.phase] or not Truck.valid(m.vehicle)
         or type(m.points)~='table' or #m.points<2 or #m.points>128
         or not finite(m.index) or m.index%1~=0 or m.index<2 or m.index>#m.points
+        or not require('src.commute.warehouse_yard').valid(m.vehicle.yard)
         or not Rail.valid(m.rail) or not finite(m.wait or 0) or (m.wait or 0)<0
+        or m.toDock~=nil and type(m.toDock)~='boolean'
+        or m.departedAtEpoch~=nil and not finite(m.departedAtEpoch)
         or m.dockDeparture~=nil and type(m.dockDeparture)~='boolean'
-        or m.vehicle.pathIndex~=nil and (not finite(m.vehicle.pathIndex)
+        or m.phase~='queue' and m.phase~='loading' and m.vehicle.pathIndex~=nil and (not finite(m.vehicle.pathIndex)
             or m.vehicle.pathIndex%1~=0 or m.vehicle.pathIndex<2 or m.vehicle.pathIndex>#m.points)
-        or m.vehicle.pathTarget~=nil and m.vehicle.pathTarget~='company-departing'
+        or m.phase~='queue' and m.phase~='loading' and m.vehicle.pathTarget~=nil and m.vehicle.pathTarget~='company-departing'
             and m.vehicle.pathTarget~='company-returning'
         or not finite(m.walkSeconds or 0) or (m.walkSeconds or 0)<0 then return false end
     for _,p in ipairs(m.points)do
@@ -72,7 +75,7 @@ function Motion.start(vehicle,world)
 end
 function Motion.visible(m)return m and m.phase~='away' and m.phase~='waiting_return' end
 function Motion.recover(m,world,state)
-    if not m or (m.phase~='reverse_out' and m.phase~='departing' and m.phase~='returning') then
+    if not m or (m.phase~='reverse_out' and m.phase~='departing' and m.phase~='returning' and m.phase~='collecting') then
         return false,'Company truck is holding its assigned protocol stop.'
     end
     local v=m.vehicle
@@ -106,11 +109,17 @@ local function follow(m,world,dt,state)
     end
     return arrived
 end
-function Motion.update(m,world,dt,state)
+function Motion.update(m,world,dt,state,assignment)
     dt=clamp(tonumber(dt) or 0,0,.1)
     if dt<=0 or m.phase=='away' then return false end
     local site=world.sites.byId.warehouse
     local v=m.vehicle
+    if m.phase=='loading' then Rail.stop(v);return false end
+    if m.phase=='queue' then
+        local ready=require('src.commute.warehouse_yard').update(v,assignment,world,dt,state,'inbound')
+        if ready and v.phase=='at_bay' then m.phase='loading' end
+        return true
+    end
     if m.phase=='waiting_return' then
         local points=stallPath(site,v.model)
         local gate=world.truckAccess and world.truckAccess.entryGate
@@ -153,6 +162,12 @@ function Motion.update(m,world,dt,state)
         m.walkSeconds=(m.walkSeconds or 0)+dt
         return m.walkSeconds>=3.35 and 'parked' or false
     end
+    if m.toDock and m.phase=='departing' then
+        local gate=world.truckAccess.entryGate
+        local gx,gz=site:toLocal(gate.x,gate.z)
+        setRoute(m,'collecting',{{x=v.x,z=v.z,h=v.h},point(site,20,20),
+            point(site,20,gz+8),point(site,gx,gz+8),gate})
+    end
     if not follow(m,world,dt,state) then return true end
     if m.phase=='reverse_out' then
         local _,z=site:toLocal(v.x,v.z)
@@ -161,6 +176,8 @@ function Motion.update(m,world,dt,state)
             points[#points+1]=world.truckAccess.exitPath[i]
         end
         setRoute(m,'departing',points);v.reverse=false
+    elseif m.phase=='collecting' then
+        m.phase='queue';v.phase='approaching';return true
     elseif m.phase=='departing' then
         m.phase='away';v.speed=0;return 'departed'
     else

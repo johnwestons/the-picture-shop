@@ -67,9 +67,10 @@ function Component.run(Context)
     Context.serviceState.screen = "world"
     Context.serviceOffer = Context.context.jobService.createNextOffer(Context.serviceState, 111)
     Context.serviceOfferValue = Context.serviceOffer and Context.serviceOffer.quote.totalPrice
+    Context.firstCustomerCompany = Context.context.jobService.companyNames()[1]
     Context.check("paperwork_offer_created", Context.serviceOffer
         and Context.serviceOffer.id == "JOB-0001"
-        and Context.serviceOffer.company == "Blue Ridge Packaging"
+        and Context.serviceOffer.company == Context.firstCustomerCompany
         and Context.serviceOffer.quote.totalPrice == 1254
         and #Context.serviceOffer.pallets == 2
         and Context.serviceOffer.deliveryService.id == "express"

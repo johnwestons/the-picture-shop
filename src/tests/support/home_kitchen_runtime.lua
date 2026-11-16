@@ -27,11 +27,16 @@ function Test.run(R,check)
     click("buy",3);click("confirm");click("cancel")
     click("buy",4);click("confirm");click("cancel")
     check("home_kitchen_runtime_orders_raw_groceries",state.home.balanceCents==balance-1400)
+    local afterFood=state.home.balanceCents
     tab("furniture");click("next");click("next");capture("home-kitchen-appliances","computer")
     click("buy",2);click("confirm");click("cancel")
-    check("home_kitchen_runtime_buys_stove_with_household_funds",state.home.balanceCents==balance-17500)
-    state.screen="world";advance(120);p.x,p.y=Layout.spawn(state,1)
-    local parcel=assert(Shopping.target(p,state));R.World.updateNetworkPlayer(0,0,0,R.Assets,state,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
+    check("home_kitchen_runtime_buys_stove_with_household_funds",state.home.balanceCents==afterFood-Shopping.quote('stove',1,'same_day').totalCents)
+    state.screen="world"
+    local latest=0
+    for _,order in ipairs(state.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    state.calendar.elapsed=latest/24*Calendar.secondsPerDay(state);R.App.update(.1)
+    local parcel=assert(Shopping.target(p,state));p.x,p.y=parcel.x,parcel.y
+    R.World.updateNetworkPlayer(0,0,0,R.Assets,state,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
     local stove,index
     for i,item in ipairs(state.home.furniture.items) do if item.kind=="stove" then stove=item;index=i end end
     check("home_kitchen_runtime_receives_stove_and_ingredients",stove and (stove.location=="storage" or stove.location=="floor")

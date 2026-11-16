@@ -97,6 +97,7 @@ local function attempt(seed,options,attemptIndex)
     -- that design on a copy so original V2 seed fingerprints stay stable.
     result.designs['gas-station']=nil
     result.designs.farm=nil
+    result.designs.clinic=nil
     local sx,sz=rng(81,93),rng(81,93);local stagger=rng(-8,8)
     local nodes={}
     for row=1,4 do for column=1,4 do

@@ -1,6 +1,7 @@
 -- Supplier shopping and cart checkout.
 -- Runtime is private to this screen instance; shared state remains live across components.
 local Component = {}
+local DeliveryService=require("src.delivery_service")
 
 function Component.install(Runtime)
     function Runtime.wwwSiteRect(index)
@@ -14,19 +15,45 @@ function Component.install(Runtime)
             width = Runtime.WWW_PRODUCT.width, height = Runtime.WWW_PRODUCT.rowHeight }
     end
 
+    function Runtime.cartContainsPaper()
+        for _,entry in ipairs(Runtime.ComputerScreen.cart or {}) do
+            local category=entry.kind=="supply" and Runtime.Procurement.categories[entry.categoryIndex]
+            if category and category.id=="paper" then return true end
+        end
+        return false
+    end
+
+    function Runtime.cartShippingCents(deliveryService)
+        local service=DeliveryService.normalize(deliveryService,
+            Runtime.ComputerScreen.deliveryService or DeliveryService.SAME_DAY)
+        if not service then return nil end
+        local cents=0
+        for _,entry in ipairs(Runtime.ComputerScreen.cart or {}) do
+            if entry.kind=="supply" then
+                local fee=Runtime.Procurement.paperShippingFeeCents(entry.categoryIndex,entry.itemIndex,
+                    "computer",service)
+                if fee==nil then return nil end
+                cents=cents+fee*(tonumber(entry.quantity) or 1)
+            end
+        end
+        return cents
+    end
+
     function Runtime.retailBuyRect(index)
         local row = Runtime.wwwProductRect(index)
         return { x = row.x + row.width - 122, y = row.y + 6, width = 108, height = row.height - 12 }
     end
 
-    function Runtime.cartTotal()
+    function Runtime.cartTotal(deliveryService)
         local total, count = 0, 0
         for _, entry in ipairs(Runtime.ComputerScreen.cart or {}) do
             local quantity = math.max(1, math.floor(tonumber(entry.quantity) or 1))
             total = total + (tonumber(entry.price) or 0) * quantity
             count = count + quantity
         end
-        return total, count
+        local shipping=Runtime.cartShippingCents(deliveryService)
+        if shipping==nil then return math.huge,count end
+        return total+shipping/100, count
     end
 
     function Runtime.addToCart(entry)
@@ -46,8 +73,11 @@ function Component.install(Runtime)
         return { x = 724, y = 248 + (visibleIndex - 1) * 40, width = 82, height = 32 }
     end
 
-    function Runtime.checkoutCart(state)
-        local total, count = Runtime.cartTotal()
+    function Runtime.checkoutCart(state,deliveryService)
+        deliveryService=DeliveryService.normalize(deliveryService,
+            Runtime.ComputerScreen.deliveryService or DeliveryService.SAME_DAY)
+        if not deliveryService then return false,"Choose same-day or three-day paper delivery." end
+        local total, count = Runtime.cartTotal(deliveryService)
         if count == 0 then return false, "Your online cart is empty." end
         if (state.money or 0) < total then return false, "Not enough money to check out this cart." end
         for _, entry in ipairs(Runtime.ComputerScreen.cart) do
@@ -72,7 +102,8 @@ function Component.install(Runtime)
             for _ = 1, entry.quantity do
                 local succeeded, result
                 if entry.kind == "supply" then
-                    succeeded, result = Runtime.Procurement.buyRetail(state, entry.categoryIndex, entry.itemIndex)
+                    succeeded, result = Runtime.Procurement.buyRetail(state, entry.categoryIndex, entry.itemIndex,
+                        Runtime.Procurement.categories[entry.categoryIndex].id=="paper" and deliveryService or nil)
                 else
                     succeeded, result = Runtime.MachineFleet.orderOnline(state, entry.offerIndex)
                 end
@@ -84,9 +115,9 @@ function Component.install(Runtime)
         return true, { orders = orders, total = total, count = count }
     end
 
-    function Runtime.ComputerScreen.checkout(state, entries)
+    function Runtime.ComputerScreen.checkout(state, entries,deliveryService)
         Runtime.ComputerScreen.cart = entries
-        return Runtime.checkoutCart(state)
+        return Runtime.checkoutCart(state,deliveryService)
     end
 end
 

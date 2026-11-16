@@ -1,7 +1,8 @@
 local Shopping=require("src.home_shopping")
 local Controls={}
 function Controls.command(R,player)
-    local okay,message=Shopping.collect(R.state,player,require("src.weekend_runtime").players(R))
+    local okay,message=Shopping.collect(R.state,player,
+        require('src.client_households').playersHere(R,player))
     if okay then
         R.state.message=message;R.saveCurrent()
         if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end

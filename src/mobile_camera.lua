@@ -151,6 +151,28 @@ function MobileCamera:zoomBy(factor)
     return true
 end
 
+function MobileCamera:isDefaultView()
+    return math.abs(self.zoom - 1) < 0.01
+        and math.abs(self.centerX - self.baseWidth / 2) < 0.5
+        and math.abs(self.centerY - self.baseHeight / 2) < 0.5
+end
+
+function MobileCamera:resetView()
+    self:endGesture()
+    self.followVelocityX, self.followVelocityY = 0, 0
+    self.zoom = clamp(1, self.minimumZoom, self.maximumZoom)
+    self.centerX, self.centerY = self.baseWidth / 2, self.baseHeight / 2
+    self:_clampCenter()
+    if self.viewKey then
+        self.savedViews[self.viewKey] = {
+            centerX = self.centerX,
+            centerY = self.centerY,
+            zoom = self.zoom,
+        }
+    end
+    return true
+end
+
 function MobileCamera:setViewport(viewWidth, viewHeight, fillWidth)
     self.viewWidth = math.max(1, viewWidth or self.baseWidth)
     self.viewHeight = math.max(1, viewHeight or self.baseHeight)

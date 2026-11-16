@@ -138,6 +138,10 @@ function Component.install(Runtime)
             end,
             gestureActive = function()
                 if require('src.commute.runtime').active(Runtime) then return false end
+                if Runtime.state.screen == "machine"
+                    and (Runtime.state.machineType == "cutter" or Runtime.state.machineType == "paper_cutter") then
+                    return Runtime.App.cutterPinchZoomActive() and not Runtime.spriteLabActive
+                end
                 return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and not Runtime.spriteLabActive
                     and not Runtime.App.officeFitsScreen()
                     and not (Runtime.state.screen == "options" and Runtime.OptionsScreen.isControlsTab())

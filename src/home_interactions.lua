@@ -2,7 +2,8 @@
 local Interaction={}
 
 local furniture={
-    bed={category="action",prompt="lie down",actionLabel="LIE DOWN"},
+    bed={category="action",prompt="sleep / nap",actionLabel="REST"},
+    sleeping_bag={category="action",prompt="sleep in your sleeping bag",actionLabel="SLEEP"},
     chair={category="action",prompt="sit / watch TV",actionLabel="SIT"},
     couch={category="action",prompt="sit / watch TV",actionLabel="SIT"},
     old_tv={category="action",prompt="switch TV on / off",actionLabel="TV"},
@@ -37,6 +38,7 @@ function Interaction.directCommand(state,player,item)
     local activity=resident and resident.activity
     if activity and activity.furnitureId==item.id then
         if item.kind=="bed" and (activity.kind=="nap" or activity.kind=="sleepbed" or activity.kind=="workbed")
+            or item.kind=="sleeping_bag" and (activity.kind=="sleepbag" or activity.kind=="workbag")
             or (item.kind=="chair" or item.kind=="couch")
                 and (activity.kind=="sit" or activity.kind=="watch" or activity.kind=="couchrest"
                     or activity.kind=="sleepcouch" or activity.kind=="workcouch") then
@@ -44,7 +46,6 @@ function Interaction.directCommand(state,player,item)
         end
     end
 
-    if item.kind=="bed" then return "nap:"..target end
     if item.kind=="chair" or item.kind=="couch" then
         for _,row in ipairs(require("src.home_dining").rows(state,player,target)) do
             if row.command:find("^dine:eat:") then return nil end

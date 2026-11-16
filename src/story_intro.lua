@@ -10,6 +10,8 @@ local function condition(R)
     return c and c.mode=='story' and c or nil
 end
 function Intro.grandpaPresent(R)
+    local health=require('src.player_medical').get(R.state,R.World.player)
+    if health and health.notice=='grandpa' then return true end
     -- He leaves the barn for the farmhouse when the town's actual daylight ends.
     return require('src.commute.day_night').sample(R.state.calendar).daylight>=.15
         or Intro.dialogueOpen(R)==true
@@ -86,15 +88,29 @@ local function lines(R)
         or count>1 and 'You brought your sibling! It is good to see you both back in town.'
         or 'I am glad you made it back to town. It is good to see you.'
     return {greeting,
-        'The Picture Shop has been closed for ten years. My health will not let me run it anymore, but I want you to have it.',
+        'The Picture Shop has been closed for years now. I would start it back up myself, but my health will not let me work those kind of hours anymore. I want you to take it over and give yourself a chance to get it running again.',
         'The building is sound. The power and water are disconnected, the breaker needs work, and the floors need a good cleaning.',
-        'I set aside repair money. The cutter blade is dull and the wrapper needs service; buy kits for both. Then we can hold a grand opening.',
-        'Your apartment and the shop are marked on the town map. Your motorcycle is here. I am proud of you, kid.'}
+        'The paper cutter needs repair and maintenance pretty bad, and the skid wrapper is no better. I know that sounds like a lot, but I\'ve set aside a little bit of money to give you to help pay for some of the repair kits.',
+        'If you get the old shop fixed up right and running again, you can make a really good living. I\'m proud of you, kid. I know you can do it.'}
+end
+local repeatTips={
+    'The phone works even if the power\'s out.',
+    'You make more money if you deliver jobs yourself.',
+    'Make sure not to work too hard without eating right and taking care of yourself.',
+    'Remember that the Picture Shop closes on the weekends because everybody else does.',
+    'Be careful on your bike. If you crash, you\'ll have to go to the clinic.',
+    'I used to have the best employees and the best press operator around.',
+    'I could still cut a job pretty quick if I do say so myself.',
+    'Watch your finances. I think that old computer still works.',
+}
+local function activeLines(R)
+    local view=R._commute
+    return view and view.introDialogueLines or lines(R)
 end
 function Intro.currentLine(R)
     local view=R._commute
     local page=view and view.introDialogue
-    local text=page and lines(R)[page]
+    local text=page and activeLines(R)[page]
     if not text then return nil end
     local c=condition(R)
     local emotions=c and not c.grandpaMet and {'greeting','sad','worried','agreement','happy'}
@@ -114,8 +130,20 @@ function Intro.open(R)
             R.state.message='Grandpa has gone into the farmhouse for the night. Come back during the day.'
             return true
         end
-        R._commute.introDialogue=1
-        R._commute.barnTarget=nil
+        local view=R._commute
+        local c=condition(R)
+        if not c or c.grandpaMet then
+            view.grandpaTipIndex=(view.grandpaTipIndex or 0)%#repeatTips+1
+            view.introDialogueLines={
+                'Good to see you, kid. I spend the daylight hours out here in the barn.',
+                repeatTips[view.grandpaTipIndex],
+                'Take care on the road. You can always stop by for a chat.',
+            }
+        else
+            view.introDialogueLines=lines(R)
+        end
+        view.introDialogue=1
+        view.barnTarget=nil
         return true
     end
     if not Intro.near(R,part) then return false end
@@ -147,8 +175,8 @@ function Intro.advance(R)
     local view=R._commute
     if not view or not view.introDialogue then return false end
     local nextPage=view.introDialogue+1
-    if nextPage>#lines(R) then
-        view.introDialogue=nil
+    if nextPage>#activeLines(R) then
+        view.introDialogue=nil;view.introDialogueLines=nil
         local part=require('src.commute.runtime').localPart(R)
         if part then part.presentation=nil end
         if R.multiplayer:isClient() then
@@ -197,7 +225,7 @@ function Intro.drawHud(R)
         end
         return
     end
-    local last=page==#lines(R)
+    local last=page==#activeLines(R)
     local button=Intro.advanceButton(R)
     g.push('all')
     g.setShader();g.setColor(.02,.045,.04,.94)

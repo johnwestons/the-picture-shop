@@ -123,6 +123,7 @@ function Interior.update(view,R,dt)
     local magnitude=math.sqrt(dx*dx+dy*dy)
     if magnitude>.01 then view.path=nil
     else dx,dy=WalkMotion.pathInput(view.pose,view.path) end
+    view.pose.id=R.World.player.id;view.pose.homeResidentId=R.World.player.homeResidentId
     WalkMotion.update(view.pose,dx,dy,dt,Interior.walkable,R.state)
     WalkMotion.consumeReached(view.pose,view.path)
 end

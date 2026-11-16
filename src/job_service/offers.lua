@@ -109,10 +109,10 @@ function Component.install(Runtime)
             end
             scaleTemplateVolume(template, state, cutterCount)
         end
-        if not pressJob and sequence > 5 then
-            local companies = Runtime.additionalCuttingCompanies
-            template.company = companies[(sequence - 6) % #companies + 1]
-        end
+        -- Job IDs drive one shared client cycle across easy/hard, cutter/press,
+        -- and small/large offers so no template family hoards its own names.
+        local companies = Runtime.customerCompanies
+        if #companies > 0 then template.company = companies[(sequence - 1) % #companies + 1] end
         template.id = Runtime.Jobs.formatId(sequence)
         template.sequence = sequence
         template.createdAt = timestamp

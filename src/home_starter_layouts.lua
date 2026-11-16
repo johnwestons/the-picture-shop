@@ -8,6 +8,32 @@ Starter.DATA={
 }
 function Starter.place(state,item)
     local Layout=require("src.home_layouts");local Catalog=require("src.home_furniture_catalog")
+    if item.kind=="sleeping_bag" then
+        local Furniture=require("src.home_furniture");local Grid=require("src.placement_grid")
+        local room=Layout.get(state).rooms.living
+        local cx,cy=Layout.toWorld(unpack(room))
+        local function try(dx,dy)
+            local x,y=Grid.snap(cx+dx,cy+dy,Furniture.GRID)
+            local candidate={id=item.id,kind=item.kind,x=x,y=y,direction=item.direction,location="floor"}
+            local okay=Furniture.canPlace(state,candidate,{},true)
+            if okay then okay=Furniture.canPlace(state,candidate,{},false) end
+            if okay then item.x,item.y,item.location=x,y,"floor";return true end
+        end
+        for radius=0,288,24 do
+            local offsets={}
+            if radius==0 then offsets[1]={0,0}
+            else
+                for dx=-radius,radius,24 do
+                    offsets[#offsets+1]={dx,-radius};offsets[#offsets+1]={dx,radius}
+                end
+                for dy=-radius+24,radius-24,24 do
+                    offsets[#offsets+1]={-radius,dy};offsets[#offsets+1]={radius,dy}
+                end
+            end
+            for _,offset in ipairs(offsets) do if try(offset[1],offset[2]) then return end end
+        end
+        return
+    end
     if Catalog.ITEMS[item.kind].small then return end
     local pose=Starter.DATA[state.home.apartmentId][item.kind]
     if pose then item.x,item.y=pose[1],pose[2]

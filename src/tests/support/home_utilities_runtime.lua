@@ -19,6 +19,8 @@ function Test.run(context,check)
         local file=assert(io.open(folder.."/"..name..".png","wb"));file:write(bytes:getString());file:close()
         bytes:release();data:release();canvas:release()
     end
+    s.home.balanceCents=100000
+    local balance=s.home.balanceCents;local firstOrder=#s.home.shopping.orders;local firstItem=#s.home.furniture.items
     local computer=assert(Layout.targets(p,s).computer);p.x,p.y=computer.x,computer.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,computer.hoverX,computer.hoverY);R.App.keypressed("e")
     local screen=R.ComputerScreen;local x,y=screen.dropdownCenter();screen.mousepressed(s,x,y,1)
@@ -32,11 +34,16 @@ function Test.run(context,check)
     end
     for _=1,math.ceil(#Catalog.ORDER/4) do click("previous") end
     click("buy",2);click("confirm");click("cancel") -- chair for the powered television
-    check("home_utilities_runtime_buys_utilities_and_tv_chair",s.home.balanceCents==4125,s.message)
-    s.screen="world";advance(120);p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s))
+    local total,latest=0,0
+    for i=firstOrder+1,#s.home.shopping.orders do
+        local order=s.home.shopping.orders[i];total=total+order.totalCents;latest=math.max(latest,order.dueAt+.1)
+    end
+    check("home_utilities_runtime_buys_utilities_and_tv_chair",#s.home.shopping.orders==firstOrder+5 and s.home.balanceCents==balance-total,s.message)
+    s.screen="world";s.calendar.elapsed=latest/24*Calendar.secondsPerDay(s);R.App.update(.1)
+    p.x,p.y=Layout.spawn(s,1);local parcel=assert(require("src.home_shopping").target(p,s));p.x,p.y=parcel.x,parcel.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,s,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
-    check("home_utilities_runtime_collects_utilities_and_chair",#s.home.furniture.items==6,s.message)
-    for index=2,6 do
+    check("home_utilities_runtime_collects_utilities_and_chair",#s.home.furniture.items==firstItem+5,s.message)
+    for index=firstItem+1,firstItem+5 do
         local item=s.home.furniture.items[index];item.location="storage";item.parentId=nil;item.slot=nil
         local spot=assert(require("src.tests.home_tables_lamp_test").findSpot(s,item.kind,{p},item.id))
         local assets={getData=function() return Layout.mask(s.home.apartmentId) end}

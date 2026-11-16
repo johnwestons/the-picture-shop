@@ -21,6 +21,17 @@ local function capture(screen,state,name)
     bytes:release();data:release();canvas:release()
 end
 function Test.run(context,check)
+    local parcelState=State.new()
+    parcelState.home.shopping.orders={
+        {productId='pizza',status='waiting',quantity=1},
+        {productId='mug',status='waiting',quantity=1},
+        {productId='kitchen_table',status='waiting',quantity=1},
+        {productId='bed',status='waiting',quantity=1},
+    }
+    local parcels=Shopping.packages(parcelState)
+    check('home_delivery_food_bag_and_three_carton_sizes',#parcels==4
+        and parcels[1].kind=='bag' and parcels[2].size=='small'
+        and parcels[3].size=='medium' and parcels[4].size=='large')
     local s=State.new();local p={id=1,sceneId="warehouse",x=0,y=0};local business=s.money
     local first=order(s,"food-first","pizza",2)
     assert(Shopping.order(s,p,first))
@@ -46,8 +57,10 @@ function Test.run(context,check)
     check("home_food_collected_state_survives_reload",resumed.home.inventory.pizza_slice==8 and not Shopping.advance(resumed) and not Shopping.collect(resumed,p))
     for _,id in ipairs(require("src.home_catalog").ORDER) do
         local layout=Schema.copy(s);layout.home.apartmentId=id
-        local parcel=assert(Shopping.target(p,layout));local x,y=Layout.spawn(layout,1)
-        check("home_food_delivery_reachable_"..id,Layout.walkable(id,x,y) and (parcel.x-x)^2+(parcel.y-y)^2<=parcel.radius^2)
+        local parcel=assert(Shopping.target(p,layout))
+        local livingX,livingY=Layout.toWorld(unpack(Layout.get(layout).rooms.living))
+        check("home_food_delivery_visible_"..id,Layout.walkable(id,parcel.x,parcel.y)
+            and (parcel.x-livingX)^2+(parcel.y-livingY)^2<=144^2)
     end
     local full=Schema.copy(s);full.home.inventory.pizza_slice=9999
     check("home_food_full_storage_preserves_unclaimed_order",not Shopping.collect(full,p) and Shopping.waiting(full)==1 and full.home.inventory.pizza_slice==9999)
@@ -94,22 +107,36 @@ function Test.run(context,check)
     local shopper={id=2,sceneId="home",x=0,y=0};Residents.bind(officeState,shopper,string.rep("b",64),{p})
     local saves=0
     local office=require("src.office_authority").command({state=officeState,world=context.world,save=function() saves=saves+1 end})
-    local intent=order(officeState,"office-guest","sandwich")
+    local privateHome=assert(require('src.client_households').forPlayer(officeState,shopper))
+    local intent=order({home=privateHome},"office-guest","sandwich")
     check("home_food_guest_office_rejects_remote_purchase",not office.perform(nil,shopper,{officeIntent=intent}))
-    shopper.x,shopper.y=Layout.toWorld(unpack(Layout.get(officeState).laptop.approach))
-    check("home_food_guest_can_order_at_laptop",office.perform(nil,shopper,{officeIntent=intent}) and officeState.home.balanceCents==29500 and saves==1)
+    shopper.x,shopper.y=Layout.toWorld(unpack(Layout.get({home=privateHome}).laptop.approach))
+    check("home_food_guest_can_order_at_laptop",office.perform(nil,shopper,{officeIntent=intent})
+        and officeState.home.clientHomes[shopper.homeResidentId].balanceCents==29500
+        and officeState.home.balanceCents==30000 and saves==1)
+    local uiState=require('src.screens.gui_projection').copy(officeState)
+    local function refreshHome()
+        uiState.home=require('src.client_households').runtimeView(officeState.home,
+            officeState.home.clientHomes[shopper.homeResidentId])
+    end
+    refreshHome()
     local screen=require("src.screens.computer_screen").new({warehouseCommand=function(value)
-        return office.perform(nil,shopper,{officeIntent=value})
+        local result,code,message=office.perform(nil,shopper,{officeIntent=value})
+        refreshHome()
+        return result,code,message
     end,isNetworkClient=function() return true end})
-    local function click(name,index) local x,y=screen.homeShopControlCenter(name,index);return screen.mousepressed(officeState,x,y,1) end
-    screen.tab="groceries";capture(screen,officeState,"home-groceries")
-    click("buy",1);click("quantityPlus");capture(screen,officeState,"home-food-checkout")
+    local function click(name,index) local x,y=screen.homeShopControlCenter(name,index);return screen.mousepressed(uiState,x,y,1) end
+    screen.tab="groceries";capture(screen,uiState,"home-groceries")
+    click("buy",1);click("quantityPlus");capture(screen,uiState,"home-food-checkout")
     click("confirm");local balance=officeState.home.balanceCents;local count=#officeState.home.shopping.orders
     click("quantityPlus");click("confirm")
-    check("home_food_checkout_receipt_locks_repeat_clicks",count==2 and balance==28300 and officeState.home.balanceCents==balance and #officeState.home.shopping.orders==count)
-    screen.tab="home_orders";capture(screen,officeState,"home-deliveries")
+    local guestHome=officeState.home.clientHomes[shopper.homeResidentId]
+    check("home_food_checkout_receipt_locks_repeat_clicks",#guestHome.shopping.orders==2
+        and guestHome.balanceCents==28300 and officeState.home.balanceCents==balance
+        and #officeState.home.shopping.orders==count)
+    screen.tab="home_orders";capture(screen,uiState,"home-deliveries")
     click("plus");check("home_food_guest_limit_ui_readonly",officeState.home.shopping.guestLimitCents==3000)
-    screen.tab="takeout";capture(screen,officeState,"home-takeout")
+    screen.tab="takeout";capture(screen,uiState,"home-takeout")
     -- Every generated prop can be rendered using its registered atlas cell.
     local canvas=love.graphics.newCanvas(512,512);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear()
     for i=1,16 do require("src.home_food_art").draw(i,64+((i-1)%4)*128,64+math.floor((i-1)/4)*128,120) end

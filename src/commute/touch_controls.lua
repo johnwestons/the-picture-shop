@@ -189,7 +189,7 @@ function Touch.actionButtons(width,height,p,context,options)
             addButton(buttons,'worldAction',context.worldActionLabel,'more',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)
         end
-        if mobile and not context.arrived then
+        if mobile and not context.arrived and not context.directing then
             x,y=touchPoint(p,'boost',width,height,nil,nil,bounds)
             addButton(buttons,'boost','SPRINT','boost',x,y,actionRadius,false,
                 not context.gearTransition and not context.pedCrash)
@@ -396,7 +396,8 @@ function Touch:draw(width,height,p,context,options)
         g.setColor(.72,.84,.53,.98);g.circle('fill',cx+knobX*radius*1.5,cy+knobY*radius*1.5,radius*.52)
         Icons.draw('steer',cx,cy-radius*1.20,radius*.68)
         g.setColor(.92,.95,.84,.98);g.setFont(fontFor(self,math.max(10,radius*.42)))
-        local stickLabel=horizontal and (context.vehicle=='truck' and 'STEER' or 'LEAN') or 'STEER'
+        local stickLabel=context.directing and 'DIRECT' or horizontal
+            and (context.vehicle=='truck' and 'STEER' or 'LEAN') or 'STEER'
         g.printf(stickLabel,cx-radius*2,cy+radius*2.15,radius*4,'center')
         local gx,gy,scale
         if mobile and context.mounted and options.camera then gx,gy,scale=Cockpit.throttleGrip(width,height,options.camera) end

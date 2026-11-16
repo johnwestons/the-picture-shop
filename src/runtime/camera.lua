@@ -29,9 +29,18 @@ function Component.install(Runtime)
         return Runtime.App.officeFitsScreen() and not Runtime.isAndroidPlatform()
     end
 
+    function Runtime.App.cutterPinchZoomActive()
+        local machineType = Runtime.state.machineType
+        return Runtime.state.screen == "machine"
+            and (machineType == "cutter" or machineType == "paper_cutter")
+            and Runtime.mobileControls and Runtime.mobileControls:isEnabled()
+            and Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled()
+    end
+
     function Runtime.App.cameraTransformsUi()
         -- Phone menus need their full authored height. A wide phone can show
         -- surrounding scenery without zooming the menu out of reach.
+        if Runtime.App.cutterPinchZoomActive() then return false end
         if fullScreenDevice() then return false end
         return Runtime.App.mobileCamera and Runtime.App.mobileCamera:isEnabled() and Runtime.state.screen ~= "world"
             and not Runtime.App.officeFitsScreen()
@@ -53,9 +62,14 @@ function Component.install(Runtime)
     function Runtime.syncCamera()
         local bounds = Runtime.Viewport.gameBounds(Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
         if Runtime.App.mobileCamera then
-            Runtime.App.mobileCamera:setViewport(bounds.width, bounds.height,
+            local cameraWidth,cameraHeight=bounds.width,bounds.height
+            if Runtime.App.cutterPinchZoomActive() then
+                cameraWidth,cameraHeight=Runtime.Config.baseWidth,Runtime.Config.baseHeight
+            end
+            Runtime.App.mobileCamera:setViewport(cameraWidth, cameraHeight,
                 Runtime.App.cameraTransformsWorld() and fullScreenDevice())
-            if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi() then
+            if Runtime.App.cameraTransformsWorld() or Runtime.App.cameraTransformsUi()
+                or Runtime.App.cutterPinchZoomActive() then
                 Runtime.App.mobileCamera:selectView(Runtime.cameraViewKey(), Runtime.state.screen == "world")
             end
             local followTarget = Runtime.App.cameraTransformsWorld() and Runtime.App.settings
@@ -77,9 +91,16 @@ function Component.install(Runtime)
 
     function Runtime.toPointerCoordinates(x, y)
         Runtime.syncCamera()
-        local gameX, gameY = Runtime.Viewport.toGame(x, y, Runtime.Config.baseWidth, Runtime.Config.baseHeight, Runtime.App.officeUsesSafeArea())
-        if Runtime.App.cameraTransformsUi() then return Runtime.App.mobileCamera:screenToWorld(gameX, gameY) end
+        local gameX, gameY = Runtime.toViewportCoordinates(x, y)
+        if Runtime.App.cameraTransformsUi() or Runtime.App.cutterPinchZoomActive() then
+            return Runtime.App.mobileCamera:screenToWorld(gameX, gameY)
+        end
         return gameX, gameY
+    end
+
+    function Runtime.toViewportCoordinates(x, y)
+        return Runtime.Viewport.toGame(x, y, Runtime.Config.baseWidth, Runtime.Config.baseHeight,
+            Runtime.App.officeUsesSafeArea())
     end
 
     function Runtime.optionsAccessLayout()

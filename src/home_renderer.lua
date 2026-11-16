@@ -198,12 +198,20 @@ function Renderer.draw(world,assets,characters,state,remotePlayers,drawLocal)
             actors[#actors+1]={y=depth,order="furniture"..item.id,draw=function() FurnitureArt.draw(item);Routine.furniture(state,item);drawChildren(children,item.id) end}
         end
     end
-    for _,actor in ipairs(remotePlayers or {}) do if actor.sceneId=="home" then player(actor,false) end end
+    local apartments=require('src.client_apartments')
+    local visibleApartment=apartments.forPlayer(state,world.player)
+    for _,actor in ipairs(remotePlayers or {}) do
+        if actor.sceneId=="home" and apartments.forPlayer(state,actor)==visibleApartment then
+            player(actor,false)
+        end
+    end
     local delivery=require("src.home_shopping").target(world.player,state)
     if delivery then
         local x,y=Layout.toSource(delivery.x,delivery.y)
-        occluder({x-30,y-65,x+30,y+10},y)
-        actors[#actors+1]={y=y,order="delivery",draw=function() require("src.home_food_art").draw(1,delivery.x,delivery.y-13,34) end}
+        occluder({x-46,y-72,x+46,y+14},y)
+        actors[#actors+1]={y=y,order="delivery",draw=function()
+            require("src.home_delivery_art").draw(delivery.packages,delivery.x,delivery.y)
+        end}
     end
     table.sort(actors,function(a,b) if a.y==b.y then return a.order<b.order end;return a.y<b.y end)
     wallShader:send("actorCount",#rects);wallShader:send("actors",unpack(rects));wallShader:send("actorFeet",unpack(feet))

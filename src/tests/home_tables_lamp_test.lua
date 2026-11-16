@@ -32,7 +32,7 @@ end
 function Test.run(context,check)
     for _,id in ipairs(require("src.home_catalog").ORDER) do for _,preset in ipairs({"empty","modest"}) do
         local s,p=fresh(id,preset)
-        check("home_tables_no_starter_extras_"..id..preset,#s.home.furniture.items==(preset=="empty" and 1 or 9))
+        check("home_tables_no_starter_extras_"..id..preset,#s.home.furniture.items==(preset=="empty" and 2 or 10))
         for _,kind in ipairs(kinds) do
             check("home_tables_all_rotations_have_clear_routes_"..id..preset..kind,Test.findSpot(s,kind,{p})~=nil)
         end
@@ -42,11 +42,16 @@ function Test.run(context,check)
         local intent={productId=kind,quantity=1,requestId="tables-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,intent));assert(Shopping.order(s,p,intent))
     end
-    -- $85 of furniture plus the 15% delivery fee, despite duplicate requests.
-    check("home_tables_three_orders_debit_household_once",#s.home.shopping.orders==3 and s.home.balanceCents==money-9775 and s.money==business)
-    time(s,46);assert(Shopping.advance(s));local parcel=Shopping.target(p,s);p.x,p.y=parcel.x,parcel.y
-    assert(Shopping.collect(s,p));check("home_tables_all_deliver_once",#s.home.furniture.items==4 and not Shopping.collect(s,p))
-    local tableItem=s.home.furniture.items[2];local lamp=s.home.furniture.items[4]
+    local quoted=0
+    for _,kind in ipairs(kinds) do quoted=quoted+Shopping.quote(kind,1,'same_day').totalCents end
+    assert(#s.home.shopping.orders==3 and s.home.balanceCents==money-quoted and s.money==business,
+        ('orders=%d balance=%d expected=%d business=%d original=%d'):format(#s.home.shopping.orders,s.home.balanceCents,money-quoted,s.money,business))
+    check("home_tables_three_orders_debit_household_once",true)
+    local latest=46
+    for _,order in ipairs(s.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    time(s,latest);assert(Shopping.advance(s));local parcel=Shopping.target(p,s);p.x,p.y=parcel.x,parcel.y
+    assert(Shopping.collect(s,p));check("home_tables_all_deliver_once",#s.home.furniture.items==5 and not Shopping.collect(s,p))
+    local tableItem=s.home.furniture.items[3];local lamp=s.home.furniture.items[5]
     local spot=assert(Test.findSpot(s,"bedside_table",{p},tableItem.id));tableItem.location="floor";tableItem.x,tableItem.y=spot.x,spot.y
     lamp.location="storage";p.x,p.y=tableItem.x+60,tableItem.y
     assert(Furniture.command(s,p,"begin:"..lamp.id,{p}))
@@ -73,16 +78,16 @@ function Test.run(context,check)
     local remote=State.new();assert(State.applySharedSnapshot(remote,snapshot))
     check("home_tables_shared_snapshot_preserves_lit_lamp_and_support",Surface.find(remote,lamp.id).lit and Surface.pose(remote,Surface.find(remote,lamp.id)).lit)
     assert(context.save.save(3,s,{x=p.x,y=p.y,sceneId="home"}))
-    local loaded=assert(context.save.load(3));check("home_tables_disk_keeps_lit_state_and_parent",loaded.state.home.furniture.items[4].lit
-        and loaded.state.home.furniture.items[4].parentId==tableItem.id)
+    local loaded=assert(context.save.load(3));check("home_tables_disk_keeps_lit_state_and_parent",loaded.state.home.furniture.items[5].lit
+        and loaded.state.home.furniture.items[5].parentId==tableItem.id)
     local before=s.home.balanceCents;assert(Furniture.command(s,p,"begin:"..tableItem.id,{p}))
     assert(Furniture.command(s,p,"sell:"..tableItem.id..":"..tableItem.editToken,{p}))
     check("home_tables_sell_support_keeps_lamp_and_single_credit",lamp.location=="storage" and not lamp.parentId and lamp.lit
-        and s.home.balanceCents==before+1200 and #s.home.furniture.items==3)
+        and s.home.balanceCents==before+1200 and #s.home.furniture.items==4)
     local invalid=Schema.copy(lamp);invalid.kind="coffee_table"
     check("home_tables_non_lamp_cannot_keep_light_state",not Objects.valid(invalid))
     local old=State.new();local migrated=assert(Schema.migrate({version=35,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(old),player={x=300,y=400}}))
-    check("home_tables_v35_migration_no_free_furniture",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_tables_v35_migration_starts_with_sleeping_bag",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==2 and migrated.state.home.balanceCents==30000)
     local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR")
     if folder then for _,kind in ipairs(kinds) do
         local canvas=love.graphics.newCanvas(1024,600);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.17,.22,.24,1)

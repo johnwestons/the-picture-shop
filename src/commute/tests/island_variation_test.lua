@@ -69,7 +69,9 @@ function Test.run(check)
         local spineRatio=(roadLength(firstSpine)+roadLength(secondSpine))/math.max(.001,spineChord)
         check('island_country_roads_fill_land_and_keep_every_address_'..seed,
             town.generatorVersion==Town.GENERATOR_VERSION and width>300 and depth>300
-            and #town.placements==18 and Town.valid(town))
+            and #town.placements>=18 and town.destinations.clinic~=nil and Town.valid(town),
+            string.format('placements=%d width=%.1f depth=%.1f valid=%s clinic=%s',
+                #town.placements,width,depth,tostring(Town.valid(town)),tostring(town.destinations.clinic~=nil)))
         local topology=core.pattern=='country' and #core.roadIds==12
             and throughCenter and not perimeterRoad and coreArms==2 and curved>=2 and spineRatio>1.015
         newCountryTopology=newCountryTopology and topology

@@ -99,6 +99,7 @@ function Pay.recordSnapshot(state,residentId,token)
     if not require('src.resident_credentials').valid(token) then return false,'Resident identity is unavailable.' end
     local home=state and state.home
     local resident=home and home.residents and home.residents[residentId]
+    if resident and resident.clientSlot then return true,false end
     local digest=love.data.encode('string','hex',love.data.hash('sha256',token))
     if not resident or resident.credentialHash~=digest then return false,'Wage receipt identity does not match.' end
     return Pay.record(home.shopId,resident.wagePaidCents or 0,token)

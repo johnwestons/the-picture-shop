@@ -6,6 +6,7 @@ function Test.run(_,check)
     local Screen=require('src.screens.truck_inventory_screen')
     local Truck=require('src.truck')
     local Driver=require('src.warehouse_delivery_driver')
+    local Shipping=require('src.employee_shipping')
     local state=State.new()
     state.money=100000
     local shipmentId
@@ -56,7 +57,15 @@ function Test.run(_,check)
     Driver.update(state,.1,{})
     local returned=visit.driverReturned
     local waitsForClosedDoor=not Driver.departIfReady(state,truck)
-    local closeStarted=truck:toggleCargoDoor()
+    local receiver={id='receiver-test',status='employed',visible=true,sceneId='warehouse'}
+    local shippingActive,closeStarted=Shipping.update(state,receiver,.1,{
+        pickupTruck=function()return truck end,
+        inboundDeliveryItems=function()return {} end,
+        inboundDeliveryRemaining=function()return Procurement.remainingOnTruck(state,shipmentId) end,
+        closeInboundDelivery=world.closeTruckAfterUnload,
+    })
+    check('employee_closes_received_truck_after_unloading',shippingActive and closeStarted
+        and truck.state=='cargo_closing' and receiver.activity=='Closing the delivery truck cargo door')
     local closed=truck:update(1,'open',1)
     local departing=Driver.departIfReady(state,truck)
     local departed=truck:update(3,'open',3)

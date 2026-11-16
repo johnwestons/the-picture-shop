@@ -122,7 +122,14 @@ end
 local function visiting(e)
     for _,a in ipairs(e.applications) do if a.actor.visible then return a end end
 end
-function AI.receptionOccupied(state) return visiting(Employees.ensure(state))~=nil end
+function AI.receptionVisitorCount(state)
+    local count=0
+    for _,application in ipairs(Employees.ensure(state).applications) do
+        if application.actor.visible then count=count+1 end
+    end
+    return count
+end
+function AI.receptionOccupied(state) return AI.receptionVisitorCount(state)>0 end
 local function applications(state,dt,now,context)
     local e=Employees.ensure(state)
     local changed=false

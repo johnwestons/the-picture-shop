@@ -3,6 +3,42 @@
   "description": "Gameplay readiness gate: completion plus interruption/recovery evidence. Full run required for PASS.",
   "stages": [
     {
+      "id": "client-apartments-desktop", "focus": "client-apartments", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 35
+    },
+    {
+      "id": "client-apartments-mobile", "focus": "client-apartments", "mobile": true,
+      "timeoutSeconds": 300, "minChecks": 35
+    },
+    {
+      "id": "home-update-mobile", "focus": "home-shopping", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 200
+    },
+    {
+      "id": "rider-arrival-mobile", "focus": "independent-scenes", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 50
+    },
+    {
+      "id": "sleep-furniture-mobile", "focus": "home-furniture", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 2000
+    },
+    {
+      "id": "medical-world-mobile", "focus": "medical-world", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 1
+    },
+    {
+      "id": "medical-mobile", "focus": "medical", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 1
+    },
+    {
+      "id": "shared-gui-mobile", "focus": "shared-gui", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 100
+    },
+    {
+      "id": "player-wages-mobile", "focus": "player-wages", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 30
+    },
+    {
       "id": "fleet-finance-desktop", "focus": "fleet-finance", "mobile": false,
       "timeoutSeconds": 300, "minChecks": 50
     },
@@ -257,6 +293,56 @@
     }
   ],
   "features": [
+    {
+      "id": "private-client-apartments",
+      "label": "Four apartments, profile claims, client employment and private deliveries",
+      "stages": ["client-apartments-desktop", "client-apartments-mobile"],
+      "checks": [
+        "client_job_clocked_shift_pays_private_apartment"
+      ]
+    },
+    {
+      "id": "delivery-and-home-update",
+      "label": "Packaging, visible delivery placement and private home sessions",
+      "stages": ["home-update-mobile"],
+      "checks": ["home_delivery_food_bag_and_three_carton_sizes", "private_home_independent_bathrooms"]
+    },
+    {
+      "id": "first-client-bridge-arrival",
+      "label": "Client bridge motorcycle and disconnected snapshot recovery",
+      "stages": ["rider-arrival-mobile"],
+      "checks": ["independent_guest_bridge_spawn_can_accelerate", "independent_disconnected_guest_snapshot_skips_authority_physics"]
+    },
+    {
+      "id": "starter-sleeping-bag",
+      "label": "Starter sleeping bag, bed sleep and alarms",
+      "stages": ["sleep-furniture-mobile"],
+      "checks": ["home_sleep_starter_bag_uses_fast_sleep_and_alarm", "home_sleep_bed_comfort_beats_floor"]
+    },
+    {
+      "id": "medical-world-update",
+      "label": "Clinic and farm routes",
+      "stages": ["medical-world-mobile"],
+      "checks": ["medical_town_712345_clinic_exists"]
+    },
+    {
+      "id": "player-medical-update",
+      "label": "Fainting and recovery",
+      "stages": ["medical-mobile"],
+      "checks": ["medical_first_faint_stops_walking"]
+    },
+    {
+      "id": "client-wages-update",
+      "label": "Signed client shifts, wages and portable receipt migration",
+      "stages": ["player-wages-mobile"],
+      "checks": ["guest_wage_private_client_skips_portable_receipt"]
+    },
+    {
+      "id": "shared-remote-gui-update",
+      "label": "Remote work phone and office screens",
+      "stages": ["shared-gui-mobile"],
+      "checks": ["shared_gui_renders_phone_ringing"]
+    },
     {
       "id": "fleet-financing", "label": "Truck and forklift credit, purchases, repayments, saves and host authority",
       "stages": ["fleet-finance-desktop", "fleet-finance-mobile"],

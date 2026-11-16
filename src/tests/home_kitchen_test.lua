@@ -20,6 +20,19 @@ end
 local function install(s,p,kind,x,y)
     s.home.inventory[kind]=1;Furniture.materialize(s,false);local item=s.home.furniture.items[#s.home.furniture.items]
     item.location="floor";item.x,item.y=x,y
+    if kind~='stove' and not Furniture.canPlace(s,item,{}) then
+        local placed=false
+        for radius=24,192,24 do
+            for dx=-radius,radius,24 do
+                for _,dy in ipairs({-radius,radius}) do
+                    item.x,item.y=x+dx,y+dy
+                    if Furniture.canPlace(s,item,{}) then placed=true;break end
+                end
+                if placed then break end
+            end
+            if placed then break end
+        end
+    end
     assert(Furniture.canPlace(s,item,{}))
     local target=Furniture.targets(s,p)["furniture"..item.id]
     if target then p.x,p.y=target.x,target.y end
@@ -35,7 +48,7 @@ function Test.run(context,check)
                 local good,why=Furniture.canPlace(s,c,{p})
                 check("home_kitchen_power_routes_"..id.."_"..preset.."_"..d,good,why)
             end
-            check("home_kitchen_no_new_starter_gifts_"..id..preset,#s.home.furniture.items==(preset=="empty" and 1 or 9))
+            check("home_kitchen_no_new_starter_gifts_"..id..preset,#s.home.furniture.items==(preset=="empty" and 2 or 10))
             local c={id=100,kind="stove",x=x+8,y=y,direction="south"}
             check("home_kitchen_stove_cannot_install_off_power_"..id..preset,not Furniture.canPlace(s,c,{},true))
         end
@@ -123,13 +136,15 @@ function Test.run(context,check)
     for _,kind in ipairs({"refrigerator","countertop","kitchen_table"}) do
         assert(Shopping.order(a,pa,{productId=kind,quantity=1,requestId="kitchen-"..kind,expectedRevision=a.home.revision}))
     end
-    time(a,46);assert(Shopping.advance(a));local delivery=Shopping.target(pa,a);pa.x,pa.y=delivery.x,delivery.y
+    local latest=46
+    for _,order in ipairs(a.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    time(a,latest);assert(Shopping.advance(a));local delivery=Shopping.target(pa,a);pa.x,pa.y=delivery.x,delivery.y
     local collected,collectMessage=Shopping.collect(a,pa);assert(collected,collectMessage);local found={}
     for _,item in ipairs(a.home.furniture.items) do found[item.kind]=true end
     local repeated=Shopping.collect(a,pa)
     local valid=Home.valid(a.home)
     check("home_kitchen_all_new_furniture_delivers_once",found.refrigerator and found.countertop and found.kitchen_table
-        and #a.home.furniture.items==4 and not repeated and valid,
+        and #a.home.furniture.items==5 and not repeated and valid,
         ("storage=%s/%s/%s items=%d retry=%s valid=%s message=%s"):format(tostring(found.refrigerator),
             tostring(found.countertop),tostring(found.kitchen_table),#a.home.furniture.items,tostring(repeated),tostring(valid),tostring(collectMessage)))
     local migrated=assert(Schema.migrate({version=33,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))

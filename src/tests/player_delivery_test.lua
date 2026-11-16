@@ -68,6 +68,12 @@ function Test.run(context,check)
     check('player_delivery_rejects_nose_in_loading',not Trip.truckAtLoadingBay(world,truck)
         and not Loading.sync(state,warehouse.truck,warehouse.bayDoor))
     align()
+    truck.x=truck.x-site.sin*1.3;truck.z=truck.z+site.cos*1.3
+    truck.heading=site.yaw+math.rad(20)
+    check('player_delivery_accepts_forgiving_rear_door_alignment',Trip.truckAtLoadingBay(world,truck))
+    truck.speed=-1
+    check('player_delivery_rejects_moving_reverse_truck',not Trip.truckAtLoadingBay(world,truck))
+    align()
     assert(Loading.sync(state,warehouse.truck,warehouse.bayDoor))
     check('player_delivery_docked_truck_is_same_manifest_inside',warehouse.truck.playerDelivery
         and warehouse.truck.jobId==cityOne.id and warehouse.truck.mode=='pickup')
@@ -188,9 +194,13 @@ function Test.run(context,check)
     check('player_delivery_closed_city_gate_keeps_player_in_town_with_cargo',run.status=='driving'
         and #state.jobs.completed==2 and truck.speed==0)
     state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
-    truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
-    Trip.update(state,player,{drive=-1,steer=0},.1,world)
-    check('player_delivery_bridge_starts_city_montage',run.status=='offmap' and run.cutsceneEndsAtEpoch>os.time())
+    truck.x,truck.z=gate.x-dx*15,gate.z-dz*15;truck.heading=gate.heading;truck.speed=0
+    local touchBindings=require('src.commute.bindings').defaults()
+    local simulatedPhoneTouch={gripGas=.05,held={}}
+    local _,touchDrive=require('src.commute.bindings').drive(touchBindings,simulatedPhoneTouch,nil,truck,true)
+    Trip.update(state,player,{drive=touchDrive,steer=0},.1,world)
+    check('player_delivery_slow_touch_throttle_enters_millhaven_city',run.status=='offmap'
+        and run.cutsceneEndsAtEpoch>os.time() and #state.jobs.completed==2 and math.abs(touchDrive+.05)<.001)
     capture('city-delivery-montage',function()
         require('src.commute.city_delivery_scene').draw(960,678,run,truck,nil,.9)
     end)

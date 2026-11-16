@@ -18,7 +18,7 @@ local function officeChecks(check)
     end
     local intent={kind="home_pay_rent",expectedRevision=state.home.revision}
     local guest,code=perform({id=2},intent)
-    check("home_office_guest_cannot_pay_or_change_split",not guest and code=="owner_only"
+    check("home_office_unassigned_guest_cannot_pay_or_change_split",not guest and code=="resident_required"
         and not perform({id=2},{kind="home_set_pay",percent=100,expectedRevision=state.home.revision})
         and not perform({id=2},{kind="home_set_reserve",reserveCents=0,expectedRevision=state.home.revision}) and saves==0)
     access=false
@@ -48,8 +48,9 @@ end
 function Test.run(context,check)
     officeChecks(check)
     local options=Setup.new()
-    check("home_empty_default_only_owns_laptop",options.furnishingPreset=="empty"
-        and Home.new().inventory.laptop==0 and #Home.new().furniture.items==1 and Home.new().furniture.items[1].kind=="laptop" and next(Home.new().inventory,"laptop")==nil)
+    check("home_empty_default_starts_with_laptop_and_sleeping_bag",options.furnishingPreset=="empty"
+        and Home.new().inventory.laptop==0 and #Home.new().furniture.items==2 and Home.new().furniture.items[1].kind=="laptop"
+        and Home.new().furniture.items[2].kind=="sleeping_bag" and Home.new().inventory.sleeping_bag==0)
     options.furnishingPreset="modest"
     Setup.randomize(options,function(count) assert(count==4);return 4 end)
     check("home_random_preview_preserves_furnishings",options.apartmentId=="corner"
@@ -65,7 +66,7 @@ function Test.run(context,check)
                 and loaded.state.home.furnishingPreset==preset
                 and loaded.state.home.lease.monthlyCents==Catalog.APARTMENTS[id].rentCents
                 and loaded.state.home.balanceCents==30000 and loaded.state.money==180
-                and guest.home.apartmentId==id and guest.home.inventory.laptop==0 and #guest.home.furniture.items==(preset=="empty" and 1 or 9)
+                and guest.home.apartmentId==id and guest.home.inventory.laptop==0 and #guest.home.furniture.items==(preset=="empty" and 2 or 10)
                 and (preset=="empty" or guest.home.inventory.basic_meal==4))
         end
         for _,path in ipairs({Catalog.APARTMENTS[id].floorPath,Catalog.APARTMENTS[id].wallPath}) do

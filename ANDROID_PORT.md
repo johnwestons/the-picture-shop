@@ -3,19 +3,19 @@
 ## Current test build
 
 - Application ID: `com.thepictureshop.game`
-- Version: `0.1.0-android.116` (`versionCode` 116).
-- Multiplayer protocol: 75; host and guests need matching current code.
-- Build commands: `python tools/build_mobile_package.py --output-dir output/mobile`, then
-  `pwsh -NoProfile -File tools/build_android_apk.ps1 -PackagePath output/mobile/the-picture-shop-0.1.0-android.116.love -ReuseVerifiedNativeCryptoArtifacts`.
-- Local APK: `output/android-share/0.1.0-android.116/ThePictureShop-0.1.0-android.116-Install.apk`.
-- Remote APK: [download Android 116](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.116/ThePictureShop-0.1.0-android.116-Install.apk).
-- This update adds truck and forklift financing, company-truck obstacle and
-  return handling, a strict delivery yard protocol, and the prepared story-mode
-  fixes.
-- Build and validation details: [Android 116 release notes](docs/android_116_release.md).
-- This is a development pre-release. Physical-device play and multiplayer
-  acceptance remain separate from package verification; use the device
-  checklist below before a public release.
+- Version: `0.1.0-android.118` (`versionCode` 118).
+- Multiplayer protocol: 79; host and guests need matching current code.
+- Build: run `python tools/build_mobile_package.py --output-dir output/mobile`, then
+  `pwsh -NoProfile -File tools/build_android_apk.ps1 -PackagePath output/mobile/the-picture-shop-0.1.0-android.118.love -ReuseVerifiedNativeCryptoArtifacts`.
+- Local APK: `output/mobile/ThePictureShop-0.1.0-android.118-debug.apk`.
+- Remote APK: [download Android 118](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.118/ThePictureShop-0.1.0-android.118-debug.apk).
+- This update adds the new apartment and sleeping-bag experience, independent
+  multiplayer households and picture-shop employment, and after-hours freight
+  receiving fixes.
+- Build and validation details: [Android 118 release notes](docs/android_118_release.md).
+- This is a development pre-release. The S25 was not visible to ADB during
+  this run; automated forced-mobile and packaged-APK checks are recorded in
+  the release notes.
 
 ## Android 43 historical build notes
 

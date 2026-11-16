@@ -53,6 +53,18 @@ function Test.run(context,check)
     local c,pc=fresh(72);local bed=c.home.furniture.items[1];local target=require("src.home_furniture").targets(c,pc)["furniture"..bed.id]
     pc.x,pc.y=target.x,target.y;c.home.residents.owner.energy=0;assert(Residents.command(c,pc,"sleepbed:furniture"..bed.id));advance(c,{pc},1)
     check("home_sleep_bed_comfort_beats_floor",c.home.residents.owner.energy>60 and Schema.validState(Schema.snapshot(c)))
+    local bagState,bagPlayer=fresh(72)
+    local bag
+    for _,item in ipairs(bagState.home.furniture.items) do
+        if item.kind=='sleeping_bag' then bag=item;break end
+    end
+    assert(bag)
+    local bagTarget=require('src.home_furniture').targets(bagState,bagPlayer)['furniture'..bag.id]
+    bagPlayer.x,bagPlayer.y=bagTarget.x,bagTarget.y
+    bagState.home.residents.owner.energy=0
+    local bagSleep=Residents.command(bagState,bagPlayer,'sleepbag:furniture'..bag.id)
+    check('home_sleep_starter_bag_uses_fast_sleep_and_alarm',bagSleep and Sleep.status(bagState,{bagPlayer})
+        and Residents.command(bagState,bagPlayer,'alarm:7') and Schema.validState(Schema.snapshot(bagState)))
     local newcomer={id=2,sceneId="home",x=pc.x+60,y=pc.y};assert(Residents.bind(c,newcomer,string.rep("c",64),{pc}));assert(Residents.command(c,newcomer,"sleepfloor:floor"))
     local reconnect={id=3,sceneId="home",x=newcomer.x,y=newcomer.y};assert(Residents.bind(c,reconnect,string.rep("c",64),{pc}))
     check("home_sleep_reconnect_cannot_inherit_vote",not Residents.get(c,reconnect).activity and not Sleep.status(c,{pc,reconnect}))

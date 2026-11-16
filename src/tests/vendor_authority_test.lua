@@ -95,11 +95,12 @@ function Test.run(context, check)
         action = "purchase_stock", args = { itemIndex = 2 },
         expectedRevision = grant.revision,
     }, {})
+    local stockCash=1000-context.procurement.salesmanVisitPrice(1,1)
     check("vendor_stock_purchase_is_host_owned_saved_and_exactly_once",
         purchase.accepted and purchase.code == "stock_purchased"
-        and state.money == 900 and #state.procurement.orders == 1
+        and state.money == stockCash and #state.procurement.orders == 1
         and state.procurement.orders[1].item == "house_sheets"
-        and purchase.data.cash == 900 and saves.count == 1
+        and purchase.data.cash == stockCash and saves.count == 1
         and replay.accepted and #state.procurement.orders == 1
         and not reused.accepted and reused.code == "request_id_reused")
 

@@ -143,14 +143,14 @@ function Run.reserve(state,run)
     if not Run.valid(run,state.home) then return false,'The delivery manifest is invalid.' end
     for _,id in ipairs(run.jobIds) do
         local job=findJob(state,id)
-        local reserved=job and job.status=='pickup_in_progress' and job.pickup and job.pickup.driverMode=='player'
+        local reserved=job and job.status=='pickup_in_progress' and job.pickup and job.pickup.driverMode==(run.driverEmployeeId and 'employee' or 'player')
         if not reserved and not eligible(job) then return false,'A selected job is no longer ready to load.' end
     end
     for _,id in ipairs(run.jobIds) do
         local job=findJob(state,id)
         if job.status=='ready_for_pickup' then
             require('src.job_service').schedulePickup(job,os.time())
-            job.pickup.status='player_loading';job.pickup.driverMode='player'
+            job.pickup.status='player_loading';job.pickup.driverMode=run.driverEmployeeId and 'employee' or 'player'
         end
     end
     return true
@@ -185,13 +185,17 @@ function Run.releaseTrip(state,trip)
     if not trip.independent then
         trip.independent=true;trip.purpose='outing';trip.origin='warehouse'
         trip.destination=state.home.apartmentId
-        for _,part in pairs(trip.participants) do
+        for id,part in pairs(trip.participants) do
             part.origin=part.origin or 'warehouse'
-            part.destination=part.origin=='warehouse' and state.home.apartmentId or 'warehouse'
+            local resident=state.home.residents and state.home.residents[id]
+            part.destination=part.origin=='warehouse'
+                and (resident and resident.apartmentId or state.home.apartmentId) or 'warehouse'
         end
     elseif driver and trip.participants[driver] then
         local part=trip.participants[driver]
-        part.destination=part.origin=='warehouse' and state.home.apartmentId or 'warehouse'
+        local resident=state.home.residents and state.home.residents[driver]
+        part.destination=part.origin=='warehouse'
+            and (resident and resident.apartmentId or state.home.apartmentId) or 'warehouse'
     end
     state.home.revision=state.home.revision+1
 end

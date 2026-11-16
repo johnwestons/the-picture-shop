@@ -148,6 +148,11 @@ function Input.keypressed(key, context)
             or state.screen == "workshop_remote" and context.workshopRemoteScreen
         if console and console.dismissBrowserOverlay and console.dismissBrowserOverlay() then return true end
     end
+    if (key=="escape" or key=="back") and state.screen=="computer"
+        and context.computerScreen.calendarEventComposerOpen
+    then
+        return context.computerScreen.keypressed(state,"escape")
+    end
     if key=="escape" and state.screen=="workshop_remote" and context.workshopRemoteScreen.hasMachineModal
         and context.workshopRemoteScreen.hasMachineModal() then
         return context.workshopRemoteScreen.keypressed(key,state,context.requestWorkshopCommand)
@@ -504,7 +509,9 @@ function Input.keypressed(key, context)
         end
     elseif state.screen == "computer" then
         local result = context.computerScreen.keypressed(state, key)
-        if type(result) == "table" and result.emailRead then context.saveCurrent() end
+        if type(result) == "table" and (result.emailRead
+            or result.action == "calendar_event_saved"
+            or result.action == "calendar_event_removed") then context.saveCurrent() end
         return result
     elseif state.screen == "pallet_work_order" then
         return false
@@ -713,6 +720,8 @@ function Input.mousepressed(x, y, button, context)
             or result.action == "pickup_mode_changed"
             or result.action == "employment_changed"
             or result.action == "home_changed"
+            or result.action == "calendar_event_saved"
+            or result.action == "calendar_event_removed"
         then
             context.saveCurrent()
         elseif result.action == "completion_blocked" then

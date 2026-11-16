@@ -67,6 +67,7 @@ function Test.run(check)
         state={screen='world',home={commute={participants={owner={}}}}},
         Config={baseWidth=1280,baseHeight=880},_commute={camera=camera,renderer={}},
         toPointerCoordinates=function(x,y)return x*.5,y*.5 end,
+        toViewportCoordinates=function(x,y)return x*.5,y*.5 end,
         dispatchMousePressed=function()dispatched=dispatched+1 end,
         dispatchMouseReleased=function()dispatched=dispatched+1 end,
         dispatchMouseMoved=function()dispatched=dispatched+1 end}

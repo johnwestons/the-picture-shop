@@ -3,6 +3,8 @@ local Sleep={SPEED=32}
 Sleep.ACTIONS={
     sleepmat={label="Sleep on guest mat (8 hours / shared fast sleep)",minutes=480,targets={},furnitureKind="guest_mat",gain={energy=256},sleep=true},
     workmat={label="Guest mat: sleep until Monday 07:00",minutes=660,targets={},furnitureKind="guest_mat",gain={energy=352},sleep=true,untilWork=true},
+    sleepbag={label="Sleep in sleeping bag (8 hours / shared fast sleep)",minutes=480,targets={},furnitureKind="sleeping_bag",gain={energy=256},sleep=true},
+    workbag={label="Sleeping bag: sleep until Monday 07:00",minutes=660,targets={},furnitureKind="sleeping_bag",gain={energy=352},sleep=true,untilWork=true},
     sleepfloor={label="Sleep on floor (8 hours / shared fast sleep)",minutes=480,targets={floor=true},gain={energy=176},sleep=true},
     sleepbed={label="Sleep in bed (8 hours / shared fast sleep)",minutes=480,targets={},furnitureKind="bed",gain={energy=520},sleep=true},
     sleepcouch={label="Sleep on couch (8 hours / shared fast sleep)",minutes=480,targets={},furnitureKind="couch",gain={energy=336},sleep=true},

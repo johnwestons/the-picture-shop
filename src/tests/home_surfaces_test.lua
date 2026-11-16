@@ -36,7 +36,7 @@ function Test.run(context,check)
     check("home_surface_parent_edit_blocks_child_and_laptop_access",not Furniture.command(s,guest,"begin:"..laptop.id,people) and not Surface.computer(s,p))
     assert(Furniture.command(s,p,"store:"..desk.id..":"..token,people))
     check("home_surface_store_keeps_contents_once",desk.location=="storage" and laptop.location=="storage" and clock.location=="storage" and cup.location=="storage"
-        and #s.home.furniture.items==9 and not laptop.parentId and Furniture.valid(s.home.furniture))
+        and #s.home.furniture.items==10 and not laptop.parentId and Furniture.valid(s.home.furniture))
     check("home_surface_stored_laptop_has_no_ghost_access",not Surface.computer(s,p) and not context.world.validateNetworkWorkshopAccess(p,s,"office_computer"))
     p.x,p.y=Layout.toWorld(unpack(Layout.get(s).laptop.approach))
     assert(Furniture.command(s,p,"begin:"..laptop.id,people));token=laptop.editToken
@@ -47,7 +47,7 @@ function Test.run(context,check)
     local guestMoney=s.home.balanceCents
     check("home_surface_guest_sale_permission_is_separate",not Furniture.command(s,guest,"sell:"..laptop.id..":"..token,people) and s.home.balanceCents==guestMoney)
     local saved=Schema.snapshot(s);local restored=State.new();assert(State.applySharedSnapshot(restored,saved))
-    check("home_surface_shared_snapshot_preserves_attachments",Surface.find(restored,laptop.id).parentId==0 and #restored.home.furniture.items==9)
+    check("home_surface_shared_snapshot_preserves_attachments",Surface.find(restored,laptop.id).parentId==0 and #restored.home.furniture.items==10)
     assert(context.save.save(3,s,{x=p.x,y=p.y,sceneId="home"}))
     local loaded=State.new();assert(State.applyLocalSave(loaded,assert(context.save.load(3))))
     check("home_surface_disk_reload_preserves_parent_slot",Surface.find(loaded,laptop.id).slot==1 and Surface.find(loaded,laptop.id).parentId==0 and Surface.computer(loaded,p))
@@ -66,7 +66,7 @@ function Test.run(context,check)
     local saleCommand="sell:"..saleDesk.id..":"..saleDesk.editToken
     assert(Furniture.command(sale,seller,saleCommand,{seller}))
     local contentsKept=true;for _,child in ipairs(sale.home.furniture.items) do if child.kind=="clock" or child.kind=="laptop" or child.kind=="cup" then contentsKept=contentsKept and child.location=="storage" and not child.parentId end end
-    check("home_surface_selling_parent_keeps_owned_contents",contentsKept and #sale.home.furniture.items==8 and sale.home.balanceCents==funds+2400
+    check("home_surface_selling_parent_keeps_owned_contents",contentsKept and #sale.home.furniture.items==9 and sale.home.balanceCents==funds+2400
         and not Furniture.command(sale,seller,saleCommand,{seller}) and Furniture.valid(sale.home.furniture))
     -- A version-30 save owns bed/chair instances and inventory counts for the rest.
     local legacy=State.new();legacy.home=Home.new({furnishingPreset="modest"})
@@ -76,7 +76,7 @@ function Test.run(context,check)
     local payload={version=30,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(legacy),player={x=300,y=400}}
     local migrated=assert(Schema.migrate(payload));local again=assert(Schema.migrate(migrated))
     check("home_surface_v30_migration_keeps_existing_poses_and_counts",migrated.version==Schema.VERSION and migrated.state.home.furniture.version==3
-        and #migrated.state.home.furniture.items==9 and #again.state.home.furniture.items==9 and migrated.state.home.inventory.laptop==0
+        and #migrated.state.home.furniture.items==10 and #again.state.home.furniture.items==10 and migrated.state.home.inventory.laptop==0
         and migrated.state.home.furniture.items[1].x==data.items[1].x and migrated.state.home.furniture.items[8].parentId==0)
     local couch=byKind.couch;local approach=Furniture.targets(s,p)["furniture"..couch.id];p.x,p.y=approach.x,approach.y
     s.home.residents.owner.energy=0;assert(Residents.command(s,p,"couchrest:furniture"..couch.id))

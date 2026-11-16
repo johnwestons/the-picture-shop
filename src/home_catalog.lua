@@ -11,10 +11,10 @@ Catalog.APARTMENTS={
         description="Refreshed finishes at the top of the starter budget."},
 }
 Catalog.PRESETS={
-    empty={label="Empty",description="One laptop on the fixed kitchen counter. No other furnishings or groceries.",
-        contents={laptop=1}},
-    modest={label="Modestly furnished",description="Laptop, cheap bed, worn couch, mini fridge, small desk, chair, floor lamp, clock, cup, and 4 basic meals.",
-        contents={laptop=1,bed=1,couch=1,mini_fridge=1,small_desk=1,chair=1,floor_lamp=1,clock=1,cup=1,basic_meal=4}},
+    empty={label="Empty",description="Laptop on the fixed kitchen counter and a personal sleeping bag laid out on the floor.",
+        contents={laptop=1,sleeping_bag=1}},
+    modest={label="Modestly furnished",description="Laptop, personal sleeping bag, cheap bed, worn couch, mini fridge, small desk, chair, floor lamp, clock, cup, and 4 basic meals.",
+        contents={laptop=1,sleeping_bag=1,bed=1,couch=1,mini_fridge=1,small_desk=1,chair=1,floor_lamp=1,clock=1,cup=1,basic_meal=4}},
 }
 for id,entry in pairs(Catalog.APARTMENTS) do
     entry.floorPath="assets/generated/apartments-v1/"..id.."-floor.png"

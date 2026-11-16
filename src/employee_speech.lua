@@ -24,17 +24,26 @@ local function addMessage(name,message)
     Speech[name]=customCode
     messages[customCode]=message
 end
-addMessage("APPLICANT_ASK", "Hey, I'm looking for a job. Are you hiring?")
-addMessage("APPLICANT_RESUME_REPLY", "Sure! I'll email you my resume.")
+addMessage("APPLICANT_ASK", "Hey, I'm looking for a job.")
+addMessage("APPLICANT_RESUME_REPLY", "Thank you so much. I'll email you my resume right away.")
 addMessage("APPLICANT_DECLINE_REPLY", "No worries. Thanks anyway!")
 addMessage("EMPLOYEE_HIGH_FIVE_REQUEST", "Hey, boss! Can I get a high five?")
 addMessage("EMPLOYEE_HIGH_FIVE_THANKS", "Thanks for the high five!")
 addMessage("EMPLOYEE_LATE_OPENING", "You're late! We've been waiting to open.")
 addMessage("EMPLOYEE_BLADE_DULL", "The paper cutter blade is getting dull.")
 addMessage("EMPLOYEE_GOING_ON_DELIVERY", "Going on a delivery.")
+addMessage("DELIVERY_TRUCK_AWAY", "Bring the truck back to the shop parking lot.")
+addMessage("DELIVERY_TRUCK_REPAIR", "The delivery truck needs repairs.")
+addMessage("DELIVERY_TRUCK_RESERVED", "Release the truck from the player delivery first.")
+-- New application lines are appended so existing realtime speech codes remain stable.
+addMessage("APPLICANT_ASK_QUESTION", "Are you hiring?")
+addMessage("APPLICANT_SKILL_REPLY", "I'm best at production work.")
 Speech.MAX_CODE=customCode
 function Speech.reason(activity)
     local value=string.lower(tostring(activity or ""))
+    if value:find('bring the delivery truck back',1,true) then return Speech.DELIVERY_TRUCK_AWAY end
+    if value:find('repair the delivery truck',1,true) then return Speech.DELIVERY_TRUCK_REPAIR end
+    if value:find('release the delivery truck',1,true) then return Speech.DELIVERY_TRUCK_RESERVED end
     for index,reason in ipairs(reasons) do
         for _,pattern in ipairs(reason[3]) do
             if value:find(pattern,1,true) then return 31+index end
@@ -47,8 +56,14 @@ function Speech.code(entry)
     if entry.application then
         if type(a.speechCode)=="number" and a.speechCode%1==0
             and a.speechCode>=0 and a.speechCode<=Speech.MAX_CODE then return a.speechCode end
-        if entry.application.status=="visiting" and a.phase=="waiting" then return Speech.APPLICANT_ASK end
-        if entry.application.status=="resume_requested" and a.phase=="leaving" then return Speech.APPLICANT_RESUME_REPLY end
+        if entry.application.status=="visiting" and a.phase=="waiting" then
+            return (a.idleClock or 0)<2.4 and Speech.APPLICANT_ASK or Speech.APPLICANT_ASK_QUESTION
+        end
+        if entry.application.status=="resume_requested" and a.phase=="leaving" then
+            if a.greetingKind==Speech.APPLICANT_SKILL_REPLY
+                and (a.distance or 0)<(a.waitTimer or 0) then return Speech.APPLICANT_SKILL_REPLY end
+            return Speech.APPLICANT_RESUME_REPLY
+        end
         if entry.application.status=="declined" and a.phase=="leaving" then return Speech.APPLICANT_DECLINE_REPLY end
         return 0
     end
@@ -111,8 +126,22 @@ function Speech.code(entry)
     end
     return 23
 end
-function Speech.message(code,playerName)
+local function applicantSkillLine(application)
+    local skills={
+        {label="cutting",value=tonumber(application and application.cutterSkill) or 0},
+        {label="letterpress printing",value=tonumber(application and application.pressSkill) or 0},
+        {label="pallet wrapping",value=tonumber(application and application.wrappingSkill) or 0},
+        {label="driving",value=tonumber(application and application.drivingSkill) or 0},
+    }
+    local best=skills[1]
+    for index=2,#skills do
+        if skills[index].value>best.value then best=skills[index] end
+    end
+    return "I'm best at "..best.label.."."
+end
+function Speech.message(code,playerName,application)
     local name=require('src.player_profile').cleanName(playerName)
+    if code==Speech.APPLICANT_SKILL_REPLY then return applicantSkillLine(application) end
     if name~='' then
         if code==1 or code==2 then return 'Hello, '..name..'!' end
         if code==3 then return 'Goodbye, '..name..'!' end
@@ -125,8 +154,11 @@ function Speech.emotion(code)
     if code==1 or code==2 then return 'greeting' end
     if code==3 or code==20 then return 'goodbye' end
     if code==Speech.EMPLOYEE_HIGH_FIVE_THANKS then return 'thanks' end
-    if code==Speech.EMPLOYEE_HIGH_FIVE_REQUEST or code==Speech.APPLICANT_ASK then return 'curious' end
-    if code==Speech.APPLICANT_RESUME_REPLY or code==23 then return 'agreement' end
+    if code==Speech.EMPLOYEE_HIGH_FIVE_REQUEST or code==Speech.APPLICANT_ASK
+        or code==Speech.APPLICANT_ASK_QUESTION then return 'curious' end
+    if code==Speech.APPLICANT_RESUME_REPLY or code==Speech.APPLICANT_SKILL_REPLY or code==23 then
+        return 'agreement'
+    end
     if code==Speech.APPLICANT_DECLINE_REPLY then return 'sad' end
     if code==Speech.EMPLOYEE_LATE_OPENING or code==17 or code==21 then return 'annoyed' end
     if code==Speech.EMPLOYEE_BLADE_DULL or code==16 then return 'worried' end

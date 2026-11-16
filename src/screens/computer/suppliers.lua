@@ -102,9 +102,28 @@ function Component.install(Runtime)
         local total, count = Runtime.cartTotal()
         love.graphics.setColor(0.95, 0.84, 0.30)
         love.graphics.print("ONLINE CART", 124, 208)
-        love.graphics.setColor(0.70, 0.79, 0.80)
-        love.graphics.printf("Review everything before checkout. A separate receipt is emailed for every order.",
-            300, 208, 538, "right")
+        if Runtime.cartContainsPaper() then
+            love.graphics.setColor(0.70,0.79,0.80)
+            love.graphics.printf("PAPER SHIPPING",300,211,140,"right")
+            local sameSelected=Runtime.ComputerScreen.deliveryService=="same_day"
+            local threeSelected=Runtime.ComputerScreen.deliveryService=="three_day"
+            local sameHover=pointerX and Runtime.contains(Runtime.CART_SAME_DAY,pointerX,pointerY)
+            local threeHover=pointerX and Runtime.contains(Runtime.CART_THREE_DAY,pointerX,pointerY)
+            Runtime.drawComputerButton(Runtime.CART_SAME_DAY,"SAME DAY · $5",
+                sameSelected and "primaryHover" or sameHover and "hover" or "secondary")
+            Runtime.drawComputerButton(Runtime.CART_THREE_DAY,"3-DAY · $2",
+                threeSelected and "primaryHover" or threeHover and "hover" or "secondary")
+            love.graphics.setColor(0.70,0.79,0.80)
+            local originalFont=love.graphics.getFont()
+            love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',11))
+            love.graphics.printf("Per paper pack: same-day before 4 PM on receiving days; otherwise next receiving day. Three-day takes 3 business days.",
+                300,232,538,"right")
+            love.graphics.setFont(originalFont)
+        else
+            love.graphics.setColor(0.70, 0.79, 0.80)
+            love.graphics.printf("Review everything before checkout. A separate receipt is emailed for every order.",
+                300, 208, 538, "right")
+        end
         local maximumPage = math.max(1, math.ceil(#Runtime.ComputerScreen.cart / Runtime.CART_PAGE_SIZE))
         Runtime.ComputerScreen.cartPage = math.max(1, math.min(Runtime.ComputerScreen.cartPage or 1, maximumPage))
         local first = (Runtime.ComputerScreen.cartPage - 1) * Runtime.CART_PAGE_SIZE + 1
@@ -124,7 +143,14 @@ function Component.install(Runtime)
             love.graphics.setColor(0.63, 0.72, 0.73)
             love.graphics.printf("× " .. tostring(entry.quantity), 500, y + 10, 54, "right")
             love.graphics.setColor(0.96, 0.84, 0.30)
-            love.graphics.printf(Runtime.money(entry.price * entry.quantity), 566, y + 10, 140, "right")
+            local linePrice=Runtime.money(entry.price*entry.quantity)
+            local category=entry.kind=="supply" and Runtime.Procurement.categories[entry.categoryIndex]
+            if category and category.id=="paper" then
+                local fee=Runtime.Procurement.paperShippingFeeCents(entry.categoryIndex,entry.itemIndex,
+                    "computer",Runtime.ComputerScreen.deliveryService) or 0
+                linePrice=linePrice.." + "..Runtime.money(fee*entry.quantity/100).." ship"
+            end
+            love.graphics.printf(linePrice,566,y+10,140,"right")
             local remove = Runtime.cartRemoveRect(visibleIndex)
             local hovered = pointerX and Runtime.contains(remove, pointerX, pointerY)
             Runtime.drawComputerButton(remove, "REMOVE", hovered and "dangerHover" or "danger")
@@ -349,8 +375,13 @@ function Component.install(Runtime)
                 local row, buy = Runtime.wwwProductRect(index), Runtime.retailBuyRect(index)
                 local available = item.available ~= false and item.retailPrice ~= nil
                 local price, regularPrice, salePercent = Runtime.Procurement.retailPrice(state, site.categoryIndex, index)
-                local total = Runtime.cartTotal()
-                local affordable = available and (state.money or 0) >= total + (price or 0)
+                -- Keep products addable when the cheaper service would fit;
+                -- the cart's checkout button applies the selected service.
+                local total = Runtime.cartTotal("three_day")
+                local paperShipping=category.id=="paper"
+                    and Runtime.Procurement.paperShippingFeeCents(site.categoryIndex,index,"computer",
+                        "three_day") or 0
+                local affordable = available and (state.money or 0) >= total + (price or 0)+paperShipping/100
                 love.graphics.setColor(index % 2 == 0 and 0.075 or 0.095, 0.11, 0.17, 0.94)
                 love.graphics.rectangle("fill", row.x, row.y, row.width, row.height, 2, 2)
                 love.graphics.setColor(0.38, 0.78, 0.88, 1)
@@ -359,11 +390,17 @@ function Component.install(Runtime)
                 else love.graphics.setColor(0.66,0.72,0.72,1) end
                 local originalFont=love.graphics.getFont()
                 love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
-                love.graphics.print(available
-                    and ((salePercent or 0) > 0
-                        and string.format("%d%% SALE • regular %s • loading dock", salePercent, Runtime.money(regularPrice))
-                        or string.format("Ships to loading dock • salesman bulk $%d",item.price))
-                    or tostring(item.unavailableReason),row.x+14,row.y+29)
+                local details
+                if not available then details=tostring(item.unavailableReason)
+                elseif paperShipping>0 then
+                    details=(salePercent or 0)>0
+                        and string.format("%d%% SALE • regular %s • $5 same-day / $2 three-day shipping",
+                            salePercent,Runtime.money(regularPrice))
+                        or "Online: $5 same-day / $2 three-day shipping"
+                elseif (salePercent or 0)>0 then
+                    details=string.format("%d%% SALE • regular %s • loading dock",salePercent,Runtime.money(regularPrice))
+                else details=string.format("Ships to loading dock • salesman bulk $%d",item.price) end
+                love.graphics.print(details,row.x+14,row.y+29)
                 love.graphics.setFont(originalFont)
                 local hovered = affordable and pointerX and Runtime.contains(buy, pointerX, pointerY)
                 Runtime.drawComputerButton(buy,

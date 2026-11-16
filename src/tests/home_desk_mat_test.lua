@@ -19,24 +19,29 @@ function Test.run(context,check)
     for _,id in ipairs(require("src.home_catalog").ORDER) do for _,preset in ipairs({"empty","modest"}) do
         local s,p=fresh(id,preset)
         for _,kind in ipairs({"desk","guest_mat"}) do check("home_desk_mat_all_rotations_"..id..preset..kind,Find(s,kind,{p})~=nil) end
-        check("home_desk_mat_starters_unchanged_"..id..preset,#s.home.furniture.items==(preset=="empty" and 1 or 9))
+        check("home_desk_mat_starters_unchanged_"..id..preset,#s.home.furniture.items==(preset=="empty" and 2 or 10))
     end end
     local s,p=fresh();local business=s.money
     for _,kind in ipairs({"desk","guest_mat"}) do
         local intent={productId=kind,quantity=1,requestId="desk-mat-"..kind,expectedRevision=s.home.revision}
         assert(Shopping.order(s,p,intent));assert(Shopping.order(s,p,intent))
     end
-    check("home_desk_mat_household_checkout_once",s.home.balanceCents==14475 and s.money==business)
-    time(s,46);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
-    assert(Shopping.collect(s,p));check("home_desk_mat_two_delivered_once",#s.home.furniture.items==3 and not Shopping.collect(s,p))
-    local desk,mat=s.home.furniture.items[2],s.home.furniture.items[3]
+    local quoted=Shopping.quote('desk',1,'same_day').totalCents+Shopping.quote('guest_mat',1,'same_day').totalCents
+    check("home_desk_mat_household_checkout_once",s.home.balanceCents==30000-quoted and s.money==business)
+    local latest=46
+    for _,order in ipairs(s.home.shopping.orders) do latest=math.max(latest,order.dueAt+.1) end
+    time(s,latest);assert(Shopping.advance(s));local parcel=assert(Shopping.target(p,s));p.x,p.y=parcel.x,parcel.y
+    assert(Shopping.collect(s,p));check("home_desk_mat_two_delivered_once",#s.home.furniture.items==4 and not Shopping.collect(s,p))
+    -- Keep the sleep and alarm fixture at Friday 22:00 after checkout.
+    time(s,46)
+    local desk,mat=s.home.furniture.items[3],s.home.furniture.items[4]
     local spot=assert(Find(s,"desk",{p},desk.id));desk.location="floor";desk.x,desk.y=spot.x,spot.y
     local laptop=s.home.furniture.items[1];local computer=assert(Layout.targets(p,s).computer);p.x,p.y=computer.x,computer.y
     assert(Furniture.command(s,p,"begin:"..laptop.id,{p}))
     p.x,p.y=desk.x+60,desk.y
     assert(Furniture.command(s,p,"attach:"..laptop.id..":"..laptop.editToken..":"..desk.id..":1:east",{p}))
     check("home_desk_laptop_remains_usable",Layout.targets(p,s).computer~=nil and Surface.pose(s,laptop).y<desk.y)
-    s.home.inventory.desk_lamp=1;Furniture.materialize(s,false);local lamp=s.home.furniture.items[4]
+    s.home.inventory.desk_lamp=1;Furniture.materialize(s,false);local lamp=s.home.furniture.items[5]
     assert(Furniture.command(s,p,"begin:"..lamp.id,{p}))
     assert(Furniture.command(s,p,"attach:"..lamp.id..":"..lamp.editToken..":"..desk.id..":2:east",{p}))
     check("home_desk_laptop_and_lamp_separate_slots",laptop.slot~=lamp.slot and Surface.pose(s,laptop).x~=Surface.pose(s,lamp).x)
@@ -44,6 +49,8 @@ function Test.run(context,check)
     local target=assert(Furniture.targets(s,p)["furniture"..mat.id]);p.x,p.y=target.x,target.y
     local g={id=2,sceneId="home",x=p.x,y=p.y};assert(Residents.bind(s,g,string.rep("d",64),{p}))
     local gr=Residents.get(s,g);gr.energy=0
+    -- Exercise the legacy shared-household fixture separately from client homes.
+    s.home.clientHomes[g.homeResidentId]=nil;gr.clientSlot=nil;gr.apartmentId=nil
     assert(Residents.command(s,g,"matrest:furniture"..mat.id))
     check("home_mat_guest_rest_without_edit_permission",g.resting and not s.home.furniture.permissions.move)
     check("home_mat_single_occupant",not Residents.command(s,p,"sleepmat:furniture"..mat.id))
@@ -58,7 +65,7 @@ function Test.run(context,check)
     local shared=State.new();assert(State.applySharedSnapshot(shared,snapshot))
     check("home_mat_shared_vote_and_desk_attachments",Residents.get(shared,g).activity.kind=="sleepmat" and shared.home.furniture.items[1].parentId==desk.id)
     assert(context.save.save(3,s,{sceneId="home",x=p.x,y=p.y}));local saved=assert(context.save.load(3))
-    check("home_desk_mat_disk_preserves_kinds",saved.state.home.furniture.items[2].kind=="desk" and saved.state.home.furniture.items[3].kind=="guest_mat")
+    check("home_desk_mat_disk_preserves_kinds",saved.state.home.furniture.items[3].kind=="desk" and saved.state.home.furniture.items[4].kind=="guest_mat")
     Residents.advance(s,{p,g},47,48);time(s,48)
     check("home_mat_own_alarm_stops_fast_time",not gr.activity and gr.lastAlarmAt==48 and s.home.residents.owner.activity and not Sleep.status(s,{p,g}))
     assert(Residents.command(s,p,"cancel"));time(s,92)
@@ -66,7 +73,7 @@ function Test.run(context,check)
     check("home_mat_sunday_sleep_ends_monday_seven",not gr.activity and not Residents.command(s,g,"sleepmat:furniture"..mat.id))
     assert(Residents.command(s,g,"matrest:furniture"..mat.id));check("home_mat_monday_short_nap_available",gr.activity.kind=="matrest")
     local migrated=assert(Schema.migrate({version=36,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(State.new()),player={x=300,y=400}}))
-    check("home_desk_mat_v36_no_free_items",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==1 and migrated.state.home.balanceCents==30000)
+    check("home_desk_mat_v36_starts_with_sleeping_bag",migrated.version==Schema.VERSION and #migrated.state.home.furniture.items==2 and migrated.state.home.balanceCents==30000)
     local folder=os.getenv("PICTURE_SHOP_HOME_PREVIEW_DIR")
     if folder then
         local canvas=love.graphics.newCanvas(1024,600);love.graphics.push("all");love.graphics.setCanvas(canvas);love.graphics.clear(.17,.22,.24,1)

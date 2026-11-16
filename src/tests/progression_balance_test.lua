@@ -142,6 +142,33 @@ function Test.run(context,check)
     check("installed_press_receives_easy_print_work_before_reputation_unlocks",
         starterPrint and starterPrint.press and starterPrint.difficulty=="easy")
 
+    local rotationState=context.State.new()
+    rotationState.money=50000
+    rotationState.reputation.score=50
+    local rotationBought=context.machineFleet.buy(rotationState,"dealer",3)
+    local companyNames=context.jobService.companyNames()
+    local seenCompanies={};local companyCount=0
+    local hasEasy,hasHard,hasPrint,hasCut=false,false,false,false
+    local smallestSheets,largestSheets=math.huge,0
+    for index=1,#companyNames do
+        local offer=context.jobService.createNextOffer(rotationState,8000+index)
+        if offer then
+            if not seenCompanies[offer.company] then
+                seenCompanies[offer.company]=true;companyCount=companyCount+1
+            end
+            hasEasy=hasEasy or offer.difficulty=="easy"
+            hasHard=hasHard or offer.difficulty=="hard"
+            hasPrint=hasPrint or offer.press~=nil
+            hasCut=hasCut or offer.press==nil
+            smallestSheets=math.min(smallestSheets,offer.quote.totalSheets)
+            largestSheets=math.max(largestSheets,offer.quote.totalSheets)
+            context.jobService.declineOffer(rotationState,offer,9000+index)
+        end
+    end
+    check("all_job_families_and_difficulties_rotate_through_full_company_roster",
+        rotationBought and #companyNames==30 and companyCount==#companyNames
+        and hasEasy and hasHard and hasPrint and hasCut and largestSheets>smallestSheets)
+
     local pressTraining=Employees.trainingPlan(beginner,"press")
     local wrapTraining=Employees.trainingPlan(beginner,"wrapping")
     check("progression_training_reaches_next_available_stage",

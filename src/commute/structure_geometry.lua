@@ -468,7 +468,7 @@ local function farm(m,d)
     feature(m,'farmFences',{gateWidth=6.4})
     feature(m,'farmApproach',{threshold=d.threshold,parking=d.parking})
 end
-local services={['gas-station']=true,mechanic=true,grocery=true,['post-office']=true,police=true,['fire-station']=true,
+local services={clinic=true,['gas-station']=true,mechanic=true,grocery=true,['post-office']=true,police=true,['fire-station']=true,
     diner=true,['coffee-shop']=true,['general-store']=true}
 local function commercial(m,d,r)
     local b=Geometry.box;local style=d.style;local height=d.height
@@ -489,7 +489,7 @@ local function commercial(m,d,r)
     elseif style=='coffee-shop' then front.windowTop=2.75
     elseif style=='diner' then front.windowWidth=2.65;front.windowBase=.65;front.windowTop=2.6
     elseif style=='police' or style=='general-store' then front={windowWidth=1.65} end
-    local facadePalette={mechanic=colors.mechanicSteel,['gas-station']=colors.gasWall,
+    local facadePalette={clinic={.78,.87,.82},mechanic=colors.mechanicSteel,['gas-station']=colors.gasWall,
         grocery=colors.groceryWall,['post-office']=colors.postOfficeWall,
         police=colors.policeWall,['fire-station']=colors.fireWall,
         diner=colors.dinerWall,['coffee-shop']=colors.coffeeWall,
@@ -503,7 +503,13 @@ local function commercial(m,d,r)
     facade(m,'x',r.maxX,1,r.minZ,r.maxZ,height,d.floors,sideColor)
     roofEdge(m,r,height,style~='mechanic');corbels(m,r,height)
     entry(m,d.threshold.x,d.threshold.z,2.3)
-    if style=='mechanic' then
+    if style=='clinic' then
+        sign(m,d,r,'CRITTER CLINIC',height-.48)
+        local green={.10,.53,.34};local x=r.maxX-.8;local z=r.maxZ+.2
+        b(m,x-.12,z,1.65,x+.12,z+.12,2.65,green)
+        b(m,x-.5,z,2.03,x+.5,z+.12,2.27,green)
+        feature(m,'clinicCrosses',{x=x,z=z})
+    elseif style=='mechanic' then
         pitchedRoof(m,r,height,1.35)
         b(m,r.minX+.5,r.maxZ-.2,3.20,r.maxX-.5,r.maxZ+1.35,3.38,colors.metal)
         feature(m,'workCanopies',{width=d.width-1,depth=1.55})

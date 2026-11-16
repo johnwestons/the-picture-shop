@@ -26,14 +26,46 @@ function Component.install(Runtime)
             and Runtime.RuntimeDependencies.Hud.exitHit(x,y,bounds) then Runtime.returnToTitle();return true end
         return false
     end
-    function Runtime.pointerPosition()
+
+    -- Global HUD controls stay in viewport coordinates while the cutter surface
+    -- beneath them can be zoomed. Other screens keep their existing camera map.
+    function Runtime.menuAccessPointerScreen(x,y,button)
+        if Runtime.App.cutterPinchZoomActive and Runtime.App.cutterPinchZoomActive() then
+            local hud=require('src.screens.warehouse_hud')
+            local _,bounds=Runtime.optionsAccessLayout()
+            if hud.cutterRecenterPointer(Runtime,x,y,button,bounds) then return true end
+        elseif Runtime.App.cameraTransformsUi() then
+            x,y=Runtime.App.mobileCamera:screenToWorld(x,y)
+        end
+        return Runtime.menuAccessPointer(x,y,button)
+    end
+
+    function Runtime.overlayPointerPosition()
         if Runtime.controller and Runtime.controller:isActive() and Runtime.state.screen ~= "world" then
             return Runtime.controller:pointer()
         end
         if Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
+            local x,y=Runtime.mobileControls:pointer()
+            if x and y then return x,y end
+        end
+        local x,y=love.mouse.getPosition()
+        return Runtime.toViewportCoordinates(x,y)
+    end
+
+    function Runtime.pointerPosition()
+        if Runtime.controller and Runtime.controller:isActive() and Runtime.state.screen ~= "world" then
+            local x,y=Runtime.controller:pointer()
+            if Runtime.App.cutterPinchZoomActive() then
+                return Runtime.App.mobileCamera:screenToWorld(x,y)
+            end
+            return x,y
+        end
+        if Runtime.mobileControls and Runtime.mobileControls:isEnabled() then
             local x, y = Runtime.mobileControls:pointer()
             if x and y then
-                if Runtime.App.cameraTransformsUi() then return Runtime.App.mobileCamera:screenToWorld(x, y) end
+                if Runtime.App.cameraTransformsUi() or Runtime.App.cutterPinchZoomActive() then
+                    return Runtime.App.mobileCamera:screenToWorld(x, y)
+                end
                 return x, y
             end
         end
@@ -55,7 +87,7 @@ function Component.install(Runtime)
         if type(action) ~= "table" then return false end
         local ok, message
         if action.kind == "approve" then
-            ok, message = Runtime.multiplayer:approveJoin(action.requestId)
+            ok, message = Runtime.multiplayer:approveJoin(action.requestId,action.profileChoice)
         elseif action.kind == "deny" then
             ok, message = Runtime.multiplayer:rejectJoin(action.requestId)
         elseif action.kind == "remove" then
@@ -88,7 +120,10 @@ function Component.install(Runtime)
 
     function Runtime.dispatchGameMousePressed(gameX, gameY, button)
         if Runtime.state.screen == "asset_error" then return end
-        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
+        if Runtime.menuAccessPointerScreen(gameX,gameY,button) then return true end
+        if Runtime.App.cutterPinchZoomActive() then
+            gameX,gameY=Runtime.App.mobileCamera:screenToWorld(gameX,gameY)
+        end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end
@@ -120,6 +155,9 @@ function Component.install(Runtime)
             return require("src.screens.critter_kombat_screen").mousereleased(gameX,gameY,button)
         end
         if require("src.basketball_controls").mousereleased(gameX,gameY,button,Runtime) then return true end
+        if Runtime.App.cutterPinchZoomActive() then
+            gameX,gameY=Runtime.App.mobileCamera:screenToWorld(gameX,gameY)
+        end
         if Runtime.state.screen == "options" then return Runtime.OptionsScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "lan" then return Runtime.LanScreen.mousereleased(gameX, gameY, button) end
         if Runtime.state.screen == "direct" then return Runtime.DirectScreen.mousereleased(gameX, gameY, button) end
@@ -130,7 +168,8 @@ function Component.install(Runtime)
     function Runtime.dispatchMousePressed(x, y, button)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
-        if Runtime.menuAccessPointer(gameX,gameY,button) then return true end
+        local overlayX,overlayY=Runtime.toViewportCoordinates(x,y)
+        if Runtime.menuAccessPointerScreen(overlayX,overlayY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)
         end

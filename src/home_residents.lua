@@ -6,6 +6,7 @@ local Sleep=require("src.home_sleep")
 local Utilities=require("src.home_utilities")
 local Dining=require("src.home_dining")
 local BikeCargo=require("src.home_bike_cargo")
+local ClientApartments=require('src.client_apartments')
 local Residents={NEEDS={"hunger","thirst","hygiene","energy"}}
 local rates={hunger=2.5,thirst=4,hygiene=1.1,energy=2.7}
 -- The shop week includes meals, drinks and brief rests off camera, but it
@@ -40,6 +41,7 @@ for kind,action in pairs(Cooking.RECIPES) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Cooking.FOODS) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Sleep.ACTIONS) do Residents.ACTIONS[kind]=action end
 function Residents.validCommand(command)
+    if command=='medical:ack' then return true end
     if BikeCargo.decode(command) then return true end
     if Dining.decode(command) then return true end
     if command=="cancel" then return true end
@@ -87,9 +89,14 @@ function Residents.valid(records)
         if count>65 or id~="owner" and not Residents.validId(id)
             or type(p)~="table" or type(p.name)~="string" or #p.name>64
             or type(p.revision)~="number" or p.revision<0 or p.revision>1e12 or p.revision~=math.floor(p.revision) then return false end
-        if not BikeCargo.valid(p.bikeInventory)
+        if not require('src.player_medical').valid(p.medical) or not BikeCargo.valid(p.bikeInventory)
             or p.bikeParkedAtHome~=nil and type(p.bikeParkedAtHome)~='boolean' then return false end
         if id~="owner" and not require("src.resident_credentials").valid(p.credentialHash) or id=="owner" and p.credentialHash~=nil then return false end
+        if p.apartmentId~=nil or p.clientSlot~=nil then
+            if not ClientApartments.validSlot(p.clientSlot)
+                or not require('src.home_catalog').APARTMENTS[p.apartmentId] then return false end
+        end
+        if p.clientArrivalDone~=nil and (id=='owner' or type(p.clientArrivalDone)~='boolean') then return false end
         if p.credentialHash then
             if credentials[p.credentialHash] then return false end
             credentials[p.credentialHash]=true
@@ -107,6 +114,7 @@ function Residents.valid(records)
             or not require('src.commute.bike_damage').valid(p.ridingDamage)
             or p.ridingRepairRevision~=nil and not require('src.commute.bike_repairs').validRevision(p.ridingRepairRevision) then return false end
         if id~='owner' and not require('src.guest_payroll').valid(p) then return false end
+        if id~='owner' and not require('src.client_employment').valid(p) then return false end
         if p.activePlayerId~=nil and (type(p.activePlayerId)~="number" or p.activePlayerId<1
             or p.activePlayerId>4 or p.activePlayerId~=math.floor(p.activePlayerId)) then return false end
         for _,need in ipairs(Residents.NEEDS) do
@@ -155,27 +163,99 @@ end
 function Residents.key(player)
     return (player.id or 1)==1 and "owner" or player.homeResidentId
 end
-function Residents.bind(state,player,token,players)
+local function credentialDigest(token)
+    return love.data.encode("string","hex",love.data.hash("sha256",token))
+end
+
+function Residents.profileOptions(state,token,players)
+    if not require('src.resident_credentials').valid(token) then return nil,'Invalid resident identity.' end
+    local digest=credentialDigest(token)
+    local records=Residents.ensure(state)
+    local match,matchedSlot,choices,slots=false,nil,{},{}
+    for id,row in pairs(records) do
+        if id~='owner' then
+            if row.clientSlot then slots[row.clientSlot]=true end
+            if row.credentialHash==digest then match=true;matchedSlot=row.clientSlot end
+            if row.clientSlot and row.apartmentId and not row.activePlayerId then
+                local connected=false
+                for _,other in pairs(players or {}) do
+                    if other.homeResidentId==id then connected=true;break end
+                end
+                if not connected then
+                    choices[#choices+1]={slot=row.clientSlot,name=row.name,apartmentId=row.apartmentId}
+                end
+            end
+        end
+    end
+    table.sort(choices,function(a,b) return a.slot<b.slot end)
+    local canCreate=false
+    for slot=1,ClientApartments.MAX_CLIENT_SLOTS do
+        if not slots[slot] then canCreate=true;break end
+    end
+    if match then return {matched=true,matchedSlot=matchedSlot,choices={},canCreate=false} end
+    return {matched=false,choices=choices,canCreate=canCreate}
+end
+
+function Residents.bind(state,player,token,players,claimSlot)
     if not require("src.resident_credentials").valid(token) then return nil,"A valid private resident identity is required." end
-    local digest=love.data.encode("string","hex",love.data.hash("sha256",token))
-    local records=Residents.ensure(state);local id,nextNumber=nil,1
+    local digest=credentialDigest(token)
+    local records=Residents.ensure(state);local id,created=nil,nil
+    local usedNumbers={}
     for key,row in pairs(records) do
         if key~="owner" then
             if row.credentialHash==digest then id=key end
-            nextNumber=math.max(nextNumber,tonumber(key:match("%d+$"))+1)
+            usedNumbers[tonumber(key:match('%d+$'))]=true
         end
     end
     for _,other in pairs(players or {}) do
         if id and other~=player and other.homeResidentId==id then return nil,"This resident is already connected on another player slot." end
     end
+    if claimSlot~=nil then
+        if not ClientApartments.validSlot(claimSlot) then return nil,'Choose an existing client slot.' end
+        if id then
+            if records[id].clientSlot~=claimSlot then return nil,'This identity already belongs to a different client slot.' end
+        else
+            for key,row in pairs(records) do
+                if row.clientSlot==claimSlot then id=key;break end
+            end
+            if not id then return nil,'That client save slot is empty.' end
+            if records[id].activePlayerId then return nil,'That client profile is already connected.' end
+            for _,other in pairs(players or {}) do
+                if other.homeResidentId==id then return nil,'That client profile is already connected.' end
+            end
+        end
+    end
+    local oldCredential=id and records[id].credentialHash or nil
     if not id then
-        if nextNumber>64 then return nil,"This household has reached its saved resident limit." end
-        id="guest-"..nextNumber
+        local nextNumber
+        for candidate=1,64 do if not usedNumbers[candidate] then nextNumber=candidate;break end end
+        if not nextNumber then return nil,'This host save has reached its resident identity limit.' end
+        id='guest-'..nextNumber
         records[id]=person(player.name or "Guest")
         records[id].credentialHash=digest
+        created=true
+    end
+    local priorSlot,priorApartment=records[id].clientSlot,records[id].apartmentId
+    local apartment,apartmentReason=ClientApartments.assign(state.home,id)
+    if not apartment then
+        if created then records[id]=nil end
+        return nil,apartmentReason
+    end
+    state.home.clientHomes=state.home.clientHomes or {}
+    if not state.home.clientHomes[id] then
+        local private,reason=require('src.client_households').create(state,id)
+        if not private then
+            if created then records[id]=nil end
+            if not created then
+                records[id].clientSlot,records[id].apartmentId=priorSlot,priorApartment
+            end
+            return nil,reason
+        end
+        state.home.clientHomes[id]=private
         state.home.revision=state.home.revision+1
     end
     require('src.guest_payroll').ensure(records[id])
+    if claimSlot~=nil then records[id].credentialHash=digest end
     player.homeResidentId=id
     Residents.setName(state,player,player.name)
     -- Rejoining never inherits an unfinished interaction or a sleep vote, even
@@ -184,8 +264,12 @@ function Residents.bind(state,player,token,players)
     for _,row in pairs(records) do if row.activePlayerId==player.id then row.activePlayerId=nil end end
     records[id].activePlayerId=player.id
     records[id].wageProposal=nil
+    if records[id].job then
+        records[id].job.clockedIn=false
+        records[id].job.clockedAtHours=nil
+    end
     player.homeJoinedAtHours=Calendar.absoluteHours(state)
-    return id
+    return id,nil,created==true,priorSlot==nil,claimSlot and oldCredential or nil
 end
 function Residents.get(state,player)
     return state.home and state.home.residents and state.home.residents[Residents.key(player)]
@@ -205,7 +289,10 @@ function Residents.householdAllowed(state,player)
     return require("src.commute.outfit").allowed(state,player,"household")
 end
 function Residents.recover(state)
-    for _,p in pairs(Residents.ensure(state)) do p.activity=nil;p.activePlayerId=nil;p.wageProposal=nil end
+    for _,p in pairs(Residents.ensure(state)) do
+        p.activity=nil;p.activePlayerId=nil;p.wageProposal=nil
+        if p.job then p.job.clockedIn=false;p.job.clockedAtHours=nil end
+    end
     require("src.home_furniture").recover(state)
 end
 function Residents.display(state,player)
@@ -256,7 +343,8 @@ function Residents.prepareActivity(state,player,kind,target,served,twelveHourTim
         end
         if (player.x-x)^2+(player.y-y)^2>radius^2 then return false,"out_of_range","Walk closer to that fixture first." end
         for _,other in pairs(state.home.residents) do
-            if other.activity and (other.activity.target==target
+            local otherApartment=other.apartmentId or state.home.hostApartmentId or state.home.apartmentId
+            if otherApartment==state.home.apartmentId and other.activity and (other.activity.target==target
                 or fixtureId and (other.activity.target==fixtureId or other.activity.fixtureId==fixtureId)
                 or other.activity.fixtureId==target) then
                 return false,"occupied","Another resident is using that fixture."
@@ -277,15 +365,25 @@ function Residents.prepareActivity(state,player,kind,target,served,twelveHourTim
     return true,{resident=p,definition=definition,kind=kind,target=target,furnishing=furnishing,fixtureId=fixtureId,tv=tv,servedHere=servedHere}
 end
 function Residents.command(state,player,command,served,twelveHourTime)
-    if command~='cancel' then
-        local allowed,reason=Residents.householdAllowed(state,player)
-        if not allowed then return false,'riding_gear',reason end
+    local medical,resident=require('src.player_medical').get(state,player)
+    if medical and medical.phase then return false,'busy','You need to recover first.' end
+    if command=='medical:ack' and medical then
+        medical.notice=nil;medical.revision=medical.revision+1
+        return true,'accepted','Take care of yourself.'
     end
+    -- Unloading groceries is an inventory transfer at the parked motorcycle,
+    -- not a household activity. Riders commonly arrive home still wearing
+    -- their gear, so let them move cargo before applying the clothing gate
+    -- used by routines, cooking, and other indoor activities.
     if BikeCargo.decode(command) then
         -- Cargo's public API returns (okay, message); home interactions also
         -- need a protocol-safe result code so guests receive the acknowledgment.
         local okay,message=BikeCargo.command(state,player,command)
         return okay,okay and 'unloaded' or 'blocked',message
+    end
+    if command~='cancel' then
+        local allowed,reason=Residents.householdAllowed(state,player)
+        if not allowed then return false,'riding_gear',reason end
     end
     if Dining.decode(command) then return Dining.command(state,player,command) end
     if Sleep.decode(command)~=nil then return Sleep.command(state,player,command,twelveHourTime) end
@@ -340,19 +438,24 @@ function Residents.fridayArrival(state)
         end
     end
 end
-function Residents.advance(state,players,first,last)
+function Residents.advance(state,players,first,last,scope)
     local records=Residents.ensure(state);local present={};local changed=require("src.home_furniture").recover(state,players)
     for _,player in ipairs(players) do local id=Residents.key(player);if id then present[id]=player end end
     local choreChanged,choreRewards=Chores.timeline(state,players,records,present,first,last)
     changed=choreChanged or changed
     local home=require("src.weekend_flow").atHome(state)
     for id,p in pairs(records) do
+      if scope==nil or scope=='owner' and not p.clientSlot or id==scope then
         local player=present[id];local a=p.activity
         local cup=a and Residents.ACTIONS[a.kind].objectAction and require("src.home_surfaces").find(state,a.furnitureId)
         local lostCup=a and Residents.ACTIONS[a.kind].objectAction and (not cup or cup.location~="carried" or cup.holderId~=id)
         local activeId=player and (player.id or 1)
         if p.activePlayerId~=activeId then p.activePlayerId=activeId;changed=true end
         if id~='owner' and not activeId and p.wageProposal then p.wageProposal=nil;changed=true end
+        if id~='owner' and not activeId and p.job and p.job.clockedIn then
+            p.job.clockedIn=false;p.job.clockedAtHours=nil
+            p.job.revision=p.job.revision+1;changed=true
+        end
         if a and (lostCup or not player or not home or player.sceneId~="home" or (player.x-a.x)^2+(player.y-a.y)^2>12^2
             or a.kind=="watch" and not Utilities.watchValid(state,player,a) or not Chores.accessible(state,a)) then
             p.activity=nil;p.revision=p.revision+1;changed=true
@@ -375,18 +478,21 @@ function Residents.advance(state,players,first,last)
                 end
             else segment(p,math.max(0,last-from)) end
             changed=changed or last>from
-        elseif player and state.home.weekend.phase=="working" then
+        elseif player then
             local from=math.max(first,player.homeJoinedAtHours or first)
             segment(p,math.max(0,last-from),nil,workRates)
             if p.hygiene<=40 then p.dirtyClothes=true end
             changed=changed or last>from
         end
         changed=Sleep.fire(state,p,player,last) or changed
+      end
     end
     return changed
 end
 function Residents.speedScale(state,player)
-    local p=player.sceneId=="home" and Residents.get(state,player)
+    local medicalSpeed=require("src.player_medical").speed(state,player)
+    if medicalSpeed<1 then return medicalSpeed end
+    local p=Residents.get(state,player)
     if not p then return 1 end
     return math.max(.75,(p.energy<20 and .8 or 1)*(p.thirst<15 and .9 or 1)*(p.hunger<10 and .95 or 1))
 end

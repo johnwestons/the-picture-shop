@@ -27,6 +27,7 @@ local contacts={
     couch={{218,288},{210,295},{210,288},{218,245},{216,199},{210,206},{210,199},{170,211}},
     bed={{228,278},{128,274},{224,278},{180,284},{228,219},{128,225},{224,219},{180,250}},
     guest_mat={{225,287},{144,278},{230,287},{200,270},{225,232},{144,218},{230,232},{200,247}},
+    sleeping_bag={{192,256},{192,256},{192,256},{192,256},{192,256},{192,256},{192,256},{192,256}},
 }
 -- Only foreground wooden/upholstered parts are redrawn after the occupant.
 -- Polygons refer to original furniture pixels, so texture and alpha stay exact.
@@ -106,7 +107,7 @@ function Pose.get(state,player)
         sx,sy=.20,.16
         if frame==2 or frame==6 then sx,sy=.18,.18 end
         if item and item.kind=="couch" then sx,sy=sx*.8,sy*.8 end
-        if item and item.kind=="guest_mat" then sy=sy*.70 end
+        if item and (item.kind=="guest_mat" or item.kind=="sleeping_bag") then sy=sy*.70 end
     end
     local seconds=math.max(0,Calendar.absoluteHours(state)-(tonumber(a.startedAt) or Calendar.absoluteHours(state)))
         *Calendar.secondsPerDay(state)/24

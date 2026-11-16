@@ -122,7 +122,9 @@ function Component.install(Runtime)
             end
             unavailableMessage = "Move closer to the truck cargo controls."
         elseif resourceId == "office_computer" then
-            if scene=="home" then target=require("src.home_surfaces").computer(state,player)
+            if scene=="home" then
+                local home=require('src.client_households').forPlayer(state,player) or state.home
+                target=require("src.home_surfaces").computer({home=home},player)
             else target=Runtime.Config.interactables.computer end
             if not target then return false,"not_installed","Unpack your laptop onto a desk, counter, or clear floor using Furnish [M]." end
             unavailableMessage = "Move closer to the office computer."

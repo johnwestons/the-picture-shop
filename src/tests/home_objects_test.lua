@@ -76,7 +76,8 @@ function Test.run(context,check)
     assert(Residents.command(s,p,"cupwash:"..cupTarget));advance(2)
     check("home_objects_wash_cleans_without_creating_water",cup.contents.dirty==false and cup.contents.water==0)
     assert(Residents.command(s,guest,"wash:sink"))
-    check("home_objects_existing_sink_user_blocks_cup_fill",not Residents.command(s,p,"cupfill:"..cupTarget))
+    check("home_objects_other_apartment_sink_does_not_block_cup_fill",Residents.command(s,p,"cupfill:"..cupTarget))
+    assert(Residents.command(s,p,"cancel"))
     sink(p,"basin");assert(Residents.command(s,p,"cupfill:"..cupTarget));advance(1)
     check("home_objects_other_sink_can_work_concurrently",cup.contents.water==1 and s.home.residents[guest.homeResidentId].activity~=nil)
     assert(Residents.command(s,guest,"cancel"))
@@ -111,7 +112,7 @@ function Test.run(context,check)
     local legacy=State.new();legacy.home=Home.new({furnishingPreset="modest"});legacy.home.furniture.version=2
     local migrated=assert(Schema.migrate({version=31,slot=3,createdAt=1,updatedAt=2,state=Schema.snapshot(legacy),player={x=300,y=400}}))
     check("home_objects_v31_migration_keeps_placements_and_empty_contents",migrated.version==Schema.VERSION and migrated.state.home.furniture.version==3
-        and #migrated.state.home.furniture.items==9 and migrated.state.home.furniture.items[8].parentId==5
+        and #migrated.state.home.furniture.items==10 and migrated.state.home.furniture.items[8].parentId==5
         and next(migrated.state.home.furniture.items[4].contents)==nil)
 end
 return Test

@@ -166,7 +166,7 @@ function Test.run(context,check)
     assert(guests[2]:requestInteraction("homeDelivery","collect"));pump()
     check("home_session_second_guest_cannot_collect_again",not received[2].interaction_result.accepted and state.home.inventory.pizza_slice==4)
     local Furniture=require("src.home_furniture")
-    state.home.inventory.chair=1;Furniture.materialize(state,false);local chair=state.home.furniture.items[2]
+    state.home.inventory.chair=1;Furniture.materialize(state,false);local chair=state.home.furniture.items[3]
     assert(guests[1]:requestInteraction("homeFurniture","begin:"..chair.id));pump()
     check("home_session_guest_furniture_requires_permission",not received[1].interaction_result.accepted and not chair.editor)
     assert(Furniture.command(state,hp,"permission:move:1",players()))
@@ -178,9 +178,9 @@ function Test.run(context,check)
     local token=chair.editToken
     network:duplicateNext("client_to_host",1,1,true)
     assert(guests[1]:requestInteraction("homeFurniture","store:"..chair.id..":"..token));pump()
-    check("home_session_furniture_duplicate_commit_once",chair.revision==1 and not chair.editor and received[2].shop_state.state.home.furniture.items[2].revision==1)
+    check("home_session_furniture_duplicate_commit_once",chair.revision==1 and not chair.editor and received[2].shop_state.state.home.furniture.items[3].revision==1)
     state.home.inventory.cup=2;Furniture.materialize(state,false)
-    local cupA,cupB=state.home.furniture.items[3],state.home.furniture.items[4]
+    local cupA,cupB=state.home.furniture.items[4],state.home.furniture.items[5]
     local counterX,counterY=Layout.toWorld(unpack(Layout.get(state).laptop.approach))
     host.players[2].x,host.players[2].y=counterX,counterY
     host.players[3].x,host.players[3].y=counterX,counterY
@@ -189,7 +189,7 @@ function Test.run(context,check)
     network:duplicateNext("client_to_host",1,1,true)
     assert(guests[1]:requestInteraction("homeFurniture","attach:"..cupA.id..":"..cupA.editToken..":0:2:east"));pump()
     check("home_session_duplicate_surface_attach_once",cupA.parentId==0 and cupA.slot==2 and cupA.revision==1 and not cupA.editor
-        and received[2].shop_state.state.home.furniture.items[3].slot==2)
+        and received[2].shop_state.state.home.furniture.items[4].slot==2)
     assert(guests[2]:requestInteraction("homeFurniture","attach:"..cupB.id..":"..cupB.editToken..":0:2:east"));pump()
     check("home_session_surface_slot_contention",not received[2].interaction_result.accepted and cupB.location=="storage" and cupB.revision==0)
     host.players[3].x,host.players[3].y=0,0
@@ -199,7 +199,7 @@ function Test.run(context,check)
     network:duplicateNext("client_to_host",1,1,true)
     assert(guests[1]:requestInteraction("homeActivity","object:pickup:"..cupA.id..":"..cupA.revision));pump()
     check("home_session_cup_pickup_duplicate_once",cupA.location=="carried" and cupA.revision==2 and cupA.holderId==guests[1].residentId
-        and received[2].shop_state.state.home.furniture.items[3].holderId==guests[1].residentId)
+        and received[2].shop_state.state.home.furniture.items[4].holderId==guests[1].residentId)
     assert(guests[2]:requestInteraction("homeActivity","object:away:"..cupA.id..":"..cupA.revision));pump()
     check("home_session_cup_cannot_be_taken_from_other_resident",not received[2].interaction_result.accepted and cupA.location=="carried")
     local sx,sy=Layout.toWorld(unpack(Layout.get(state).fixtures.sink.approach))
@@ -210,7 +210,7 @@ function Test.run(context,check)
     local Calendar=require("src.business_calendar");local first=Calendar.absoluteHours(state)
     require("src.home_residents").advance(state,players(),first,first+1/60)
     state.calendar.elapsed=state.calendar.elapsed+Calendar.secondsPerDay(state)/1440;host:markShopDirty();pump()
-    check("home_session_filled_cup_replicates",cupA.contents.water==1 and received[2].shop_state.state.home.furniture.items[3].contents.water==1)
+    check("home_session_filled_cup_replicates",cupA.contents.water==1 and received[2].shop_state.state.home.furniture.items[4].contents.water==1)
     network:duplicateNext("client_to_host",1,1,true)
     assert(guests[1]:requestInteraction("homeActivity","cupdrink:furniture"..cupA.id));pump()
     check("home_session_cup_drink_consumes_once",cupA.contents.water==0 and cupA.contents.dirty and state.home.residents[guests[1].residentId].activity.kind=="cupdrink")

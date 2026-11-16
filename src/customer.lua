@@ -150,6 +150,27 @@ function Instance:reset(initialVisit, delayMultiplier, travelSeconds)
     self.routeBlocked = false
 end
 
+function Instance:chooseAvailableSeat(occupied)
+    local spots=self.seatSpots
+    if type(spots)~="table" or #spots==0 then return false end
+    local current=self.seatIndex or 0
+    for offset=0,#spots-1 do
+        local index=(current+offset-1)%#spots+1
+        if not occupied[index] then
+            self.seatIndex=index
+            self.route,self.seat=routeForSeat(self,index)
+            self.seatFacing=self.seat.facing or 1
+            if self.state=="scheduled" then
+                self.x,self.y=self.route[1].x,self.route[1].y
+                self.waypoint=2
+            end
+            Navigator.reset(self)
+            return true
+        end
+    end
+    return false
+end
+
 local function settleIntoSeat(instance)
     instance.x, instance.y = instance.seat.x, instance.seat.y
     instance.state = "waiting"

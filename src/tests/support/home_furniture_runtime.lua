@@ -56,25 +56,29 @@ function Test.run(context,check)
     x,y=screen.homeShopControlCenter("buy",2);screen.mousepressed(state,x,y,1)
     capture("home-furniture-checkout",screen)
     local balance=state.home.balanceCents;x,y=screen.homeShopControlCenter("confirm");screen.mousepressed(state,x,y,1)
-    check("home_furniture_runtime_pays_household",state.home.balanceCents==balance-2875,state.message)
-    R.App.update(Calendar.secondsPerDay(state)/12)
-    state.screen="world";local parcel=assert(Shopping.target(p,state));p.x,p.y=Layout.spawn(state,1)
+    check("home_furniture_runtime_pays_household",state.home.balanceCents==balance-Shopping.quote('chair',1,'same_day').totalCents,state.message)
+    state.calendar.elapsed=(state.home.shopping.orders[#state.home.shopping.orders].dueAt+.1)/24*Calendar.secondsPerDay(state)
+    R.App.update(.1)
+    state.screen="world";local parcel=assert(Shopping.target(p,state));p.x,p.y=parcel.x,parcel.y
     R.World.updateNetworkPlayer(0,0,0,R.Assets,state,parcel.hoverX,parcel.hoverY);R.App.keypressed("e")
-    local chair=state.home.furniture.items[10]
-    check("home_furniture_runtime_receives_one_chair_instance",#state.home.furniture.items==10 and chair.kind=="chair"
+    local chair=state.home.furniture.items[#state.home.furniture.items]
+    check("home_furniture_runtime_receives_one_chair_instance",#state.home.furniture.items==11 and chair.kind=="chair"
         and (chair.location=="floor" or chair.location=="storage"),state.message)
     if chair.location=="floor" then p.x,p.y=chair.x,chair.y end
-    R.App.keypressed("m");Controls.mousepressed(190,518,1,R);Controls.mousepressed(110,274,1,R)
+    R.App.keypressed("m");Controls.mousepressed(190,518,1,R)
+    local chairRow=(#state.home.furniture.items-1)%7+1
+    Controls.mousepressed(110,180+(chairRow-1)*46,1,R)
     local grid=assert(Controls.snapshot(R));local selected
     for _,cell in ipairs(grid.cells) do
         local c=Controls.candidate
         if cell.valid and cell.y>165 and cell.y<580 and Furniture.canPlace(state,{id=c.id,kind=c.kind,x=cell.x,y=cell.y,direction=c.direction},{p}) then selected=cell;break end
     end
-    assert(selected,"No valid unpacking position near delivery spot")
+    assert(selected,"No valid unpacking position near delivery spot; candidate="
+        ..tostring(Controls.candidate and Controls.candidate.kind).." cells="..tostring(#grid.cells))
     Controls.mousepressed(selected.x,selected.y,1,R);Controls.mousepressed(240,626,1,R)
     check("home_furniture_runtime_touch_places_delivery",chair.location=="floor" and chair.x==selected.x and chair.y==selected.y,state.message)
     assert(R.saveCurrent(true));local saved=assert(R.Save.load(3))
-    check("home_furniture_runtime_commit_saved",saved.state.home.furniture.items[1].location=="storage" and saved.state.home.furniture.items[10].x==chair.x)
+    check("home_furniture_runtime_commit_saved",saved.state.home.furniture.items[1].location=="storage" and saved.state.home.furniture.items[#saved.state.home.furniture.items].x==chair.x)
     local Surface=require("src.home_surfaces");local laptopItem=state.home.furniture.items[8]
     local target=assert(Surface.computer(state,p));p.x,p.y=target.x,target.y
     R.App.keypressed("escape");R.App.keypressed("m")

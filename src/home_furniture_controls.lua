@@ -13,7 +13,7 @@ local buttons={rotate={x=20,y=604,width=140,height=44},place={x=172,y=604,width=
 local function inside(r,x,y) return x>=r.x and x<=r.x+r.width and y>=r.y and y<=r.y+r.height end
 local function player(R) return require("src.home_activity_controls").localPlayer(R) end
 function Controls.command(R,p,command)
-    local people=require("src.weekend_runtime").players(R)
+    local people=require('src.client_households').playersHere(R,p)
     Furniture.recover(R.state,people)
     local okay,message=Furniture.command(R.state,p,command,people)
     if okay then R.saveCurrent();if R.multiplayer:isHost() then R.multiplayer:markShopDirty() end end

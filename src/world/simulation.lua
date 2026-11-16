@@ -10,6 +10,31 @@ local VisitorCommute=require("src.commute.visitor_commute")
 function Component.install(Runtime)
     local background=Background.new()
     local frameMotionDt,frameWasClosed
+    Runtime.World.RECEPTION_GUEST_CAPACITY=2
+    function Runtime.World.receptionVisitorCount(state)
+        local count=0
+        if Runtime.World.customer:isPresent() then count=count+1 end
+        if Runtime.World.vendor:isPresent() then count=count+1 end
+        if Runtime.EmployeeAI.receptionVisitorCount then
+            count=count+Runtime.EmployeeAI.receptionVisitorCount(state)
+        end
+        return count
+    end
+
+    local function reserveVisitorSeat(visitor,otherVisitors)
+        if visitor.state~="scheduled" or type(visitor.chooseAvailableSeat)~="function" then return end
+        local occupied={}
+        for _,other in ipairs(otherVisitors) do
+            if other~=visitor and other:isPresent() and other.seatIndex then
+                occupied[other.seatIndex]=true
+            end
+        end
+        if occupied[visitor.seatIndex] then visitor:chooseAvailableSeat(occupied) end
+    end
+
+    local function salesmanVisitDelayMultiplier(state)
+        return Runtime.BusinessCalendar.secondsPerDay(state)/1200
+    end
     function Runtime.World.doorForScene(scene)
         if scene==nil or scene=="warehouse" then return Runtime.World.bayDoor end
         return Runtime.World.roomDoors[scene]
@@ -29,7 +54,7 @@ function Component.install(Runtime)
         Runtime.World.truck:reset()
         local visitorTravelSeconds=VisitorCommute.travelSeconds(Runtime.state)
         Runtime.World.customer:reset(true, CustomerDemand.delayMultiplier(Runtime.state),visitorTravelSeconds)
-        Runtime.World.vendor:reset(true,nil,visitorTravelSeconds)
+        Runtime.World.vendor:reset(true,salesmanVisitDelayMultiplier(Runtime.state),visitorTravelSeconds)
         Runtime.World.selectedInteraction = nil
         Runtime.World.placementSelection = nil
     end
@@ -233,14 +258,17 @@ function Component.install(Runtime)
             state and state.home and state.home.town,Runtime.BusinessCalendar.absoluteHours(state),os.time())
         local saveNeeded = Runtime.updateTruck(dt, motionDt, state) or trafficChanged
         Runtime.PalletLogistics.update(state, dt, Runtime.Config.palletLogistics.unloadDuration)
-        -- Only one reception visitor advances at a time. The other visitor keeps
-        -- their full cooldown while the entrance, lounge, or desk is occupied.
+        -- Two clients, supplier reps, or applicants may share the shop. A queued
+        -- arrival waits only when two other people already occupy reception.
         local receptionClosed = not require("src.warehouse_condition").openForBusiness(state)
             or not require("src.weekend_flow").acceptsNewWork(state)
-            or not Runtime.BusinessCalendar.isBusinessOpen(state) or Runtime.EmployeeAI.receptionOccupied(state)
+            or not Runtime.BusinessCalendar.isBusinessOpen(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
+        reserveVisitorSeat(Runtime.World.customer,{Runtime.World.vendor})
+        local customerPause=receptionClosed or (Runtime.World.customer.state=="scheduled"
+            and Runtime.World.receptionVisitorCount(state)>=Runtime.World.RECEPTION_GUEST_CAPACITY)
         local customerEvent = Runtime.World.customer:update(dt, player,
-            receptionClosed or Runtime.World.vendor:isPresent(), motionDt, employeeContext)
+            customerPause, motionDt, employeeContext)
         if customerEvent == "arrived" and state then
             state.message = Runtime.World.customerArrivalMessage(state)
         elseif customerEvent == "timed_out" and state then
@@ -264,8 +292,11 @@ function Component.install(Runtime)
         end
         local category = Runtime.Procurement.category(state and state.vendorCategory)
         Runtime.World.vendor.character = category.character
+        reserveVisitorSeat(Runtime.World.vendor,{Runtime.World.customer})
+        local vendorPause=receptionClosed or (Runtime.World.vendor.state=="scheduled"
+            and Runtime.World.receptionVisitorCount(state)>=Runtime.World.RECEPTION_GUEST_CAPACITY)
         local vendorEvent = Runtime.World.vendor:update(dt, player,
-            receptionClosed or Runtime.World.customer:isPresent(), motionDt, employeeContext)
+            vendorPause, motionDt, employeeContext)
         if vendorEvent == "arrived" and state then
             state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
         elseif vendorEvent == "route_blocked" and state then
@@ -274,7 +305,8 @@ function Component.install(Runtime)
             VisitorCommute.depart(state,"vendor",Runtime.World.vendor.character,
                 Runtime.BusinessCalendar.absoluteHours(state))
             state.vendorCategory = state.vendorCategory % #Runtime.Procurement.categories + 1
-            Runtime.World.vendor:reset(false,nil,VisitorCommute.travelSeconds(state))
+            Runtime.World.vendor:reset(false,salesmanVisitDelayMultiplier(state),
+                VisitorCommute.travelSeconds(state))
             state.message = "The salesman left. Another supplier representative will visit later."
         end
         if Runtime.Technician.update(dt, state,

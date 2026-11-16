@@ -1,6 +1,8 @@
 local Catalog=require("src.home_shop_catalog")
+local FurnitureCatalog=require("src.home_furniture_catalog")
 local Calendar=require("src.business_calendar")
 local Residents=require("src.home_residents")
+local DeliveryService=require("src.delivery_service")
 local Shopping={DELIVERY_PERCENT=15,MINIMUM_DELIVERY_CENTS=200}
 local function integer(n,a,b) return type(n)=="number" and n==n and n>=a and n<=b and n==math.floor(n) end
 local function time(n) return type(n)=="number" and n==n and n>=0 and n<=24000100 end
@@ -23,7 +25,9 @@ function Shopping.valid(shop)
             or row.itemId~=product.item or not integer(row.unitPriceCents,1,1000000)
             or not integer(row.shippingCents,0,1000000) or row.totalCents~=row.quantity*row.unitPriceCents+row.shippingCents
             or not time(row.orderedAt) or not time(row.dueAt) or row.dueAt<row.orderedAt
-            or row.dueAt-row.orderedAt>24 or not time(row.budgetCloseHours)
+            or row.dueAt-row.orderedAt>(row.deliveryService and 96 or 24) or not time(row.budgetCloseHours)
+            or row.deliveryService~=nil and (product.group~="furniture"
+                or not DeliveryService.normalize(row.deliveryService))
             or (row.status~="transit" and row.status~="waiting" and row.status~="collected") then return false end
         if row.status=="transit" then
             if row.arrivedAt~=nil or row.collectedAt~=nil then return false end
@@ -44,14 +48,24 @@ function Shopping.budget(state)
     local spent=period>shop.budgetCloseHours and 0 or shop.guestSpentCents
     return shop.guestLimitCents,spent,math.max(0,shop.guestLimitCents-spent)
 end
-function Shopping.quote(productId,quantity)
+function Shopping.quote(productId,quantity,deliveryService)
     local product=Catalog.PRODUCTS[productId]
     if not product or not integer(quantity,1,10) then return nil end
     local subtotal=product.priceCents*quantity
     local shipping=math.max(Shopping.MINIMUM_DELIVERY_CENTS,
         math.floor(subtotal*Shopping.DELIVERY_PERCENT/100+.5))
+    local service
+    if product.group=="furniture" then
+        service=DeliveryService.normalize(deliveryService,DeliveryService.THREE_DAY)
+        if not service then return nil end
+        if service==DeliveryService.SAME_DAY then shipping=shipping*2 end
+    end
     return {product=product,subtotalCents=subtotal,shippingCents=shipping,
-        totalCents=subtotal+shipping,minutes=product.minutes,servings=product.servings*quantity}
+        totalCents=subtotal+shipping,minutes=product.minutes,servings=product.servings*quantity,
+        deliveryService=service}
+end
+function Shopping.estimateArrivalAt(now,deliveryService)
+    return DeliveryService.homeArrival(now,deliveryService)
 end
 function Shopping.setLimit(state,player,intent)
     if (player.id or 1)~=1 then return false,"Only the host can change the shared guest food budget." end
@@ -63,33 +77,46 @@ function Shopping.setLimit(state,player,intent)
     return true,"Shared guest food budget saved."
 end
 function Shopping.order(state,player,intent,twelveHourTime)
-    local quote=Shopping.quote(intent.productId,intent.quantity)
+    local product=Catalog.PRODUCTS[intent.productId]
+    local furniture=product and product.group=="furniture"
+    local deliveryService=furniture and DeliveryService.normalize(intent.deliveryService,DeliveryService.SAME_DAY) or nil
+    if furniture and not deliveryService then return false,"Choose same-day or three-day delivery." end
+    if not furniture and intent.deliveryService~=nil then return false,"Food orders use their regular delivery service." end
+    local quote=Shopping.quote(intent.productId,intent.quantity,deliveryService)
     if not quote or type(intent.requestId)~="string" or #intent.requestId<1 or #intent.requestId>64
         or not intent.requestId:match("^[%w_.%-]+$") then return false,"Choose a listed household product and quantity." end
-    local furniture=quote.product.group=="furniture"
     if intent.kind and intent.kind~=(furniture and "home_order_furniture" or "home_order_food") then return false,"Use the matching household catalog." end
     local residentId=Residents.key(player)
     if not Residents.get(state,player) then return false,"Join this household before ordering." end
-    if furniture and not require("src.home_furniture").allowed(state,player,"purchase") then return false,"The host has not enabled guest furniture purchases." end
+    if furniture and not state.home.hostApartmentId
+        and not require("src.home_furniture").allowed(state,player,"purchase") then
+        return false,"The host has not enabled guest furniture purchases."
+    end
     local shop=Shopping.ensure(state)
     for _,row in ipairs(shop.orders) do
         if row.requestId==intent.requestId then
-            if row.productId~=intent.productId or row.quantity~=intent.quantity or row.residentId~=residentId then return false,"That order reference is already in use." end
+            if row.productId~=intent.productId or row.quantity~=intent.quantity or row.residentId~=residentId
+                or row.deliveryService~=deliveryService then return false,"That order reference is already in use." end
             return true,"This order is already recorded; no second payment was taken.","replayed"
         end
     end
     if intent.expectedRevision~=state.home.revision then return false,"Household details changed. Review and confirm the order again." end
     if state.home.balanceCents<quote.totalCents then return false,"Not enough household funds. Business cash cannot pay for this order." end
     local _,_,remaining=Shopping.budget(state)
-    if not furniture and residentId~="owner" and quote.totalCents>remaining then return false,"This order exceeds the household's remaining shared guest food budget." end
+    if not furniture and residentId~="owner" and not state.home.hostApartmentId
+        and quote.totalCents>remaining then
+        return false,"This order exceeds the household's remaining shared guest food budget."
+    end
     local pending=0
     for _,row in ipairs(shop.orders) do if row.status~="collected" then pending=pending+1 end end
     if pending>=16 then return false,"Collect some home deliveries before ordering more." end
     local now=Calendar.absoluteHours(state);local product=quote.product
+    local dueAt=furniture and DeliveryService.homeArrival(now,deliveryService) or now+product.minutes/60
     local row={id=shop.nextOrderId,requestId=intent.requestId,residentId=residentId,productId=intent.productId,
         itemId=product.item,quantity=intent.quantity,servingsPerUnit=product.servings,unitPriceCents=product.priceCents,
-        shippingCents=quote.shippingCents,totalCents=quote.totalCents,orderedAt=now,dueAt=now+product.minutes/60,
+        shippingCents=quote.shippingCents,totalCents=quote.totalCents,orderedAt=now,dueAt=dueAt,
         status="transit",budgetCloseHours=state.home.weekend.closesAtHours}
+    if furniture then row.deliveryService=deliveryService end
     if row.budgetCloseHours>shop.budgetCloseHours then shop.budgetCloseHours=row.budgetCloseHours;shop.guestSpentCents=0 end
     if not furniture and residentId~="owner" then shop.guestSpentCents=shop.guestSpentCents+row.totalCents end
     shop.nextOrderId=shop.nextOrderId+1;shop.orders[#shop.orders+1]=row
@@ -97,23 +124,37 @@ function Shopping.order(state,player,intent,twelveHourTime)
         for i,old in ipairs(shop.orders) do if old.status=="collected" then table.remove(shop.orders,i);break end end
     end
     state.home.balanceCents=state.home.balanceCents-row.totalCents;state.home.revision=state.home.revision+1
-    require('src.receipt_book').expense(state,'Home order #'..row.id,row.totalCents,'CritterNet Home Delivery','Household',
-        ('%d x %s\nDelivery fee: $%.2f'):format(row.quantity,product.name,row.shippingCents/100),'home-order:'..row.id)
-    require("src.inbox").addNotice(state,{id="HOME-ORDER-"..row.id,sender="CritterNet Home Delivery",noticeKind="home_order",
+    if not state.home.hostApartmentId then
+        require('src.receipt_book').expense(state,'Home order #'..row.id,row.totalCents,'CritterNet Home Delivery','Household',
+            ('%d x %s\nDelivery: %s\nDelivery fee: $%.2f'):format(row.quantity,product.name,
+                deliveryService or "regular",row.shippingCents/100),'home-order:'..row.id)
+    end
+    local deliveryDescription=furniture
+        and (deliveryService==DeliveryService.SAME_DAY
+            and "Same-day shipping arrives by 6 PM when ordered before 4 PM; later orders arrive the next day."
+            or "Three-day shipping arrives in three days and costs less.")
+        or "Regular food delivery."
+    if not state.home.hostApartmentId then
+        require("src.inbox").addNotice(state,{id="HOME-ORDER-"..row.id,sender="CritterNet Home Delivery",noticeKind="home_order",
         subject="Home order #"..row.id..": "..product.name,total=row.totalCents/100,
         body=string.format("Paid $%.2f from your household account, including $%.2f delivery. %d serving(s)/item(s) "..
-            "will arrive at %s, at your apartment. Collect them at the apartment entrance. Orders wait safely if you are away.",
-            row.totalCents/100,row.shippingCents/100,quote.servings,Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime))})
-    return true,"Home order placed. Delivery in "..product.minutes.." game minutes."
+            "will arrive at %s, at your apartment. %s Collect them from the visible parcel spot in your living room. "..
+            "Food arrives in paper bags; household items arrive in size-matched boxes. Orders wait safely if you are away.",
+            row.totalCents/100,row.shippingCents/100,quote.servings,Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime),
+            deliveryDescription)})
+    end
+    return true,"Home order placed. Expected delivery: "..Calendar.dateTimeTextAtHours(row.dueAt,twelveHourTime).."."
 end
-function Shopping.advance(state)
+function Shopping.advance(state,suppressNotice)
     if not state.home or not state.home.shopping then return false end
     local now=Calendar.absoluteHours(state);local changed=false
     for _,row in ipairs(state.home.shopping.orders) do
         if row.status=="transit" and now+1e-7>=row.dueAt then
             row.status="waiting";row.arrivedAt=row.dueAt;changed=true
-            require("src.inbox").addNotice(state,{id="HOME-ARRIVAL-"..row.id,sender="CritterNet Home Delivery",noticeKind="home_delivery",
-                subject="Home order #"..row.id.." has arrived",body="Your order is waiting at your apartment entrance. It will stay there until a resident collects it."})
+            if not suppressNotice then
+                require("src.inbox").addNotice(state,{id="HOME-ARRIVAL-"..row.id,sender="CritterNet Home Delivery",noticeKind="home_delivery",
+                    subject="Home order #"..row.id.." has arrived",body="Your order is waiting at the visible parcel spot in your apartment living room. It will stay there until a resident collects it."})
+            end
         end
     end
     if changed then state.home.revision=state.home.revision+1 end
@@ -124,10 +165,30 @@ function Shopping.waiting(state)
     for _,row in ipairs(state.home.shopping and state.home.shopping.orders or {}) do if row.status=="waiting" then count=count+1 end end
     return count
 end
+local function parcelFor(row)
+    local product=Catalog.PRODUCTS[row.productId]
+    if not product or product.group~="furniture" then return {kind="bag"} end
+    local item=FurnitureCatalog.ITEMS[product.item]
+    if not item then return {kind="box",size="small"} end
+    local longest=math.max(item.length or 0,item.width or 0,item.height or 0)
+    local size=longest>=70 and "large" or longest>=40 and "medium" or "small"
+    if row.quantity>=8 and size=="small" then size="large"
+    elseif row.quantity>=4 and size=="small" then size="medium"
+    elseif row.quantity>=3 and size=="medium" then size="large" end
+    return {kind="box",size=size}
+end
+function Shopping.packages(state)
+    local result={}
+    for _,row in ipairs(state.home.shopping and state.home.shopping.orders or {}) do
+        if row.status=="waiting" then result[#result+1]=parcelFor(row) end
+    end
+    return result
+end
 function Shopping.target(player,state)
     if not state or not state.home or not require("src.weekend_flow").atHome(state) or player.sceneId~="home" or Shopping.waiting(state)==0 then return nil end
-    local x,y=require("src.home_layouts").spawn(state,1);x=x+28;y=y+4
-    return {kind="homeDelivery",x=x,y=y,radius=42,hoverX=x,hoverY=y-12,hoverRadius=22,
+    local x,y=require("src.home_layouts").deliverySpot(state)
+    return {kind="homeDelivery",x=x,y=y,radius=42,hoverX=x,hoverY=y-15,hoverRadius=26,
+        packages=Shopping.packages(state),
         prompt="E: receive "..Shopping.waiting(state).." home delivery parcel(s)",actionLabel="RECEIVE"}
 end
 function Shopping.collect(state,player,players)
