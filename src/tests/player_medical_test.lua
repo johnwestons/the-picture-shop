@@ -56,10 +56,48 @@ function Test.run(context,check)
         and waiting.medical.phase=='faint')
 
     local R=assert(context.appRuntime)
+    local Pockets=require('src.player_pockets')
+    local week=State.new();local worker={id=1,sceneId='warehouse',x=400,y=400}
+    local person=Residents.get(week,worker);local collapsed=false
+    week.home.inventory.sandwich=20;week.home.inventory.bottled_drink=20
+    for day=0,4 do
+        worker.sceneId='home'
+        assert(Residents.command(week,worker,'pocket:pack:sandwich:'..Pockets.ensure(person).revision))
+        assert(Residents.command(week,worker,'pocket:pack:bottled_drink:'..person.pockets.revision))
+        worker.sceneId='warehouse'
+        for hour=1,16 do
+            Residents.advance(week,{worker},day*24+hour-1,day*24+hour)
+            if hour==8 then
+                assert(Residents.command(week,worker,'pocket:use:sandwich:'..person.pockets.revision))
+                assert(Residents.command(week,worker,'pocket:use:bottled_drink:'..person.pockets.revision))
+            end
+            collapsed=Medical.advance(person,1,true) or collapsed
+        end
+        person.energy=100 -- nightly sleep; this scenario isolates workday deprivation.
+    end
+    check('medical_normal_five_day_workweek_with_pocket_lunch_has_no_faints',not collapsed and Medical.ensure(person).episodes==0)
+    local snapshot=assert(Schema.snapshot(week))
+    check('medical_pockets_persist_in_valid_save',snapshot.home.residents.owner.pockets.revision==person.pockets.revision)
+    local neglected=State.new();local nr=Residents.get(neglected,worker)
+    for hour=1,72 do
+        Residents.advance(neglected,{worker},hour-1,hour)
+        assert(not Medical.advance(nr,1,true))
+    end
+    check('medical_first_three_days_do_not_trigger_deprivation_faint',Medical.ensure(nr).episodes==0)
     assert(R.Save.delete(3));assert(R.startGame(assert(R.Save.newGame(3,{apartmentId='garden'})),'smoke'))
     R.state.screen='world';R.state.employment.recruiting=false
     local player=R.World.player;local world=C.world(R)
     r=Residents.get(R.state,player);m=Medical.ensure(r)
+    r.pockets={revision=0,items={sandwich=1,bottled_drink=1}}
+    r.hunger=10;r.thirst=10
+    check('medical_pocket_touch_opens_menu',R.menuAccessPointer(850,410,1) and R.state.screen=='home_activity')
+    R.App.draw()
+    R.App.keypressed('1')
+    check('medical_pocket_menu_drinks_at_work',r.thirst==85 and r.pockets.items.bottled_drink==nil)
+    R.App.keypressed('1')
+    check('medical_pocket_menu_eats_at_work',r.hunger==50 and next(r.pockets.items)==nil)
+    R.App.keypressed('escape')
+    check('medical_pocket_menu_returns_to_work',R.state.screen=='world')
     check('medical_world_has_clinic_with_road_access',world.sites.byId.clinic~=nil and world.roads.destinations.clinic~=nil)
     check('medical_world_has_rescue_farm',world.sites.byId.farm~=nil)
     deprived(r);m.exposure=Medical.EXPOSURE_HOURS;R.App.update(.05)

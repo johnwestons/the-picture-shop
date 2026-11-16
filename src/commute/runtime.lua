@@ -645,9 +645,11 @@ function C.mapPointer(R,x,y,source)
             local mobile=C.mobileInputEnabled(R)
             local mapRect=C.mapRect(R)
             local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
-            if view.routeMap:pressControl(mapRect,x,y,mobile,button.x-8,actor) then return true end
             local mapOptions=view.routeMap:uiOptions(mobile,button.x-8)
             mapOptions.destination=C.activeWaypoint(R);mapOptions.home=apartmentFor(R)
+            if view.routeMap:beginPlacesScroll(mapRect,x,y,mobile,button.x-8,
+                source or 'pointer',actor,mapOptions) then return true end
+            if view.routeMap:pressControl(mapRect,x,y,mobile,button.x-8,actor) then return true end
             local id=view.routeMap:hit(mapRect,x,y,actor,mapOptions)
             if id then C.setWaypoint(R,id) end
             if not id and view.routeMap.mainZoom>1 then
@@ -685,7 +687,9 @@ function C.mapPointer(R,x,y,source)
     return false
 end
 function C.mapPointerMoved(R,x,y,source)
-    local view=R._commute;local drag=view and view.mainMapDrag
+    local view=R._commute
+    if view and view.routeMap and view.routeMap:movePlacesScroll(x,y,source) then return true end
+    local drag=view and view.mainMapDrag
     if not drag or source~=drag.source or not view.routeMap then return false end
     view.routeMap:panMain(x-drag.x,y-drag.y,drag.area)
     drag.x,drag.y=x,y
@@ -697,6 +701,14 @@ function C.finishMainMapPan(R,source)
     view.mainMapDrag=nil
     return true
 end
+function C.finishPlacesScroll(R,source)
+    local view=R._commute
+    if not view or not view.routeMap then return false end
+    local consumed,id=view.routeMap:finishPlacesScroll(source)
+    if not consumed then return false end
+    if id then C.setWaypoint(R,id) end
+    return true
+end
 function C.mapWheel(R,x,y,amount)
     local view=R._commute
     if not view or amount==0 or not require('src.screens.hud_visibility').isVisible(R) then return false end
@@ -706,6 +718,9 @@ function C.mapWheel(R,x,y,amount)
             if not view.routeMap then view.routeMap=require('src.commute.route_map').new(C.world(R)) end
             local button=C.mapButton(R);local mobile=C.mobileInputEnabled(R)
             local mapRect=C.mapRect(R)
+            if view.routeMap:scrollPlaces(mapRect,x,y,mobile,button and button.x-8,-amount*54) then
+                return true
+            end
             local options=view.routeMap:uiOptions(mobile,button and button.x-8)
             local area=require('src.commute.route_map').layout(mapRect,#view.routeMap.entries,options).map
             if x>=area.x and x<=area.x+area.width and y>=area.y and y<=area.y+area.height then
@@ -2302,6 +2317,7 @@ function C.touchReleased(R,id)
     local view=R._commute
     if view and view.doorTransition then return true end
     if C.finishMiniMapResize(R,id) then return true end
+    if C.finishPlacesScroll(R,id) then return true end
     if C.finishMainMapPan(R,id) then return true end
     if C.indoorControlsActive(R) and C.mobileInputEnabled(R) then return false end
     if view and view.touchControls and view.touchControls:release(id) then return true end
@@ -2350,6 +2366,7 @@ function C.pointer(R,x,y,source)
 end
 function C.pointerReleased(R,source)
     if C.finishMiniMapResize(R,source) then return true end
+    if C.finishPlacesScroll(R,source) then return true end
     if C.finishMainMapPan(R,source) then return true end
     local view=R._commute
     if view and view.pointerAction and (source==nil or source==view.pointerActionSource) then

@@ -8,7 +8,7 @@ local Dining=require("src.home_dining")
 local BikeCargo=require("src.home_bike_cargo")
 local ClientApartments=require('src.client_apartments')
 local Residents={NEEDS={"hunger","thirst","hygiene","energy"}}
-local rates={hunger=2.5,thirst=4,hygiene=1.1,energy=2.7}
+local rates={hunger=1,thirst=1.1,hygiene=1.1,energy=1.05}
 -- The shop week includes meals, drinks and brief rests off camera, but it
 -- still wears the owner down. These needs remain durable across every scene.
 local workRates={hunger=.72,thirst=.82,hygiene=.72,energy=.86}
@@ -41,6 +41,7 @@ for kind,action in pairs(Cooking.RECIPES) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Cooking.FOODS) do Residents.ACTIONS[kind]=action end
 for kind,action in pairs(Sleep.ACTIONS) do Residents.ACTIONS[kind]=action end
 function Residents.validCommand(command)
+    if require('src.player_pockets').decode(command) then return true end
     if command=='medical:ack' then return true end
     if BikeCargo.decode(command) then return true end
     if Dining.decode(command) then return true end
@@ -89,7 +90,7 @@ function Residents.valid(records)
         if count>65 or id~="owner" and not Residents.validId(id)
             or type(p)~="table" or type(p.name)~="string" or #p.name>64
             or type(p.revision)~="number" or p.revision<0 or p.revision>1e12 or p.revision~=math.floor(p.revision) then return false end
-        if not require('src.player_medical').valid(p.medical) or not BikeCargo.valid(p.bikeInventory)
+        if not require('src.player_pockets').valid(p.pockets) or not require('src.player_medical').valid(p.medical) or not BikeCargo.valid(p.bikeInventory)
             or p.bikeParkedAtHome~=nil and type(p.bikeParkedAtHome)~='boolean' then return false end
         if id~="owner" and not require("src.resident_credentials").valid(p.credentialHash) or id=="owner" and p.credentialHash~=nil then return false end
         if p.apartmentId~=nil or p.clientSlot~=nil then
@@ -381,6 +382,7 @@ function Residents.command(state,player,command,served,twelveHourTime)
         local okay,message=BikeCargo.command(state,player,command)
         return okay,okay and 'unloaded' or 'blocked',message
     end
+    if require('src.player_pockets').decode(command) then return require('src.player_pockets').command(state,player,command) end
     if command~='cancel' then
         local allowed,reason=Residents.householdAllowed(state,player)
         if not allowed then return false,'riding_gear',reason end

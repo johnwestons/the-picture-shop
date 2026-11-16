@@ -6,6 +6,9 @@ function Component.install(Runtime)
     -- Scene panels and town loading can consume all pointer input. Keep the
     -- global menu controls reachable before those scene controls consume taps.
     function Runtime.menuAccessPointer(x,y,button)
+        if button==1 and Runtime.state.screen=='world' and x>=820 and x<=950 and y>=390 and y<=430 then
+            return require('src.home_activity_controls').keypressed('i',Runtime)
+        end
         if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error' then
             return false
         end

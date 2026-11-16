@@ -105,6 +105,9 @@ function Panel.drawOptions(offset)
     g.setColor(.92, .95, .89, 1)
     g.setFont(titleFont)
     g.print(("UPDATE NOTES · %d RELEASES"):format(#entries), 116, 151)
+    g.setFont(smallFont)
+    g.setColor(.67,.78,.72,1)
+    g.printf("SWIPE OR SCROLL",500,158,198,"right")
     drawButton(g, BACK, "BACK TO DEBUG", true)
 
     g.setColor(.045, .061, .064, .98)
@@ -114,7 +117,10 @@ function Panel.drawOptions(offset)
 
     local fullHeight = contentHeight(entries)
     local y = VIEWPORT.y - offset + 8
-    g.setScissor(VIEWPORT.x, VIEWPORT.y, VIEWPORT.width, VIEWPORT.height)
+    g.push('all')
+    local left,top=g.transformPoint(VIEWPORT.x,VIEWPORT.y)
+    local right,bottom=g.transformPoint(VIEWPORT.x+VIEWPORT.width,VIEWPORT.y+VIEWPORT.height)
+    g.intersectScissor(left,top,right-left,bottom-top)
     for _, entry in ipairs(entries) do
         local height = entryHeight(entry)
         if y + height > VIEWPORT.y and y < VIEWPORT.y + VIEWPORT.height then
@@ -150,7 +156,7 @@ function Panel.drawOptions(offset)
         end
         y = y + height + 8
     end
-    g.setScissor()
+    g.pop()
 
     if maximum > 0 then
         local trackX, trackY, trackH = 837, VIEWPORT.y + 3, VIEWPORT.height - 6

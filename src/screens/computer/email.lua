@@ -4,6 +4,27 @@ local Component = {}
 local Viewport = require("src.viewport")
 
 function Component.install(Runtime)
+    function Runtime.emailEmploymentThreadLayout(email)
+        local detailTop, detailWidth = 270, 392
+        local body = tostring(email and email.body or '')
+        local fonts=require('src.screens.computer.fonts')
+        local bodyFont,bodyBottom
+        for size=14,11,-1 do
+            bodyFont=fonts.get('typewriter',size)
+            local _,wrapped=bodyFont:getWrap(body,detailWidth)
+            local lineHeight=bodyFont:getHeight()*bodyFont:getLineHeight()
+            bodyBottom=detailTop+#wrapped*lineHeight
+            if bodyBottom<=468 or size==11 then break end
+        end
+
+        -- Keep long agreement copy above its resume thread and the inbox actions.
+        -- The message shrinks only when wrapping would otherwise crowd that area.
+        local threadY=bodyBottom+10
+        local resumeButton = {x=640,y=threadY-6,width=186,height=40}
+        return {bodyFont=bodyFont,bodyBottom=bodyBottom,threadY=threadY,
+            threadWidth=194,resumeButton=resumeButton}
+    end
+
     function Runtime.drawEmail(state, pointerX, pointerY, assets)
         local estimating = Runtime.ComputerScreen.tab == "estimating"
         local inbox = Runtime.inboxForTab(state)
@@ -163,6 +184,9 @@ function Component.install(Runtime)
         love.graphics.print("FROM: " .. selected.sender, 434, 212)
         love.graphics.setColor(0.72, 0.79, 0.80)
         love.graphics.print("SUBJECT: " .. selected.subject, 434, 238)
+        local employmentLayout=selected.applicationId
+            and Runtime.emailEmploymentThreadLayout(selected) or nil
+        if employmentLayout then love.graphics.setFont(employmentLayout.bodyFont) end
         if selected.estimateRequest and selected.job then
             local font=love.graphics.getFont()
             local _,lines=font:getWrap(selected.body,392)
@@ -274,10 +298,13 @@ function Component.install(Runtime)
         end
         if not selected.job then
             if selected.applicationId then
+                local layout=employmentLayout or Runtime.emailEmploymentThreadLayout(selected)
+                love.graphics.setFont(require('src.screens.computer.fonts').get('typewriter',13))
                 love.graphics.setColor(.96,.84,.30,1)
-                love.graphics.print("RESUME / EMPLOYMENT THREAD",434,392)
-                local hovered = pointerX and Runtime.contains(Runtime.EMAIL_ACCEPT, pointerX, pointerY)
-                Runtime.drawComputerButton(Runtime.EMAIL_ACCEPT, "OPEN RESUME",
+                love.graphics.printf("RESUME / EMPLOYMENT THREAD",434,layout.threadY,
+                    layout.threadWidth,"left")
+                local hovered = pointerX and Runtime.contains(layout.resumeButton, pointerX, pointerY)
+                Runtime.drawComputerButton(layout.resumeButton, "OPEN RESUME",
                     hovered and "primaryHover" or "primary")
             end
             local heading = selected.noticeKind == "receipt" and "ORDER RECEIPT"

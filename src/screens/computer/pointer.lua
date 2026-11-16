@@ -272,9 +272,10 @@ function Component.install(Runtime)
                     local startY=list.town.y+51
                     local row=math.floor((y-startY)/list.rowHeight)+1
                     if row>=1 and row<=list.visibleRows then
-                        local events=Runtime.calendarDayEvents(state,
+                        local _,events=Runtime.calendarDayEvents(state,
                             Runtime.ComputerScreen.calendarYear,Runtime.ComputerScreen.calendarMonth,
-                            Runtime.ComputerScreen.calendarSelectedDay)[2]
+                            Runtime.ComputerScreen.calendarSelectedDay)
+                        events=events or {}
                         local event=events[(Runtime.ComputerScreen.calendarDayScroll or 0)+row]
                         Runtime.ComputerScreen.calendarSelectedEventId=event and event.customEventId or nil
                         return {action='calendar_event_select'}
@@ -452,9 +453,12 @@ function Component.install(Runtime)
             end
             if currentEmail and not currentEmail.job then
                 Runtime.ComputerScreen.quoteFocused = false
-                if currentEmail.applicationId and Runtime.contains(Runtime.EMAIL_ACCEPT,x,y) then
-                    Runtime.ComputerScreen.openEmploymentResume(currentEmail.applicationId)
-                    return {action="hiring_resume_opened"}
+                if currentEmail.applicationId then
+                    local layout=Runtime.emailEmploymentThreadLayout(currentEmail)
+                    if Runtime.contains(layout.resumeButton,x,y) then
+                        Runtime.ComputerScreen.openEmploymentResume(currentEmail.applicationId)
+                        return {action="hiring_resume_opened"}
+                    end
                 end
                 if Runtime.contains(Runtime.EMAIL_DELETE, x, y) then return deleteCurrentEmail(currentEmail) end
                 if Runtime.contains(Runtime.EMAIL_DECLINE, x, y) then

@@ -61,13 +61,20 @@ function Component.install(Runtime)
             Runtime.Smoke.drawn()
             return
         end
+        local pocketMenu=Runtime.state.screen=='home_activity' and require('src.home_activity_controls').mode=='pockets'
         local portableUtilities=Runtime.state.screen=='shop_rooms'
             and require('src.shop_room_controls').isPortableUtilities()
             and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='barn')
-        if (Runtime.state.screen=='world' or portableUtilities)
+        if (Runtime.state.screen=='world' or portableUtilities or pocketMenu)
             and (Runtime.World.player.sceneId=='commute' or Runtime.World.player.sceneId=='grocery'
                 or Runtime.World.player.sceneId=='barn') then
             require('src.commute.runtime').draw(Runtime)
+            if pocketMenu then require('src.home_activity_controls').draw(Runtime) end
+            if Runtime.state.screen=='world' then
+                love.graphics.push('all');love.graphics.setColor(.06,.12,.15,.9)
+                love.graphics.rectangle('fill',820,390,130,40,6)
+                love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',825,400,120,'center');love.graphics.pop()
+            end
             if portableUtilities then require('src.shop_room_controls').draw(Runtime) end
             if Runtime.World.player.sceneId=='grocery' or Runtime.World.player.sceneId=='barn' then
                 Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
@@ -265,6 +272,12 @@ function Component.install(Runtime)
         if mobileUi then Runtime.App.mobileCamera:endDraw() end
         if Runtime.mobileControls and Runtime.state.screen~='delivery_signature'
             and (Runtime.state.screen~='world' or showHud) then Runtime.mobileControls:draw() end
+        if Runtime.state.screen=='world' then
+            love.graphics.push('all')
+            love.graphics.setColor(.06,.12,.15,.9);love.graphics.rectangle('fill',820,390,130,40,6)
+            love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',825,400,120,'center')
+            love.graphics.pop()
+        end
         require('src.medical_ui').draw(Runtime)
         Runtime.WorldRenderer.endFrame()
         Runtime.CharacterAssets.endFrame()

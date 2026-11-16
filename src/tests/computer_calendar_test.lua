@@ -34,6 +34,16 @@ function Test.run(context,check)
     result=screen.mousepressed(state,closeX,closeY,1)
     check('calendar_day_agenda_closes_cleanly',result and result.action=='calendar_day_closed'
         and not screen.calendarDayOpen)
+    screen.calendarYear,screen.calendarMonth=2026,8
+    local holidayX,holidayY=screen.calendarDayCenter(9)
+    result=screen.mousepressed(state,holidayX,holidayY,1)
+    local _,holidayEvents=screen.calendarDayEvents(state,2026,8,9)
+    check('calendar_august_holiday_is_listed',result and result.action=='calendar_day'
+        and holidayEvents[1] and holidayEvents[1].title=='Firefly Evening')
+    result=screen.mousepressed(state,600,339,1)
+    check('calendar_holiday_row_can_be_selected_without_crashing',
+        result and result.action=='calendar_event_select'
+            and screen.calendarSelectedEventId==nil)
     local timeEvents=context.businessCalendar.events(state,true,state.calendar.year,state.calendar.month)
     local scheduledShift=false
     for _,event in ipairs(timeEvents) do

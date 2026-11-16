@@ -27,13 +27,13 @@ function Test.run(context,check)
     check("home_resident_reused_slot_and_name_do_not_inherit_needs",otherId~=id and Residents.get(s,other).hunger==100)
     check("home_resident_public_digest_is_not_authentication",Residents.bind(s,reconnect,g.credentialHash,{host})~=id)
     Residents.advance(s,{host,guest},44,46)
-    check("home_resident_individual_needs_and_absent_freeze",s.home.residents.owner.thirst==92
-        and g.hunger==27 and s.home.residents[otherId].hunger==100)
+    check("home_resident_individual_needs_and_absent_freeze",math.abs(s.home.residents.owner.thirst-97.8)<.001
+        and g.hunger==30 and s.home.residents[otherId].hunger==100)
     assert(context.save.save(3,s,{x=host.x,y=host.y,sceneId="home"}))
     local resumed=State.new();assert(State.applyLocalSave(resumed,assert(context.save.load(3))))
     Residents.recover(resumed)
     check("home_resident_rejoins_same_identity_after_host_reload",Residents.bind(resumed,reconnect,token,{host})==id
-        and Residents.get(resumed,reconnect).hunger==27)
+        and Residents.get(resumed,reconnect).hunger==30)
     for _,layout in ipairs(require("src.home_catalog").ORDER) do
         local scene,p=home();scene.home.apartmentId=layout;fixture(scene,p,"sink")
         local person=scene.home.residents.owner;person.thirst=10

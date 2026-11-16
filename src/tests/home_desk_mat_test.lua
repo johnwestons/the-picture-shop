@@ -56,7 +56,7 @@ function Test.run(context,check)
     check("home_mat_single_occupant",not Residents.command(s,p,"sleepmat:furniture"..mat.id))
     check("home_mat_occupied_cannot_move",not Furniture.command(s,p,"begin:"..mat.id,{p,g}))
     Residents.advance(s,{p,g},46,47);time(s,47)
-    check("home_mat_recovery_between_floor_and_couch",math.abs(gr.energy-29.3)<1e-6 and not gr.activity)
+    check("home_mat_recovery_between_floor_and_couch",gr.energy>30.9 and gr.energy<31.0 and not gr.activity)
     assert(Residents.command(s,g,"alarm:0"));assert(Residents.command(s,g,"sleepmat:furniture"..mat.id))
     local revision=gr.revision
     check("home_mat_repeat_sleep_cannot_reset_timer",not Residents.command(s,g,"sleepmat:furniture"..mat.id) and gr.revision==revision)

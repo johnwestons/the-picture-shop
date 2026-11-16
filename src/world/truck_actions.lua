@@ -4,7 +4,7 @@ local Component = {}
 
 function Component.install(Runtime)
     function Runtime.World.performNetworkInteraction(player, state, requestedKind, desiredState,shotAim,signature)
-        if require('src.story_grand_opening').active(Runtime)
+        if Runtime.World.grandOpeningActive and Runtime.World.grandOpeningActive()
             and not (requestedKind=="restoration" and desiredState=="grand_opening") then
             return false,"opening_in_progress","Please wait for the grand opening to finish.",requestedKind
         end
@@ -29,8 +29,10 @@ function Component.install(Runtime)
             or requestedKind=="restoration" then
             if requestedKind=="restoration" and desiredState=="grand_opening" then
                 Runtime.World._state=state or Runtime.World._state
-                local okay,code,message=require("src.story_grand_opening").begin(
-                    Runtime,player,Runtime.World._state)
+                if not Runtime.World.beginGrandOpening then
+                    return false,"unavailable","The opening sequence is unavailable.",requestedKind
+                end
+                local okay,code,message=Runtime.World.beginGrandOpening(player,Runtime.World._state)
                 return okay,code,message,requestedKind
             end
             local okay,code,message=require("src.shop_rooms").perform(player,state,requestedKind,desiredState,

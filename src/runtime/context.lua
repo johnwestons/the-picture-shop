@@ -102,6 +102,12 @@ function Component.install(Runtime)
     Runtime.mobileControls = nil
     Runtime.controller = nil
     Runtime.multiplayer = Runtime.MultiplayerSession.new({diagnosticState=function() return Runtime.state end})
+    Runtime.World.beginGrandOpening=function(player,state)
+        return require('src.story_grand_opening').begin(Runtime,player,state)
+    end
+    Runtime.World.grandOpeningActive=function()
+        return require('src.story_grand_opening').active(Runtime)
+    end
     Runtime.App.multiplayerFocusGrace = require("src.net.focus_grace").new({
         clock = function()
             if love and love.timer and love.timer.getTime then return love.timer.getTime() end

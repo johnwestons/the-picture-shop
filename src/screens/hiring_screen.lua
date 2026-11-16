@@ -576,13 +576,19 @@ function Hiring.draw(state,ui,pointerX,pointerY,readOnly,buttonRenderer,canPayWa
         line(string.format("Cutter %d/100  |  Press %d/100\nPallet wrapping %d/100  |  Driving %d/100\nAttention %d  |  Reliability %d",
             current.cutterSkill,current.pressSkill,current.wrappingSkill,current.drivingSkill or 55,
             current.attention,current.reliability),410,316,326)
-        line(string.format("Requested pay: $%.2f/hr",current.requestedWage/100),410,386,426)
-        line("Shift preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),410,412,426)
-        line(labels[current.status] or current.status,410,466,426,{1,.85,.45})
+        line(string.format("Requested pay: $%.2f/hr",current.requestedWage/100),410,372,426)
+        line("Shift preference: "..Contracts.shiftPreferenceLabel(current.shiftPreference),410,394,426)
+        line(labels[current.status] or current.status,410,422,426,{1,.85,.45})
         if current.status=="visiting" then button("resume","REQUEST EMAIL RESUME",pointerX,pointerY,readOnly)
         elseif current.status=="resume_received" then button("offer","NEGOTIATE OFFER",pointerX,pointerY,readOnly)
         elseif current.status=="offer_accepted" then
-            line(Contracts.summary(current.offer,twelveHourTime),410,488,426)
+            local offer=current.offer
+            line(string.format("$%.2f/hr  |  Pay every %d week%s",offer.wageCents/100,
+                offer.payWeeks,offer.payWeeks==1 and "" or "s"),410,444,426)
+            line(workDays(offer),410,464,426)
+            line(Contracts.formatHour(offer.startHour,twelveHourTime).." - "
+                ..Contracts.formatHour(offer.endHour,twelveHourTime)
+                ..(offer.endHour<offer.startHour and " (next day)" or ""),410,484,426)
             local openHours=Contracts.hasOpenHours(current.offer)
             button("sign",payrollFull and "PAYROLL FULL" or not openHours and "REVISE HOURS" or "SIGN & HIRE",pointerX,pointerY,readOnly or payrollFull or not openHours)
             button("edit","RENEGOTIATE",pointerX,pointerY,readOnly)

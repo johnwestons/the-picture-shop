@@ -16,10 +16,14 @@ function Test.run(_,check)
         shipmentId=shipmentId or order.shipmentId
         assert(order.shipmentId==shipmentId)
     end
+    local Calendar=require('src.business_calendar')
+    state.calendar=Calendar.dateFromTotalDay(0)
+    state.calendar.elapsed=23.5/24*Calendar.secondsPerDay(state)
     local truck=Truck.new({start={x=0,y=0,scale=1},parked={x=1,y=1,scale=1},
         interaction={x=1,y=1,radius=1},obstacle={offsetX=0,offsetY=0,radius=1}})
     truck.state,truck.mode,truck.jobId='cargo_open','vendor_delivery',shipmentId
     truck.backingProgress,truck.cargoProgress=1,1
+    local doorCloseCalls=0
     local world={
         truckSnapshot=function()return truck:snapshot()end,
         unloadTruckPallet=function(_,palletId)
@@ -33,6 +37,7 @@ function Test.run(_,check)
             return false
         end,
         closeTruckAfterUnload=function()
+            doorCloseCalls=doorCloseCalls+1
             return Procurement.remainingOnTruck(state,shipmentId)==0 and truck:toggleCargoDoor()
         end,
     }
@@ -47,6 +52,8 @@ function Test.run(_,check)
     local last=Screen.mousepressed(state,world,x,y,1)
     check('local_truck_manifest_reaches_later_shipment_pages',nextPage and nextPage.action=='page_changed'
         and last and last.action=='unloaded' and last.remaining==0
+        and Procurement.remainingOnTruck(state,shipmentId)==0)
+    check('queued_delivery_manifest_unloads_after_customer_hours',Calendar.absoluteHours(state)%24==23.5
         and Procurement.remainingOnTruck(state,shipmentId)==0)
     assert(Driver.start(state,shipmentId,'vendor_delivery'))
     local visit=Driver.matching(state,shipmentId)
@@ -66,6 +73,14 @@ function Test.run(_,check)
     })
     check('employee_closes_received_truck_after_unloading',shippingActive and closeStarted
         and truck.state=='cargo_closing' and receiver.activity=='Closing the delivery truck cargo door')
+    local stillWorking,closedAgain=Shipping.update(state,receiver,.1,{
+        pickupTruck=function()return truck end,
+        inboundDeliveryItems=function()return {} end,
+        inboundDeliveryRemaining=function()return Procurement.remainingOnTruck(state,shipmentId) end,
+        closeInboundDelivery=world.closeTruckAfterUnload,
+    })
+    check('employee_does_not_spam_cargo_door_while_closing',stillWorking and not closedAgain
+        and doorCloseCalls==1 and truck.state=='cargo_closing')
     local closed=truck:update(1,'open',1)
     local departing=Driver.departIfReady(state,truck)
     local departed=truck:update(3,'open',3)

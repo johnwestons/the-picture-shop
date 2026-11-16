@@ -107,6 +107,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.dispatchKeyPressed(key)
+        if key=='i' and Runtime.state.screen=='world' then return require('src.home_activity_controls').keypressed(key,Runtime) end
         if require('src.screens.notifications_screen').keypressed(Runtime,key) then return true end
         if require('src.commute.runtime').keypressed(Runtime,key) then return true end
         if Runtime.state.screen=="title" then

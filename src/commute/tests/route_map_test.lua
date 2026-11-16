@@ -43,22 +43,30 @@ function Test.run(check)
         for _,count in ipairs({5,16,24,32})do
             local model=Map.new(fixture(count));local first=Map.layout(size,count,{showPlaces=true,paginatePlaces=true})
             local seen={}
-            for page=1,first.pageCount do
+            local offset=0
+            repeat
                 local snap=model:snapshot(size,{x=0,z=100,heading=1},
-                    {showPlaces=true,paginatePlaces=true,placesPage=page})
+                    {showPlaces=true,placesScroll=offset})
                 local visible=0
                 for _,entry in ipairs(snap.buildings)do
                     local r=entry.keyRect
                     if r then
                         visible=visible+1;seen[entry.id]=true
-                        allFit=allFit and entry.label~='' and r.width>90 and r.height>=20
-                            and r.x>=size.x and r.y>=size.y and r.x+r.width<=size.x+size.width
-                            and r.y+r.height<=size.y+size.height-35
+                        local list=snap.layout.list
+                        local fits=entry.label~='' and r.width>90 and r.height>=20
+                            and r.x>=list.x and r.x+r.width<=list.x+list.width
+                            and r.y+r.height>list.y and r.y<list.y+list.height
+                        allFit=allFit and fits
                     end
                 end
-                allFit=allFit and visible==math.min(first.pageSize,count-(page-1)*first.pageSize)
+                allFit=allFit and visible>0 and first.pageCount==1
+                if offset>=first.placesScrollMaximum then break end
+                offset=math.min(first.placesScrollMaximum,offset+
+                    math.max(first.rowHeight,first.rowHeight*math.max(1,first.rows-1)))
+            until false
+            for _,entry in ipairs(model.entries)do
+                allFit=allFit and seen[entry.id]==true
             end
-            for _,entry in ipairs(model.entries)do allFit=allFit and seen[entry.id]==true end
             model:release()
         end
     end
@@ -67,7 +75,16 @@ function Test.run(check)
     check('travel_map_large_viewport_keeps_destinations_in_a_side_panel',wideLayout.sidePanel
         and wideLayout.map.width>=wideRect.width*.60
         and wideLayout.key.x>=wideLayout.map.x+wideLayout.map.width)
-    check('travel_map_paginated_destination_rows_fit_game_and_preview_panels',allFit)
+    check('travel_map_scrollable_destination_rows_fit_game_and_preview_panels',allFit)
+    local priorityWorld=fixture(2)
+    local shop={id='warehouse',x=120,z=280,origin={x=120,z=280},
+        foundation={minX=112,maxX=128,minZ=272,maxZ=288},footprints={}}
+    priorityWorld.sites.all[#priorityWorld.sites.all+1]=shop
+    priorityWorld.roads.destinations.warehouse={x=shop.x,z=shop.z,label='Picture Shop'}
+    local priorityMap=Map.new(priorityWorld)
+    check('travel_map_pictureshop_is_first_destination',priorityMap.entries[1].id=='warehouse'
+        and priorityMap.entries[1].label=='Picture Shop')
+    priorityMap:release()
     local zoomMap=Map.new(fixture(16));local zoomActor={x=300,z=240,heading=0}
     local fitSnapshot=zoomMap:snapshot(wideRect,zoomActor,{showPlaces=true,paginatePlaces=true})
     zoomMap:zoomMain(1,zoomActor)
@@ -93,6 +110,17 @@ function Test.run(check)
     portraitMap:pressControl(portrait,portraitControls.fit.x+10,portraitControls.fit.y+10,true,nil,zoomActor)
     check('travel_map_portrait_mobile_keeps_zoom_and_fit_controls_on_map',not portraitLayout.sidePanel
         and mobileZoomed and portraitMap.mainZoom==1)
+    local topPlaces=portraitMap:snapshot(portrait,zoomActor,
+        {mobile=true,showPlaces=true,placesScroll=0})
+    local firstPlace=topPlaces.buildings[1]
+    local scrolled=portraitMap:scrollPlaces(portrait,portraitLayout.list.x+8,
+        portraitLayout.list.y+20,true,nil,portraitLayout.placesScrollMaximum)
+    local bottomPlaces=portraitMap:snapshot(portrait,zoomActor,
+        {mobile=true,showPlaces=true,placesScroll=portraitMap.placesScroll})
+    check('travel_map_portrait_place_list_scrolls_vertically',scrolled
+        and portraitMap.placesScroll==portraitLayout.placesScrollMaximum
+        and firstPlace.keyRect~=nil and bottomPlaces.buildings[1].keyRect==nil
+        and bottomPlaces.buildings[#bottomPlaces.buildings].keyRect~=nil)
     portraitMap:release()
     local oldCalls=0;local oldHeight=world.height
     world.height=function(...)oldCalls=oldCalls+1;return oldHeight(...)end

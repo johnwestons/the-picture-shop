@@ -27,7 +27,7 @@ function Map.layout(rect,count,options)
     local contentTop=rect.y+headerHeight
     local footerY=rect.y+rect.height-footerHeight
     local availableHeight=math.max(80,footerY-contentTop-pad)
-    local key,map,rows,columns,rowHeight,columnWidth,pageSize,pageCount
+    local key,map,rows,columns,rowHeight,columnWidth,pageSize,pageCount,list
     local keyHeaderHeight
     if sidePanel then
         local sideWidth=clamp(rect.width*.32,mobile and 300 or 250,mobile and 460 or 390)
@@ -40,9 +40,9 @@ function Map.layout(rect,count,options)
         local listHeight=math.max(0,key.height-keyHeaderHeight-12)
         local targetRow=mobile and 60 or 46
         rows=math.max(1,math.floor(listHeight/targetRow))
-        columns=1;rowHeight=listHeight/rows;columnWidth=key.width
-        pageSize=rows
-        pageCount=showPlaces and math.max(1,math.ceil((count or 0)/pageSize)) or 1
+        columns=1;rowHeight=listHeight/rows;columnWidth=key.width-20
+        list={x=key.x+6,y=key.y+keyHeaderHeight,width=math.max(1,key.width-20),height=listHeight}
+        pageSize=rows;pageCount=1
     elseif mobile then
         local mapHeight=showPlaces and math.max(120,availableHeight*.57) or availableHeight
         mapHeight=math.min(availableHeight,mapHeight)
@@ -51,34 +51,43 @@ function Map.layout(rect,count,options)
             local keyY=map.y+map.height+8
             key={x=rect.x+pad,y=keyY,width=rect.width-pad*2,
                 height=math.max(42,footerY-keyY-6)}
-            local listHeight=math.max(24,key.height-46)
-            rows=math.max(1,math.min(3,math.floor(listHeight/48)))
-            columns=2;rowHeight=listHeight/rows;columnWidth=key.width/columns
-            pageSize=rows*columns
-            pageCount=math.max(1,math.ceil((count or 0)/pageSize))
             keyHeaderHeight=42
+            local listHeight=math.max(24,key.height-46)
+            rows=math.max(1,math.floor(listHeight/48))
+            columns=1;rowHeight=listHeight/rows;columnWidth=key.width-20
+            list={x=key.x+6,y=key.y+keyHeaderHeight,width=math.max(1,key.width-20),height=listHeight}
+            pageSize=rows;pageCount=1
         else
             rows=1;columns=1;rowHeight=0;columnWidth=0;pageSize=0;pageCount=1
             keyHeaderHeight=42
         end
     else
         local contentHeight=availableHeight
-        rows=math.max(1,math.floor(math.max(36,contentHeight-46)/40))
-        columns=math.max(1,math.ceil((count or 0)/rows))
-        if options.paginatePlaces then columns=math.min(3,columns) end
-        local keyWidth=options.showPlaces==false and 0 or math.min(rect.width*.48,math.max(320,columns*220))
+        local keyWidth=options.showPlaces==false and 0 or math.min(rect.width*.48,math.max(320,240))
         map={x=rect.x+pad,y=contentTop,width=rect.width-keyWidth-(keyWidth>0 and pad*3 or pad*2),height=contentHeight}
         if keyWidth>0 then key={x=rect.x+rect.width-keyWidth-pad,y=contentTop,width=keyWidth,height=contentHeight} end
-        rowHeight=math.max(36,contentHeight-46)/rows;columnWidth=keyWidth>0 and keyWidth/columns or 0
-        pageSize=options.paginatePlaces and rows*columns or (count or 0)
-        pageCount=options.paginatePlaces and math.max(1,math.ceil((count or 0)/pageSize)) or 1
+        local listHeight=key and math.max(0,key.height-50) or 0
+        rows=math.max(1,math.floor(math.max(36,listHeight)/40))
+        rowHeight=key and listHeight/rows or 0;columns=1;columnWidth=key and key.width-20 or 0
+        if key then list={x=key.x+6,y=key.y+46,width=math.max(1,key.width-20),height=listHeight} end
+        pageSize=rows;pageCount=1
         keyHeaderHeight=42
     end
-    local page=math.max(1,math.min(pageCount,math.floor(options.placesPage or 1)))
+    local totalHeight=(count or 0)*(rowHeight or 0)
+    local scrollMaximum=list and math.max(0,totalHeight-list.height) or 0
+    local scroll=clamp(finite(options.placesScroll,0),0,scrollMaximum)
+    local scrollbar
+    if list and scrollMaximum>0 then
+        local track={x=key.x+key.width-10,y=list.y+3,width=4,height=math.max(1,list.height-6)}
+        local thumbHeight=math.min(track.height,math.max(26,track.height*list.height/math.max(1,totalHeight)))
+        scrollbar={track=track,thumb={x=track.x,y=track.y+
+            (track.height-thumbHeight)*scroll/scrollMaximum,width=track.width,height=thumbHeight}}
+    end
     return {panel=rect,map=map,key=key,columns=columns,rows=rows,rowHeight=rowHeight,
         columnWidth=columnWidth,footerY=footerY,footerHeight=footerHeight,
-        headerHeight=headerHeight,mobile=mobile,sidePanel=sidePanel,showPlaces=showPlaces,page=page,
+        headerHeight=headerHeight,mobile=mobile,sidePanel=sidePanel,showPlaces=showPlaces,page=1,
         pageSize=pageSize,pageCount=pageCount,keyHeaderHeight=keyHeaderHeight or 42,
+        list=list,scrollbar=scrollbar,placesScroll=scroll,placesScrollMaximum=scrollMaximum,
         headerRight=options.headerRight,compact=compact}
 end
 local function fitted(world,rect)
@@ -121,21 +130,25 @@ function Map.headingLabel(heading)return compass[math.floor((heading+math.pi/8)/
 function Map.new(world)
     local self=setmetatable({world=world,entries={},fonts={},backgroundBuilds=0,terrainSamples=0,
         mapBounds=bounds(world),miniLevel=4,miniFollow=true,miniAuto=true,numbersVisible=true,
-        desktopPlacesOpen=true,mobilePlacesOpen=true,placesPage=1,mainZoom=1,mainCenter=nil},Map)
+        desktopPlacesOpen=true,mobilePlacesOpen=true,placesScroll=0,placesDrag=nil,
+        mainZoom=1,mainCenter=nil},Map)
     local destinations=world.roads and world.roads.destinations or {}
     for _,site in ipairs(world.sites and world.sites.all or {})do
         local destination=destinations[site.id]
         self.entries[#self.entries+1]={id=site.id,site=site,label=destination and destination.label
             or site.design and site.design.label or site.id:gsub('%-',' ')}
     end
-    table.sort(self.entries,function(a,b)return a.id<b.id end)
+    table.sort(self.entries,function(a,b)
+        if (a.id=='warehouse')~=(b.id=='warehouse') then return a.id=='warehouse' end
+        return a.id<b.id
+    end)
     for i,entry in ipairs(self.entries)do entry.index=i end
     return self
 end
 function Map:uiOptions(mobile,headerRight)
     return {mobile=mobile==true,showPlaces=mobile and self.mobilePlacesOpen or
-        (not mobile and self.desktopPlacesOpen),placesPage=self.placesPage,
-        showNumbers=self.numbersVisible,headerRight=headerRight,paginatePlaces=true}
+        (not mobile and self.desktopPlacesOpen),
+        showNumbers=self.numbersVisible,headerRight=headerRight,placesScroll=self.placesScroll}
 end
 function Map:snapshot(rect,actor,options)
     options=options or {};actor=actor or {}
@@ -172,24 +185,14 @@ function Map:snapshot(rect,actor,options)
             end
         end
         placed[#placed+1]={x=bx,y=by}
-        local column,row
-        if layout.mobile or layout.pageCount>1 then
-            local ordinal=i-(layout.page-1)*layout.pageSize
-            if ordinal>=1 and ordinal<=layout.pageSize then
-                if layout.mobile then
-                    column=(ordinal-1)%layout.columns;row=math.floor((ordinal-1)/layout.columns)
-                else
-                    column=math.floor((ordinal-1)/layout.rows);row=(ordinal-1)%layout.rows
-                end
-            end
-        elseif layout.key then
-            column=math.floor((i-1)/layout.rows);row=(i-1)%layout.rows
-        end
         local keyRect
-        if layout.key and layout.showPlaces and column and row then
-            local keyY=layout.key.y+layout.keyHeaderHeight
-            keyRect={x=layout.key.x+column*layout.columnWidth+3,
-                y=keyY+row*layout.rowHeight+2,width=layout.columnWidth-6,height=layout.rowHeight-4}
+        if layout.key and layout.showPlaces and layout.list then
+            local y=layout.list.y+(i-1)*layout.rowHeight-layout.placesScroll
+            local top=math.max(layout.list.y,y+2)
+            local bottom=math.min(layout.list.y+layout.list.height,y+layout.rowHeight-2)
+            if bottom>top then
+                keyRect={x=layout.list.x+3,y=top,width=layout.list.width-6,height=bottom-top}
+            end
         end
         result.buildings[i]={id=entry.id,index=i,label=entry.label,x=bx,y=by,anchorX=ax,anchorY=ay,
             destination=entry.id==options.destination,home=entry.id==options.home,
@@ -441,11 +444,6 @@ function Map:controlRects(rect,layout)
         controls.zoomOut={x=x,y=zoomY,width=42,height=34}
         controls.zoomIn={x=x+48,y=zoomY,width=42,height=34}
         controls.fit={x=x+96,y=zoomY,width=66,height=34}
-        if layout.showPlaces and layout.pageCount>1 then
-            local pageY=key.y+(mobile and 104 or 92)
-            controls.previous={x=key.x+key.width-104,y=pageY,width=44,height=34}
-            controls.next={x=key.x+key.width-54,y=pageY,width=44,height=34}
-        end
         return controls
     end
     local closeReserve=mobile and 158 or 156
@@ -472,11 +470,6 @@ function Map:controlRects(rect,layout)
         controls.zoomIn={x=map.x+map.width-98,y=zoomY,width=38,height=34}
         controls.fit={x=map.x+map.width-54,y=zoomY,width=50,height=34}
     end
-    if layout.key and layout.pageCount>1 then
-        local py=layout.key.y+3
-        controls.previous={x=layout.key.x+layout.key.width-107,y=py,width=48,height=34}
-        controls.next={x=layout.key.x+layout.key.width-53,y=py,width=48,height=34}
-    end
     return controls
 end
 function Map:pressControl(rect,x,y,mobile,headerRight,actor)
@@ -487,20 +480,81 @@ function Map:pressControl(rect,x,y,mobile,headerRight,actor)
     if contains(controls.places,x,y) then
         if mobile then self.mobilePlacesOpen=not self.mobilePlacesOpen
         else self.desktopPlacesOpen=not self.desktopPlacesOpen end
-        local nextLayout=Map.layout(rect,#self.entries,self:uiOptions(mobile,headerRight))
-        self.placesPage=math.min(self.placesPage,nextLayout.pageCount)
         return true
     end
     if contains(controls.zoomOut,x,y) then self:zoomMain(-1,actor);return true end
     if contains(controls.zoomIn,x,y) then self:zoomMain(1,actor);return true end
     if contains(controls.fit,x,y) then self:fitMain();return true end
-    if contains(controls.previous,x,y) then
-        self.placesPage=math.max(1,self.placesPage-1);return true
-    end
-    if contains(controls.next,x,y) then
-        self.placesPage=math.min(layout.pageCount,self.placesPage+1);return true
-    end
     return false
+end
+function Map:scrollPlaces(rect,x,y,mobile,headerRight,delta)
+    local layout=Map.layout(rect,#self.entries,self:uiOptions(mobile,headerRight))
+    if not layout.showPlaces or not layout.list
+        or not (contains(layout.list,x,y) or layout.scrollbar and contains(layout.scrollbar.track,x,y)) then
+        return false
+    end
+    self.placesScroll=clamp(layout.placesScroll+(tonumber(delta) or 0),0,
+        layout.placesScrollMaximum)
+    return true
+end
+function Map:beginPlacesScroll(rect,x,y,mobile,headerRight,source,actor,options)
+    options=options or self:uiOptions(mobile,headerRight)
+    local layout=Map.layout(rect,#self.entries,options)
+    if not layout.showPlaces or not layout.list then return false end
+    local track=layout.scrollbar and layout.scrollbar.track
+    local thumb=layout.scrollbar and layout.scrollbar.thumb
+    local onTrack=track and contains(track,x,y)
+    if not contains(layout.list,x,y) and not onTrack then return false end
+    local mode='content'
+    local grabOffset
+    if onTrack then
+        mode='thumb'
+        if contains(thumb,x,y) then
+            grabOffset=y-thumb.y
+        else
+            grabOffset=thumb.height*.5
+            local thumbTravel=math.max(1,track.height-thumb.height)
+            local ratio=clamp((y-track.y-grabOffset)/thumbTravel,0,1)
+            self.placesScroll=ratio*layout.placesScrollMaximum
+        end
+    end
+    self.placesDrag={source=source,startY=y,lastX=x,lastY=y,startScroll=self.placesScroll,
+        moved=onTrack and true or false,mode=mode,grabOffset=grabOffset,
+        rect=rect,mobile=mobile,headerRight=headerRight,actor=actor,options=options}
+    return true
+end
+function Map:movePlacesScroll(x,y,source)
+    local drag=self.placesDrag
+    if not drag or drag.source~=source then return false end
+    if math.abs(y-drag.startY)>=6 then drag.moved=true end
+    local layout=Map.layout(drag.rect,#self.entries,drag.options)
+    if drag.mode=='thumb' and layout.scrollbar then
+        local track,thumb=layout.scrollbar.track,layout.scrollbar.thumb
+        local thumbTravel=math.max(1,track.height-thumb.height)
+        local ratio=clamp((y-track.y-(drag.grabOffset or thumb.height*.5))/thumbTravel,0,1)
+        self.placesScroll=ratio*layout.placesScrollMaximum
+    elseif drag.mode=='content' then
+        self.placesScroll=clamp(drag.startScroll+drag.startY-y,0,layout.placesScrollMaximum)
+    end
+    drag.lastX,drag.lastY=x,y
+    return true
+end
+function Map:finishPlacesScroll(source)
+    local drag=self.placesDrag
+    if not drag or source~=nil and source~=drag.source then return false,nil end
+    local selected
+    if not drag.moved and drag.mode=='content' then
+        local options={}
+        for key,value in pairs(drag.options or {}) do options[key]=value end
+        options.placesScroll=self.placesScroll
+        local snapshot=self:snapshot(drag.rect,drag.actor,options)
+        for _,entry in ipairs(snapshot.buildings) do
+            local row=entry.keyRect
+            if row and contains(row,drag.lastX,drag.lastY) then selected=entry.id;break end
+        end
+    end
+    self.placesDrag=nil
+    return true,selected
 end
 function Map.trafficMarkers(snapshot,entries,mini)
     local result={}
@@ -563,10 +617,6 @@ function Map:draw(rect,actor,options)
             g.setFont(self:font(12));g.setColor(.76,.85,.79,1)
             g.print(('ZOOM %.1fx'):format(self.mainZoom),s.layout.key.x+174,s.layout.key.y+(mobile and 71 or 67))
         end
-        if controls.previous then
-            button(controls.previous,'<',s.layout.page>1)
-            button(controls.next,'>',s.layout.page<s.layout.pageCount)
-        end
     end
     local function drawKeyPanel()
         if not s.layout.key then return end
@@ -609,6 +659,12 @@ function Map:draw(rect,actor,options)
     end
     g.setScissor()
     if s.layout.key and not s.layout.sidePanel then drawKeyPanel() end
+    if s.layout.list and s.layout.showPlaces then
+        local x,y=g.transformPoint(s.layout.list.x,s.layout.list.y)
+        local ex,ey=g.transformPoint(s.layout.list.x+s.layout.list.width,
+            s.layout.list.y+s.layout.list.height)
+        g.intersectScissor(x,y,ex-x,ey-y)
+    end
     for _,entry in ipairs(s.buildings)do
         local color=entry.destination and {1,.73,.24,1} or entry.home and {.55,.91,.61,1} or {.81,.89,.85,1}
         local key=entry.keyRect
@@ -627,21 +683,22 @@ function Map:draw(rect,actor,options)
             g.printf(entry.label,left,key.y+math.max(0,(key.height-#lines*font:getHeight())/2),available,'left')
         end
     end
+    g.setScissor()
+    if s.layout.scrollbar and s.layout.showPlaces then
+        local track,thumb=s.layout.scrollbar.track,s.layout.scrollbar.thumb
+        g.setColor(.07,.11,.10,.95);g.rectangle('fill',track.x,track.y,track.width,track.height,2)
+        g.setColor(.72,.65,.40,1);g.rectangle('fill',thumb.x,thumb.y,thumb.width,thumb.height,2)
+    end
     if s.layout.key then
         g.setFont(self:font(mobile and 16 or 17));g.setColor(.94,.90,.75,1)
         if s.layout.sidePanel then
-            local header=placesOpen and (s.layout.pageCount>1
-                and ('PLACES  %d / %d'):format(s.layout.page,s.layout.pageCount) or 'DESTINATIONS') or 'PLACES HIDDEN'
+            local header=placesOpen and ('DESTINATIONS  ·  %d'):format(#self.entries) or 'PLACES HIDDEN'
             local headerY=s.layout.key.y+(mobile and 108 or 96)
-            local headerWidth=s.layout.key.width-(controls.previous and 126 or 20)
+            local headerWidth=s.layout.key.width-20
             g.setFont(self:font(mobile and 16 or 15))
             g.printf(header,s.layout.key.x+12,headerY,headerWidth,'left')
-        elseif s.layout.pageCount>1 then
-            g.print(('DESTINATIONS  ·  %d / %d'):format(s.layout.page,s.layout.pageCount),s.layout.key.x+12,s.layout.key.y+8)
-        elseif mobile then
-            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+8)
         else
-            g.print('DESTINATIONS  ·  TAP A PLACE TO SET ROUTE',s.layout.key.x+12,s.layout.key.y+9)
+            g.print(('DESTINATIONS  ·  %d'):format(#self.entries),s.layout.key.x+12,s.layout.key.y+8)
         end
     end
     clipMap()

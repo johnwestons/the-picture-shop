@@ -168,6 +168,8 @@ function Component.install(Runtime)
         local overlayX,overlayY=Runtime.toViewportCoordinates(x,y)
         if Runtime.menuAccessPointerScreen and Runtime.menuAccessPointerScreen(overlayX,overlayY,1) then return true end
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousepressed(px,py,1) end
+        if Runtime.state.screen=='options' and Runtime.OptionsScreen.touchpressed
+            and Runtime.OptionsScreen.touchpressed(id,px,py) then return true end
         if require('src.commute.runtime').touchPressed(Runtime,id,px,py) then return true end
         if require("src.basketball_controls").touchpressed(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
@@ -198,6 +200,8 @@ function Component.install(Runtime)
         end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousemoved(px,py) end
+        if Runtime.state.screen=='options' and Runtime.OptionsScreen.touchmoved
+            and Runtime.OptionsScreen.touchmoved(id,px,py) then return true end
         if require('src.commute.runtime').touchMoved(Runtime,id,px,py) then return true end
         if require("src.basketball_controls").touchmoved(id,px,py,Runtime) then return true end
         if Runtime.state.screen=="air_hockey" then
@@ -221,6 +225,8 @@ function Component.install(Runtime)
         if Runtime.state.screen=='notifications' then return true end
         local px,py=Runtime.toPointerCoordinates(x,y)
         if Runtime.state.screen=='options' and Runtime.OptionsScreen.motorcycleEditor then return Runtime.OptionsScreen.mousereleased(px,py,1) end
+        if Runtime.state.screen=='options' and Runtime.OptionsScreen.touchreleased
+            and Runtime.OptionsScreen.touchreleased(id) then return true end
         if require('src.commute.runtime').touchReleased(Runtime,id) then return true end
         require('src.commute.runtime').pointerReleased(Runtime,id)
         if require("src.basketball_controls").touchreleased(id,px,py,Runtime) then return true end

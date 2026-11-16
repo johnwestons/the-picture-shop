@@ -52,6 +52,7 @@ local function send(R,command)
     R.state.message=message or (okay and "Waiting for the host..." or "Home activity unavailable.")
 end
 local function rows(state,player)
+    if Controls.mode=='pockets' then return require('src.player_pockets').rows(state,player) end
     local result={}
     local resident=Residents.get(state,player)
     if Controls.mode=="readiness" then return result end
@@ -100,7 +101,7 @@ local function rows(state,player)
         local action=Residents.ACTIONS[kind]
         local startable=Residents.prepareActivity(state,player,kind,Controls.target)
         if startable then
-            result[#result+1]={label=action.label.."  /  "..action.minutes.." game min"..(action.item and "  /  "..(state.home.inventory[action.item] or 0).." left" or ""),
+            result[#result+1]={foodId=action.item,label=action.label.."  /  "..action.minutes.." game min"..(action.item and "  /  "..(state.home.inventory[action.item] or 0).." left" or ""),
                 command=kind..":"..Controls.target}
         end
     end
@@ -132,7 +133,7 @@ local function applianceRows(R)
             local ready=Residents.prepareActivity(R.state,player,kind,"laundry")
             if ready then
                 local action=Residents.ACTIONS[kind]
-                result[#result+1]={label=action.label:upper().." / "..action.minutes.." GAME MINUTES",
+                result[#result+1]={foodId=action.item,label=action.label:upper().." / "..action.minutes.." GAME MINUTES",
                     command=kind..":laundry"}
             end
         end
@@ -188,6 +189,10 @@ function Controls.visibleRows(R)
     return visibleRows(R.state,Controls.localPlayer(R))
 end
 function Controls.keypressed(key,R)
+    if key=='i' and R.state.screen=='world' then
+        Controls.mode='pockets';Controls.target='floor';Controls.page=1;Controls.appliance=nil
+        R.state.screen='home_activity';return true
+    end
     if R.state.screen=="home_activity" then
         if Controls.appliance then
             if key=="escape" or key=="h" then closeAppliance(R);return true end
@@ -247,6 +252,9 @@ function Controls.keypressed(key,R)
     return false
 end
 function Controls.mousepressed(x,y,button,R)
+    if button==1 and R.state.screen=='world' and x>=820 and x<=950 and y>=390 and y<=430 then
+        return Controls.keypressed('i',R)
+    end
     if button~=1 then return R.state.screen=="home_activity" end
     if R.state.screen=="world" and R.World.player.sceneId=="home" and hudRect
         and x>=hudRect.x and x<=hudRect.x+hudRect.width and y>=hudRect.y and y<=hudRect.y+hudRect.height then
@@ -291,7 +299,7 @@ function Controls.mousepressed(x,y,button,R)
     end
     local current=Residents.get(R.state,Controls.localPlayer(R))
     local cooking=Controls.mode=="routines" and current and current.activity and Cooking.RECIPES[current.activity.kind]
-    if not cooking and y>=590 and y<=634 then
+    if Controls.mode~='pockets' and not cooking and y>=590 and y<=634 then
         if x>=140 and x<=370 then return Controls.keypressed("t",R) end
         if x>=390 and x<=620 then return Controls.keypressed("r",R) end
         if x>=640 and x<=820 then return Controls.keypressed("d",R) end
@@ -741,16 +749,81 @@ local function drawBikeCargo(R)
         140,600,680,"center")
     g.pop()
 end
+local function drawPockets(R)
+    local g=love.graphics
+    local Titles=require('src.screens.title_fonts')
+    local Food=require('src.home_food_catalog')
+    local Art=require('src.home_food_art')
+    local resident=Residents.get(R.state,Controls.localPlayer(R))
+    local inventory=resident and require('src.player_pockets').ensure(resident)
+    g.push('all')
+    g.setColor(.006,.012,.017,.75);g.rectangle('fill',0,0,960,678)
+    g.setColor(.025,.047,.052,1);g.rectangle('fill',110,82,740,558,8)
+    g.setColor(.66,.53,.32,1);g.setLineWidth(2);g.rectangle('line',110,82,740,558,8)
+    g.setColor(.075,.15,.15,1);g.rectangle('fill',126,96,708,58,4)
+    require('src.commute.grocery_ui_art').drawEmblem(154,125,44)
+    g.setFont(Titles.get('metal',22));g.setColor(.97,.91,.74,1);g.print('POCKET PROVISIONS',186,101)
+    g.setFont(Titles.get('metal',10));g.setColor(.65,.79,.74,1);g.print('YOUR EVERYDAY FOOD & DRINK',187,131)
+    g.setColor(.17,.28,.30,1);g.rectangle('fill',748,95,102,50,5)
+    g.setColor(.96,.92,.79,1);g.printf('BACK [Esc]',748,114,102,'center')
+    local ids={};if inventory then for id,q in pairs(inventory.items) do for i=1,q do ids[#ids+1]=id end end end
+    table.sort(ids)
+    for slot=1,2 do
+        local x=140+(slot-1)*346
+        g.setColor(.09,.16,.16,1);g.rectangle('fill',x,168,334,112,6)
+        g.setColor(.39,.48,.39,1);g.rectangle('line',x+5,173,324,102,5)
+        for stitch=x+12,x+318,12 do g.line(stitch,179,stitch+5,179) end
+        local food=ids[slot] and Food.ITEMS[ids[slot]]
+        if food then Art.draw(food.sprite,x+57,227,86) end
+        g.setFont(Titles.get('metal',10));g.setColor(.75,.65,.43,1);g.print('POCKET 0'..slot,x+108,191)
+        g.setFont(Titles.get('metal',13));g.setColor(.96,.92,.79,1)
+        g.printf(food and food.name or 'EMPTY POCKET',x+108,214,210,'left')
+        g.setFont(Titles.get('metal',9));g.setColor(.61,.76,.70,1)
+        g.print(food and 'ONE PORTION / READY TO GO' or 'PACK A PORTION AT HOME',x+108,253)
+    end
+    local visible,pages=visibleRows(R.state,Controls.localPlayer(R))
+    for i,row in ipairs(visible) do
+        local y=300+(i-1)*52
+        g.setColor(.075,.19,.18,1);g.rectangle('fill',140,y,680,44,5)
+        g.setColor(.55,.58,.38,1);g.rectangle('line',140,y,680,44,5)
+        local food=Food.ITEMS[row.foodId];if food then Art.draw(food.sprite,169,y+22,40) end
+        g.setFont(Titles.get('metal',12));g.setColor(.97,.93,.80,1)
+        g.printf(row.label,202,y+13,556,'left');g.printf('['..i..']',768,y+13,42,'center')
+    end
+    if #visible==0 then
+        g.setFont(Titles.get('metal',14));g.setColor(.92,.83,.61,1)
+        g.printf('NOTHING PACKED YET',140,326,680,'center')
+        g.setFont(Titles.get('metal',11));g.setColor(.68,.80,.74,1)
+        g.printf('Pack food and a drink from your apartment supplies before heading out.',170,361,620,'center')
+    end
+    if pages>1 then
+        g.setColor(.13,.28,.27,1);g.rectangle('fill',140,470,190,44,5);g.rectangle('fill',630,470,190,44,5)
+        g.setFont(Titles.get('metal',11));g.setColor(.96,.91,.74,1)
+        g.printf('< PREVIOUS',140,485,190,'center');g.printf('NEXT >',630,485,190,'center')
+        g.printf(Controls.page..' / '..pages,330,485,300,'center')
+    end
+    g.setFont(Titles.get('metal',12));needs(resident,140,520,680)
+    g.setFont(Titles.get('metal',10));g.setColor(.96,.79,.43,1)
+    g.printf(R.state.message or '',140,558,680,'left')
+    g.setColor(.36,.43,.34,1);g.rectangle('fill',140,583,680,1)
+    g.setColor(.70,.82,.76,1);g.printf('TWO POCKETS / TWO PORTIONS   /   TAP AN ITEM TO EAT, DRINK OR PACK',140,601,680,'center')
+    g.pop()
+end
 function Controls.draw(R)
+    if Controls.mode=='pockets' and not Controls.appliance then drawPockets(R);return end
     if Controls.appliance=="laundry" then drawLaundry(R);return end
     if Controls.appliance=="bike" then drawBikeCargo(R);return end
     if Controls.appliance then drawAppliance(R);return end
     font=font or love.graphics.newFont(18);small=small or love.graphics.newFont(15)
     local p=Residents.get(R.state,Controls.localPlayer(R))
     love.graphics.push("all");love.graphics.setColor(.025,.045,.06,.97);love.graphics.rectangle("fill",110,82,740,558,8)
+    love.graphics.setColor(.66,.53,.32,1);love.graphics.setLineWidth(2)
+    love.graphics.rectangle('line',110,82,740,558,8)
+    love.graphics.setColor(.075,.15,.15,1);love.graphics.rectangle('fill',126,96,708,58,4)
     love.graphics.setFont(font);love.graphics.setColor(.96,.92,.79,1)
     local id=Controls.target:match("^furniture(%d+)$");local item=id and require("src.home_furniture").find(R.state,tonumber(id))
     local title=item and require("src.home_furniture_catalog").ITEMS[item.kind].name or Controls.target
+    if Controls.mode=='pockets' then title='POCKETS / TWO PORTIONS' end
     love.graphics.print(Controls.mode=="sleep" and "SLEEP & PERSONAL ALARMS" or Controls.mode=="readiness" and "HOUSEHOLD READINESS" or Controls.mode=="dining" and "SERVED MEALS / "..title:upper() or "HOME ROUTINES / "..title:upper(),140,110)
     love.graphics.setFont(small);love.graphics.printf("BACK [Esc]",750,112,88,"center")
     local twelveHourTime=useTwelveHourTime(R)
@@ -760,7 +833,7 @@ function Controls.draw(R)
         require("src.home_alarm_clock_art").draw(630,116,200,
             Calendar.timeText(R.state,twelveHourTime),p and p.alarmAt~=nil)
     end
-    local description="Choose an activity. Time continues while this menu is open."
+    local description=Controls.mode=='pockets' and 'Eat or drink anywhere on foot. Pack two portions from home supplies.' or "Choose an activity. Time continues while this menu is open."
     if Controls.target=="laundry" and R.state.home.chores.laundry.phase=="washing" then description="The washer runs on its own. You can leave and do other things." end
     if p and p.activity then
         local a=p.activity
@@ -776,7 +849,7 @@ function Controls.draw(R)
             ..(all and "Shared time: 32x." or "Faster time starts when everyone sleeps.")
         if Calendar.absoluteHours(R.state)>=R.state.home.weekend.opensAtHours-2 then description="Monday morning: get ready for work; short naps remain." end
     elseif Controls.mode=="readiness" then description="Aim for at least 35 in each need before work. Eat, drink, wash or rest if a need is low."
-    elseif Controls.mode=="dining" and not (p and p.activity) then description="Serve a real portion onto a clear surface slot, then eat here or from an aligned nearby seat." end
+    elseif Controls.mode=="dining" and not (p and p.activity) then description="Set the table, choose a portion, and enjoy your meal." end
     love.graphics.setColor(.88,.93,.92,1)
     love.graphics.printf(description,140,220,Controls.mode=="sleep" and 470 or p and p.activity and 530 or 680,"left")
     if p and p.activity then
@@ -790,7 +863,7 @@ function Controls.draw(R)
         or "No alarm set. Choose a time below; it rings once.")
         or Controls.mode=="readiness" and ("Monday wake: "..Calendar.formatTime(7,0,twelveHourTime)
             ..". Shop opens: "..Calendar.formatTime(9,0,twelveHourTime)..". Use the apartment entrance to return.")
-        or Controls.mode=="dining" and "Use a table/counter or the kitchen sink's dry counter. For seated meals, place a chair/couch close to and facing the surface. Take food out of storage first."
+        or Controls.mode=="dining" and "Serve at a clear table or counter. For food on the go, pack your pockets [I]."
     love.graphics.printf(paneDescription or Cooking.description(R.state,Controls.localPlayer(R),Controls.target) or Objects.description(R.state,Controls.localPlayer(R),Controls.target) or Chores.description(R.state,Controls.target)
         or "Order groceries or takeout on the laptop; collect them from the living-room parcel spot. Floor rest is always available.",
         140,253,Controls.mode=="sleep" and 470 or 680,"left")
@@ -832,7 +905,12 @@ function Controls.draw(R)
             label=label:gsub("Monday 07:00","Monday "..Calendar.formatTime(7,0,twelveHourTime))
         end
         love.graphics.setColor(.13,.32,.35,1);love.graphics.rectangle("fill",140,y,680,44,5)
-        love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("["..i.."]  "..label,148,y+13,664,"center")
+        local food=row.foodId and require('src.home_food_catalog').ITEMS[row.foodId]
+        if food then
+            require('src.home_food_art').draw(food.sprite,169,y+22,40)
+            love.graphics.setColor(.65,.55,.35,1);love.graphics.rectangle('line',140,y,680,44,5)
+        end
+        love.graphics.setColor(.96,.96,.88,1);love.graphics.printf("["..i.."]  "..label,food and 202 or 148,y+13,food and 604 or 664,food and 'left' or 'center')
     end
     if Controls.mode=="readiness" then
         for i,row in ipairs(Sleep.readiness(R.state,require("src.weekend_runtime").players(R))) do

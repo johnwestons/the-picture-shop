@@ -145,6 +145,14 @@
       "minChecks": 40
     },
     {
+      "id": "delivery-workflow-desktop", "focus": "delivery-manifest", "mobile": false,
+      "timeoutSeconds": 300, "minChecks": 30
+    },
+    {
+      "id": "delivery-workflow-mobile", "focus": "delivery-manifest", "mobile": true,
+      "timeoutSeconds": 600, "minChecks": 30
+    },
+    {
       "id": "delivery-routes",
       "focus": "delivery-route-smoke",
       "mobile": false,
@@ -376,7 +384,7 @@
     {
       "id": "restoration-input-and-rendering", "label": "Restoration overlays, breaker input recovery, and world rendering",
       "stages": ["restoration-overlays-desktop", "restoration-overlays-mobile"],
-      "checks": ["mobile_overlay_story_utility_box_opens", "mobile_overlay_open_clears_active_touches", "mobile_overlay_power_reconnect_action_completes", "mobile_overlay_utility_back_returns_to_world", "mobile_overlay_restoration_menu_opens", "mobile_overlay_restoration_entry_clears_active_touches", "mobile_overlay_breaker_repair_action_completes", "mobile_overlay_restoration_back_returns_to_world", "mobile_overlay_player_movement_resumes_after_breaker", "mobile_overlay_restoration_world_renders_after_back"]
+      "checks": ["mobile_overlay_story_utility_box_opens", "mobile_overlay_open_clears_active_touches", "mobile_overlay_power_reconnect_action_completes", "mobile_overlay_utility_back_returns_to_world", "mobile_overlay_restoration_menu_opens", "mobile_overlay_restoration_entry_clears_active_touches", "mobile_overlay_breaker_repair_action_completes", "mobile_overlay_restoration_back_returns_to_world", "mobile_overlay_player_movement_resumes_after_breaker", "mobile_overlay_restoration_world_renders_after_back", "mobile_update_notes_clip_matches_transformed_viewport", "mobile_pocket_actions_have_food_icons"]
     },
     {
       "id": "gps-navigation", "label": "Readable map, zoom controls, and live route behavior",
@@ -507,6 +515,19 @@
       "checks": [
         "feedback_known_offsize_output_is_held_for_rework",
         "feedback_rework_reenters_normal_stock_and_machine_flow"
+      ]
+    },
+    {
+      "id": "delivery-workflow",
+      "label": "Driver signoff, employee unload and one-shot truck doors",
+      "stages": ["delivery-workflow-desktop", "delivery-workflow-mobile"],
+      "checks": [
+        "delivery_signature_receiver_survives_first_to_second_shift_handoff",
+        "delivery_employee_on_second_shift_auto_signs_once_at_night",
+        "queued_delivery_manifest_unloads_after_customer_hours",
+        "employee_closes_received_truck_after_unloading",
+        "employee_does_not_spam_cargo_door_while_closing",
+        "signed_empty_grouped_delivery_leaves_warehouse"
       ]
     },
     {

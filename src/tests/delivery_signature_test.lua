@@ -142,5 +142,41 @@ function Test.run(check)
         unattended.deliveryDriver.status=='missed'
         and unattended.deliveryDriver.waitSeconds==Driver.WAIT_SECONDS)
     Driver.reset(unattended)
+
+    local signing=require('src.state').new()
+    signing.money=10000
+    local bought,order=require('src.procurement').buy(signing,1,1,'computer')
+    assert(bought and order and Driver.start(signing,order.id,'vendor_delivery'))
+    local visit=Driver.visit(signing);local actor=Driver.actor(signing)
+    visit.status,actor.phase='waiting','waiting'
+    actor.x,actor.y=151,236
+    signing.calendar=Calendar.dateFromTotalDay(0)
+    signing.calendar.elapsed=21.5/24*Calendar.secondsPerDay(signing)
+    local now=Calendar.absoluteHours(signing)
+    require('src.weekend_flow').ensure(signing).phase='working'
+    local worker={id='night-receiver',name='Night Receiver',status='employed',visible=true,
+        clockedIn=true,sceneId='warehouse',phase='idle',moving=false,x=181,y=244,breaksTaken=0,weeks={}}
+    worker.contract=Contracts.terms(2200,127,20,5,1,'cutter')
+    worker.contract.startDay=0;worker.contract.signedAtHours=0
+    signing.employment.staff={worker}
+    local EmployeeAI=require('src.employee_ai')
+    Driver.update(signing,.1,{players=function()return {} end})
+    local automaticallyRequested=EmployeeAI.hasDeliverySignature(worker)
+        and EmployeeAI.deliverySignatureActive(signing,order.id)
+        and visit.waitSeconds==0 and worker.activity=='Walking to sign for an incoming delivery'
+    local originalFind=EmployeeAI.findReachablePoint
+    local okay,reason=xpcall(function()
+        EmployeeAI.findReachablePoint=function(_,goals)return goals[1] end
+        EmployeeAI.worker(signing,worker,.1,now,{state=signing})
+        EmployeeAI.worker(signing,worker,1.1,now,{state=signing})
+        EmployeeAI.worker(signing,worker,1.7,now,{state=signing})
+    end,debug.traceback)
+    EmployeeAI.findReachablePoint=originalFind
+    if not okay then error(reason) end
+    local firstSignature=visit.status=='signed' and visit.signedBy=='Night Receiver'
+    local duplicate=not Driver.signByEmployee(signing,worker,order.id)
+    check('delivery_employee_on_second_shift_auto_signs_once_at_night',automaticallyRequested
+        and firstSignature and duplicate and visit.status=='signed' and visit.waitSeconds==0)
+    Driver.reset(signing)
 end
 return Test

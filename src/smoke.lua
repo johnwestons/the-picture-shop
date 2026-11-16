@@ -250,6 +250,7 @@ function Smoke.start(context)
         elseif focus=='guest-job-journey' then
             require('src.tests.guest_job_journey_test').run(context,check)
         elseif focus=='delivery-manifest' then
+            require('src.tests.delivery_signature_test').run(check)
             require('src.tests.delivery_manifest_test').run(context,check)
             require('src.tests.truck_authority_test').run(context,check)
             require('src.tests.truck_session_test').run(context,check)

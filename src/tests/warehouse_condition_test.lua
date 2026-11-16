@@ -351,6 +351,22 @@ function Test.run(context,check)
     -- Carry the two machines serviced with purchased kits into the restored shop.
     state.machines.items=purchaseState.machines.items
     c.grandpaMet=true
+    local runtime=context.appRuntime
+    if runtime then
+        local priorState,priorSave=runtime.state,runtime.saveCurrent
+        local saved=0
+        runtime.saveCurrent=function() saved=saved+1;return true end
+        local openingState=Schema.copy(state)
+        local success,reason=xpcall(function()
+            local accepted=runtime.World.performNetworkInteraction(player,openingState,'restoration','grand_opening')
+            check('warehouse_condition_real_interaction_starts_opening_without_crash',accepted and require('src.story_grand_opening').active(runtime))
+            assert(require('src.story_grand_opening').finish(runtime,true))
+            check('warehouse_condition_real_opening_finishes_and_saves',Condition.openForBusiness(openingState) and saved==1)
+        end,debug.traceback)
+        runtime.state,runtime.saveCurrent=priorState,priorSave
+        runtime.World._state=priorState
+        if not success then error(reason) end
+    end
     okay=Condition.perform(state,player,"grand_opening")
     check("warehouse_condition_grand_opening_unlocks_jobs",okay and Condition.openForBusiness(state)
         and Service.createNextOffer(state,1)~=nil)

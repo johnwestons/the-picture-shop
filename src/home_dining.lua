@@ -178,8 +178,8 @@ function Dining.rows(state,player,target)
     local d=Dining.ensure(state)
     for _,meal in ipairs(d.items) do
         if meal.parentId==parentId or seat and Dining.seatReaches(state,seat,meal.parentId,meal.slot) then
-            rows[#rows+1]={label="EAT SERVED "..Food.ITEMS[meal.food].name,command="dine:eat:"..meal.id..":"..(seat and seat.id or 0)..":"..d.revision}
-            if parentId then rows[#rows+1]={label="RETURN "..Food.ITEMS[meal.food].name.." TO SUPPLIES",command="dine:return:"..meal.id..":"..d.revision} end
+            rows[#rows+1]={foodId=meal.food,label="EAT SERVED "..Food.ITEMS[meal.food].name,command="dine:eat:"..meal.id..":"..(seat and seat.id or 0)..":"..d.revision}
+            if parentId then rows[#rows+1]={foodId=meal.food,label="RETURN "..Food.ITEMS[meal.food].name.." TO SUPPLIES",command="dine:return:"..meal.id..":"..d.revision} end
         end
     end
     if parentId then
@@ -189,7 +189,7 @@ function Dining.rows(state,player,target)
         end
         if free then for _,food in ipairs(require("src.home_objects").FOODS) do
             if edible(food) and (state.home.inventory[food] or 0)>0 then
-                rows[#rows+1]={label="SERVE "..Food.ITEMS[food].name.." / SLOT "..free,command="dine:serve:"..parentId..":"..free..":"..food..":"..d.revision}
+                rows[#rows+1]={foodId=food,label="SERVE "..Food.ITEMS[food].name.." / SLOT "..free,command="dine:serve:"..parentId..":"..free..":"..food..":"..d.revision}
             end
         end end
     end

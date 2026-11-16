@@ -167,6 +167,32 @@ function Test.run(context,check)
         local mapOptions=map:uiOptions(mobile,mapButton.x-8)
         mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
         local mapLayout=RouteMap.layout(mapRect,#map.entries,mapOptions)
+        local placeList=mapLayout.list
+        local oldPlaceScroll=map.placesScroll
+        local scrollSource='route-map-test-place-scroll'
+        local scrollStarted=C.mapPointer(R,placeList.x+10,placeList.y+placeList.height*.7,scrollSource)
+        local scrollMoved=scrollStarted and C.mapPointerMoved(R,placeList.x+10,
+            placeList.y+placeList.height*.7-72,scrollSource)
+        local scrollFinished=scrollMoved and C.pointerReleased(R,scrollSource)
+        check('route_map_touch_drag_scrolls_location_list',scrollStarted and scrollMoved
+            and scrollFinished and map.placesScroll>oldPlaceScroll)
+        map.placesScroll=0
+        mapOptions=map:uiOptions(mobile,mapButton.x-8)
+        mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
+        local firstPlace=map:snapshot(mapRect,observed.actor,mapOptions).buildings[1]
+        local placeRect=assert(firstPlace.keyRect,'Expected Picture Shop row at top of location list')
+        local placeTap='route-map-test-place-tap'
+        local oldWaypoint=C.activeWaypoint(R)
+        local expectedWaypoint=firstPlace.id
+        if oldWaypoint==firstPlace.id then expectedWaypoint=nil end
+        local placePressed=C.mapPointer(R,placeRect.x+placeRect.width*.5,
+            placeRect.y+placeRect.height*.5,placeTap)
+        local placeReleased=C.pointerReleased(R,placeTap)
+        check('route_map_location_tap_selects_after_scroll_gesture',placePressed and placeReleased
+            and C.activeWaypoint(R)==expectedWaypoint)
+        mapOptions=map:uiOptions(mobile,mapButton.x-8)
+        mapOptions.destination=C.activeWaypoint(R);mapOptions.home=R.state.home.apartmentId
+        mapLayout=RouteMap.layout(mapRect,#map.entries,mapOptions)
         local controls=map:controlRects(mapRect,mapLayout)
         local beforeZoom=map.mainZoom
         tap(controls.zoomIn)

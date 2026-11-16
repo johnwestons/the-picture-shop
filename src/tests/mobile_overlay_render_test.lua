@@ -20,7 +20,7 @@ local function save(canvas,path)
 end
 
 local function pixelAtVirtual(data,R,x,y)
-    local ox,oy,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight,
+    local ox,oy,_,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight,
         R.App.officeUsesSafeArea())
     -- Canvas ImageData is in device pixels; viewport math uses LÖVE's logical
     -- window coordinates on high-DPI Android displays.
@@ -331,6 +331,60 @@ function Test.run(context,check)
         R.App.keypressed('escape')
         check('mobile_overlay_phone_back_returns_to_world',R.state.screen=='world')
         drawCapture('world-after-phone-back',440,400)
+        R.openOptions();R.OptionsScreen.openDebugPanel()
+        R.OptionsScreen.debugPage='notes'
+        local clip=g.intersectScissor
+        local expected,actual
+        g.intersectScissor=function(x,y,w,h)
+            if not actual then
+                actual={x,y,w,h}
+                local l,t=g.transformPoint(120,194);local r,b=g.transformPoint(830,591)
+                expected={l,t,r-l,b-t}
+            end
+            return clip(x,y,w,h)
+        end
+        local success,err=pcall(drawCapture,'mobile-update-notes-top',480,210)
+        g.intersectScissor=clip;assert(success,err)
+        local correct=actual~=nil
+        for i=1,4 do correct=correct and math.abs(actual[i]-expected[i])<.01 end
+        check('mobile_update_notes_clip_matches_transformed_viewport',correct)
+        R.OptionsScreen.debugNotesOffset=0
+        local noteTouch='update-notes-scroll-test'
+        local ox,oy,_,sx,sy=R.Viewport.transform(R.Config.baseWidth,R.Config.baseHeight,
+            R.App.officeUsesSafeArea())
+        local startX,startY=ox+480*sx,oy+440*sy
+        local endX,endY=ox+480*sx,oy+340*sy
+        local touchStarted=R.App.touchpressed(noteTouch,startX,startY)
+        local touchMoved=R.App.touchmoved(noteTouch,endX,endY,endX-startX,endY-startY)
+        local touchReleased=R.App.touchreleased(noteTouch,endX,endY)
+        check('mobile_update_notes_scrolls_with_vertical_touch_drag',touchStarted and touchMoved
+            and touchReleased and R.OptionsScreen.debugNotesOffset>0)
+        R.OptionsScreen.debugNotesOffset=require('src.screens.update_notes_panel').maxOffset()
+        drawCapture('mobile-update-notes-bottom',480,580)
+        R.OptionsScreen.leave();R.state.screen='world'
+        local residents=require('src.home_residents')
+        local resident=residents.get(R.state,R.World.player)
+        resident.pockets={revision=0,items={sandwich=1,bottled_drink=1}}
+        require('src.home_food_art').prewarm()
+        R.App.keypressed('i')
+        check('mobile_pocket_cards_open',R.state.screen=='home_activity')
+        drawCapture('mobile-pocket-provisions',480,210)
+        local rows=require('src.home_activity_controls').visibleRows(R)
+        check('mobile_pocket_actions_have_food_icons',rows[1] and rows[1].foodId=='bottled_drink'
+            and rows[2] and rows[2].foodId=='sandwich')
+        resident.pockets.items={};drawCapture('mobile-empty-pockets',480,210)
+        R.App.keypressed('escape')
+        R.state.warehouse.condition=require('src.warehouse_condition').new('quick')
+        local applicant=assert(require('src.employees').createApplicant(R.state,0))
+        applicant.status='offer_accepted'
+        applicant.offer=require('src.employment_contracts').terms(2000,127,21,5)
+        R.state.screen='computer';R.ComputerScreen.tab='hiring'
+        require('src.screens.hiring_screen').open(R.ComputerScreen.hiring,applicant.id)
+        drawCapture('mobile-hiring-accepted-overnight',480,480)
+        applicant.offer=require('src.employment_contracts').terms(2000,31,9,17)
+        drawCapture('mobile-hiring-accepted-day',480,480)
+        check('mobile_hiring_accepted_terms_render',true)
+
     end,debug.traceback)
 
     R.World.draw=originalDraw

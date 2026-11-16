@@ -23,10 +23,10 @@ function Art.draw(month,rect)
     local y=rect.y+(rect.height-drawHeight)*.5
     love.graphics.push("all")
     love.graphics.setScissor(rect.x,rect.y,rect.width,rect.height)
-    love.graphics.setColor(1,1,1,.45)
+    love.graphics.setColor(1,1,1,.92)
     love.graphics.draw(image,x,y,0,scale,scale)
     love.graphics.setScissor()
-    love.graphics.setColor(.018,.035,.045,.42)
+    love.graphics.setColor(.018,.035,.045,.12)
     love.graphics.rectangle("fill",rect.x,rect.y,rect.width,rect.height)
     love.graphics.pop()
     return true

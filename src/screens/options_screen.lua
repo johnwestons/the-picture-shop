@@ -29,6 +29,8 @@ local OptionsScreen = {
     debugPage = "watchdog",
     debugNotesOffset = 0,
     debugNotesDragY = nil,
+    debugNotesTouchId = nil,
+    debugNotesTouchY = nil,
     context = nil,
 }
 
@@ -250,6 +252,8 @@ function OptionsScreen.enter(context)
     OptionsScreen.debugPage="watchdog"
     OptionsScreen.debugNotesOffset=0
     OptionsScreen.debugNotesDragY=nil
+    OptionsScreen.debugNotesTouchId=nil
+    OptionsScreen.debugNotesTouchY=nil
     OptionsScreen.message = context.isNetworkClient and context.isNetworkClient()
         and "Audio and game settings are local. Save cheats are host-only."
         or "Changes are saved immediately."
@@ -269,6 +273,8 @@ function OptionsScreen.openDebugPanel()
     OptionsScreen.debugPage="watchdog"
     OptionsScreen.debugNotesOffset=0
     OptionsScreen.debugNotesDragY=nil
+    OptionsScreen.debugNotesTouchId=nil
+    OptionsScreen.debugNotesTouchY=nil
     return true
 end
 
@@ -324,6 +330,8 @@ local function selectTab(tab)
     OptionsScreen.controlViewDropdownOpen = false
     OptionsScreen.debugDragY=nil
     OptionsScreen.debugNotesDragY=nil
+    OptionsScreen.debugNotesTouchId=nil
+    OptionsScreen.debugNotesTouchY=nil
     if tab=='debug' then
         OptionsScreen.debugOffset=0
         OptionsScreen.debugPage="watchdog"
@@ -987,6 +995,34 @@ function OptionsScreen.mousemoved(x, y)
     end
     if OptionsScreen.draggingSensitivity then return moveSensitivity(x) end
     if OptionsScreen.draggingControl then return moveDraggedControl(x, y) end
+end
+
+function OptionsScreen.touchpressed(id,x,y)
+    if OptionsScreen.motorcycleEditor then return false end
+    if OptionsScreen.tab=='debug' and OptionsScreen.debugPage=='notes'
+        and require('src.screens.update_notes_panel').inViewport(x,y) then
+        OptionsScreen.debugNotesTouchId=id
+        OptionsScreen.debugNotesTouchY=y
+        return true
+    end
+    return false
+end
+
+function OptionsScreen.touchmoved(id,x,y)
+    if OptionsScreen.debugNotesTouchId~=id then return false end
+    local delta=y-(OptionsScreen.debugNotesTouchY or y)
+    OptionsScreen.debugNotesTouchY=y
+    local notes=require('src.screens.update_notes_panel')
+    OptionsScreen.debugNotesOffset=math.max(0,math.min(notes.maxOffset(),
+        OptionsScreen.debugNotesOffset-delta))
+    return true
+end
+
+function OptionsScreen.touchreleased(id)
+    if OptionsScreen.debugNotesTouchId~=id then return false end
+    OptionsScreen.debugNotesTouchId=nil
+    OptionsScreen.debugNotesTouchY=nil
+    return true
 end
 
 local function drawButton(rect, label, active, danger)
