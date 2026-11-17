@@ -101,11 +101,13 @@ function State.applySave(state, payload)
         if not PalletStorage.validate(ownership) then return false end
     end
     saved = SaveSchema.copy(saved)
+    require('src.history_retention').enforce(saved)
     local notifications=require('src.notifications').normalize(saved.notifications)
     local tutorial=require('src.tutorial').normalize(saved.tutorial)
     if not notifications or not tutorial then return false end
 
     state.activeSlot = payload.slot
+    state._networkHistory,state._networkHistoryTotals=nil,nil
     state.notifications,state.tutorial=notifications,tutorial
     state.notificationReturnScreen,state.notificationSelection=nil,nil
     state.home = home
@@ -244,9 +246,10 @@ end
 -- overwrite one of its offline shops.
 function State.applySharedSnapshot(state, snapshot)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
-    local staged = State.new()
+    local staged = {}
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    state._networkHistory,state._networkHistoryTotals=nil,nil
     -- A newly joined shop gets a fresh local inbox; subsequent snapshots keep
     -- it and its read state. Never inherit another player's tutorial progress.
     state.notifications=require('src.notifications').new()
@@ -267,8 +270,24 @@ end
 
 -- Continuous authoritative updates replace only durable domain fields. The
 -- guest keeps its local screen/message/input state and never gains a save slot.
-function State.applySharedUpdate(state, snapshot)
+function State.applySharedUpdate(state, snapshot, changed)
     if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+    if changed then
+        -- These domains arrive already normalized by the host and have no
+        -- warehouse ownership migrations. A moving outdoor actor should not
+        -- rebuild jobs, machinery and every other unchanged shop domain.
+        local simple={money=true,home=true,calendar=true,receipts=true,bills=true,
+            clientEmails=true,workPhone=true,employment=true,credit=true,reputation=true,
+            deliveryDriver=true,accountsReceivable=true,shopProgress=true,vendorCategory=true}
+        local fast=true
+        for field in pairs(changed) do if not simple[field] then fast=false;break end end
+        if fast then
+            for field in pairs(changed) do state[field]=SaveSchema.copy(snapshot[field]) end
+            State.restoreSharedHistory(state)
+            state.activeSlot=nil
+            return true
+        end
+    end
     local previousJack = state.palletJack
     local JackFleet=require("src.pallet_jack_fleet")
     local previousExtras=JackFleet.snapshots(state)
@@ -280,9 +299,10 @@ function State.applySharedUpdate(state, snapshot)
         and Forklift.snapshot(state, Config.forklift) or nil
     local liveMachinePoses = state._networkMachinePoses
         and MachinePose.copy(state._networkMachinePoses) or nil
-    local staged = State.new()
+    local staged = {}
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
+    State.restoreSharedHistory(state)
     state._networkMachinePoses = nil
     -- Stable vehicle IDs keep a primary-slot switch from applying an old pose
     -- or operator to a different physical jack.
@@ -333,6 +353,37 @@ function State.applySharedUpdate(state, snapshot)
         end
     end
     state.activeSlot = nil
+    return true
+end
+
+function State.enableSharedHistory(state)
+    state._networkHistory={}
+    state._networkHistoryTotals={}
+    for name in pairs(require('src.net.shop_replication').collections) do state._networkHistory[name]={} end
+    State.restoreSharedHistory(state)
+end
+
+function State.restoreSharedHistory(state)
+    if not state._networkHistory then return end
+    for name,path in pairs(require('src.net.shop_replication').collections) do
+        if state[path[1]] then state[path[1]][path[2]]=state._networkHistory[name] end
+    end
+end
+
+function State.applySharedHistory(state,event)
+    local replication=require('src.net.shop_replication')
+    local path=replication.collections[event.collection]
+    local rows=state._networkHistory and state._networkHistory[event.collection]
+    if not path or not rows or event.start>#rows+1 then return false end
+    -- Validate just this page against the matching live schema. Old pages do
+    -- not get revalidated or recopied whenever the clock or a truck moves.
+    local candidate=replication.project(event.baseline)
+    candidate[path[1]][path[2]]=event.entries
+    if not SaveSchema.validState(candidate) then return false end
+    for i,row in ipairs(event.entries) do rows[event.start+i-1]=replication.copy(row) end
+    for i=#rows,event.total+1,-1 do rows[i]=nil end
+    state._networkHistoryTotals[event.collection]=event.total
+    State.restoreSharedHistory(state)
     return true
 end
 

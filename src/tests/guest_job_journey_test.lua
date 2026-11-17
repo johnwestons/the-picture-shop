@@ -88,8 +88,10 @@ local function runJourney(context, check, printing)
             for _,event in ipairs(client:drainEvents()) do
                 if event.type=="ready" then
                     assert(context.State.applySharedSnapshot(guest,event.state))
+                    context.State.enableSharedHistory(guest)
                     readyCount=readyCount+1
-                elseif event.type=="shop_state" then assert(context.State.applySharedUpdate(guest,event.state))
+                elseif event.type=="shop_state" then assert(context.State.applySharedUpdate(guest,event.state,event.changed))
+                elseif event.type=='shop_history' then assert(context.State.applySharedHistory(guest,event))
                 elseif event.type=="workshop_grant" then
                     assert(event.granted,event.message)
                     event.useHostLayout=true
@@ -116,6 +118,8 @@ local function runJourney(context, check, printing)
         local function sync()
             host:markShopDirty(true)
             pump(0.3)
+            -- Live changes arrive first; documents use the paced durable pages.
+            for _=1,7 do pump(.05) end
         end
         assert(host:startHost({name="Journey Host",character=hp.character,addressOptions={socket={dns={
             gethostname=function() return "journey-host" end,getaddrinfo=function() return {{addr="192.168.1.94"}} end}}}}))
@@ -253,7 +257,8 @@ local function runJourney(context, check, printing)
             check("guest_journey_spoil_claim_and_exact_replacement",originalPallet.damagedSheets==500 and replacement.initialSheets==500
                 and replacement.replacementFor==originalPallet.id and #job.pallets==2 and claim>0 and state.reputation.score<0)
             check("guest_journey_spoil_converges_on_guest",guest.bills.balance==claim and guest.reputation.score==state.reputation.score
-                and #guest.jobs.active[1].pallets==2 and Remote.view.paper.offSpec)
+                and #guest.jobs.active[1].pallets==2 and Remote.view.paper.offSpec,
+                'guest balance='..guest.bills.balance..' claim='..claim..' pallets='..#guest.jobs.active[1].pallets..' errors='..table.concat(errors,'; '))
             render("spoiled_stock")
             confirmed("discard_ruined_stock",function() key("u") end)
             unload("replacement_unloaded_once")

@@ -1,4 +1,5 @@
 local Config = require("src.config")
+local OverlayLayout = require("src.screens.world_overlay_layout")
 
 local MultiplayerHud = {}
 
@@ -232,12 +233,9 @@ end
 function MultiplayerHud.layout(info)
     local visible = viewable(info)
     local allowed = manageable(info)
-    local toggle = visible and {
-        x = Config.baseWidth - MARGIN - TOGGLE_WIDTH,
-        y = TOGGLE_Y,
-        width = TOGGLE_WIDTH,
-        height = TOGGLE_HEIGHT,
-    } or nil
+    local toggle = visible and OverlayLayout.rect(info.overlayLayout, 'session',
+        TOGGLE_WIDTH, TOGGLE_HEIGHT,
+        Config.baseWidth - MARGIN - TOGGLE_WIDTH, TOGGLE_Y) or nil
     local result = {
         viewable = visible,
         manageable = allowed,
@@ -496,13 +494,14 @@ function MultiplayerHud.draw(info)
         line = line .. "  •  " .. tostring(math.floor(info.rtt + 0.5)) .. " ms"
     end
     local width = math.min(500, math.max(290, love.graphics.getFont():getWidth(line) + 24))
-    local x = Config.baseWidth - width - MARGIN
+    local bar = OverlayLayout.rect(info.overlayLayout, 'netStatus', width, BAR_HEIGHT,
+        Config.baseWidth - width - MARGIN, BAR_Y)
     love.graphics.setColor(0.025, 0.04, 0.05, 0.91)
-    love.graphics.rectangle("fill", x, BAR_Y, width, BAR_HEIGHT, 4, 4)
+    love.graphics.rectangle("fill", bar.x, bar.y, width, BAR_HEIGHT, 4, 4)
     love.graphics.setColor(info.mode == "host" and { 0.95, 0.78, 0.23, 1 }
         or { 0.38, 0.80, 0.76, 1 })
-    love.graphics.rectangle("line", x, BAR_Y, width, BAR_HEIGHT, 4, 4)
-    love.graphics.printf(line, x + 8, BAR_Y + 6, width - 16, "center")
+    love.graphics.rectangle("line", bar.x, bar.y, width, BAR_HEIGHT, 4, 4)
+    love.graphics.printf(line, bar.x + 8, bar.y + 6, width - 16, "center")
 
     local layout = MultiplayerHud.layout(info)
     drawButton(layout.toggle, opened and "CLOSE STATUS" or "SESSION (P)", false, false)

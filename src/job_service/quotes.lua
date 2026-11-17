@@ -5,7 +5,7 @@ local Progression = require("src.job_progression")
 
 function Component.install(Runtime)
     function Runtime.completedRelationship(state, company)
-        local count = 0
+        local count = require('src.history_retention').relationship(state,company)
         for _, job in ipairs((state.jobs and state.jobs.completed) or {}) do
             if job.company == company then count = count + 1 end
         end
@@ -282,6 +282,7 @@ function Component.install(Runtime)
             deliveryAccepted = deliveryAccepted,
             job = job,
         }
+        require('src.history_retention').trim(state.clientEmails.archive,100)
         return true, {
             accepted = nil,
             job = job,

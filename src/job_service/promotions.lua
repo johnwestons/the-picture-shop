@@ -103,6 +103,12 @@ function Component.install(Runtime)
                 return false, "the 10% offer was already sent for this completed job"
             end
         end
+        if not require('src.history_retention').canRequestEmailJob(state) then
+            return false,'Respond to an outstanding estimate before sending another offer (100 maximum).'
+        end
+        if not require('src.history_retention').reservePromotion(state) then
+            return false,'All 100 promotion records still have outstanding replies or coupons.'
+        end
         local promoNumber, emailNumber = emails.nextPromotionId, emails.nextEmailId
         customMessage = tostring(customMessage or "")
         local offer = Runtime.repeatOffer(state, sourceJob, emailNumber)

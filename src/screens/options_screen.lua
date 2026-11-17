@@ -112,6 +112,9 @@ local CONTROL_SPECS = {
     primary = { label = "USE", radius = 36 },
     extra1 = { label = "ACTION 1", radius = 27 },
     extra2 = { label = "ACTION 2", radius = 27 },
+    netStatus = { label = "LAN", radius = 16 },
+    session = { label = "SESSION", radius = 22 },
+    pockets = { label = "POCKETS", radius = 22 },
 }
 local CONTROL_VIEW_OPTIONS = Settings.controlLayoutViews()
 
@@ -537,6 +540,7 @@ end
 
 local function controlCenter(key)
     local point = controlLayout()[key]
+    if not point then return -1000, -1000 end
     return CONTROL_PREVIEW.x + point.x * CONTROL_PREVIEW.width,
         CONTROL_PREVIEW.y + point.y * CONTROL_PREVIEW.height
 end
@@ -826,6 +830,10 @@ function OptionsScreen.mousepressed(x, y, button)
             OptionsScreen.debugOffset=math.min(maximum,OptionsScreen.debugOffset+panel.PAGE_SIZE);return true
         elseif action=="latest" then OptionsScreen.debugOffset=0;return true end
         if action=="unstick" then
+            if OptionsScreen.context.isNetworkClient and OptionsScreen.context.isNetworkClient() then
+                OptionsScreen.message="Truck recovery and roadside service are controlled by the host."
+                return true
+            end
             local event=panel.unstickEvent(snapshot,OptionsScreen.context.state)
             if not event then
                 OptionsScreen.message="No active delivery truck is available to unstick."

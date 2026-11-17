@@ -42,6 +42,7 @@ local function sweepClear(v,p,world)
     return true
 end
 function Rail.place(v,p,world)
+    if require('src.commute.truck_power').reason(v) then return false end
     if Truck.blocked(world,p.x,p.z,p.heading,v) then return false end
     v.x,v.z,v.h,v.heading=p.x,p.z,world:supportHeight(p.x,p.z),p.heading
     v.collisionContact=false;v.collisionStun=0;Rail.stop(v)
@@ -59,8 +60,8 @@ function Rail.step(v,r,points,dt,world,options)
     local current=pose(points,r.station,options.reverse,options.heading)
     local offset=math.sqrt((v.x-current.x)^2+(v.z-current.z)^2)
     if offset>1.5 then Rail.stop(v);return false,0,'off_line' end
-    if v.engine==false or (v.fuel or Truck.TANK_LITERS)<=0
-        or v.service and v.service.mechanicalFailure then Rail.stop(v);return false,0,'engine' end
+    local powerReason=require('src.commute.truck_power').reason(v)
+    if powerReason then Rail.stop(v);return false,0,powerReason end
     local speed=math.min(options.speed or 2.4,(v.speed or 0)+1.5*dt,
         math.sqrt(6*math.max(offset,length-r.station)))
     local advance=math.min(length-r.station,speed*dt)

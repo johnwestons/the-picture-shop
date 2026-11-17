@@ -225,6 +225,9 @@ function Procurement.buy(state, categoryIndex, itemIndex, channel, shippingServi
     if not price or not quantity then return false, "That product is not offered through this sales channel." end
     local totalPrice=price+deliveryFeeCents/100
     if (state.money or 0)<totalPrice then return false,"Not enough money for this purchase and delivery." end
+    if not require('src.history_retention').procurement(state,true) then
+        return false,'Receive outstanding deliveries and use existing stock before placing more supply orders.'
+    end
     local number = procurement.nextOrderId
     procurement.nextOrderId = number + 1
     local id = string.format("PO-%04d", number)
@@ -458,7 +461,7 @@ function Procurement.orderById(state, orderId)
     for _, order in ipairs(procurement.orders) do if order.id == orderId then return order end end
 end
 
-function Procurement.nextInbound(state)
+function Procurement.nextInbound(state, canSchedule)
     if not BusinessCalendar.isBusinessOpen(state) then return nil end
     local now = BusinessCalendar.absoluteHours(state)
     for _, shipment in ipairs(ensure(state).shipments) do
@@ -468,6 +471,7 @@ function Procurement.nextInbound(state)
             and shipment.delivery and shipment.delivery.status ~= "received"
             and now >= (shipment.delivery.expectedAtHours or math.huge)
             and Procurement.remainingOnTruck(state, shipment.id) > 0
+            and (not canSchedule or canSchedule(shipment))
         then return shipment end
     end
 end

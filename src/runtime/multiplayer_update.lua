@@ -24,6 +24,20 @@ local function updateTaskVisual(player, action, dt, now)
 end
 
 function Component.install(Runtime)
+    function Runtime.predictionKey(player)
+        if not player then return nil end
+        local scene=player.sceneId or 'warehouse'
+        local trip=Runtime.state.home and Runtime.state.home.commute
+        if trip and trip.participants[require('src.home_residents').key(player)] then
+            return require('src.commute.runtime').predictionKey(Runtime,player)
+        end
+        local jack=Runtime.state.palletJack
+        local lift=Runtime.state.forklift
+        if jack and jack.operating and jack.operatorPlayerId==player.id
+            or lift and lift.operating and lift.operatorPlayerId==player.id then return nil end
+        if scene=='commute' or scene=='grocery' or scene=='barn' then return nil end
+        return scene..'_walk'
+    end
     local remoteMopStamps=0
     local remoteMopTasks={}
     function Runtime.performWorkshopRequest(player, operation, payload)
@@ -116,6 +130,19 @@ function Component.install(Runtime)
             Runtime.workshopAuthority:touchPlayer(Runtime.localAuthorityPlayer())
         end
         Runtime.multiplayer:update(dt, {
+            predictionKey=Runtime.predictionKey,
+            predictionEnabled=Runtime.state.screen=='world',
+            predictLocal=function(moveDt,x,y,boost)
+                if not require('src.commute.runtime').predictMovement(Runtime,moveDt,x,y,boost) then
+                    Runtime.World.updateRemotePlayer(Runtime.World.player,moveDt,x,y,Runtime.Assets,Runtime.state)
+                end
+            end,
+            requiresPhysicsPrediction=function(player)
+                local trip=Runtime.state.home and Runtime.state.home.commute
+                return trip and trip.participants[require('src.home_residents').key(player)]~=nil
+            end,
+            restorePhysicsPrediction=function(snapshot)return require('src.commute.runtime').restorePrediction(Runtime,snapshot)end,
+            getPredictionSnapshot=function(player)return require('src.commute.runtime').predictionSnapshot(Runtime,player)end,
             localPlayer = localPlayer,
             getBikeMotion = function(id)
                 local trip=Runtime.state.home and Runtime.state.home.commute
@@ -148,9 +175,12 @@ function Component.install(Runtime)
             combatButtons = Runtime.kombatButtons or 0,
             arcade = Runtime.state.screen=='critter_kombat'
                 and require('src.screens.critter_crisis_screen').arcadeInputs(Runtime) or nil,
-            moveRemote = function(player, moveDt, moveX, moveY)
+            moveRemote = function(player, moveDt, moveX, moveY, boost)
                 local trip=Runtime.state.home and Runtime.state.home.commute
-                if trip and trip.participants[require('src.home_residents').key(player)] then return end
+                if trip and trip.participants[require('src.home_residents').key(player)] then
+                    require('src.commute.runtime').stepRemoteMovement(Runtime,player,moveDt,moveX,moveY,boost)
+                    return
+                end
                 if require('src.story_grand_opening').active(Runtime) then moveX,moveY=0,0 end
                 if require("src.basketball").isCharging(player.id) then moveX,moveY=0,0 end
                 local startX,startY=player.x,player.y
@@ -267,12 +297,17 @@ function Component.install(Runtime)
                 return Runtime.World.resolveNetworkSpawn(hostX, hostY, guestIndex, Runtime.Assets, Runtime.state, players)
             end,
             getShopSnapshot = function()
-                local snapshot=Runtime.SaveSchema.snapshot(Runtime.state)
+                local live=require('src.net.shop_replication').project(Runtime.state)
+                local snapshot=Runtime.SaveSchema.snapshot(live)
                 if snapshot then snapshot.notifications=nil;snapshot.tutorial=nil end
                 return {
                     state = snapshot,
                     player = Runtime.World.snapshot(),
                 }
+            end,
+            getShopHistory = function()
+                local _,history=require('src.net.shop_replication').project(Runtime.state)
+                return history
             end,
             getVisitorSnapshot = function()
                 return {
@@ -390,6 +425,7 @@ function Component.install(Runtime)
                     end)
                 end
                 local okay,code,message,kind=Runtime.World.performNetworkInteraction(player, Runtime.state, targetKind, desiredState,shotAim,signature)
+                if okay and targetKind=='itemTrade' then Runtime.saveCurrent() end
                 if okay and targetKind=='deliverySignature' then Runtime.saveCurrent() end
                 if okay and targetKind=="roomStock" and code=="accepted" then Runtime.saveCurrent() end
                 if okay and targetKind=="restoration" and code=="accepted" then Runtime.saveCurrent() end

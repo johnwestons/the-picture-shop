@@ -12,6 +12,7 @@ local EmployeeHighFive=require("src.employee_high_five")
 local Renderer={}
 local Bubble=require("src.speech_bubble")
 local bubbleFont
+local tradeFont
 local function gaitFrameCount(assets,character,action)
     local count=assets and assets.getFrameCount and assets.getFrameCount(character,action)
     return count and count>0 and count or 8
@@ -194,6 +195,17 @@ function Renderer.draw(entry,characterAssets,state)
     if entry.application and a.phase=="waiting" then
         love.graphics.setColor(.96,.85,.42,1)
         love.graphics.printf("APPLICANT",a.x-44,a.y-94,88,"center")
+    end
+    if entry.worker and require('src.item_trade').employeeOffer(state,entry.worker) then
+        local x,y=a.x+24,a.y-92
+        tradeFont=tradeFont or love.graphics.newFont(9)
+        love.graphics.push('all')
+        love.graphics.setFont(tradeFont)
+        love.graphics.setColor(.025,.12,.14,.96);love.graphics.rectangle('fill',x-27,y-9,54,18,5,5)
+        love.graphics.setColor(.98,.80,.27,1);love.graphics.setLineWidth(1.5)
+        love.graphics.rectangle('line',x-27,y-9,54,18,5,5)
+        love.graphics.printf('TRADE',x-26,y-5,52,'center')
+        love.graphics.pop()
     end
 end
 function Renderer.bubbleLayout(message,font)

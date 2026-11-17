@@ -4,7 +4,31 @@ local State=require('src.state')
 local Calendar=require('src.business_calendar')
 local Schema=require('src.save_schema')
 local Test={}
+function Test.retention(check)
+    local state=State.new()
+    for i=1,125 do Book.expense(state,'Purchase '..i,i,'Supplier','Shop','Paid') end
+    check('archive_keeps_only_the_newest_100_receipts',#state.receipts.entries==100
+        and state.receipts.entries[1].id==26 and state.receipts.entries[100].id==125 and state.receipts.nextId==126)
+    local _,added=Book.add(state,{source='event:125'})
+    check('archive_duplicate_does_not_evict_another_receipt',not added and #state.receipts.entries==100
+        and state.receipts.entries[1].id==26 and state.receipts.nextId==126)
+    local legacy={version=1,nextId=151,entries={}}
+    for i=1,150 do
+        local row=Schema.copy(state.receipts.entries[1]);row.id=i;row.source='old:'..i
+        legacy.entries[i]=row
+    end
+    state.receipts=legacy
+    local snapshot=assert(Schema.snapshot(state))
+    local loaded=State.new();assert(State.applyLocalSave(loaded,{state=state,slot=1}))
+    check('archive_old_saves_and_new_save_snapshots_trim_to_100',#snapshot.receipts.entries==100
+        and snapshot.receipts.entries[1].id==51 and #loaded.receipts.entries==100
+        and loaded.receipts.entries[100].id==150 and loaded.receipts.nextId==151)
+    Book.expense(loaded,'Next purchase',100,'Supplier','Shop','Paid')
+    check('archive_eviction_preserves_monotonic_ids_after_loading',loaded.receipts.entries[1].id==52
+        and loaded.receipts.entries[100].id==151 and loaded.receipts.nextId==152)
+end
 function Test.run(context,check)
+    Test.retention(check)
     local state=State.new();state.money=100000
     local pad={x=10,y=20,width=520,height=82}
     local strokes={{18,66,45,29,42,88,82,43,100,66,134,33,170,77},{200,60,235,53,260,68}}

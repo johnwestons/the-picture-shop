@@ -178,6 +178,9 @@ function Component.install(Runtime)
     function Runtime.JobService.acceptOffer(state, job, timestamp)
         if type(state) ~= "table" or type(job) ~= "table" then return false, "state and job are required" end
         if job.status ~= "offered" then return false, "This customer offer is no longer available." end
+        if not require('src.history_retention').canAcceptJob(state) then
+            return false,'Finish active jobs or resolve customer cases before accepting more work.'
+        end
         if job.status=="offered" and not job.quote.playerPrice then
             local terms=Runtime.JobService.quoteTerms(state,job)
             job.quote.totalPrice=terms.amount;job.quote.recommendedPrice=terms.recommendedPrice
@@ -250,6 +253,7 @@ function Component.install(Runtime)
         if not declined then return false, errorMessage end
         Runtime.prepareCollections(state)
         state.jobs.declined[#state.jobs.declined + 1] = job
+        require('src.history_retention').enforce(state)
         if job.requestChannel ~= "email" then state.nextJobId = Runtime.nextSequence(state) + 1 end
         return true, job
     end

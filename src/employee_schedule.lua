@@ -304,26 +304,7 @@ local function needsMachinePalletTransfer(state,w,stage,machine,pallet,reason)
     end
     return false
 end
-function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
-    local job=Schedule.job(state,row.jobId)
-    if not job then return nil,nil,nil,"Scheduled job is no longer available" end
-    if not Schedule.stockArrived(job) then return nil,nil,nil,"Waiting until every skid for this job reaches the shop" end
-    local pallet,nextPallet
-    local _,_,scheduledPallet=Schedule.progress(job)
-    if preferredPalletId then
-        for _,candidate in ipairs(job.pallets or {}) do
-            if candidate.id==preferredPalletId and not finalPallet(candidate) then pallet=candidate;break end
-        end
-    end
-    nextPallet=scheduledPallet
-    if pallet and Schedule.stage(job,pallet)=="wrapping"
-        and nextPallet and Schedule.stage(job,nextPallet)~="wrapping"
-        and w.carryingPalletId~=pallet.id and not (require("src.pallet_jack_fleet").owned(state,w.id)
-            and require("src.pallet_jack_fleet").owned(state,w.id).carriedPalletId==pallet.id) then
-        pallet=nil
-    end
-    if not pallet then pallet=nextPallet end
-    if not pallet then return nil,nil,nil end
+local function resolvePallet(state,w,job,pallet,canClaim)
     local stage=Schedule.stage(job,pallet)
     local allowed,skillReason=Schedule.skillAllows(w,job,stage)
     if not allowed then
@@ -387,6 +368,40 @@ function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
     if playerOccupied then failure="Waiting for the player to release this machine"
     elseif employeeOccupied then failure="Waiting for another employee to release this machine" end
     return stage,nil,pallet,failure,nil,blockedKind
+end
+function Schedule.resolve(state,w,row,preferredPalletId,canClaim)
+    local job=Schedule.job(state,row.jobId)
+    if not job then return nil,nil,nil,"Scheduled job is no longer available" end
+    if not Schedule.stockArrived(job) then return nil,nil,nil,"Waiting until every skid for this job reaches the shop" end
+    local jack=require("src.pallet_jack_fleet").owned(state,w.id)
+    local carriedId=w.carryingPalletId or jack and jack.carriedPalletId
+    local _,_,nextPallet=Schedule.progress(job)
+    local preferredId=carriedId or preferredPalletId
+    for _,pallet in ipairs(job.pallets or {}) do
+        if pallet.id==preferredId and Schedule.stage(job,pallet) then
+            -- Keep an active assignment or load attached to its skid. A blocked
+            -- scheduled assignment yields safely in Work.update before retrying.
+            if carriedId or Schedule.stage(job,pallet)~="wrapping"
+                or not nextPallet or Schedule.stage(job,nextPallet)=="wrapping" then
+                return resolvePallet(state,w,job,pallet,canClaim)
+            end
+            break
+        end
+    end
+    local firstBlocked
+    -- Prefer cutting/printing, but let runnable skids pass a drying or blocked
+    -- skid. Finishing can also proceed when all remaining production must wait.
+    for _,finishing in ipairs({false,true}) do
+        for _,pallet in ipairs(job.pallets or {}) do
+            local stage=Schedule.stage(job,pallet)
+            if stage and (stage=="wrapping")==finishing then
+                local result={resolvePallet(state,w,job,pallet,canClaim)}
+                if result[2] then return unpack(result,1,6) end
+                firstBlocked=firstBlocked or result
+            end
+        end
+    end
+    if firstBlocked then return unpack(firstBlocked,1,6) end
 end
 local function nextShiftStart(w,now)
     if Contracts.onShift(w.contract,now) then return now end

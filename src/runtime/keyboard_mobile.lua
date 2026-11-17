@@ -10,6 +10,7 @@ local function mobileActionLabel(Runtime, selected)
     if kind=="homeActivity" then return target.actionLabel or "USE" end
     if kind=="homeDelivery" then return "RECEIVE" end
     if kind == "applicant" or kind == "employeeHighFive" then return target.actionLabel or "TALK" end
+    if kind=="itemTradePlayer" or kind=="employeeTrade" then return target.actionLabel or "TRADE" end
     if kind=="deliverySignature" then return "SIGN" end
     if kind == "workPhone" then
         return target.actionLabel or (Runtime.state.workPhone and Runtime.state.workPhone.incoming
@@ -107,6 +108,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.dispatchKeyPressed(key)
+        if Runtime.state.screen=='trade' then return require('src.screens.trade_screen').keypressed(Runtime,key) end
         if key=='i' and Runtime.state.screen=='world' then return require('src.home_activity_controls').keypressed(key,Runtime) end
         if require('src.screens.notifications_screen').keypressed(Runtime,key) then return true end
         if require('src.commute.runtime').keypressed(Runtime,key) then return true end

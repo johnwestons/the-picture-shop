@@ -8,6 +8,7 @@ local function bikeProduct(id)
     local product=Catalog.PRODUCTS[id]
     return product and (product.group=='groceries' or product.group=='takeout') and product or nil
 end
+function Cargo.isTradeableProduct(id) return bikeProduct(id)~=nil end
 function Cargo.new()
     return {version=Cargo.VERSION,revision=0,items={}}
 end

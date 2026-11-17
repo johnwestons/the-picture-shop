@@ -13,7 +13,20 @@ local CONTROL_LAYOUT_VIEWS = {
 local CONTROL_LAYOUT_KEYS = {
     "joystick", "primary", "extra1", "extra2", "stick",
     "touch1", "touch2", "touch3", "touch4", "touch5", "touch6", "move", "use",
+    "netStatus", "session", "pockets",
 }
+local OVERLAY_KEYS = { "netStatus", "session", "pockets" }
+local function overlayDefaults(host)
+    return host and {
+        netStatus = { x = 0.72, y = 0.07 },
+        session = { x = 0.72, y = 0.15 },
+        pockets = { x = 0.90, y = 0.15 },
+    } or {
+        netStatus = { x = 0.80, y = 0.142 },
+        session = { x = 0.908, y = 0.202 },
+        pockets = { x = 0.922, y = 0.605 },
+    }
+end
 local DEFAULTS = {
     dynamicShadows=true,vegetationShadows=false,shadowDistance='medium',renderDistance='medium',
     playerName = PlayerProfile.DEFAULT_NAME,
@@ -232,7 +245,7 @@ function Settings.controlLayoutViews()
     }
 end
 
-function Settings.controlLayoutFor(value, view)
+function Settings.controlLayoutFor(value, view, host)
     value = Settings.normalize(value)
     local profile = view and value.controlLayoutProfiles[view]
     local result
@@ -261,6 +274,13 @@ function Settings.controlLayoutFor(value, view)
             if profile and profile[key] then result[key] = { x = profile[key].x, y = profile[key].y } end
         end
     end
+    if view ~= "overworld" and view ~= "motorcycle" and view ~= "truck" then
+        local defaults, shared = overlayDefaults(host), value.controlLayoutProfiles.shared or {}
+        for _, key in ipairs(OVERLAY_KEYS) do
+            local point = profile and profile[key] or shared[key] or defaults[key]
+            result[key] = { x = point.x, y = point.y }
+        end
+    end
     return result
 end
 
@@ -270,6 +290,11 @@ function Settings.setControlLayout(value, view, layout, selectedKey)
     if view == "shared" or not view then
         value.controlLayout = normalizeLayout(layout)
         value.controlLayoutProfiles.shared = value.controlLayoutProfiles.shared or {}
+        for _, key in ipairs(OVERLAY_KEYS) do
+            if (not selectedKey or selectedKey == key) and type(layout[key]) == "table" then
+                value.controlLayoutProfiles.shared[key] = normalizePoint(layout[key], overlayDefaults(false)[key])
+            end
+        end
         local keys = selectedKey == "joystick" and { { "move", "joystick" } }
             or selectedKey == "primary" and { { "use", "primary" } }
             or selectedKey == nil and { { "move", "joystick" }, { "use", "primary" } }
@@ -287,7 +312,7 @@ function Settings.setControlLayout(value, view, layout, selectedKey)
         value.controlLayoutProfiles[view] = value.controlLayoutProfiles[view] or {}
         local keys = (view == "overworld" or view == "motorcycle" or view == "truck")
             and { "stick", "touch1", "touch2", "touch3", "touch4", "touch5", "touch6" }
-            or { "joystick", "primary", "extra1", "extra2" }
+            or { "joystick", "primary", "extra1", "extra2", "netStatus", "session", "pockets" }
         for _, key in ipairs(keys) do
             if not selectedKey or selectedKey == key then
                 local point = layout[key]

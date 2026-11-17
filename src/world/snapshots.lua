@@ -101,22 +101,11 @@ function Component.install(Runtime)
     function Runtime.World.applyVisitorSnapshot(customer, vendor)
         if type(customer) ~= "table" or type(vendor) ~= "table" then return false end
         -- Network protocol validation is atomic before this seam is reached.
-        local previousCustomerState, previousCustomerCharacter =
-            Runtime.World.customer.state, Runtime.World.customer.character
-        local previousVendorState, previousVendorCharacter =
-            Runtime.World.vendor.state, Runtime.World.vendor.character
         local customerApplied = Runtime.World.customer:applySnapshot(customer)
         local vendorApplied = Runtime.World.vendor:applySnapshot(vendor)
         if not customerApplied or not vendorApplied then return false end
-        local visitors = require("src.commute.visitor_commute")
-        local state = Runtime.World._state or Runtime.state
-        local hours = state and Runtime.BusinessCalendar.absoluteHours(state)
-        if previousCustomerState == "exiting" and customer.state == "scheduled" then
-            visitors.depart(state, "customer", previousCustomerCharacter, hours)
-        end
-        if previousVendorState == "exiting" and vendor.state == "scheduled" then
-            visitors.depart(state, "vendor", previousVendorCharacter, hours)
-        end
+        -- Outdoor visitor progress is saved and replicated by the host with
+        -- the shop. Applying an indoor snapshot must not invent a guest trip.
         return true
     end
 

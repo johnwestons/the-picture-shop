@@ -2,8 +2,26 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local Background = require("src.background_warehouse")
+-- A full durable state rebuild stalls mobile clients; routine simulation
+-- changes share one update while direct player actions still sync at once.
+local BACKGROUND_SHOP_SYNC_INTERVAL = 1.5
 
 function Component.install(Runtime)
+    local function syncBackgroundShop(dt, changed)
+        if not Runtime.multiplayer:isHost() then
+            Runtime.App.gameClockSyncClock = 0
+            Runtime.App.backgroundShopDirty = false
+            return
+        end
+        if changed then Runtime.App.backgroundShopDirty = true end
+        if not Runtime.App.backgroundShopDirty then return end
+        Runtime.App.gameClockSyncClock = (Runtime.App.gameClockSyncClock or 0) + dt
+        if Runtime.App.gameClockSyncClock >= BACKGROUND_SHOP_SYNC_INTERVAL then
+            Runtime.App.gameClockSyncClock = 0
+            Runtime.App.backgroundShopDirty = false
+            Runtime.multiplayer:markShopDirty()
+        end
+    end
     Runtime.serviceNetworkBeforeMachine = function(dt, targetState, networkService, windmillService)
         networkService()
         local machineDurable = Runtime.Machine.updateAll(dt, targetState)
@@ -135,6 +153,7 @@ function Component.install(Runtime)
         if not headlessServer then require("src.basketball_controls").update(dt,Runtime) end
         local saveNeeded = false
         local checkpointNeeded = false
+        local warehouseChanged = false
         local networkInputX, networkInputY, networkInputBoost = 0, 0, false
         Runtime.airHockeyInputX,Runtime.airHockeyInputY=0,0
         Runtime.kombatInputX,Runtime.kombatButtons,Runtime.kombatInputY=0,0,0
@@ -155,15 +174,8 @@ function Component.install(Runtime)
         if not Runtime.multiplayer:isClient() and simulationActive then
             gameDt = dt * (Runtime.App.gameClockSpeed or 1)
         end
-        if Runtime.multiplayer:isHost() and simulationActive and Runtime.App.gameClockSpeed > 1 then
-            Runtime.App.gameClockSyncClock = Runtime.App.gameClockSyncClock + dt
-            if Runtime.App.gameClockSyncClock >= 0.25 then
-                Runtime.App.gameClockSyncClock = Runtime.App.gameClockSyncClock % 0.25
-                Runtime.multiplayer:markShopDirty()
-            end
-        else
-            Runtime.App.gameClockSyncClock = 0
-        end
+        local acceleratedClock = Runtime.multiplayer:isHost() and simulationActive
+            and Runtime.App.gameClockSpeed > 1
         if not Runtime.multiplayer:isClient() and simulationActive and Runtime.App.gameClockSpeed > 1 then
             Runtime.App.gameClockSaveClock = Runtime.App.gameClockSaveClock + dt
             if Runtime.App.gameClockSaveClock >= 5 then
@@ -241,11 +253,10 @@ function Component.install(Runtime)
                 and Runtime.state.forklift.operatorPlayerId==1 then
                 Runtime.World.updateNetworkForklift(Runtime.World.player,0,0,0,Runtime.Assets,Runtime.state)
             end
-            local warehouseChanged=not closed and not wasClosed and Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
+            warehouseChanged=not closed and not wasClosed and Runtime.World.updateWarehouse(gameDt,Runtime.state,Runtime.Assets)
             local phoneChanged = Runtime.WorkPhone.update(Runtime.state, dt)
             if calendarChanged or emailArrived or technicianChanged or phoneChanged then saveNeeded = true end
             Runtime.warehouseSaveClock=Runtime.warehouseSaveClock+dt
-            if warehouseChanged and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty() end
             if Runtime.warehouseSaveClock>=1 and (warehouseChanged or Runtime.state.constructionWorker) then
                 checkpointNeeded = true; Runtime.warehouseSaveClock=0
             end
@@ -290,7 +301,8 @@ function Component.install(Runtime)
                         Runtime.Assets, Runtime.state, cursorX, cursorY)
                 else
                     Runtime.World.updateNetworkPlayer(
-                        dt, directionX, directionY, Runtime.Assets, Runtime.state, cursorX, cursorY)
+                        dt, directionX, directionY, Runtime.Assets, Runtime.state, cursorX, cursorY,
+                        Runtime.multiplayer.ready and Runtime.predictionKey(Runtime.World.player)~=nil)
                 end
             else
                 local cursorX, cursorY
@@ -417,8 +429,10 @@ function Component.install(Runtime)
             if Runtime.App.mobileCamera then Runtime.App.mobileCamera:update(dt) end
         end
         -- Commit the final frame once when several simulations change together.
+        if not Runtime.multiplayer:isClient() then require('src.history_retention').enforce(Runtime.state) end
+        syncBackgroundShop(dt, acceleratedClock or warehouseChanged or saveNeeded)
         if saveNeeded then
-            local saved = Runtime.saveCurrent()
+            local saved = Runtime.saveCurrent(false, false)
             Runtime.updateCheckpoint(dt,not saved)
         else
             Runtime.updateCheckpoint(dt,checkpointNeeded)

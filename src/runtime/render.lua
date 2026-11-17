@@ -71,9 +71,10 @@ function Component.install(Runtime)
             require('src.commute.runtime').draw(Runtime)
             if pocketMenu then require('src.home_activity_controls').draw(Runtime) end
             if Runtime.state.screen=='world' then
+                local pocket=require('src.screens.world_overlay_layout').pockets(Runtime)
                 love.graphics.push('all');love.graphics.setColor(.06,.12,.15,.9)
-                love.graphics.rectangle('fill',820,390,130,40,6)
-                love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',825,400,120,'center');love.graphics.pop()
+                love.graphics.rectangle('fill',pocket.x,pocket.y,pocket.width,pocket.height,6)
+                love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',pocket.x+5,pocket.y+10,pocket.width-10,'center');love.graphics.pop()
             end
             if portableUtilities then require('src.shop_room_controls').draw(Runtime) end
             if Runtime.World.player.sceneId=='grocery' or Runtime.World.player.sceneId=='barn' then
@@ -207,6 +208,8 @@ function Component.install(Runtime)
                 require("src.home_travel_controls").draw(Runtime)
             elseif Runtime.state.screen == "home_activity" then
                 require("src.home_activity_controls").draw(Runtime)
+            elseif Runtime.state.screen == "trade" then
+                require('src.screens.trade_screen').draw(Runtime)
             elseif Runtime.state.screen == "home_furnish" then
                 require("src.home_furniture_controls").draw(Runtime)
             elseif Runtime.state.screen == "air_hockey" then
@@ -238,12 +241,12 @@ function Component.install(Runtime)
             elseif Runtime.state.screen == "delivery_signature" then
                 Runtime.RuntimeDependencies.DeliverySignatureScreen.draw(Runtime.state, Runtime.Assets, mouseX, mouseY)
             end
-            if Runtime.state.screen~='delivery_signature'
+            if Runtime.state.screen~='delivery_signature' and Runtime.state.screen~='trade'
                 and (Runtime.state.screen~='world' or showHud) then
                 Runtime.warehouseControls:draw(Runtime.Assets)
             end
         end
-        if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error"
+        if Runtime.state.screen ~= "options" and Runtime.state.screen ~= "asset_error" and Runtime.state.screen~='trade'
             and not require('src.screens.warehouse_hud').active(Runtime) then
             local _, accessBounds = Runtime.optionsAccessLayout()
             local hud=require('src.screens.warehouse_hud')
@@ -267,15 +270,16 @@ function Component.install(Runtime)
             Runtime.Viewport.drawGutters(Runtime.Config.baseWidth,Runtime.Config.baseHeight)
         end
         Runtime.Ui.drawPressFeedback()
-        if Runtime.controller and Runtime.state.screen~='delivery_signature'
+        if Runtime.controller and Runtime.state.screen~='delivery_signature' and Runtime.state.screen~='trade'
             and (Runtime.state.screen~='world' or showHud) then Runtime.controller:draw() end
         if mobileUi then Runtime.App.mobileCamera:endDraw() end
-        if Runtime.mobileControls and Runtime.state.screen~='delivery_signature'
+        if Runtime.mobileControls and Runtime.state.screen~='delivery_signature' and Runtime.state.screen~='trade'
             and (Runtime.state.screen~='world' or showHud) then Runtime.mobileControls:draw() end
         if Runtime.state.screen=='world' then
+            local pocket=require('src.screens.world_overlay_layout').pockets(Runtime)
             love.graphics.push('all')
-            love.graphics.setColor(.06,.12,.15,.9);love.graphics.rectangle('fill',820,390,130,40,6)
-            love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',825,400,120,'center')
+            love.graphics.setColor(.06,.12,.15,.9);love.graphics.rectangle('fill',pocket.x,pocket.y,pocket.width,pocket.height,6)
+            love.graphics.setColor(1,1,1,1);love.graphics.printf('I  POCKETS',pocket.x+5,pocket.y+10,pocket.width-10,'center')
             love.graphics.pop()
         end
         require('src.medical_ui').draw(Runtime)

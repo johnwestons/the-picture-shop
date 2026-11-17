@@ -1,8 +1,27 @@
 local Test = {}
 local MobileControls = require("src.mobile_controls")
 local OptionsScreen = require("src.screens.options_screen")
+local OverlayLayout = require("src.screens.world_overlay_layout")
 
 function Test.run(context, check)
+    local hostLayout = context.Settings.controlLayoutFor({}, 'warehouse', true)
+    local guestLayout = context.Settings.controlLayoutFor({}, 'warehouse', false)
+    check('options_host_overlay_controls_start_near_top',
+        hostLayout.netStatus.y < guestLayout.netStatus.y
+        and hostLayout.session.y < guestLayout.session.y
+        and hostLayout.pockets.y < guestLayout.pockets.y
+        and hostLayout.session.x < hostLayout.pockets.x)
+    local moved = context.Settings.setControlLayout({}, 'warehouse', {
+        pockets = { x = .65, y = .25 },
+    }, 'pockets')
+    local movedLayout = context.Settings.controlLayoutFor(moved, 'warehouse', true)
+    local movedRect = OverlayLayout.rect(movedLayout, 'pockets', 130, 40, 820, 390)
+    check('options_warehouse_pockets_layout_moves_draw_and_hit_rectangle',
+        math.abs(movedRect.x + movedRect.width / 2 - .65 * 960) < .01
+        and math.abs(movedRect.y + movedRect.height / 2 - .25 * 678) < .01)
+    check('options_warehouse_overlay_does_not_move_other_views',
+        context.Settings.controlLayoutFor(moved, 'home', true).pockets.y
+            == hostLayout.pockets.y)
     local normalized = context.Settings.normalize({
         fullscreen = true,
         vsync = false,
@@ -44,6 +63,29 @@ function Test.run(context, check)
         persistenceOk = ok and result == true
     end
     check("options_lan_connection_preferences_persist_and_reload", persistenceOk)
+
+    local overlayPersistenceOk = false
+    if filesystem then
+        local previousGetInfo, previousRead, previousWrite =
+            filesystem.getInfo, filesystem.read, filesystem.write
+        local stored
+        local ok, result = pcall(function()
+            filesystem.getInfo = function(path) return path == 'settings.lua' and stored ~= nil end
+            filesystem.read = function() return stored end
+            filesystem.write = function(_, source) stored = source; return true end
+            local saved = context.Settings.save(moved)
+            local loaded = context.Settings.load()
+            local warehouse = context.Settings.controlLayoutFor(loaded, 'warehouse', true)
+            local home = context.Settings.controlLayoutFor(loaded, 'home', true)
+            return saved and math.abs(warehouse.pockets.x - .65) < .001
+                and math.abs(warehouse.pockets.y - .25) < .001
+                and home.pockets.y == hostLayout.pockets.y
+        end)
+        filesystem.getInfo, filesystem.read, filesystem.write =
+            previousGetInfo, previousRead, previousWrite
+        overlayPersistenceOk = ok and result == true
+    end
+    check('options_warehouse_overlay_position_survives_save_load', overlayPersistenceOk)
 
     local positioned = MobileControls.new({
         enabled = false,
@@ -88,6 +130,16 @@ function Test.run(context, check)
         OptionsScreen.isControlsTab() and layoutCommits == 1
         and math.abs(previewLayout.joystick.x - ((410 - 205) / 550)) < 0.001
         and math.abs(previewLayout.joystick.y - ((350 - 176) / 238)) < 0.001)
+    previewLayout = context.Settings.controlLayoutFor(normalized, 'warehouse', true)
+    OptionsScreen.selectedControlView = 'warehouse'
+    OptionsScreen.mousepressed(700, 212, 1)
+    OptionsScreen.mousemoved(660, 250)
+    OptionsScreen.mousereleased(660, 250, 1)
+    check('options_controls_preview_drags_host_pockets_button',
+        layoutCommits == 2
+        and math.abs(previewLayout.pockets.x - ((660 - 205) / 550)) < .001
+        and math.abs(previewLayout.pockets.y - ((250 - 176) / 238)) < .001)
+    OptionsScreen.selectedControlView = 'shared'
 
     local state = context.State.new()
     state.activeSlot = 1

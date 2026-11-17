@@ -64,8 +64,9 @@ function Test.run(context,check)
     local city={kind='city',id='industrial',label='Industrial customer',jobIds={job.id}}
     local before=state.money
     local okay,reason=Run.completeStop(state,city)
-    check('business_industrial_handoff_rejected_without_payment',not okay and reason:find('Receiving is closed',1,true)
-        and state.money==before and #state.jobs.completed==0)
+    check('business_city_handoff_is_not_blocked_after_receiving_close',not okay
+        and reason:find('The delivery is not loaded.',1,true) and state.money==before
+        and #state.jobs.completed==0)
     check('business_retail_open_saturday_and_sunday',Run.nextStopOpen(state,{kind='town',id='grocery'},60)==60
         and Run.nextStopOpen(state,{kind='town',id='gas-station'},84)==84)
     check('business_retail_still_closes_at_night',Run.nextStopOpen(state,{kind='town',id='grocery'},50)==55

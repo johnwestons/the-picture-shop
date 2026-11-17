@@ -32,6 +32,7 @@ function Component.install(Runtime)
             lastServerTick = -1,
             lastFightTick = -1,
             fightMatches = {},
+            hockeyTicks = {},
             crisisSessions = {},
             crisisTicks = {},
             crisisFrames = {},
@@ -137,6 +138,8 @@ function Component.install(Runtime)
         self.serverTick = 0
         self.lastServerTick = -1
         self.lastFightTick = -1
+        self.hockeyTicks = {}
+        self.roomGames = {}
         self.fightMatches = {}
         self.crisisSessions = {}
         self.crisisTicks = {}
@@ -146,6 +149,13 @@ function Component.install(Runtime)
         self.lastPlayerTicks = {}
         self.roomBalls,self.roomBallTicks={},{}
         self.inputSequence = 0
+        self.commandPrediction=nil;self.commandPredictionActive=false
+        if self.predictedPlayer then
+            self.predictedPlayer._movementPredicted=false;self.predictedPlayer._predictedCommute=nil
+        end
+        self.predictedPlayer=nil
+        self.lastPredictionTick=nil;self.lastPredictionCorrection=nil
+        self.physicsAssembly=nil;self.physicsPredictionSnapshot=nil;self.lastPhysicsPredictionTick=nil
         self.inputAccumulator = 0
         self.snapshotAccumulator = 0
         self.shopStateAccumulator = 0
@@ -153,6 +163,12 @@ function Component.install(Runtime)
         self.broadcastTownId=nil
         self.receivedTown=nil
         self.shopRevision = 0
+        self.shopPeers={}
+        self.shopHistory=nil
+        self.receivedShop=nil
+        self.historyAssembly=nil
+        self.historyAccumulator=0
+        self.pendingShopStates=nil
         self.lastShopRevision = -1
         self.radioRevision = 0
         self.radioState = { trackIndex = 1, active = false, paused = true, muted = false, positionMs = 0 }

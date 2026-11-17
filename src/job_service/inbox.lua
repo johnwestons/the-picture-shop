@@ -141,6 +141,7 @@ function Component.install(Runtime)
             jobId = email.job.id, response = response,
             respondedAtHours = Runtime.BusinessCalendar.absoluteHours(state),
         }
+        require('src.history_retention').trim(state.clientEmails.archive,100)
         return true, email.job
     end
 
@@ -161,6 +162,7 @@ function Component.install(Runtime)
             noticeKind = "service_notice",
             respondedAtHours = Runtime.BusinessCalendar.absoluteHours(state),
         }
+        require('src.history_retention').trim(emails.archive,100)
         return true, notice
     end
 

@@ -78,13 +78,15 @@ function Component.install(Runtime)
         if source.credit ~= nil and not Runtime.Credit.validState(source.credit) then
             return nil, "Invalid saved credit account."
         end
-        local result = Runtime.Schema.defaultState()
+        local home = Runtime.Home.normalize(source.home,
+            type(source.calendar)=="table" and source.calendar.totalDays or 0)
+        if not home then return nil,"Invalid household or apartment lease." end
+        -- A valid source household replaces the default. Do not build and
+        -- immediately discard another town and its character roster.
+        local result = Runtime.Schema.defaultState(home)
         result.notifications=require('src.notifications').normalize(source.notifications)
         result.tutorial=require('src.tutorial').normalize(source.tutorial)
         if not result.notifications or not result.tutorial then return nil,'Invalid notification or tutorial history.' end
-        result.home = Runtime.Home.normalize(source.home,
-            type(source.calendar)=="table" and source.calendar.totalDays or 0)
-        if not result.home then return nil,"Invalid household or apartment lease." end
         local warehouse, warehouseError = Runtime.WarehouseUpgrades.normalize(source.warehouse)
         if not warehouse then return nil, warehouseError end
         local stagingAreas, stagingError = Runtime.StagingAreas.normalize(source.stagingAreas)
@@ -116,8 +118,8 @@ function Component.install(Runtime)
         if Runtime.nonnegative(source.money) then result.money = source.money end
 
         if type(source.inventory) == "table" then
+            local defaults = result.inventory
             result.inventory = Runtime.copy(source.inventory)
-            local defaults = Runtime.Schema.defaultState().inventory
             for key, value in pairs(defaults) do
                 if result.inventory[key] == nil then result.inventory[key] = Runtime.copy(value) end
             end
@@ -217,6 +219,7 @@ function Component.install(Runtime)
         require("src.home_shopping").ensure(result)
         result.receipts=require('src.receipt_book').normalize(source.receipts,result)
         if not result.receipts then return nil,'Invalid receipt archive.' end
+        require('src.history_retention').enforce(result)
         return result
     end
 end

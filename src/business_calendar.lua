@@ -288,6 +288,7 @@ local function createInvoice(state)
     bills.balance = bills.balance + total
     bills.ledger[#bills.ledger + 1] = invoice
     require('src.receipt_book').invoice(state,invoice)
+    require('src.history_retention').bills(state)
     return invoice
 end
 
@@ -360,6 +361,7 @@ function Calendar.pay(state)
     if operating>0 then require("src.credit").recordBillsPaid(state, bills.ledger) end
     if state.employment then require("src.payroll").pay(state,Calendar.absoluteHours(state),false) end
     require('src.guest_payroll').advance(state,nil,0,0)
+    require('src.history_retention').bills(state)
     return true, amount
 end
 
@@ -384,6 +386,7 @@ function Calendar.addCharge(state, label, amount, reference, kind)
     bills.ledger[#bills.ledger + 1] = invoice
     require("src.household_finances").record(state,"refunds",amount*100)
     require('src.receipt_book').invoice(state,invoice)
+    require('src.history_retention').bills(state)
     return invoice
 end
 
@@ -404,6 +407,7 @@ function Calendar.recordPaidExpenseCents(state,label,amountCents,reference)
         total=amount,status="paid",kind="operating_expense",reference=reference,
         issuedOnDay=date.totalDays,paidOnDay=date.totalDays}
     require('src.receipt_book').invoice(state,bills.ledger[#bills.ledger])
+    require('src.history_retention').bills(state)
     return true,id
 end
 

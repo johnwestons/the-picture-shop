@@ -46,7 +46,8 @@ function Component.install(Runtime)
             preferredSlot = returnScreen == "title" and (Runtime.TitleScreen.selected or 1)
                 or Runtime.state.activeSlot or Runtime.TitleScreen.selected or 1,
             getControlLayout = function(view)
-                return Runtime.Settings.controlLayoutFor(Runtime.App.settings, view)
+                return Runtime.Settings.controlLayoutFor(Runtime.App.settings, view,
+                    Runtime.multiplayer:isHost())
             end,
             setControlLayout = function(layout, view, key)
                 applySettings(Runtime.Settings.setControlLayout(

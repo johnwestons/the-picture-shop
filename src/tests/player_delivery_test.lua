@@ -189,10 +189,26 @@ function Test.run(context,check)
     assert(Trip.command(state,player,t.token,'truck',world))
     local gate=world.mainlandExit;local dx,dz=math.cos(gate.heading),math.sin(gate.heading)
     truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
-    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*20/24
-    Trip.update(state,player,{drive=-1,steer=0},.1,world)
-    check('player_delivery_closed_city_gate_keeps_player_in_town_with_cargo',run.status=='driving'
-        and #state.jobs.completed==2 and truck.speed==0)
+    -- A Millhaven route stays available after the press receiving window closes.
+    -- Exercise it on a saved copy so the morning touch-control route below can
+    -- continue through the same integration scenario.
+    local lateState=Schema.copy(state)
+    local lateTrip=lateState.home.commute
+    lateTrip.participants.owner.rider.truck=lateTrip.truck
+    local lateRun=lateTrip.deliveryRun
+    local lateTruck=lateTrip.truck
+    lateState.calendar.elapsed=require('src.business_calendar').secondsPerDay(lateState)*20/24
+    lateTruck.x,lateTruck.z=gate.x-dx*15,gate.z-dz*15
+    lateTruck.heading=gate.heading;lateTruck.speed=0
+    local _,lateDrive=require('src.commute.bindings').drive(
+        require('src.commute.bindings').defaults(),{gripGas=.05,held={}},nil,lateTruck,true)
+    Trip.update(lateState,player,{drive=lateDrive,steer=0},.1,world)
+    check('player_delivery_city_gate_is_available_after_receiving_close',lateRun.status=='offmap'
+        and #lateState.jobs.completed==2 and math.abs(lateDrive+.05)<.001)
+    lateRun.cutsceneEndsAtEpoch=os.time()-1
+    Trip.update(lateState,player,{},.1,world)
+    check('player_delivery_millhaven_receiving_completes_after_close',#lateState.jobs.completed==4
+        and not lateTrip.deliveryRun and lateState.message:find('2 pallets delivered',1,true)~=nil)
     state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
     truck.x,truck.z=gate.x-dx*15,gate.z-dz*15;truck.heading=gate.heading;truck.speed=0
     local touchBindings=require('src.commute.bindings').defaults()
@@ -211,13 +227,6 @@ function Test.run(context,check)
         and bridgeTrip.participants.owner.rider.truck==bridgeTrip.truck)
     local beforeClosed=state.money
     state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*20/24
-    run.cutsceneEndsAtEpoch=os.time()-1
-    Trip.update(state,player,{},.1,world)
-    check('player_delivery_closing_during_trip_returns_undelivered_pallets_without_softlock',run.status=='driving'
-        and run.stopIndex==3 and #state.jobs.completed==2 and state.money==beforeClosed)
-    state.calendar.elapsed=require('src.business_calendar').secondsPerDay(state)*9/24
-    truck.x,truck.z=gate.x-dx*12,gate.z-dz*12;truck.heading=gate.heading;truck.speed=1
-    Trip.update(state,player,{drive=-1,steer=0},.1,world)
     local originalObstacles=world.vehicleObstacles
     world.vehicleObstacles=function()return true end
     run.cutsceneEndsAtEpoch=os.time()-1
@@ -226,7 +235,7 @@ function Test.run(context,check)
     world.vehicleObstacles=originalObstacles
     run.cutsceneEndsAtEpoch=os.time()-1
     Trip.update(state,player,{},.1,world)
-    check('player_delivery_single_city_trip_delivers_remaining_manifest',#state.jobs.completed==4
+    check('player_delivery_single_city_trip_delivers_remaining_manifest_after_close',#state.jobs.completed==4
         and not t.deliveryRun and not t.deliveryDriver and state.message:find('2 pallets delivered',1,true)~=nil)
     check('player_delivery_returns_on_bridge_facing_town',math.cos(truck.heading-gate.heading)<-.99
         and math.sqrt((truck.x-gate.x)^2+(truck.z-gate.z)^2)>=8-.01)

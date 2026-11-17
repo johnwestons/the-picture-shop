@@ -1,5 +1,5 @@
--- Clock-derived pedestrian and vehicle phases for NPC commutes. Walking uses
--- the character's authored walk sheets; boarding and leaving use its idle pose.
+-- Timetable phases sampled at saved host movement progress. Older journeys
+-- fall back to their clock pose until simulation first initializes progress.
 local Bays=require('src.commute.parking_bays')
 local Driving=require('src.commute.scheduled_driving')
 local Journey={WALK_HOURS=.04,BOARD_HOURS=.015,WALK_SPEED=1.3}
@@ -44,7 +44,7 @@ end
 -- Returns the motorcycle pose and, during the short access stages, an authored
 -- character actor. A missing site means the endpoint is off-map (for example,
 -- an employee commuting from the city), so no fake doorstep is introduced.
-function Journey.sample(journey,hours,world,route,fromSlot,toSlot)
+local function clockSample(journey,hours,world,route,fromSlot,toSlot)
     if type(journey)~='table' or not world or not route then return nil end
     local duration=journey.arriveAtHours-journey.departAtHours
     if duration<=0 then return nil end
@@ -117,4 +117,13 @@ function Journey.sample(journey,hours,world,route,fromSlot,toSlot)
     return {stage=stage,bike=bikePose,walker=walkActor}
 end
 
+function Journey.sample(journey,hours,world,route,fromSlot,toSlot)
+    if type(journey)~='table' then return nil end
+    return require('src.commute.scheduled_motion').sample(journey,hours,world,route,fromSlot,toSlot,clockSample)
+end
+function Journey.advance(entry,hours,dt,hourRate,world)
+    return require('src.commute.scheduled_motion').update(entry.journey,hours,dt,hourRate,world,
+        entry.route,entry.fromSlot,entry.toSlot,entry.actor,clockSample)
+end
+Journey.pending=require('src.commute.scheduled_motion').pending
 return Journey

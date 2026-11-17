@@ -12,6 +12,7 @@ function Component.install(Runtime)
         homeActivity = true,
         homeDelivery = true,
         homeFurniture = true,
+        itemTrade = true,
         shopRoom = true, roomStock = true, roomRest = true, roomGame = true, restoration = true,
     }
 
@@ -46,6 +47,7 @@ function Component.install(Runtime)
             or targetKind=='commute' and require('src.commute.runtime').decode(payload.desiredState)~=nil
             or targetKind=="homeActivity" and require("src.home_residents").validCommand(payload.desiredState)
             or targetKind=="homeDelivery" and payload.desiredState=="collect"
+            or targetKind=="itemTrade" and require('src.item_trade').validCommand(payload.desiredState)
             or targetKind=="homeFurniture" and require("src.home_furniture").decode(payload.desiredState)~=nil
             or targetKind=="homeTravel" and type(payload.desiredState)=="string" and (
                 #payload.desiredState<=24 and (payload.desiredState=="request" or payload.desiredState=="cancel"

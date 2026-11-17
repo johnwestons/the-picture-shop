@@ -68,6 +68,9 @@ function Component.install(Runtime)
             return false, "Hold the grand opening before requesting client job details."
         end
         if job.status ~= "offered" then return false, "job is no longer available for estimating" end
+        if not require('src.history_retention').canRequestEmailJob(state) then
+            return false,'Respond to an outstanding estimate before requesting more job details (100 maximum).'
+        end
         local email = Runtime.estimateRequestEmail(state, job)
         job.detailsRequestedAt = timestamp
         Runtime.ensureEmails(state).pending[#Runtime.ensureEmails(state).pending + 1] = email
@@ -155,6 +158,7 @@ function Component.install(Runtime)
 
     function Runtime.JobService.scheduleRepeatEmail(state, completedJob)
         if type(completedJob) ~= "table" or completedJob.status ~= "completed" then return false end
+        if not require('src.history_retention').canRequestEmailJob(state) then return false end
         local emails = Runtime.ensureEmails(state)
         local number = emails.nextEmailId
         local offer = Runtime.repeatOffer(state, completedJob, number)
@@ -323,6 +327,7 @@ function Component.install(Runtime)
                 delivered = true
             end
         end
+        require('src.history_retention').emails(state)
         if delivered then state.message = "New email received. Check the office computer." end
         return delivered
     end

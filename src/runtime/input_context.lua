@@ -5,6 +5,9 @@ local Component = {}
 function Component.install(Runtime)
     Runtime.inputContext = {
         state = Runtime.state,
+        openTrade = function(target) return require('src.screens.trade_screen').open(Runtime,target) end,
+        tradeMousePressed = function(x,y,button) return require('src.screens.trade_screen').mousepressed(Runtime,x,y,button) end,
+        tradeKeyPressed = function(key) return require('src.screens.trade_screen').keypressed(Runtime,key) end,
         airHockeyRuntime = Runtime,
         roomControl = function(key) return require("src.shop_room_controls").keypressed(key,Runtime) end,
         assets = Runtime.Assets,

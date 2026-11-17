@@ -189,10 +189,14 @@ function Component.install(Runtime)
         end
         for id, player in pairs(self.players) do
             if id ~= self.localId then
+                if player._commandStream then
+                    self:_stepRemoteCommands(player,dt,context)
+                else
                 local inputX, inputY = player.inputX or 0, player.inputY or 0
                 if now - (player.lastInputAt or 0) > Runtime.INPUT_HOLD_TIMEOUT then inputX, inputY = 0, 0 end
                 if context and context.moveRemote then
                     context.moveRemote(player, dt, inputX, inputY)
+                end
                 end
             end
         end
@@ -213,7 +217,7 @@ function Component.install(Runtime)
             -- real, full-precision poses under the 1,200-byte unreliable limit.
             local games=context and context.getGameSnapshot and context.getGameSnapshot() or {}
             local balls=context and context.getBasketballSnapshot and context.getBasketballSnapshot() or {}
-            for index, record in ipairs(self:_records()) do
+            for _, record in ipairs(self:_records()) do
                 local ok, errorMessage = self:_broadcastJoined("snapshot", {
                     sessionId = self.sessionId,
                     serverTick = self.serverTick,
@@ -222,13 +226,20 @@ function Component.install(Runtime)
                         and context.getBikeMotion(record.id) or nil,
                     truck = record.sceneId=='commute' and context and context.getTruckMotion
                         and context.getTruckMotion(record.id) or nil,
-                    games = index==1 and Runtime.Codec.array(games) or nil,
-                    balls = nil,
                 })
                 if not ok then
                     self:_queue("error", { message = errorMessage })
-                    break
                 end
+                self:_sendPredictionSnapshot(self.players[record.id],context)
+            end
+            -- Each table has its own bounded packet and tick. Empty bays also
+            -- send a tombstone so a lost close packet heals on the next tick.
+            for _,bayId in ipairs({"front_left","front_right"}) do
+                local game=false
+                for _,match in ipairs(games) do if match.bayId==bayId then game=match;break end end
+                local okay,reason=self:_broadcastJoined("hockey_snapshot",{
+                    sessionId=self.sessionId,serverTick=self.serverTick,bayId=bayId,game=game})
+                if not okay then self:_queue("error",{message=reason}) end
             end
             -- Ball aim/flight metadata is larger than a bare loose-ball pose.
             -- Send each bay separately rather than overflowing the motion MTU.
@@ -424,31 +435,10 @@ function Component.install(Runtime)
                 self:_queue("error", { message = "The host could not prepare a durable shop update." })
                 self.shopStateAccumulator = 0
             else
-                local revision = self.shopRevision + 1
-                local state = shop.state
-                local town = state.home and state.home.town
-                if town and town.id and town.id == self.broadcastTownId then
-                    -- The reliable stream already delivered this frozen layout.
-                    local delta, home = {}, {}
-                    for key,value in pairs(state) do delta[key]=value end
-                    for key,value in pairs(state.home) do
-                        if key~='town' then home[key]=value end
-                    end
-                    delta.home=home
-                    home.networkTownId=town.id
-                    state=delta
-                end
-                local stateOk, stateError, recipientCount = self:_broadcastJoined("shop_state", {
-                    sessionId = self.sessionId,
-                    revision = revision,
-                    state = state,
-                })
+                local state,history=require('src.net.shop_replication').project(shop.state)
+                local stateOk,stateError=self:_sendShopChanges(state,history)
                 self.shopStateAccumulator = 0
                 if stateOk then
-                    if recipientCount > 0 then
-                        self.shopRevision = revision
-                        self.broadcastTownId = town and town.id
-                    end
                     self.shopDirty = false
                     self.shopFallbackAccumulator = 0
                 else
@@ -456,6 +446,7 @@ function Component.install(Runtime)
                 end
             end
         end
+        self:_updateShopHistory(dt,context)
     end
 end
 

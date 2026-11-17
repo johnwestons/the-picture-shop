@@ -20,7 +20,19 @@ function Component.install(Runtime)
         then
             return false
         end
-        local home=payload.state.home
+        local state=payload.state
+        local changed
+        if payload.baseRevision~=nil then
+            if payload.baseRevision~=self.lastShopRevision or not self.receivedShop then
+                self:_queue('error',{message='The shop update did not match the joined revision.'})
+                return false
+            end
+            local replication=require('src.net.shop_replication')
+            state=replication.apply(self.receivedShop,payload.state)
+            if not state then self:_queue('error',{message='Invalid shop difference.'});return false end
+            changed=replication.changed(payload.state)
+        end
+        local home=state.home
         if type(home)=='table' then
             if home.networkTownId then
                 if type(self.receivedTown)~='table' or self.receivedTown.id~=home.networkTownId then
@@ -34,9 +46,11 @@ function Component.install(Runtime)
             end
         end
         self.lastShopRevision = payload.revision
+        self.receivedShop=state
         self:_queue("shop_state", {
             revision = payload.revision,
-            state = payload.state,
+            state = state,
+            changed=changed,
         })
         return true
     end
@@ -49,6 +63,7 @@ function Component.install(Runtime)
             return false
         end
         self.lastShopRevision = payload.revision
+        self.receivedShop=payload.state
         self.receivedTown=type(payload.state.home)=='table' and payload.state.home.town or nil
         self.ready = true
         self.status = "Connected to the host"
@@ -59,13 +74,23 @@ function Component.install(Runtime)
             playerId = self.localId,
             revision = payload.revision,
         })
-        local pending = self.pendingShopState
+        local pending = self.pendingShopStates or {}
+        self.pendingShopStates=nil
+        if self.pendingShopState then pending[#pending+1]=self.pendingShopState end
         self.pendingShopState = nil
-        if pending and pending.sessionId == self.sessionId then self:_acceptShopState(pending) end
+        for _,update in ipairs(pending) do
+            if update.type=='shop_history' then self:_acceptShopHistory(update.payload)
+            elseif update.sessionId==self.sessionId then self:_acceptShopState(update) end
+        end
         return true
     end
 
     function Runtime.Session:_bufferShopState(payload)
+        if payload.baseRevision~=nil then
+            self.pendingShopStates=self.pendingShopStates or {}
+            if #self.pendingShopStates<256 then self.pendingShopStates[#self.pendingShopStates+1]=payload end
+            return
+        end
         local pending = self.pendingShopState
         if not pending or payload.revision > pending.revision then self.pendingShopState = payload end
     end
@@ -158,6 +183,8 @@ function Component.install(Runtime)
             self.residentId = payload.residentId
             self.lastServerTick = payload.serverTick - 1
             self.lastFightTick = -1
+            self.hockeyTicks = {}
+            self.roomGames = {}
             self.fightMatches = {}
             self.crisisSessions = {}
             self.crisisTicks = {}
@@ -180,6 +207,29 @@ function Component.install(Runtime)
                 self:_bufferShopState(payload)
             elseif payload.sessionId == self.sessionId then
                 self:_acceptShopState(payload)
+            end
+        elseif envelope.type == 'shop_history' then
+            if self.ready then self:_acceptShopHistory(payload)
+            else
+                self.pendingShopStates=self.pendingShopStates or {}
+                if #self.pendingShopStates<256 then
+                    self.pendingShopStates[#self.pendingShopStates+1]={type='shop_history',payload=payload}
+                end
+            end
+        elseif envelope.type == 'prediction_snapshot' then
+            self:_acceptPredictionSnapshot(payload)
+        elseif envelope.type == "hockey_snapshot" then
+            if self.ready and payload.sessionId==self.sessionId then
+                self.hockeyTicks=self.hockeyTicks or {}
+                if payload.serverTick>(self.hockeyTicks[payload.bayId] or -1) then
+                    self.hockeyTicks[payload.bayId]=payload.serverTick
+                    local games={}
+                    for _,game in ipairs(self.roomGames or {}) do
+                        if game.bayId~=payload.bayId then games[#games+1]=game end
+                    end
+                    if payload.game~=false then games[#games+1]=payload.game end
+                    self.roomGames=games
+                end
             end
         elseif envelope.type == "fight_snapshot" then
             if self.ready and payload.sessionId == self.sessionId

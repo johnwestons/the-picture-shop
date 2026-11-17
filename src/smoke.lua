@@ -143,7 +143,9 @@ function Smoke.start(context)
 
     local ok, message = xpcall(function()
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
-        if focus=='client-apartments' then
+        if focus=='multiplayer-audit' then
+            require('src.tests.multiplayer_audit_test').run(context,check)
+        elseif focus=='client-apartments' then
             require('src.tests.client_apartments_test').run(context,check)
             require('src.tests.client_employment_test').run(context,check)
         elseif focus=='medical-world' then
@@ -238,6 +240,10 @@ function Smoke.start(context)
             require('src.commute.tests.grass_fields_test').run(check)
         elseif focus=='background-warehouse' then
             require('src.tests.background_warehouse_test').run(context,check)
+        elseif focus=='ai-truck-audit' then
+            require('src.commute.tests.ai_truck_audit_test').run(check)
+        elseif focus=='scheduled-traffic' then
+            require('src.commute.tests.scheduled_traffic_test').run(check)
         elseif focus=='company-driving' then
             require('src.commute.tests.company_truck_motion_test').run(context,check)
             require('src.tests.multi_job_delivery_test').run(context,check)
@@ -270,11 +276,14 @@ function Smoke.start(context)
             require('src.tests.multiplayer_capabilities_test').run(context,check)
         elseif focus=='options' then
             require('src.tests.options_test').run(context,check)
+        elseif focus=='mobile-hud-layout' then
+            require('src.tests.options_test').run(context,check)
+            require('src.tests.multiplayer_hud_test').run(context,check)
         elseif focus=='machine-fleet' then
             require('src.tests.machine_fleet_test').run(context,check)
         elseif focus=='employee-capacity' then
             require('src.tests.employee_capacity_test').run(context,check)
-        elseif focus=='progression' then
+        elseif focus=='progression-balance' then
             require('src.tests.progression_balance_test').run(context,check)
             require('src.tests.press_economics_test').run(context,check)
         elseif focus=='shop-workflow' then
@@ -569,6 +578,13 @@ function Smoke.start(context)
             end
         elseif focus=="employee-schedule" then
             require("src.tests.employee_schedule_test").run(context,check)
+        elseif focus=="employee-production" then
+            require("src.tests.employee_production_audit_test").run(context,check)
+            require("src.tests.employees_test").run(context,check)
+            require("src.tests.employee_schedule_test").run(context,check)
+            require("src.tests.employee_billing_test").run(context,check)
+            require("src.tests.shop_workflow_test").run(context,check)
+            require("src.tests.recent_updates_test").run(context,check)
         elseif focus=="progression" then
             require("src.tests.progression_balance_test").run(context,check)
             require("src.tests.network_protocol_test").run(context,check)

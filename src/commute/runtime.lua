@@ -124,7 +124,12 @@ function C.world(R)
 end
 function C.localPart(R)
     local t=R.state.home and R.state.home.commute
-    return t and t.participants[Residents.key(R.World.player)]
+    local part=t and t.participants[Residents.key(R.World.player)]
+    local predicted=R.World.player._movementPredicted and R.World.player._predictedCommute
+    if part and part.interior and predicted and predicted.key==require('src.commute.prediction').key(part,t.token) then
+        return setmetatable({interiorPose=predicted.part.interiorPose},{__index=part})
+    end
+    return part
 end
 function C.localTrip(R)
     local t=R.state.home and R.state.home.commute
@@ -900,6 +905,8 @@ function C.syncPlayer(player,part)
     player.animationDistance=(actor.distance or 0)*48;player.resting=false
 end
 function C.visualRider(part,player,token)
+    local predicted=player and player._movementPredicted and player._predictedCommute
+    if predicted and predicted.key==require('src.commute.prediction').key(part,token) then return predicted.rider end
     local source=part and part.rider
     if not source then return nil end
     if type(player)~='table' or player.sceneId~='commute'
@@ -1441,6 +1448,49 @@ local function input(rider,x,y,boost)
         and {steer=steer,drive=y,boost=rider.vehicle~='truck' and boost==true}
         or {walkX=x,walkZ=y,sprint=boost==true}
 end
+function C.predictionKey(R,player)
+    local trip=R.state.home and R.state.home.commute
+    local part=trip and trip.participants[Residents.key(player)]
+    if not part or require('src.player_medical').blocked(R.state,player) then return nil end
+    local run=trip.deliveryDriver==Residents.key(player) and trip.deliveryRun
+    if run and run.status=='offmap' then return nil end
+    return require('src.commute.prediction').key(part,trip.token)
+end
+function C.predictionSnapshot(R,player)
+    if not C.predictionKey(R,player) then return nil end
+    local trip=R.state.home.commute
+    return require('src.commute.prediction').capture(trip.participants[Residents.key(player)],trip.token)
+end
+function C.predictMovement(R,dt,x,y,boost)
+    local player=R.World.player
+    local trip=R.state.home and R.state.home.commute
+    local part=trip and trip.participants[Residents.key(player)]
+    if not part then return false end
+    local world=not part.interior and C.world(R) or nil
+    local P=require('src.commute.prediction')
+    if P.step(player,part,trip.token,dt,x,y,boost,world,R.state) then
+        C.syncPlayer(player,player._predictedCommute.part)
+    end
+    return true
+end
+function C.restorePrediction(R,snapshot)
+    local trip=R.state.home and R.state.home.commute
+    local part=trip and trip.participants[Residents.key(R.World.player)]
+    if not part or not require('src.commute.prediction').restore(R.World.player,part,trip.token,snapshot) then return false end
+    C.syncPlayer(R.World.player,R.World.player._predictedCommute.part)
+    return true
+end
+function C.stepRemoteMovement(R,player,dt,x,y,boost)
+    local trip=R.state.home and R.state.home.commute
+    local part=trip and trip.participants[Residents.key(player)]
+    if not part or not player._commandStream then return end
+    local world=not part.interior and C.world(R) or nil
+    if world then require('src.commute.delivery_traffic').installVehicleObstacles(R.state,world,
+        {customer=R.World.customer,vendor=R.World.vendor}) end
+    local changed=Trip.update(R.state,player,input(part.rider,x,y,boost),dt,world)
+    C.syncPlayer(player,part)
+    if changed then R._commute=R._commute or {};R._commute.commandDirty=true end
+end
 function C.update(R,dt,x,y,boost,cinematic)
     if require('src.medical_ui').modal(R) then x,y,boost=0,0,false end
     if require('src.story_intro').dialogueOpen(R) then x,y,boost=0,0,false end
@@ -1476,7 +1526,8 @@ function C.update(R,dt,x,y,boost,cinematic)
         end
         x,y,boost=0,0,false
     end
-    local dirty=false
+    local dirty=R._commute and R._commute.commandDirty or false
+    if R._commute then R._commute.commandDirty=nil end
     -- A disconnected guest retains the last replicated trip until the next
     -- join replaces its state. Its snapshot rider is not a live physics actor.
     if not cinematic and not R.multiplayer:isClient() and (R.World.player.id or 1)==1 then
@@ -1503,7 +1554,9 @@ function C.update(R,dt,x,y,boost,cinematic)
                     elseif R.multiplayer.clock()-(player.lastInputAt or 0)<=.35 then
                         ix,iy,boostInput=player.inputX or 0,player.inputY or 0,player.inputBoost==true
                     end
-                    dirty=Trip.update(R.state,player,input(part.rider,ix,iy,boostInput),dt,world) or dirty
+                    if not player._commandStream or not C.predictionKey(R,player) then
+                        dirty=Trip.update(R.state,player,input(part.rider,ix,iy,boostInput),dt,world) or dirty
+                    end
                     C.syncPlayer(player,part)
                     motionActive=motionActive or player.moving or part.rider.gear.transition~=nil
                         or math.abs(ix)+math.abs(iy)>.001
@@ -1559,8 +1612,11 @@ function C.update(R,dt,x,y,boost,cinematic)
         rider.bike.horn=horn;part.rider.bike.horn=horn
         local actor=Rider.actor(rider);local view=R._commute
         local visual=part.presentation
+        local predicted=R.World.player._movementPredicted and R.World.player._predictedCommute
+        if predicted and rider==predicted.rider then visual=require('src.commute.prediction').presentation(predicted)
+        else predicted=nil end
         view.controlFeedback=nil
-        if R.multiplayer:isClient() and visual and not part.arrived then
+        if R.multiplayer:isClient() and visual and not part.arrived and not predicted then
             if visual.pose=='riding' and rider.gear.mounted and rider.vehicle~='truck' then
             -- Only the local rider's visible controls lead the network. The
             -- host continues to supply position, speed, impacts and gear.
@@ -1607,6 +1663,7 @@ function C.update(R,dt,x,y,boost,cinematic)
             end
         else
             view.walkVisualDistance=nil
+            if predicted then view.controlFeedback=visual end
         end
         if not view.camera then view.camera=require('src.commute.camera').new(actor,world);view.camera.zoom=1;view.camera.targetZoom=1 end
         local cabView=C.bindings(R).truckCabView
@@ -1666,7 +1723,7 @@ function C.update(R,dt,x,y,boost,cinematic)
             or rider.gear.mounted and 'bike' or nil
         local localVehicle=rider.vehicle=='truck' and rider.truck
             or rider.gear.mounted and rider.bike or nil
-        view.renderer:updateTireTracks('local',localVehicle,world,dt,part.presentation,localVehicleKind)
+        view.renderer:updateTireTracks('local',localVehicle,world,dt,visual,localVehicleKind)
         local particleRiders={};local playersBySlot={}
         for _,player in ipairs(R.multiplayer:remotePlayers()) do playersBySlot[player.id]=player end
         for id,p in pairs(R.state.home.commute.participants) do
@@ -1677,7 +1734,7 @@ function C.update(R,dt,x,y,boost,cinematic)
                 or r.gear.mounted and 'bike' or nil
             particleRiders[#particleRiders+1]={id=id,
                 vehicle=vehicleKind=='truck' and r.truck or r.bike,
-                vehicleKind=vehicleKind,visual=p.presentation,
+                vehicleKind=vehicleKind,visual=p==part and visual or p.presentation,
                 engine=player~=nil and (vehicleKind=='truck' and r.truck.engine~=false
                     or vehicleKind=='bike' and r.gear.engine==true),
                 mounted=player~=nil and vehicleKind~=nil}
@@ -1716,6 +1773,7 @@ function C.draw(R,cinematic)
         love.graphics.setColor(1,1,1,1);return
     end
     local bindings=C.bindings(R)
+    local displayedRider=C.visualRider(part,R.World.player,R.state.home.commute.token)
     local g=love.graphics;local offsetX,offsetY,scaleX,scaleY=sceneTransform(R)
     if view.mapOpen then g.clear(.025,.04,.035,1) else
     g.push();g.translate(offsetX,offsetY);g.scale(scaleX,scaleY)
@@ -1827,7 +1885,7 @@ function C.draw(R,cinematic)
         end
     end
     for _,entry in ipairs(traffic) do actors[#actors+1]=entry end
-    local actor=Rider.actor(C.visualRider(part,R.World.player,R.state.home.commute.token))
+    local actor=Rider.actor(displayedRider)
     local renderCamera,cabViewport=require('src.commute.cab_viewport').forRuntime(R,view.camera)
     g.push()
     if cabViewport then g.translate(cabViewport.x,cabViewport.y) end
@@ -1924,7 +1982,7 @@ function C.draw(R,cinematic)
     if not showHud then
         if part.rider.gear.mounted and view.camera.firstPerson then
             if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
-            view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
+            view.cockpit:draw(displayedRider.bike,displayedRider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
         end
         g.setColor(1,1,1);return
     end
@@ -1964,7 +2022,7 @@ function C.draw(R,cinematic)
     end
     if part.rider.gear.mounted and part.rider.vehicle~='truck' and not view.mapOpen then
         if not view.cockpit then view.cockpit=require('src.commute.cockpit').new() end
-        view.cockpit:draw(part.rider.bike,part.rider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
+        view.cockpit:draw(displayedRider.bike,displayedRider.gear.engine,R.Config.baseWidth,R.Config.baseHeight,view.controlFeedback or part.presentation,view.camera,C.bindings(R))
     end
     if not view.mapOpen then
         C.touch(R):draw(R.Config.baseWidth,R.Config.baseHeight,C.touchProfile(R,part),actionContext,

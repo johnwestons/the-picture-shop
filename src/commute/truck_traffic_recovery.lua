@@ -27,6 +27,7 @@ end
 -- A truck already intersecting a tree or curb cannot pass an ordinary sweep.
 -- Look for the first nearby fully clear pose in the player's chosen direction.
 function Recovery.nudge(vehicle,dx,dz,world)
+    if require('src.commute.truck_power').reason(vehicle) then return false end
     local length=math.sqrt(dx*dx+dz*dz)
     if length<.1 then return false end
     dx,dz=dx/length,dz/length
@@ -46,6 +47,8 @@ function Recovery.nudge(vehicle,dx,dz,world)
 end
 
 function Recovery.rescue(vehicle,points,world)
+    local reason,message=require('src.commute.truck_power').reason(vehicle)
+    if reason then return false,message end
     local length=Path.length(points)
     if length<=0 then return false,'No road route available for recovery' end
     -- The driver may have replanned from its current position after backing

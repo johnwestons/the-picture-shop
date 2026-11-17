@@ -1,6 +1,6 @@
 -- Host-owned business documents. Copy facts at settlement so a later change to
 -- a job, catalog price, delivery manifest or signature screen cannot alter them.
-local Book={}
+local Book={MAX_ENTRIES=100}
 local kinds={delivery=true,job=true,purchase=true,bill=true,payout=true}
 local statuses={paid=true,unpaid=true,received=true}
 local function copy(v)
@@ -15,6 +15,13 @@ local function clipped(value,limit)
     return value:sub(1,limit)
 end
 function Book.new()return {version=1,nextId=1,entries={}}end
+local function trim(book)
+    if #book.entries<=Book.MAX_ENTRIES then return book end
+    local newest={}
+    for i=#book.entries-Book.MAX_ENTRIES+1,#book.entries do newest[#newest+1]=book.entries[i] end
+    book.entries=newest
+    return book
+end
 function Book.valid(book)
     if book==nil then return true end -- Pre-archive saves migrate without fabricated signatures.
     if type(book)~='table' or book.version~=1 or not number(book.nextId) or book.nextId%1~=0
@@ -41,7 +48,7 @@ function Book.valid(book)
 end
 function Book.ensure(state)
     if not state.receipts then state.receipts=Book.new() end
-    return state.receipts
+    return trim(state.receipts)
 end
 function Book.add(state,data)
     local book=Book.ensure(state)
@@ -54,6 +61,7 @@ function Book.add(state,data)
         details=clipped(data.details,2400),signedBy=data.signedBy and clipped(data.signedBy,80),signature=data.signature,
         paidAtHours=data.paidAtHours}
     book.nextId=book.nextId+1;book.entries[#book.entries+1]=row
+    trim(book)
     return row,true
 end
 function Book.expense(state,title,cents,party,account,details,source)
@@ -102,7 +110,15 @@ function Book.delivery(state,receipt,signer,ink)
 end
 function Book.normalize(value,state)
     if not Book.valid(value) then return nil end
-    if value then return copy(value) end
+    if value then
+        -- Accept older saves, but retain and copy only the newest documents.
+        -- Keep the monotonic ID so discarded receipt IDs are never reused.
+        local result={version=value.version,nextId=value.nextId,entries={}}
+        for i=math.max(1,#value.entries-Book.MAX_ENTRIES+1),#value.entries do
+            result.entries[#result.entries+1]=copy(value.entries[i])
+        end
+        return result
+    end
     local temporary={receipts=Book.new(),calendar=state and state.calendar}
     if state then
         for _,invoice in ipairs(state.bills and state.bills.ledger or {}) do Book.invoice(temporary,invoice) end

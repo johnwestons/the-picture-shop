@@ -279,7 +279,8 @@ local function confirmPending()
         if not saved then
             TitleScreen.message='Client save could not be reset: '..tostring(saveReason)
             TitleScreen.clientPayload=Save.load(TitleScreen.selected)
-        else TitleScreen.message='Client slot '..TitleScreen.clientSlot..' reset. It is available for a new player.' end
+        else TitleScreen.message='Client slot '..TitleScreen.clientSlot..' reset. '
+            ..(reason or 'It is available for a new player.') end
         TitleScreen.mode='clients'
         return true
     end

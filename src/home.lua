@@ -46,6 +46,7 @@ function Home.new(options,day)
         weekend=require("src.weekend_flow").new(day*24),
         finance=require("src.household_finances").new(day*24),
         residents=require("src.home_residents").new(),
+        trading=require('src.item_trade').new(),
         shopping=require("src.home_shopping").new(),
         chores=require("src.home_chores").new(day*24),
         dining=require("src.home_dining").new(),
@@ -61,6 +62,7 @@ function Home.valid(home,skipClients)
     if type(home)~="table" or home.version~=1 or not Catalog.APARTMENTS[home.apartmentId]
         or (home.town~=nil and not Town.valid(home.town))
         or (home.townCharacters~=nil and not TownCharacters.valid(home.townCharacters,home.town))
+        or not require('src.commute.visitor_commute').valid(home.visitorJourneys)
         or not Catalog.PRESETS[home.furnishingPreset] or home.allowanceGranted~=true
         or not integer(home.revision,0,1e12) or not integer(home.balanceCents,0,1e12)
         or not integer(home.payPercent,0,100) or type(home.inventory)~="table"
@@ -69,6 +71,7 @@ function Home.valid(home,skipClients)
         or not require("src.weekend_flow").valid(home.weekend)
         or not require("src.household_finances").valid(home.finance)
         or not require("src.home_residents").valid(home.residents)
+        or not require('src.item_trade').valid(home.trading)
         or not skipClients and not require('src.client_apartments').valid(home)
         or not skipClients and not require('src.client_households').valid(home)
         or not require('src.commute.trip').valid(home.commute,home)
@@ -117,6 +120,7 @@ function Home.normalize(home,day,hours)
     result.truckFleet=TruckService.normalizeFleet(result.truckFleet)
     result.shopId=result.shopId or PortablePay.newShopId()
     result.portableClaims=result.portableClaims or {}
+    result.trading=result.trading or require('src.item_trade').new()
     require('src.home_residents').ensure({home=result})
     -- Existing shops keep their original geography. Saved layouts are copied,
     -- never regenerated from a seed when generator code changes.

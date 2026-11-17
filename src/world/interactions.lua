@@ -5,13 +5,46 @@ local Component = {}
 function Component.install(Runtime)
     function Runtime.interactables(player)
         player = player or Runtime.World.player
-        if Runtime.World._state and not require('src.commute.outfit').allowed(Runtime.World._state,player,'work') then
-            return {homeTravel=require('src.home_travel').target(player,Runtime.World._state)}
-        end
         local Rooms=require("src.shop_rooms")
+        local function addTradeTargets(targets)
+            local options=Runtime.World._employeeOptions or {}
+            for _,other in ipairs(options.players and options.players() or {}) do
+                if type(other)=='table' and tonumber(other.id)~=tonumber(player.id) then
+                    local sameApartment=Rooms.scene(player)~='home'
+                        or require('src.client_apartments').forPlayer(Runtime.World._state,other)
+                            ==require('src.client_apartments').forPlayer(Runtime.World._state,player)
+                    if other.sceneId==player.sceneId and sameApartment
+                        and type(other.x)=='number' and type(other.y)=='number' then
+                        local name=other.name or ('Player '..tostring(other.id))
+                        targets['itemTradePlayer:'..tostring(other.id)]={kind='itemTradePlayer',x=other.x,y=other.y-12,
+                            radius=112,playerId=tonumber(other.id),playerName=name,actionLabel='TRADE',
+                            prompt='E: trade with '..name}
+                    end
+                end
+            end
+            if not Runtime.World._state then return end
+            local Trade=require('src.item_trade')
+            for _,worker in ipairs(Runtime.Employees.ensure(Runtime.World._state).staff) do
+                if worker.status=='employed' and worker.visible
+                    and (worker.sceneId or 'warehouse')==Rooms.scene(player) then
+                    Runtime.MultiplayerCapabilities.requireInteraction('employeeTrade')
+                    local offer=Trade.employeeOffer(Runtime.World._state,worker)
+                    targets['employeeTrade:'..tostring(worker.id)]={kind='employeeTrade',x=worker.x,y=worker.y,radius=112,
+                        hoverX=offer and worker.x+24 or nil,hoverY=offer and worker.y-92 or nil,hoverRadius=32,
+                        employeeId=worker.id,employeeName=worker.name,actionLabel=offer and 'TRADE' or 'GIVE',
+                        prompt=offer and ('E: trade with '..worker.name) or ('E: give '..worker.name..' an item')}
+                end
+            end
+        end
+        if Runtime.World._state and not require('src.commute.outfit').allowed(Runtime.World._state,player,'work') then
+            local targets={homeTravel=require('src.home_travel').target(player,Runtime.World._state)}
+            addTradeTargets(targets)
+            return targets
+        end
         local targets = Rooms.targets(player, Runtime.World._state)
         targets.homeTravel=require("src.home_travel").target(player,Runtime.World._state)
         targets.homeDelivery=require("src.home_shopping").target(player,Runtime.World._state)
+        addTradeTargets(targets)
         if Rooms.scene(player)=="home" then return targets end
         local function addTarget(kind, target, key)
             Runtime.MultiplayerCapabilities.requireInteraction(kind)

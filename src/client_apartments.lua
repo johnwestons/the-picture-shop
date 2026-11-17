@@ -79,19 +79,22 @@ function Apartments.resetSlot(state,slot)
     for id,resident in pairs(home.residents or {}) do
         if resident.clientSlot==slot then
             local trip=home.commute
+            local okay,transferred=require('src.commute.delivery_run').reassignDeletedDriver(state,id)
+            if not okay then return false,transferred end
             if trip and trip.participants then trip.participants[id]=nil end
             if trip then
                 for _,truck in ipairs({trip.truck or false,trip.keiTruck or false}) do
                     if truck and truck.owner==id then truck.owner=nil;truck.driver=nil end
                 end
-                if trip.deliveryDriver==id then
-                    trip.deliveryRun=nil;trip.deliveryDriver=nil;trip.deliveryVehicleModel=nil
-                end
             end
             if home.clientHomes then home.clientHomes[id]=nil end
             home.residents[id]=nil
+            for index=#(home.trading and home.trading.offers or {}),1,-1 do
+                local offer=home.trading.offers[index]
+                if offer.from==id or offer.to==id then table.remove(home.trading.offers,index) end
+            end
             home.revision=home.revision+1
-            return true
+            return true,transferred and 'Unfinished shop deliveries now belong to the owner. Use Explore Town to resume the route.' or nil
         end
     end
     return false,'That client slot is empty.'

@@ -277,7 +277,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizeShopState(payload)
         local valid, shapeError = Runtime.shape(payload, "shop_state payload",
-            { "sessionId", "revision", "state" })
+            { "sessionId", "revision", "state" }, { "baseRevision" })
         if not valid then return nil, shapeError end
         local sessionId, fieldError = Runtime.token(
             payload.sessionId, Runtime.MAX_TOKEN_BYTES, "shop_state.sessionId")
@@ -287,7 +287,33 @@ function Component.install(Runtime)
             payload.revision, 1, Runtime.UINT32_MAX, "shop_state.revision")
         if not revision then return nil, fieldError end
         if type(payload.state) ~= "table" then return nil, "shop_state.state must be a table" end
-        return { sessionId = sessionId, revision = revision, state = payload.state }
+        local baseRevision
+        if payload.baseRevision~=nil then
+            baseRevision,fieldError=Runtime.integerInRange(payload.baseRevision,0,revision-1,"shop_state.baseRevision")
+            if not baseRevision then return nil,fieldError end
+        end
+        return { sessionId = sessionId, revision = revision, state = payload.state,baseRevision=baseRevision }
+    end
+
+    function Runtime.normalizeShopHistory(payload)
+        local valid,err=Runtime.shape(payload,'shop_history payload',
+            {'sessionId','revision','collection','start','total','offset','bytes','data'})
+        if not valid then return nil,err end
+        local result={}
+        result.sessionId,err=Runtime.token(payload.sessionId,Runtime.MAX_TOKEN_BYTES,'shop_history.sessionId')
+        if not result.sessionId then return nil,err end
+        if not require('src.net.shop_replication').collections[payload.collection] then return nil,'Unknown history collection' end
+        result.collection=payload.collection
+        for _,field in ipairs({'revision','start','total','offset','bytes'}) do
+            local minimum=(field=='revision' or field=='total') and 0 or 1
+            local maximum=(field=='offset' or field=='bytes') and 1024*1024 or Runtime.UINT32_MAX
+            result[field],err=Runtime.integerInRange(payload[field],minimum,maximum,'shop_history.'..field)
+            if not result[field] then return nil,err end
+        end
+        if result.start>result.total+1 or type(payload.data)~='string' or #payload.data<1
+            or #payload.data>24000 or result.offset+#payload.data-1>result.bytes then return nil,'Invalid history page' end
+        result.data=payload.data
+        return result
     end
 
     function Runtime.normalizeRadioState(payload)

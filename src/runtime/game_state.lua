@@ -5,7 +5,9 @@ local Component = {}
 function Component.install(Runtime)
     local checkpoint = require("src.save_checkpoint").new(5)
     local saveFailureMessage
-    function Runtime.saveCurrent(immediate)
+    -- Simulation saves can wait for the batched durable network update. Direct
+    -- player actions keep the default immediate network notification.
+    function Runtime.saveCurrent(immediate, networkUrgent)
         if Runtime.multiplayer:isClient() then return false,"multiplayer_client" end
         if not Runtime.state.activeSlot then return false,"no_active_slot" end
         local saved,reason = Runtime.Save.queue(Runtime.state.activeSlot, Runtime.state, Runtime.World.snapshot())
@@ -15,7 +17,9 @@ function Component.install(Runtime)
             saveFailureMessage=nil
         end
         if saved then checkpoint:reset() end
-        if saved and Runtime.multiplayer:isHost() then Runtime.multiplayer:markShopDirty(true) end
+        if saved and Runtime.multiplayer:isHost() and networkUrgent ~= false then
+            Runtime.multiplayer:markShopDirty(true)
+        end
         return saved,reason
     end
 
@@ -61,6 +65,7 @@ function Component.install(Runtime)
         checkpoint:reset()
         Runtime.App.gameClockSpeed = 1
         Runtime.App.gameClockSyncClock = 0
+        Runtime.App.backgroundShopDirty = false
         Runtime.App.gameClockSaveClock = 0
         Runtime.World.load(payload.player)
         require('src.commute.runtime').release(Runtime)

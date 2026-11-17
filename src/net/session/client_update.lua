@@ -83,10 +83,13 @@ function Component.install(Runtime)
         if not changed and self.inputAccumulator < Runtime.INPUT_INTERVAL then return end
         self.inputAccumulator = changed and 0 or self.inputAccumulator % Runtime.INPUT_INTERVAL
         if riding then self.sentRideX,self.sentRideY,self.sentRideBoost=context.inputX,context.inputY,context.inputBoost end
-        self.inputSequence = self.inputSequence + 1
+        local commands,commandKey=self:_movementCommandBatch()
+        if self.commandPredictionActive and not commands then return end
+        if not commands then self.inputSequence = self.inputSequence + 1 end
         local ok, errorMessage = self:_sendToServer("input", {
             sessionId = self.sessionId,
             sequence = self.inputSequence,
+            commands=commands,commandKey=commandKey,
             name = self.localName,
             moveX = Runtime.clamp(context and context.inputX, -1, 1),
             moveY = Runtime.clamp(context and context.inputY, -1, 1),
@@ -126,7 +129,7 @@ function Component.install(Runtime)
             end
             return vx*age,vy*age
         end
-        if localPlayer and self.localTarget then
+        if localPlayer and self.localTarget and not self.commandPredictionActive then
             if (localPlayer.sceneId or "warehouse")~=(self.localTarget.sceneId or "warehouse")
                 or (localPlayer.resting==true)~=(self.localTarget.resting==true) then
                 Runtime.copyMotion(localPlayer,self.localTarget,true)
@@ -266,6 +269,7 @@ function Component.install(Runtime)
                 self:_closeTransport(1, true)
                 return
             end
+            self:_updateClientPrediction(dt,context)
             self:_sendClientInput(dt, context)
             self:_updateClientPing(dt)
             self:_updateClientVisuals(dt,context)
@@ -276,6 +280,10 @@ function Component.install(Runtime)
     function Runtime.Session:sendNeutralInput()
         if not self:isClient() or self.terminal or not self.ready or not self.sessionId then return false end
         self.inputSequence = self.inputSequence + 1
+        self.commandPrediction=nil;self.commandPredictionActive=false
+        if self.predictedPlayer then
+            self.predictedPlayer._movementPredicted=false;self.predictedPlayer._predictedCommute=nil
+        end
         return self:_sendToServer("input", {
             sessionId = self.sessionId,
             sequence = self.inputSequence,

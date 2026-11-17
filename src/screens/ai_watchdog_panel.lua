@@ -219,7 +219,8 @@ function Panel.drawOptions(state,environment,offset)
         end
     end
     local unstick=Panel.unstickEvent(snapshot,state)
-    drawButton(g,UNSTICK,unstick and 'UNSTICK LATEST ACTIVE TRUCK' or 'NO ACTIVE DRIVEWAY TRUCK TO UNSTICK',unstick~=nil)
+    drawButton(g,UNSTICK,unstick and require('src.commute.delivery_traffic').debugRecoveryLabel(state,unstick.issueId)
+        or 'NO ACTIVE DRIVEWAY TRUCK TO UNSTICK',unstick~=nil)
     drawButton(g,NEWER,'NEWER',offset>0)
     drawButton(g,LATEST,'LATEST',offset>0)
     drawButton(g,OLDER,'OLDER',offset<Panel.maxOffset(snapshot))

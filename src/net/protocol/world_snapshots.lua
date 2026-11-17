@@ -3,10 +3,56 @@
 local Component = {}
 
 function Component.install(Runtime)
+    function Runtime.normalizeHockeyMatch(entry)
+        local fields={"bayId","mode","phase","leftId","leftX","leftY","rightX","rightY",
+            "puckX","puckY","leftScore","rightScore","faceoff"}
+        local okay,err=Runtime.shape(entry,"hockey match",fields,{"rightId"})
+        if not okay then return nil,err end
+        if not require("src.breakroom_games").BAYS[entry.bayId]
+            or (entry.mode~="solo" and entry.mode~="versus")
+            or (entry.phase~="waiting" and entry.phase~="playing" and entry.phase~="finished") then
+            return nil,"hockey match identity is invalid"
+        end
+        for _,key in ipairs({"leftId","rightId"}) do
+            if entry[key]~=nil then
+                local id,why=Runtime.integerInRange(entry[key],1,Runtime.Protocol.MAX_PLAYERS,"hockey."..key)
+                if not id then return nil,why end
+            end
+        end
+        for _,key in ipairs({"leftX","leftY","rightX","rightY","puckX","puckY"}) do
+            local n,why=Runtime.numberInRange(entry[key],0,800,"hockey."..key)
+            if n==nil then return nil,why end
+        end
+        for _,key in ipairs({"leftScore","rightScore"}) do
+            local n,why=Runtime.integerInRange(entry[key],0,7,"hockey."..key)
+            if n==nil then return nil,why end
+        end
+        local pause,why=Runtime.numberInRange(entry.faceoff,0,2,"hockey.faceoff")
+        if pause==nil then return nil,why end
+        return entry
+    end
+
+    function Runtime.normalizeHockeySnapshot(payload)
+        local okay,err=Runtime.shape(payload,"hockey_snapshot payload",{"sessionId","serverTick","bayId","game"})
+        if not okay then return nil,err end
+        local sessionId;sessionId,err=Runtime.token(payload.sessionId,Runtime.MAX_TOKEN_BYTES,"hockey_snapshot.sessionId")
+        if not sessionId then return nil,err end
+        local tick;tick,err=Runtime.integerInRange(payload.serverTick,0,Runtime.UINT32_MAX,"hockey_snapshot.serverTick")
+        if not tick then return nil,err end
+        if not require("src.breakroom_games").BAYS[payload.bayId] then return nil,"hockey_snapshot.bayId is invalid" end
+        local game=payload.game
+        if game~=false then
+            game,err=Runtime.normalizeHockeyMatch(game)
+            if not game then return nil,err end
+            if game.bayId~=payload.bayId then return nil,"hockey_snapshot bay does not match" end
+        end
+        return {sessionId=sessionId,serverTick=tick,bayId=payload.bayId,game=game}
+    end
+
     function Runtime.normalizeInput(payload)
         local valid, shapeError = Runtime.shape(payload, "input payload",
             { "sessionId", "sequence", "moveX", "moveY" },
-            { "name", "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost" })
+            { "name", "furColorway", "overallsColorway", "taskAction", "gameX", "gameY", "combatButtons", "arcade", "boost", "commands", "commandKey" })
         if not valid then return nil, shapeError end
         if payload.name~=nil and not require('src.player_profile').validName(payload.name) then
             return nil,'input.name is invalid'
@@ -85,9 +131,57 @@ function Component.install(Runtime)
                 Runtime.RabbitColorways.count("overalls"), "input.overallsColorway")
             if not overallsColorway then return nil, fieldError end
         end
+        local commands,commandKey
+        if payload.commands~=nil or payload.commandKey~=nil then
+            commandKey,fieldError=Runtime.token(payload.commandKey,64,'input.commandKey')
+            if not commandKey then return nil,fieldError end
+            if not Runtime.Codec.isArray(payload.commands) or #payload.commands<1 or #payload.commands>12
+                or sequence<#payload.commands then return nil,'Invalid movement command batch' end
+            commands=Runtime.Codec.array({})
+            for _,frame in ipairs(payload.commands) do
+                if not Runtime.Codec.isArray(frame) or #frame~=3
+                    or not Runtime.integerInRange(frame[1],-1000,1000,'command.x')
+                    or not Runtime.integerInRange(frame[2],-1000,1000,'command.y')
+                    or not Runtime.integerInRange(frame[3],0,1,'command.boost') then return nil,'Invalid movement command' end
+                commands[#commands+1]=Runtime.Codec.array({frame[1],frame[2],frame[3]})
+            end
+        end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,name=payload.name,
+            commands=commands,commandKey=commandKey,
             furColorway = furColorway, overallsColorway = overallsColorway,
             taskAction = taskAction, gameX=gameX, gameY=gameY, combatButtons=combatButtons,arcade=arcade,boost=boost }
+    end
+
+    function Runtime.normalizePredictionSnapshot(payload)
+        local okay,err=Runtime.shape(payload,'prediction_snapshot',
+            {'sessionId','serverTick','playerId','sequence','key','mode','part','values'})
+        if not okay then return nil,err end
+        local P=require('src.commute.prediction')
+        if not P.fields[payload.mode] then return nil,'Invalid physics mode' end
+        local result={mode=payload.mode}
+        for _,key in ipairs({'sessionId','key'}) do
+            result[key],err=Runtime.token(payload[key],64,'prediction_snapshot.'..key)
+            if not result[key] then return nil,err end
+        end
+        for _,key in ipairs({'serverTick','sequence','playerId','part'}) do
+            local maximum=key=='playerId' and Runtime.Protocol.MAX_PLAYERS
+                or key=='part' and math.ceil(#P.fields[payload.mode]/P.PART_VALUES) or Runtime.UINT32_MAX
+            result[key],err=Runtime.integerInRange(payload[key],(key=='part' or key=='playerId') and 1 or 0,
+                maximum,'prediction_snapshot.'..key)
+            if not result[key] then return nil,err end
+        end
+        local count=math.min(P.PART_VALUES,#P.fields[payload.mode]-(result.part-1)*P.PART_VALUES)
+        if not Runtime.Codec.isArray(payload.values) or #payload.values~=count then return nil,'Invalid physics shard size' end
+        result.values=Runtime.Codec.array({})
+        for i,value in ipairs(payload.values) do
+            local normalized=Runtime.numberInRange(value,-1e12,1e12,'prediction_snapshot.value')
+            if normalized==nil then return nil,'Invalid physics value' end
+            local field=P.fields[payload.mode][(result.part-1)*P.PART_VALUES+i]
+            if P.booleans[field] and value~=0 and value~=1
+                or field=='gear' and (value%1~=0 or value<1 or value>4) then return nil,'Invalid physics field' end
+            result.values[i]=normalized
+        end
+        return result
     end
 
     function Runtime.normalizeSnapshot(payload)
@@ -145,33 +239,11 @@ function Component.install(Runtime)
             games = {}
             local seen = {}
             for index, entry in ipairs(payload.games) do
-                local fields={"bayId","mode","phase","leftId","leftX","leftY","rightX","rightY",
-                    "puckX","puckY","leftScore","rightScore","faceoff"}
-                local okay, err=Runtime.shape(entry,"snapshot.games["..index.."]",fields,{"rightId"})
-                if not okay then return nil,err end
-                if not require("src.breakroom_games").BAYS[entry.bayId] or seen[entry.bayId]
-                    or (entry.mode~="solo" and entry.mode~="versus")
-                    or (entry.phase~="waiting" and entry.phase~="playing" and entry.phase~="finished")
-                    then return nil,"snapshot.games match identity is invalid" end
+                local game,err=Runtime.normalizeHockeyMatch(entry)
+                if not game then return nil,err end
+                if seen[entry.bayId] then return nil,"duplicate hockey bay" end
                 seen[entry.bayId]=true
-                for _,key in ipairs({"leftId","rightId"}) do
-                    if entry[key]~=nil then
-                        local id,idErr=Runtime.integerInRange(entry[key],1,Runtime.Protocol.MAX_PLAYERS,
-                            "snapshot.games."..key)
-                        if not id then return nil,idErr end
-                    end
-                end
-                for _,key in ipairs({"leftX","leftY","rightX","rightY","puckX","puckY"}) do
-                    local n,nErr=Runtime.numberInRange(entry[key],0,800,"snapshot.games."..key)
-                    if n==nil then return nil,nErr end
-                end
-                for _,key in ipairs({"leftScore","rightScore"}) do
-                    local n,nErr=Runtime.integerInRange(entry[key],0,7,"snapshot.games."..key)
-                    if n==nil then return nil,nErr end
-                end
-                local pause,pauseErr=Runtime.numberInRange(entry.faceoff,0,2,"snapshot.games.faceoff")
-                if pause==nil then return nil,pauseErr end
-                games[index]=entry
+                games[index]=game
             end
         end
         local balls

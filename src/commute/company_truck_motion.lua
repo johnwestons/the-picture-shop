@@ -2,6 +2,7 @@
 local Truck=require('src.commute.delivery_truck')
 local Path=require('src.commute.driving_path')
 local Rail=require('src.commute.yard_rail')
+local Power=require('src.commute.truck_power')
 local Watchdog=require('src.ai_watchdog')
 local Motion={}
 local phases={reverse_out=true,departing=true,away=true,waiting_return=true,returning=true,return_walk=true,collecting=true,queue=true,loading=true}
@@ -75,6 +76,13 @@ function Motion.start(vehicle,world)
 end
 function Motion.visible(m)return m and m.phase~='away' and m.phase~='waiting_return' end
 function Motion.recover(m,world,state)
+    if m and m.vehicle then
+        local reason,message=Power.reason(m.vehicle)
+        if reason then
+            Power.report(state,m.vehicle,'company-yard:'..(m.vehicle.model or 'box'),m.phase)
+            return false,message
+        end
+    end
     if not m or (m.phase~='reverse_out' and m.phase~='departing' and m.phase~='returning' and m.phase~='collecting') then
         return false,'Company truck is holding its assigned protocol stop.'
     end
@@ -98,6 +106,7 @@ local function follow(m,world,dt,state)
     local arrived,moved,reason=Rail.step(v,m.rail,m.points,dt,world,{reverse=reverse,speed=reverse and 1.2 or 2.2})
     m.index=v.pathIndex or 2;m.blocked=reason~=nil or nil
     local issue='company-yard:'..(v.model or 'box')
+    if Power.report(state,v,issue,m.phase) then m.wait=0;return false end
     if arrived or moved>.001 then
         m.wait=0
         Watchdog.resolve(state,issue,{reason='Company truck resumed its prescribed yard line'})
@@ -121,6 +130,7 @@ function Motion.update(m,world,dt,state,assignment)
         return true
     end
     if m.phase=='waiting_return' then
+        if Power.report(state,v,'company-yard:'..(v.model or 'box'),m.phase) then return false end
         local points=stallPath(site,v.model)
         local gate=world.truckAccess and world.truckAccess.entryGate
         if not gate then return false end

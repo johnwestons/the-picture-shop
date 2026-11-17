@@ -78,7 +78,14 @@ function Component.install(Runtime)
         local g=love.graphics;g.push('all')
         Runtime.panel({x=110,y=182,width=738,height=402},{.035,.06,.065,1},{.30,.50,.49,1})
         line('RECEIPT ARCHIVE',124,194,300,20,{.91,.86,.63,1})
-        line('Saved with this shop  |  Payroll in Financials',430,199,405,14,{.73,.84,.79,1})
+        local total=state._networkHistoryTotals and state._networkHistoryTotals.receipts
+        local loaded=#(state.receipts and state.receipts.entries or {})
+        if state._networkHistory and (not total or loaded<total) then
+            line(total and ('Loading documents: '..loaded..' / '..total) or 'Loading documents...',
+                490,198,340,14,{.91,.86,.63,1})
+        else
+            line('Newest '..Book.MAX_ENTRIES..' documents | Payroll in Financials',430,199,405,14,{.73,.84,.79,1})
+        end
         g.setFont(Fonts.get('sans',13))
         for i,f in ipairs(filters) do
             Runtime.drawComputerButton(filterRect(i),f[2],s.receiptFilter==f[1] and 'primary' or 'secondary')

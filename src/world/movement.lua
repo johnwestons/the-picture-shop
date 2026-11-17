@@ -115,13 +115,14 @@ function Component.install(Runtime)
 
     -- LAN guests predict only their own walking. Durable shop systems continue to
     -- run exclusively on the authoritative host.
-    function Runtime.World.updateNetworkPlayer(dt, directionX, directionY, assets, state, cursorX, cursorY)
+    function Runtime.World.updateNetworkPlayer(dt, directionX, directionY, assets, state, cursorX, cursorY, presentationOnly)
         assets = Runtime.WarehouseGameplay.assets(assets, state)
         Runtime.World._assets, Runtime.World._state = assets, state
         Runtime.World.placementSelection = nil
         local updated
         local jack=Runtime.PalletJack.ensure(state,Runtime.Config.palletJack)
-        if Runtime.Forklift.isOperator(state, Runtime.Config.forklift, Runtime.World.player.id) then
+        if presentationOnly then updated=false
+        elseif Runtime.Forklift.isOperator(state, Runtime.Config.forklift, Runtime.World.player.id) then
             updated = Runtime.World.updateNetworkForklift(Runtime.World.player, dt, directionX, directionY, assets, state, true)
         elseif jack.operating and jack.operatorPlayerId==(tonumber(Runtime.World.player.id) or 1) then
             updated = Runtime.World.updateNetworkPalletJack(Runtime.World.player,dt,directionX,directionY,

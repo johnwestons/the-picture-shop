@@ -60,6 +60,7 @@ function Component.install(Runtime)
         welcome = Runtime.normalizeWelcome,
         shop_snapshot = Runtime.normalizeShopSnapshot,
         shop_state = Runtime.normalizeShopState,
+        shop_history = Runtime.normalizeShopHistory,
         radio_state = Runtime.normalizeRadioState,
         interaction_request = Runtime.normalizeInteractionRequest,
         interaction_result = Runtime.normalizeInteractionResult,
@@ -86,6 +87,8 @@ function Component.install(Runtime)
         forklift_snapshot = Runtime.normalizeForkliftSnapshot,
         input = Runtime.normalizeInput,
         snapshot = Runtime.normalizeSnapshot,
+        hockey_snapshot = Runtime.normalizeHockeySnapshot,
+        prediction_snapshot = Runtime.normalizePredictionSnapshot,
         visitor_snapshot = Runtime.normalizeVisitorSnapshot,
         environment_snapshot = Runtime.normalizeEnvironmentSnapshot,
         employee_snapshot = Runtime.normalizeEmployeeSnapshot,
@@ -108,7 +111,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.limitsFor(kind)
-        return (kind == "shop_snapshot" or kind == "shop_state")
+        return (kind == "shop_snapshot" or kind == "shop_state" or kind == "shop_history")
             and Runtime.SHOP_CODEC_LIMITS or Runtime.REALTIME_CODEC_LIMITS
     end
 
@@ -146,7 +149,7 @@ function Component.install(Runtime)
     end
 
     local function compressShopPacket(kind, packet)
-        if (kind ~= "shop_snapshot" and kind ~= "shop_state")
+        if (kind ~= "shop_snapshot" and kind ~= "shop_state" and kind ~= "shop_history")
             or #packet < Runtime.Protocol.SHOP_COMPRESSION_MIN_BYTES
         then
             return packet
@@ -213,7 +216,7 @@ function Component.install(Runtime)
         if type(kind) ~= "string" or not Runtime.PAYLOAD_NORMALIZERS[kind] then
             return Runtime.protocolError("unsupported message type")
         end
-        return (kind == "shop_snapshot" or kind == "shop_state")
+        return (kind == "shop_snapshot" or kind == "shop_state" or kind == "shop_history")
             and Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES
             or Runtime.Protocol.MAX_PACKET_BYTES
     end
@@ -266,7 +269,7 @@ function Component.install(Runtime)
         if not decoded then return Runtime.protocolError("codec decode failed: " .. tostring(codecError)) end
         local normalized, validationError = Runtime.normalizeEnvelope(decoded)
         if not normalized then return Runtime.protocolError(validationError) end
-        local limit = (normalized.type == "shop_snapshot" or normalized.type == "shop_state")
+        local limit = (normalized.type == "shop_snapshot" or normalized.type == "shop_state" or normalized.type == "shop_history")
             and Runtime.Protocol.MAX_SHOP_SNAPSHOT_BYTES or Runtime.Protocol.MAX_PACKET_BYTES
         if #codecPacket > limit then return Runtime.protocolError("packet exceeds limit for " .. normalized.type) end
         if not sameCanonicalValue(decoded,wireEnvelope(normalized)) then

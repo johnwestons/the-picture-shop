@@ -121,6 +121,8 @@ local function currentPlan(vehicle,assignment,world)
     return plan(world,y.target,assignment and assignment.anchor,y.stage)
 end
 function Yard.recover(vehicle,assignment,world,state)
+    local reason,message=require('src.commute.truck_power').reason(vehicle)
+    if reason then return false,message end
     local y=vehicle.yard
     if assignment and assignment.permitted==false then return false,'Another truck owns the yard exit; holding.' end
     if not y or y.stage=='released' or y.stage=='docked' or y.stage:match('_stop$') then
@@ -145,6 +147,8 @@ function Yard.recover(vehicle,assignment,world,state)
     return true,'Truck moved to its clear reserved yard checkpoint.'
 end
 function Yard.unstick(vehicle,assignment,world,state,kind)
+    local reason,message=require('src.commute.truck_power').reason(vehicle)
+    if reason then return false,message end
     if assignment and assignment.permitted==false then return false,'Another truck owns the yard exit; holding.' end
     local target=kind=='outbound' and 'outbound' or assignment and assignment.target
     if not target then return false,'No reserved yard checkpoint is available.' end
@@ -206,6 +210,9 @@ function Yard.update(vehicle,assignment,world,dt,state,kind)
     end
     if y.stage=='released' then return true end
     if y.stage=='docked' then Rail.stop(vehicle);vehicle.phase='at_bay';return true end
+    if require('src.commute.truck_power').report(state,vehicle,issue(vehicle),y.stage) then
+        y.wait=0;y.reported=nil;return false
+    end
     vehicle.phase=target=='outbound' and 'departing' or target=='dock' and 'approaching' or 'approaching_wait'
     if y.stage:match('_stop$') then
         Rail.stop(vehicle);y.pause=y.pause+dt

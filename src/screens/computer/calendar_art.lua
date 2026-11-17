@@ -17,10 +17,13 @@ function Art.draw(month,rect)
     local image=Art.image(month)
     if not image then return false end
     local width,height=image:getDimensions()
-    local scale=math.max(rect.width/width,rect.height/height)
+    -- Slightly overscan the artwork so the calendar's top edge has no exposed
+    -- dark sliver on narrow/mobile layouts. Keep the top anchored so the added
+    -- coverage goes toward the area above the calendar cells.
+    local scale=math.max(rect.width/width,rect.height/height)*1.10
     local drawWidth,drawHeight=width*scale,height*scale
     local x=rect.x+(rect.width-drawWidth)*.5
-    local y=rect.y+(rect.height-drawHeight)*.5
+    local y=rect.y
     love.graphics.push("all")
     love.graphics.setScissor(rect.x,rect.y,rect.width,rect.height)
     love.graphics.setColor(1,1,1,.92)

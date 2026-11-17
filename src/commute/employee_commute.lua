@@ -6,12 +6,25 @@ local Routes=require('src.commute.commuter_routes')
 local NpcJourney=require('src.commute.npc_journey')
 local Commuters={TRAVEL_HOURS=1}
 
+-- Partial runtime fixtures and migration previews may contain placeholder
+-- roster entries. Save validation still rejects these; presentation skips them.
+local function people(list)
+    local index=0;list=type(list)=='table' and list or {}
+    return function()
+        while true do
+            index=index+1;local person=list[index]
+            if person==nil then return nil end
+            if type(person)=='table' then return index,person end
+        end
+    end
+end
+
 local function finite(value)return type(value)=='number' and value==value and math.abs(value)<math.huge end
 local function equal(a,b)
     if a==b then return true end
     if type(a)~='table' or type(b)~='table' then return false end
-    for key,value in pairs(a) do if b[key]~=value then return false end end
-    for key,value in pairs(b) do if a[key]~=value then return false end end
+    for key,value in pairs(a) do if key~='motion' and b[key]~=value then return false end end
+    for key,value in pairs(b) do if key~='motion' and a[key]~=value then return false end end
     return true
 end
 local function residenceId(profile)
@@ -58,6 +71,7 @@ function Commuters.validState(value,profile)
     local expectedTo=toWork and profile.workSiteId or residenceId(profile)
     local day=value.day
     return type(day)=='number' and day%1==0 and day>=0
+        and require('src.commute.scheduled_motion').valid(value.motion,Commuters.TRAVEL_HOURS)
         and value.fromId==expectedFrom and value.toId==expectedTo
         and finite(value.departAtHours) and finite(value.arriveAtHours)
         and value.arriveAtHours-value.departAtHours==Commuters.TRAVEL_HOURS
@@ -76,9 +90,10 @@ end
 function Commuters.advance(state,hours)
     if not state or not state.employment or not finite(hours) then return false end
     local changed=false
-    for _,worker in ipairs(state.employment.staff or {}) do
+    for _,worker in people(state.employment.staff) do
         if worker.commuteProfile then
             local nextState=stateFor(worker,hours)
+            if NpcJourney.pending(worker.commuteState) then nextState=worker.commuteState end
             if not equal(worker.commuteState,nextState) then
                 worker.commuteState=nextState
                 changed=true
@@ -91,13 +106,13 @@ function Commuters.actors(state,town,hours,activeWorld)
     local result={}
     if not state or not state.employment or not finite(hours) then return result end
     local parkingSlots={};local employeeParkingIndex=0
-    for _,worker in ipairs(state.employment.staff or {}) do
+    for _,worker in people(state.employment.staff) do
         if worker.status=='employed' and worker.commuteProfile then
             employeeParkingIndex=employeeParkingIndex+1
             parkingSlots[worker]=9-employeeParkingIndex
         end
     end
-    for _,worker in ipairs(state.employment.staff or {}) do
+    for _,worker in people(state.employment.staff) do
         local profile=worker.commuteProfile
         local journey=worker.commuteState
         if worker.status=='employed' and profile and journey then
@@ -113,11 +128,13 @@ function Commuters.actors(state,town,hours,activeWorld)
                 if trip and trip.bike then
                     local pose=trip.bike
                     local bike=Bike.new(pose.x,pose.z,pose.heading)
+                    bike.h=pose.h or world:supportHeight(pose.x,pose.z)
                     bike.paintId=profile.paintId;bike.speed=pose.speed or 0
                     bike.distance=(route.length or 0)*(pose.progress or 0)
                     bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                     bike.trafficId='employee-'..worker.id
                     result[#result+1]={id='employee-'..worker.id,actor=bike,bike=true,
+                        journey=journey,route=route,fromSlot=fromSlot,toSlot=toSlot,
                         bikeOnly=pose.parked==true,deliveryBike=true,
                         employeeCommuter=true,phase='commuting',npcStage=trip.stage,
                         parked=pose.parked==true,
@@ -157,7 +174,7 @@ function Commuters.actors(state,town,hours,activeWorld)
         end
     end
     local applicantParkingSlots={};local applicantIndex=0
-    for _,application in ipairs(state.employment.applications or {}) do
+    for _,application in people(state.employment.applications) do
         local commute=application.commuteState
         if application.status~='hired' and application.commuteProfile and commute
             and commute.phase~='home' then
@@ -165,13 +182,13 @@ function Commuters.actors(state,town,hours,activeWorld)
             applicantParkingSlots[application]=8-employeeParkingIndex-applicantIndex
         end
     end
-    for _,application in ipairs(state.employment.applications or {}) do
+    for _,application in people(state.employment.applications) do
         local profile=application.commuteProfile
         local journey=application.commuteState
         if application.status~='hired' and profile and journey then
             local homeSlot=profile.residenceKind=='town' and 1 or nil
             if journey.phase=='commuting_to_work' or journey.phase=='commuting_home' then
-                if hours>=journey.arriveAtHours then
+                if hours>=journey.arriveAtHours and not NpcJourney.pending(journey) then
                     local siteId,slot
                     if journey.phase=='commuting_to_work' then
                         siteId=profile.workSiteId;slot=applicantParkingSlots[application]
@@ -204,11 +221,13 @@ function Commuters.actors(state,town,hours,activeWorld)
                     if trip and trip.bike then
                         local pose=trip.bike
                         local bike=Bike.new(pose.x,pose.z,pose.heading)
+                        bike.h=pose.h or routeWorld:supportHeight(pose.x,pose.z)
                         bike.paintId=profile.paintId;bike.speed=pose.speed or 0
                         bike.distance=(route.length or 0)*(pose.progress or 0)
                         bike.trafficKind='motorcycle';bike.aiKind='motorcycle'
                         bike.trafficId='applicant-'..application.id
                         result[#result+1]={id='applicant-'..application.id,actor=bike,bike=true,
+                            journey=journey,route=route,fromSlot=fromSlot,toSlot=toSlot,
                             bikeOnly=pose.parked==true,deliveryBike=true,applicantCommuter=true,
                             phase='commuting',npcStage=trip.stage,parked=pose.parked==true,
                             characterId=application.character,rosterId=profile.rosterId,

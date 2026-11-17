@@ -79,19 +79,10 @@ function Component.install(Runtime)
             state.message = "Customer pickup scheduled for " .. pickup.id .. "."
             return true
         end
-        local machineOrder = Runtime.MachineFleet.nextInbound(state)
-        if machineOrder then
-            if Runtime.World.truck:schedule(machineOrder.id, "machine_delivery") then
-                machineOrder.delivery.status = "scheduled"
-                machineOrder.delivery.scheduledAt = os.time()
-                state.message = "Machine flatbed delivery scheduled for " .. machineOrder.id .. "."
-                return true
-            end
-            return false
-        end
-        local purchase = Runtime.Procurement.nextInbound(state)
+        -- Service the truck that already owns the outdoor dock. An overdue
+        -- manifest can still be travelling or waiting behind that truck.
+        local purchase = Runtime.Procurement.nextInbound(state,require('src.commute.delivery_traffic').arrived)
         if purchase then
-            if not require('src.commute.delivery_traffic').arrived(purchase) then return false end
             if Runtime.World.truck:schedule(purchase.id, "vendor_delivery") then
                 purchase.delivery.status = "scheduled"
                 state.message = "Vendor delivery scheduled for " .. purchase.id .. "."
@@ -117,6 +108,15 @@ function Component.install(Runtime)
                     return true
                 end
                 return false
+            end
+        end
+        local machineOrder = Runtime.MachineFleet.nextInbound(state)
+        if machineOrder then
+            if Runtime.World.truck:schedule(machineOrder.id, "machine_delivery") then
+                machineOrder.delivery.status = "scheduled"
+                machineOrder.delivery.scheduledAt = os.time()
+                state.message = "Machine flatbed delivery scheduled for " .. machineOrder.id .. "."
+                return true
             end
         end
         return false
@@ -264,11 +264,13 @@ function Component.install(Runtime)
             or not require("src.weekend_flow").acceptsNewWork(state)
             or not Runtime.BusinessCalendar.isBusinessOpen(state)
         local employeeContext = Runtime.World.employeeContext(state,assets)
+        saveNeeded=VisitorCommute.prepare(state,{customer=Runtime.World.customer,vendor=Runtime.World.vendor},
+            Runtime.BusinessCalendar.absoluteHours(state)) or saveNeeded
         reserveVisitorSeat(Runtime.World.customer,{Runtime.World.vendor})
         local customerPause=receptionClosed or (Runtime.World.customer.state=="scheduled"
             and Runtime.World.receptionVisitorCount(state)>=Runtime.World.RECEPTION_GUEST_CAPACITY)
         local customerEvent = Runtime.World.customer:update(dt, player,
-            customerPause, motionDt, employeeContext)
+            customerPause or VisitorCommute.holdArrival(state,'customer',Runtime.World.customer,dt), motionDt, employeeContext)
         if customerEvent == "arrived" and state then
             state.message = Runtime.World.customerArrivalMessage(state)
         elseif customerEvent == "timed_out" and state then
@@ -276,8 +278,8 @@ function Component.install(Runtime)
         elseif customerEvent == "route_blocked" and state then
             state.message = "The client cannot reach the lounge and is heading back to the entrance. Clear the aisle."
         elseif customerEvent == "exited" and state then
-            VisitorCommute.depart(state,"customer",Runtime.World.customer.character,
-                Runtime.BusinessCalendar.absoluteHours(state))
+            saveNeeded=VisitorCommute.depart(state,"customer",Runtime.World.customer.character,
+                Runtime.BusinessCalendar.absoluteHours(state)) or saveNeeded
             state.message = Runtime.World.customer.routeBlocked
                 and "The client left because the lounge was inaccessible."
                 or Runtime.World.customer.decision == "timed_out"
@@ -296,14 +298,14 @@ function Component.install(Runtime)
         local vendorPause=receptionClosed or (Runtime.World.vendor.state=="scheduled"
             and Runtime.World.receptionVisitorCount(state)>=Runtime.World.RECEPTION_GUEST_CAPACITY)
         local vendorEvent = Runtime.World.vendor:update(dt, player,
-            vendorPause, motionDt, employeeContext)
+            vendorPause or VisitorCommute.holdArrival(state,'vendor',Runtime.World.vendor,dt), motionDt, employeeContext)
         if vendorEvent == "arrived" and state then
             state.message = category.salesman .. " is waiting at reception with the " .. category.name:lower() .. " catalog."
         elseif vendorEvent == "route_blocked" and state then
             state.message = "The supplier cannot reach reception and is heading back to the entrance. Clear the aisle."
         elseif vendorEvent == "exited" and state then
-            VisitorCommute.depart(state,"vendor",Runtime.World.vendor.character,
-                Runtime.BusinessCalendar.absoluteHours(state))
+            saveNeeded=VisitorCommute.depart(state,"vendor",Runtime.World.vendor.character,
+                Runtime.BusinessCalendar.absoluteHours(state)) or saveNeeded
             state.vendorCategory = state.vendorCategory % #Runtime.Procurement.categories + 1
             Runtime.World.vendor:reset(false,salesmanVisitDelayMultiplier(state),
                 VisitorCommute.travelSeconds(state))

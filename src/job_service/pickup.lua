@@ -350,6 +350,7 @@ function Component.install(Runtime)
             end
         end
         Runtime.JobService.scheduleRepeatEmail(state, job)
+        require('src.history_retention').enforce(state)
         return true, job, payment
     end
 

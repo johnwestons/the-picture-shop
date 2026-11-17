@@ -49,6 +49,16 @@ local function click(kind, identifier, info)
 end
 
 function Test.run(_, check)
+    local relocated = directHost({ overlayLayout = {
+        session = { x = .68, y = .14 },
+    } })
+    MultiplayerHud.reset()
+    local relocatedToggle = MultiplayerHud.layout(relocated).toggle
+    check('multiplayer_hud_session_uses_movable_layout_and_hit_target',
+        math.abs(relocatedToggle.x + relocatedToggle.width / 2 - .68 * 960) < .01
+        and click('toggle', nil, relocated) == true
+        and MultiplayerHud.isOpen())
+    MultiplayerHud.reset()
     local host = directHost()
     MultiplayerHud.reset()
     check("multiplayer_hud_direct_host_can_open_with_p",

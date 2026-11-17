@@ -70,6 +70,7 @@ function Component.install(Runtime)
     -- shared vehicle operator before snapshot normalization removes active flags.
     function Runtime.Schema.validPhysicalSource(value)
         if type(value) ~= "table" then return false end
+        if not require('src.history_retention').valid(value) then return false end
         if value.extraPalletJacks~=nil and not Runtime.array(value.extraPalletJacks,function(jack)
             return type(jack)=="table" and Runtime.palletJack(jack)
         end) then return false end

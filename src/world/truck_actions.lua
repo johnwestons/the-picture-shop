@@ -8,6 +8,13 @@ function Component.install(Runtime)
             and not (requestedKind=="restoration" and desiredState=="grand_opening") then
             return false,"opening_in_progress","Please wait for the grand opening to finish.",requestedKind
         end
+        if requestedKind=='itemTrade' then
+            local options=Runtime.World._employeeOptions or {}
+            local players={Runtime.World.player}
+            for _,other in ipairs(options.players and options.players() or {}) do players[#players+1]=other end
+            local okay,code,message=require('src.item_trade').command(state,player,desiredState,players)
+            return okay,code,message,requestedKind
+        end
         local allowed,reason=require('src.commute.outfit').allowed(state,player,'work')
         if not allowed then return false,'riding_gear',reason,requestedKind end
         if requestedKind=="roomGame" then

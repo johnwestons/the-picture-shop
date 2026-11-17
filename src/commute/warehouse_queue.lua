@@ -2,6 +2,7 @@
 local Path=require('src.commute.driving_path')
 local Footprint=require('src.commute.truck_footprint')
 local Yard=require('src.commute.warehouse_yard')
+local Departure=require('src.commute.delivery_departure')
 local Queue={SPACING=9}
 local overflow=setmetatable({}, {__mode='k'})
 local function tailStation(route)
@@ -67,9 +68,7 @@ function Queue.plan(entries,route,externalBlocked,epoch,lanePosition)
         if delivery and delivery.status=='received' and record and not record.transportId then
             local departing=outbound and outbound.vehicle
             local parked=not departing and record.vehicle and record.vehicle.phase=='at_bay'
-            local awaitingSpawn=outbound and not departing and type(outbound.departedAtEpoch)=='number'
-                and outbound.departedAtEpoch<=epoch
-                and (not outbound.arrivedAtEpoch or epoch<outbound.arrivedAtEpoch)
+            local awaitingSpawn=outbound and not departing and Departure.pending(delivery,epoch)
             if parked or awaitingSpawn or Yard.exitOccupies(departing,route.world) then
                 pendingExit=true
                 local at=outbound and outbound.departedAtEpoch or math.huge

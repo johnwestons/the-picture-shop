@@ -18,6 +18,7 @@ function Inbox.ensure(state)
     emails.inbox = type(emails.inbox) == "table" and emails.inbox or {}
     emails.archive = type(emails.archive) == "table" and emails.archive or {}
     emails.sentPromotions = type(emails.sentPromotions) == "table" and emails.sentPromotions or {}
+    require('src.history_retention').emails(state)
     return emails
 end
 
@@ -53,6 +54,7 @@ function Inbox.addNotice(state, notice, delayHours)
     else
         emails.pending[#emails.pending + 1] = notice
     end
+    require('src.history_retention').emails(state)
     return notice
 end
 
@@ -72,6 +74,7 @@ function Inbox.dismissNotice(state, noticeId)
                 total = notice.total,
                 respondedAtHours = BusinessCalendar.absoluteHours(state),
             }
+            require('src.history_retention').trim(emails.archive,100)
             return notice
         end
     end

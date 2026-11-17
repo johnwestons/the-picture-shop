@@ -59,6 +59,16 @@ Capabilities.INTERACTIONS = {
         mode = "read_only",
         supported = { "view_high_five_request" },
     },
+    employeeTrade = {
+        label = "Employee item trading",
+        mode = "full",
+        supported = { "inspect_staff_offer", "accept_staff_trade", "gift_staff_items" },
+    },
+    itemTradePlayer = {
+        label = "Player item trading",
+        mode = "full",
+        supported = { "offer_trade", "offer_gift", "accept_offer", "decline_offer" },
+    },
     vendor = {
         label = "Supplier representative",
         mode = "candidate",

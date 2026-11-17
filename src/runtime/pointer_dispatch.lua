@@ -6,8 +6,12 @@ function Component.install(Runtime)
     -- Scene panels and town loading can consume all pointer input. Keep the
     -- global menu controls reachable before those scene controls consume taps.
     function Runtime.menuAccessPointer(x,y,button)
-        if button==1 and Runtime.state.screen=='world' and x>=820 and x<=950 and y>=390 and y<=430 then
-            return require('src.home_activity_controls').keypressed('i',Runtime)
+        if button==1 and Runtime.state.screen=='world' then
+            local pocket = require('src.screens.world_overlay_layout').pockets(Runtime)
+            if x>=pocket.x and x<=pocket.x+pocket.width
+                and y>=pocket.y and y<=pocket.y+pocket.height then
+                return require('src.home_activity_controls').keypressed('i',Runtime)
+            end
         end
         if button~=1 or Runtime.state.screen=='options' or Runtime.state.screen=='asset_error' then
             return false
@@ -78,6 +82,7 @@ function Component.install(Runtime)
 
     function Runtime.multiplayerHudInfo()
         local info = Runtime.multiplayer:hudInfo()
+        info.overlayLayout = require('src.screens.world_overlay_layout').points(Runtime)
         info.canInvite = Runtime.directHostCanInvite()
         if Runtime.multiplayer:isHost() then
             info.workshopResources = Runtime.workshopAuthority and Runtime.workshopAuthority:snapshot() or {}
@@ -172,6 +177,9 @@ function Component.install(Runtime)
         if Runtime.state.screen == "asset_error" then return end
         local gameX, gameY = Runtime.toPointerCoordinates(x, y)
         local overlayX,overlayY=Runtime.toViewportCoordinates(x,y)
+        if Runtime.state.screen=='trade' then
+            return require('src.screens.trade_screen').mousepressed(Runtime,gameX,gameY,button)
+        end
         if Runtime.menuAccessPointerScreen(overlayX,overlayY,button) then return true end
         if Runtime.state.screen=="critter_kombat" then
             return require("src.screens.critter_kombat_screen").mousepressed(Runtime,gameX,gameY,button)

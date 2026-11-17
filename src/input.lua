@@ -134,6 +134,7 @@ end
 
 function Input.keypressed(key, context)
     local state = context.state
+    if state.screen=="trade" then return context.tradeKeyPressed and context.tradeKeyPressed(key) or true end
     if state.screen=="delivery_signature" then
         if key=="escape" then return Input.closeScreen(context) end
         local result=context.deliverySignatureScreen.keypressed(key)
@@ -389,6 +390,9 @@ function Input.keypressed(key, context)
             if networkClient then state.message="The shop owner handles employment applications."
             elseif context.world.requestEmployeeResume(state,selected.target.applicationId) then context.saveCurrent() end
             return true
+        elseif selected and (selected.kind=="itemTradePlayer" or selected.kind=="employeeTrade") then
+            if context.openTrade then context.openTrade(selected.target or {}) end
+            return true
         elseif selected and selected.kind == "employeeHighFive" then
             if networkClient then state.message="The shop owner handles employee high fives."
             elseif context.world.highFiveEmployee
@@ -551,6 +555,7 @@ end
 
 function Input.mousepressed(x, y, button, context)
     local state = context.state
+    if state.screen=="trade" then return context.tradeMousePressed and context.tradeMousePressed(x,y,button) or true end
     -- Outdoor ride input belongs to its own controls. Global options/HUD have
     -- already handled their hits before this warehouse pointer fallback.
     if state.screen == "world" and context.world and context.world.player

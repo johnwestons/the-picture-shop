@@ -18,6 +18,7 @@ function Component.install(Runtime)
                         "The host sent a shop snapshot this build could not apply.",
                         "Invalid shared shop snapshot")
                 else
+                    Runtime.State.enableSharedHistory(Runtime.state)
                     require('src.client_households').activateClient(Runtime.state,
                         Runtime.multiplayer.residentId)
                     if Runtime.multiplayer:isClient() and Runtime.multiplayer.networkKind == "lan" then
@@ -37,16 +38,22 @@ function Component.install(Runtime)
                 end
                 Runtime.syncMobileKeyboard()
             elseif event.type == "shop_state" then
-                if not Runtime.State.applySharedUpdate(Runtime.state, event.state) then
+                if not Runtime.State.applySharedUpdate(Runtime.state, event.state,event.changed) then
                     Runtime.showConnectionError(
                         "The host sent a shop update this build could not apply.",
                         "Invalid durable shop update")
                 else
-                    require('src.client_households').activateClient(Runtime.state,
-                        Runtime.multiplayer.residentId)
+                    if not event.changed or event.changed.home then
+                        require('src.client_households').activateClient(Runtime.state,
+                            Runtime.multiplayer.residentId)
+                    end
                     local recorded,reason=require('src.portable_pay').recordSnapshot(Runtime.state,
                         Runtime.multiplayer.residentId,Runtime.multiplayer.residentToken)
                     if not recorded then Runtime.state.message='Portable wages could not be saved: '..tostring(reason) end
+                end
+            elseif event.type == 'shop_history' then
+                if not Runtime.State.applySharedHistory(Runtime.state,event) then
+                    Runtime.showConnectionError('The host sent an invalid history page.','Invalid shop history')
                 end
             elseif event.type == "radio_state" then
                 require("src.jukebox").applyNetworkState(event)

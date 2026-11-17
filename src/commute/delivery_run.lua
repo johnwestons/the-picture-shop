@@ -175,6 +175,9 @@ function Run.nextMessage(run)
     if run.status=='loading' then return 'Back the truck to the shop dock and load every pallet inside.' end
     local stop=run.stops[run.stopIndex]
     if not stop then return 'All deliveries complete. You are free to continue your day.' end
+    if run.paused then
+        return 'Delivery paused with the truck parked. Resume when customer receiving opens.'
+    end
     return stop.kind=='city' and ('GPS: Millhaven bridge exit for '..stop.label..'.')
         or ('GPS: '..stop.label..'. Park nearby and hand off the pallets at the door.')
 end
@@ -198,6 +201,30 @@ function Run.releaseTrip(state,trip)
             and (resident and resident.apartmentId or state.home.apartmentId) or 'warehouse'
     end
     state.home.revision=state.home.revision+1
+end
+
+-- A client profile owns its personal progress; loaded shop orders belong to
+-- the business. Keep the manifest and cargo when that profile is removed.
+function Run.reassignDeletedDriver(state,residentId)
+    local home=state and state.home
+    local trip=home and home.commute
+    if not trip or trip.deliveryDriver~=residentId or not trip.deliveryRun then return true,false end
+    local vehicle=trip.deliveryVehicleModel=='kei' and trip.keiTruck or trip.truck
+    if not trip.independent or not vehicle or not home.residents.owner then
+        return false,'Finish the active delivery before removing this client profile.'
+    end
+    trip.deliveryDriver='owner'
+    vehicle.owner,vehicle.driver='owner',nil
+    vehicle.speed,vehicle.steering,vehicle.throttle,vehicle.brake=0,0,0,1
+    local run=trip.deliveryRun
+    if run.status=='offmap' then
+        -- The deleted driver's cinematic cannot be resumed. The owner can
+        -- collect the parked truck and take the same undelivered manifest.
+        run.status='driving'
+        run.cutsceneStartedAtEpoch,run.cutsceneEndsAtEpoch=nil,nil
+    end
+    home.revision=home.revision+1
+    return true,true
 end
 
 function Run.load(state,run)
@@ -233,6 +260,7 @@ end
 
 function Run.nextStopOpen(state,stop,now)
     now=now or require('src.business_calendar').absoluteHours(state)
+    if stop and stop.kind=='city' then return now,'city' end
     local schedule=stop and stop.kind=='town'
         and require('src.commute.town_characters').businessSchedule(stop.id)
     local retail={diner=true,['coffee-shop']=true,['general-store']=true}
@@ -246,11 +274,18 @@ function Run.nextStopOpen(state,stop,now)
     return now,'retail'
 end
 
+function Run.canPauseAtClosedStop(state,run,now)
+    local stop=run and run.stops and run.stops[run.stopIndex]
+    if not run or run.status~='driving' or not stop or stop.kind~='town' then return false end
+    now=now or require('src.business_calendar').absoluteHours(state)
+    return Run.nextStopOpen(state,stop,now)>now+1e-7
+end
+
 function Run.completeStop(state,stop,driverDelivery)
     if type(stop)~='table' or type(stop.jobIds)~='table' then return false,'Invalid delivery stop.' end
     local now=require('src.business_calendar').absoluteHours(state)
     local opens,kind=Run.nextStopOpen(state,stop,now)
-    if opens>now+1e-7 then
+    if stop.kind~='city' and opens>now+1e-7 then
         return false,('Receiving is closed. Return %s.%s'):format(
             require('src.business_calendar').dateTimeTextAtHours(opens),kind=='industrial'
                 and ' Industrial deliveries run Monday-Friday, 09:00-20:00.' or '')
@@ -301,7 +336,8 @@ function Run.valid(value,home)
         or value.cutsceneStartedAtEpoch~=nil and (type(value.cutsceneStartedAtEpoch)~='number'
             or value.cutsceneStartedAtEpoch<0)
         or value.cutsceneEndsAtEpoch~=nil and (type(value.cutsceneEndsAtEpoch)~='number'
-            or value.cutsceneEndsAtEpoch<0) then return false end
+            or value.cutsceneEndsAtEpoch<0)
+        or value.paused~=nil and type(value.paused)~='boolean' then return false end
     if (value.driverSkill~=nil and (type(value.driverSkill)~='number'
             or value.driverSkill%1~=0 or value.driverSkill<0 or value.driverSkill>100))
         or (value.driverEmployeeId~=nil and (type(value.driverEmployeeId)~='string'

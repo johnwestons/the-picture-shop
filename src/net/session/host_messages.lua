@@ -98,12 +98,14 @@ function Component.install(Runtime)
         if welcomeOk and type(shop) == "table" and type(shop.state) == "table"
             and type(shop.player) == "table"
         then
+            local live,history=require('src.net.shop_replication').project(shop.state)
             shopOk, shopError = self:_send(peer, "shop_snapshot", {
                 sessionId = self.sessionId,
                 revision = self.shopRevision,
-                state = shop.state,
+                state = live,
                 player = shop.player,
             })
+            if shopOk then self:_rememberShopPeer(peer,live,history) end
         else
             shopError = shopError or "The host could not prepare a safe shop snapshot."
         end
@@ -246,7 +248,7 @@ function Component.install(Runtime)
             local player = self.players[id]
             if not player or payload.sequence <= (player.lastInputSequence or -1) then return end
             player.lastInputSequence = payload.sequence
-            player.inputSequence = payload.sequence
+            self:_queueMovementCommands(player,payload,context)
             player.inputX, player.inputY = payload.moveX, payload.moveY
             player.inputBoost = payload.boost == true
             player.gameInputX,player.gameInputY=payload.gameX,payload.gameY

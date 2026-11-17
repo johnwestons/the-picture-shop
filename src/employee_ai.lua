@@ -145,10 +145,12 @@ local function applications(state,dt,now,context)
     for _,a in ipairs(e.applications) do
         local actor=a.actor
         local commute=a.commuteState
-        if commute and commute.phase=="commuting_to_work" and now>=commute.arriveAtHours then
+        if commute and commute.phase=="commuting_to_work" and now>=commute.arriveAtHours
+            and not require('src.commute.npc_journey').pending(commute) then
             a.commuteState={phase="at_work",day=math.floor(math.max(0,now)/24)}
             commute=a.commuteState;changed=true
-        elseif commute and commute.phase=="commuting_home" and now>=commute.arriveAtHours then
+        elseif commute and commute.phase=="commuting_home" and now>=commute.arriveAtHours
+            and not require('src.commute.npc_journey').pending(commute) then
             a.commuteState={phase="home"}
             commute=a.commuteState;changed=true
         end
@@ -347,6 +349,19 @@ end
 local function trainingStep(state,w,dt,hours,context)
     local training=w.training
     if not training then return false end
+    -- Finish the physical equipment handoff before ordinary walking. Older
+    -- saves may already have training queued while transporting a load.
+    if Transport.owns(state,w) then
+        w._trainingMachineId=nil
+        local jack=require("src.pallet_jack_fleet").owned(state,w.id)
+        if jack.carriedPalletId then return Transport.release(state,w,context) end
+        return Transport.park(state,w,dt,context)
+    end
+    if w.carryingPalletId then
+        w._trainingMachineId=nil
+        w.activity="Training paused - set down the carried skid safely"
+        return Work.dropCarried(state,w,context)
+    end
     local model=training.skill=="cutter" and "polar_115"
         or training.skill=="press" and "heidelberg_10x15" or "skid_wrapper"
     local units=Fleet.installedUnits(state,model)
@@ -365,8 +380,11 @@ local function trainingStep(state,w,dt,hours,context)
         end
         return moveContext,moveObstacles
     end
+    local unavailableReason
     for _,candidate in ipairs(units) do
-        if not Employees.reservation(state,candidate.id,nil,w.id)
+        local operable,reason=require("src.employee_training").available(state,candidate)
+        if not operable then unavailableReason=unavailableReason or reason end
+        if operable and not Employees.reservation(state,candidate.id,nil,w.id)
             and (not context.canClaim or context.canClaim(candidate.id)) then
             local _,obstacles=movementSnapshot()
             local point=context.operatorPoint and context.operatorPoint(candidate.id,w,nil,obstacles)
@@ -375,7 +393,9 @@ local function trainingStep(state,w,dt,hours,context)
     end
     if not machine then
         w._trainingMachineId=nil
-        w.phase="idle";w.activity="Waiting for an available training machine"
+        w.phase="idle";w.moving=false
+        w.activity=unavailableReason and ("Training paused - "..unavailableReason)
+            or "Waiting for an available training machine"
         return false
     end
     w._trainingMachineId=machine.id
@@ -475,7 +495,7 @@ function AI.worker(state,w,dt,now,context)
             and require("src.weekend_flow").acceptsNewWork(state) or finishingFriday)
     local overdue=Payroll.overdueSince(w,now)
     if overdue and now-overdue>=168 and w.status=="employed" then w.terminationRequested=true;w.resigning=true;onShift=false end
-    if onShift and not w.visible then
+    if onShift and not w.visible and not require('src.commute.npc_journey').pending(w.commuteState) then
         w.visible=true;w.phase="entering";w.x,w.y=entrance.x,entrance.y;w.clockedIn=true
         local highFiveCooldownHours=7*24
         if not w.lastHighFiveRequestAtHours
@@ -498,6 +518,9 @@ function AI.worker(state,w,dt,now,context)
     local droppedCarriedPallet=false
     if (w.sceneId or "warehouse")~="warehouse" and context.travelScene
         and (not onShift or w.stopRequested or w.training or w.assignment or breakChoice(w,now)) then
+        if w.training and (Transport.owns(state,w) or w.carryingPalletId) then
+            return trainingStep(state,w,dt,0,context)
+        end
         local _,changed=context.travelScene(w,"warehouse",dt)
         return changed
     end
@@ -751,6 +774,7 @@ function AI.updateClosedShop(state,firstAt,lastAt)
     end
     for index,w in ipairs(employment.staff) do
         local eligible=w.status=="employed" and not w.terminationRequested
+            and not require("src.commute.npc_journey").pending(w.commuteState)
         if eligible then
             for shiftDay=fromDay,throughDay do
                 if w.sentHomeShiftDay~=shiftDay then

@@ -42,6 +42,20 @@ function Travel.command(state,player,command,context)
             return denied('Go to the warehouse entrance or apartment exit first.')
         end
         if not context.commuteWorld then return denied('The town is not available.') end
+        local commute=state.home.commute
+        local pausedDelivery=commute and commute.deliveryRun and commute.deliveryRun.paused==true
+            and commute.deliveryDriver==require('src.home_residents').key(player)
+        if command=='explore' and pausedDelivery and (player.sceneId or 'warehouse')=='home' then
+            local okay,trip=require('src.commute.free_travel').enter(
+                state,player,context.commuteWorld,nil,context.players())
+            if not okay then return denied(trip) end
+            if context.release then context.release({player}) end
+            local ped=trip.participants[require('src.home_residents').key(player)].rider.ped
+            require('src.player_controller').reset(player,{x=ped.x,y=ped.z},Config.player)
+            player.sceneId='commute';player.resting=false
+            player.inputX,player.inputY,player.gameInputX,player.gameInputY,player.combatButtons=0,0,0,0,0
+            return true,'accepted','Delivery resumed. '..require('src.commute.delivery_run').nextMessage(trip.deliveryRun)
+        end
         if command=='shutdown' then
             if id~=1 or week.phase~='closing' then return denied('The host can close the shop after Friday closing.') end
             local Shutdown=require('src.shop_shutdown')

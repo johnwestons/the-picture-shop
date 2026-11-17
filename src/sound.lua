@@ -338,7 +338,8 @@ function Sound:capture()
         lastPersonalAlarm=resident and resident.lastAlarmAt,
         message = state.message,
         money = tonumber(state.money) or 0,
-        completedJobs = count(state.jobs and state.jobs.completed),
+        completedJobs = count(state.jobs and state.jobs.completed)
+            +(state.jobs and state.jobs.retired and state.jobs.retired.completed or 0),
         door = world and world.bayDoor and world.bayDoor.state,
         truck = world and world.truck and world.truck.state,
         pallet = jack.carriedPalletId,

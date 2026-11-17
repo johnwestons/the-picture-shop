@@ -19,7 +19,7 @@ function Component.install(Runtime)
         return placement
     end
 
-    function Runtime.Schema.defaultState()
+    function Runtime.Schema.defaultState(normalizedHome)
         local jack = Runtime.defaultPlacement(Runtime.Config.palletJack)
         jack.operating = false
         jack.animationClock = 0
@@ -27,7 +27,7 @@ function Component.install(Runtime)
             money = 180,
             notifications = require('src.notifications').new(),
             tutorial = require('src.tutorial').new(false),
-            home = Runtime.Home.new(),
+            home = normalizedHome or Runtime.Home.new(),
             inventory = {
                 paper = 0,
                 prints = 0,

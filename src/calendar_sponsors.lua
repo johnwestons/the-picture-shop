@@ -10,5 +10,5 @@ return {
     [9]={sponsor="Town Post Office",image="09-september-post-office.jpg"},
     [10]={sponsor="Majic Blue Mechanics",image="10-october-mechanic.jpg"},
     [11]={sponsor="Town General Store",image="11-november-general-store.jpg"},
-    [12]={sponsor="The Picture Shop",image="12-december-picture-shop.jpg"},
+    [12]={sponsor="The Picture Shop",image="12-december-picture-shop-printshop.png"},
 }

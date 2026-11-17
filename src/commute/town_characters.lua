@@ -33,6 +33,7 @@ local function journeyValid(journey,profile,phase,schedule)
     local departOffset=toWork and schedule.leaveHomeHour or schedule.closeHour
     local arriveOffset=toWork and schedule.openHour or schedule.arriveHomeHour
     return type(journey)=='table' and type(journey.day)=='number' and journey.day%1==0 and journey.day>=0
+        and require('src.commute.scheduled_motion').valid(journey.motion,arriveOffset-departOffset)
         and journey.fromId==from and journey.toId==to
         and finite(journey.departAtHours) and journey.departAtHours==journey.day*24+departOffset
         and finite(journey.arriveAtHours) and journey.arriveAtHours==journey.day*24+arriveOffset
@@ -103,7 +104,12 @@ function Characters.normalize(value,town,hours)
         for index,profile in ipairs(profiles) do
             local person=result.people[index]
             local phase,_,journey=scheduledPhase(profile,hours)
-            person.phase,person.journey=phase,journey
+            if not NpcJourney.pending(person.journey) then
+                if journey and person.journey and journey.departAtHours==person.journey.departAtHours then
+                    journey.motion=person.journey.motion
+                end
+                person.phase,person.journey=phase,journey
+            end
         end
     end
     return result
@@ -131,6 +137,7 @@ function Characters.advance(state,hours)
     for index,profile in ipairs(profiles) do
         local person=saved.people[index]
         local phase,_,journey=scheduledPhase(profile,hours)
+        if NpcJourney.pending(person.journey) then phase,journey=person.phase,person.journey end
         local journeyChanged=not journeyValid(person.journey,profile,phase,profile.schedule)
         if journey and person.journey and person.journey.day~=journey.day then journeyChanged=true end
         local schedule=person.schedule
@@ -140,8 +147,8 @@ function Characters.advance(state,hours)
             or schedule.leaveHomeHour~=profile.schedule.leaveHomeHour
             or schedule.arriveHomeHour~=profile.schedule.arriveHomeHour
         if person.phase~=phase or journeyChanged or scheduleChanged then
-            -- The journey record holds the home/work route and scheduled time
-            -- window. Position is derived from that record as game time moves.
+            -- Keep a delayed physical journey until it arrives, even after
+            -- the timetable would normally switch to work or home.
             person.phase=phase;person.journey=journey
             person.schedule=copy(profile.schedule);changed=true
         end
@@ -191,10 +198,12 @@ function Characters.actors(home,town,hours,activeWorld)
             if trip and trip.bike then
                 local pose=trip.bike
                 local bike=Bike.new(pose.x,pose.z,pose.heading)
+                bike.h=pose.h or world:supportHeight(pose.x,pose.z)
                 bike.paintId=person.paintId;bike.speed=pose.speed or 0
                 bike.distance=(route.length or 0)*(pose.progress or 0);bike.trafficKind='motorcycle'
                 bike.aiKind='motorcycle';bike.trafficId='town-npc-'..person.id
                 result[#result+1]={id='town-npc-'..person.id,actor=bike,bike=true,
+                    journey=journey,route=route,fromSlot=index,toSlot=index,
                     bikeOnly=pose.parked==true,deliveryBike=true,
                     townNpc=true,phase='commuting',npcStage=trip.stage,parked=pose.parked==true,
                     label=person.name..' · '..journey.fromId..' → '..journey.toId,

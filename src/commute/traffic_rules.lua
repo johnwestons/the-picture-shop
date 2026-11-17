@@ -295,7 +295,8 @@ function Rules.limitForTraffic(vehicle,desired,actors,segment,actorIndex,passing
     local yieldOnNarrowRoad=false
     local function consider(entry,other)
         other=other or entry.actor or entry
-        if other~=vehicle and finite(other.x) and finite(other.z) then
+        if other~=vehicle and entry.id~=tostring(vehicle.trafficId)..'-walker'
+            and finite(other.x) and finite(other.z) then
             local dx,dz=other.x-vehicle.x,other.z-vehicle.z
             local forward=dx*fx+dz*fz
             local lateral=-dx*fz+dz*fx

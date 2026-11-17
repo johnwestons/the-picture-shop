@@ -88,6 +88,7 @@ function Free.enter(state,player,world,run,players)
         vehicle.owner=id
     end
     local resuming=t.deliveryRun and t.deliveryDriver==id
+    if resuming and t.deliveryRun.paused then t.deliveryRun.paused=false end
     t.participants[id]={slot=slot,arrived=false,rider=rider,origin=origin,
         destination=resuming and 'warehouse' or scene=='home' and 'warehouse' or apartment,
         appearance=require('src.commute.normal_art').appearance(player)}
@@ -103,10 +104,17 @@ function Free.leave(state,player,token,destination,world)
     local id=Residents.key(player)
     local apartment=ClientApartments.forPlayer(state,player)
     if destination~='warehouse' and destination~=apartment then return false,'Unknown entrance.' end
-    if t.deliveryDriver==id and destination~='warehouse' then return false,'Finish your customer deliveries before going home.' end
+    local pauseDelivery=false
+    if t.deliveryDriver==id and destination~='warehouse' then
+        pauseDelivery=require('src.commute.delivery_run').canPauseAtClosedStop(state,t.deliveryRun)
+        if not pauseDelivery then
+            return false,'Finish the local delivery while receiving is open, or return when it has closed.'
+        end
+    end
     local previous=part.destination;part.destination=destination
     local okay,message=Trip.command(state,player,token,'arrive',world)
     if not okay then part.destination=previous;return false,message end
+    if pauseDelivery then t.deliveryRun.paused=true end
     local resident=Residents.get(state,player);local r=part.rider
     resident.ridingGear=Gear.snapshot(r.gear)
     resident.ridingUpgradeLevel=r.bike.upgradeLevel or 0
@@ -131,6 +139,7 @@ function Free.leave(state,player,token,destination,world)
     local townName=state.home.town and state.home.town.name or Town.defaultName(state.home.town and state.home.town.seed)
     return true,{destination=destination,participants={[id]=part},message=destination=='warehouse'
         and ('Welcome back to '..townName..'. You are at the warehouse; other players can continue their trips.')
+        or pauseDelivery and 'Local receiving is closed. Your delivery truck and manifest are parked; resume the route when receiving opens.'
         or 'Welcome to your apartment.'}
 end
 

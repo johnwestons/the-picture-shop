@@ -32,6 +32,17 @@ and the forklift. Machines adds installed cutters, wrappers, and Windmill presse
 at full condition. Break Room grants each mini game and its required break room
 when the bay is empty. Grants are saved immediately and are host-only online.
 
+The AI watchdog in **OPTIONS > DEBUG** offers in-place service for delivery trucks
+with an empty tank, a stopped engine, or a mechanical failure. The button shows
+the company cost before service; the host handles these actions in multiplayer.
+Servicing preserves the truck's cargo and delivery assignment.
+
+Scheduled outdoor riders now keep saved movement progress, yield to road users,
+and resume when the route clears. Traffic delays also delay employee, applicant,
+and visitor arrivals. Receiving serves freight physically at the dock, and an
+overdue empty truck still drives out after a reload. Visitor travel records are
+bounded to two incoming and two returning journeys.
+
 In **OPTIONS > GAME**, enable **Follow player camera** to keep your character
 centered while moving, including when zoomed in. Pinch on mobile or use the mouse
 wheel to zoom; turn follow off to resume mobile panning. This preference is saved
@@ -62,7 +73,7 @@ for $350, or **CritterNet > Tools / WrenchWorks** for $425. Unload them from the
 delivery truck at the loading dock. Employees automatically choose available
 jacks and can transport separate pallets at the same time. Each jack and its
 load survives saving; approach a free jack to operate it yourself. The current
-source uses multiplayer protocol **75**, so all players need the same build.
+source uses multiplayer protocol **80**, so all players need the same build.
 
 New commute towns use road generator 12: public streets carry traffic in both
 directions, bridge approaches keep their lane width, and the Millhaven link
@@ -199,14 +210,14 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest Android test installer candidate is [Android 111](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.111/ThePictureShop-0.1.0-android.111-Install.apk)
+The latest Android test installer is [Android 120](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.120/ThePictureShop-0.1.0-android.120-Install.apk)
 and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
-Android 111 uses multiplayer protocol **75**. It includes the warehouse breaker
-menu rendering fix, separate oily-puddle restoration tasks, and barn control
-updates. Install the same Android version on every multiplayer participant;
-protocol 74 and 75 builds cannot join each other.
-See the [Android 111 release notes](docs/android_111_release.md) for checksums,
-installation guidance, and validation results.
+Android 120 uses multiplayer protocol **80**. It includes multiplayer performance
+and synchronization improvements, bounded transaction histories, traffic and
+truck pickup/delivery fixes, and employee production/training fixes. Install
+Android 120 on every multiplayer participant; older protocol builds cannot join.
+See the [Android 120 release notes](docs/android_120_release.md) for installation
+guidance and the release's verification artifacts.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
 [the Android 67 release notes](docs/android_67_release.md). Android 66 and 65 remain documented in
@@ -223,9 +234,9 @@ tickets and balance changes remain test-page-only. A source snapshot is kept in
 is a concept only and is not implemented in either build.
 
 Download the APK on your phone and open it from **Downloads** or **My Files** to
-install. Android 109 is signed with the same key as Android 108, so it can install
-as an in-place update. Uninstall the old app without retaining its data if you
-want to start with fresh disposable test saves.
+install. Android 120 retains the existing application ID and signing key for an
+in-place update. For a fresh test, clear this game's storage in Android settings
+before opening the updated app.
 The [Android 46 audit](docs/audit_android_46.md) remains available as historical
 verification for the earlier protocol 30 build.
 
@@ -475,6 +486,17 @@ and physical press-pass progress. Version-1 through version-13 slots migrate
 when loaded. Saves are validated in a temporary
 file before promotion and retain the previous valid slot as a backup. A damaged primary recovers
 automatically; a slot with no valid recovery copy is marked as damaged instead of appearing empty.
+
+Document retention keeps the newest 100 receipts, archived emails, declined jobs,
+and eligible completed jobs, supply orders, shipments, invoices and promotions.
+Inbox and pending notices are also bounded. Active stock, deliveries, customer
+cases, estimates and unused coupons are protected; new work is held at capacity
+until those obligations are resolved. Older saves with excess protected records
+retain them until eligible for cleanup. Old unpaid invoices consolidate without
+forgiving debt, and retired completed jobs retain aggregate totals. Multiplayer
+sends document history in bounded pages and live shop changes as incremental
+updates. Guest movement uses fixed input commands and authoritative reconciliation
+for indoor walking, outdoor walking, motorcycles and delivery trucks.
 
 ## Job rules foundation
 

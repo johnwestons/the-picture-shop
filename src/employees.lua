@@ -626,6 +626,10 @@ function Employees.command(state,intent,now)
         if w.assignment and w.reserved then
             return false,"Let the current machine cycle finish before starting training."
         end
+        local jack=require("src.pallet_jack_fleet").owned(state,w.id)
+        if w.carryingPalletId or jack and jack.carriedPalletId then
+            return false,"Set down the carried skid safely before starting training."
+        end
         if w.training then return false,"This employee is already in a training course." end
         local plan=Employees.trainingPlan(w,intent.skill)
         if not plan then
