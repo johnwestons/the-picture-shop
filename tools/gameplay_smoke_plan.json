@@ -552,7 +552,7 @@
       ],
       "checks": [
         "player_delivery_reload_preserves_loaded_cargo_and_resumes_remaining_manifest",
-        "player_delivery_single_city_trip_delivers_remaining_manifest",
+        "player_delivery_single_city_trip_delivers_remaining_manifest_after_close",
         "player_delivery_cannot_drive_away_partially_loaded",
         "player_delivery_can_go_home_without_returning_truck_to_shop"
       ]
