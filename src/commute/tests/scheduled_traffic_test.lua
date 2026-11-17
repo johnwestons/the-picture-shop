@@ -143,7 +143,35 @@ function Test.lifecycle(check)
     check('host_retires_finished_legacy_visitor_return',Visitors.prepare(state,visitors,12)
         and state.home.visitorJourneys.returning.customer==nil)
 end
+local function frameRateArrival(check)
+    local Bike=require('src.commute.motorcycle')
+    for _,fps in ipairs({30,60,120}) do
+        local dt=1/fps
+        local world={trafficActors={},roads={sample=function()return 0,nil end,blocked=function()return false end},
+            supportHeight=function()return 0 end}
+        local journey={departAtHours=0,arriveAtHours=1}
+        local actor={trafficId='rate-test',trafficKind='motorcycle',x=0,z=0,heading=0,speed=0}
+        local function sample(_,at)
+            return {stage='straight',bike={x=at*100,z=0,h=0,heading=0,speed=10,progress=at,parked=false}}
+        end
+        Motion.update(journey,0,dt,.1,world,{},nil,nil,actor,sample)
+        local elapsed,maxStep,speedError=0,0,0
+        while Motion.pending(journey) and elapsed<15 do
+            local before=journey.motion.bike.x
+            Motion.update(journey,elapsed*.1,dt,.1,world,{},nil,nil,actor,sample)
+            local bike=journey.motion.bike;local moved=bike.x-before
+            actor.x,actor.speed=bike.x,bike.speed
+            maxStep=math.max(maxStep,moved);speedError=math.max(speedError,math.abs(moved/dt-bike.speed))
+            elapsed=elapsed+dt
+        end
+        check('scheduled_rider_arrives_without_frame_rate_crawl_'..fps,not Motion.pending(journey)
+            and math.abs(journey.motion.bike.x-100)<.00001 and elapsed<15,
+            ('elapsed=%.3f position=%.3f'):format(elapsed,journey.motion.bike.x))
+        check('scheduled_rider_reports_physical_speed_at_'..fps,maxStep<=Bike.MAX_SPEED*dt+.00001 and speedError<.00001)
+    end
+end
 function Test.run(check)
+    frameRateArrival(check)
     Test.lifecycle(check)
     for i,seed in ipairs({712345,712346,43127}) do
         for _,kind in ipairs({'attendant','employee','applicant','visitor'}) do

@@ -14,6 +14,8 @@
   while retaining records still needed for active gameplay or unpaid obligations.
 - Physical employee and visitor commutes that respect traffic; truck receiving,
   pickup, departure and disabled-vehicle recovery fixes.
+- Commuters retain acceleration at normal display frame rates, avoiding a slow
+  crawl that could delay employees well past the start of their shift.
 - Employees can process ready skids while another skid dries. Training safely
   releases pallet jacks and pauses when machines need service or are occupied.
   Closed-shop attendance waits for employees to arrive before accruing wages.

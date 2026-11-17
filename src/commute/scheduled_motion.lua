@@ -100,6 +100,13 @@ function Motion.update(journey,hours,dt,hourRate,world,route,fromSlot,toSlot,act
     if f>=1-1e-8 then
         if stopStation then m.lastStop=stopStation;m.stopSeconds=Rules.STOP_DWELL_SECONDS;m.target=target
         else m.elapsed=target;m.target=nil;current.parked=desired.parked end
+    elseif not stopStation then
+        -- Credit the fraction actually travelled this frame. Holding a tiny
+        -- fixed target until the next frame repeatedly reports a near-zero
+        -- final step, resetting acceleration and making 60 Hz riders crawl.
+        -- Blocked frames return above without earning any clock progress.
+        m.elapsed=m.elapsed+(target-m.elapsed)*f
+        m.target=nil
     else m.target=target end
     return true
 end

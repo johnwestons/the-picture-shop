@@ -139,10 +139,22 @@ function Fixture.verify(R,check,rows)
         local untilOpen=math.ceil((opens+.02-Calendar.absoluteHours(state))*Calendar.secondsPerDay(state)/24*60)
         for _=1,untilOpen do R.App.update(1/60) end
         earned=0;for _,week in ipairs(openingWorker.weeks) do earned=earned+week.earnedCents end
+        local Journey=require("src.commute.npc_journey")
+        check("background_runtime_monday_pending_commuter_stays_unpaid",
+            not Journey.pending(openingWorker.commuteState) or not openingWorker.clockedIn and earned==0)
+        -- Traffic-aware commutes may finish after their timetable. Exercise the
+        -- real outdoor journey instead of requiring an appearance at 09:00.
+        local arriveBy=opens+1
+        while not openingWorker.clockedIn and Calendar.absoluteHours(state)<arriveBy do R.App.update(1/60) end
+        for _=1,6 do R.App.update(1/60) end
+        earned=0;for _,week in ipairs(openingWorker.weeks) do earned=earned+week.earnedCents end
+        local journey=openingWorker.commuteState
         check("background_runtime_monday_employee_waits_until_actual_opening_then_works",openingWorker.clockedIn
-            and earned>0 and earned<1000 and Calendar.absoluteHours(state)>opens,
-            string.format("now=%.8f earned=%.8f clocked=%s phase=%s activity=%s last=%.8f",Calendar.absoluteHours(state),earned,
-                tostring(openingWorker.clockedIn),openingWorker.phase,tostring(openingWorker.activity),state.employment.lastAtHours))
+            and not Journey.pending(journey) and earned>0 and earned<1000 and Calendar.absoluteHours(state)>opens,
+            string.format("now=%.8f earned=%.8f clocked=%s phase=%s activity=%s last=%.8f commute=%s elapsed=%s target=%s",Calendar.absoluteHours(state),earned,
+                tostring(openingWorker.clockedIn),openingWorker.phase,tostring(openingWorker.activity),state.employment.lastAtHours,
+                tostring(journey and journey.phase),tostring(journey and journey.motion and journey.motion.elapsed),
+                tostring(journey and journey.motion and journey.motion.target)))
         Fixture.setup(R,true);R.App.update(1)
         local Sleep=require("src.home_sleep");local oldCalendarStep=Sleep.calendarStep;local accelerated=false
         state=R.state;state.home.weekend.phase="ready";state.home.weekend.closedAtHours=state.home.weekend.closesAtHours
