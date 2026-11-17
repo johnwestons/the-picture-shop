@@ -56,8 +56,17 @@ local function case(check,seed,seconds,kind,returning,obstacleKind)
     tick()
     local initial=assert(entry(state,town,world,visitors,id),id)
     local j=initial.journey;local bike=j.motion.bike
-    local blocker=require('src.commute.delivery_truck').new(bike.x+math.cos(bike.heading)*4.2,
-        bike.z+math.sin(bike.heading)*4.2,bike.heading)
+    -- Put the blocker on the actual curved road ahead. A tangent offset can
+    -- miss the lane, and a rider moving at normal speed can safely pass it.
+    local motion=j.motion;j.motion=nil
+    local ahead,lookAt=nil,motion.elapsed
+    repeat
+        lookAt=math.min(j.arriveAtHours-j.departAtHours,lookAt+.01)
+        ahead=Journey.sample(j,j.departAtHours+lookAt,world,initial.route,initial.fromSlot,initial.toSlot).bike
+    until (ahead.x-bike.x)^2+(ahead.z-bike.z)^2>=4.2^2 or lookAt>=j.arriveAtHours-j.departAtHours
+    j.motion=motion
+    local blocker=require('src.commute.delivery_truck').new(ahead.x,ahead.z,ahead.heading)
+    blocker.h=world:supportHeight(ahead.x,ahead.z)
     state.home.commute={participants={},truck=blocker,aiMotorcycles={}}
     if obstacleKind then
         state.home.commute.truck=nil
