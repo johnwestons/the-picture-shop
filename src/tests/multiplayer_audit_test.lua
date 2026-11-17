@@ -159,7 +159,6 @@ function Test.run(_,check)
     packetChecks(check)
     deliveryChecks(check)
     require('src.tests.multiplayer_replication_test').run(check)
-    require('src.tests.receipt_book_test').retention(check)
     require('src.tests.history_retention_test').run(check)
     require('src.tests.movement_prediction_test').run(check)
 end

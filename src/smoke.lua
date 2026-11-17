@@ -145,6 +145,7 @@ function Smoke.start(context)
         local focus=os.getenv("PICTURE_SHOP_SMOKE_FOCUS")
         if focus=='multiplayer-audit' then
             require('src.tests.multiplayer_audit_test').run(context,check)
+            require('src.tests.receipt_book_test').retention(check)
         elseif focus=='client-apartments' then
             require('src.tests.client_apartments_test').run(context,check)
             require('src.tests.client_employment_test').run(context,check)
