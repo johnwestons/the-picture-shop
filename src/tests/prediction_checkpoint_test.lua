@@ -1,5 +1,6 @@
 local Test={}
 function Test.run(check)
+    require('src.tests.prediction_contact_test').run(check)
     require('src.tests.prediction_obstacles_test').run(check)
     require('src.tests.prediction_truck_fuel_test').run(check)
     require('src.tests.prediction_precision_test').run(check)

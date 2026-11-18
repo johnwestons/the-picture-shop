@@ -160,7 +160,7 @@ function Component.install(Runtime)
 
     function Runtime.normalizePredictionSnapshot(payload)
         local okay,err=Runtime.shape(payload,'prediction_snapshot',
-            {'sessionId','serverTick','playerId','sequence','key','mode','part','values'})
+            {'sessionId','serverTick','playerId','sequence','key','mode','part','values'},{'contact'})
         if not okay then return nil,err end
         local P=require('src.commute.prediction')
         if not P.fields[payload.mode] then return nil,'Invalid physics mode' end
@@ -184,6 +184,7 @@ function Component.install(Runtime)
         end
         if not Runtime.Codec.isArray(values) or #values~=count then return nil,'Invalid physics shard size' end
         result.values=Runtime.Codec.array({})
+        local activeBikeContact=false
         for i,value in ipairs(values) do
             local normalized=Runtime.numberInRange(value,-1e12,1e12,'prediction_snapshot.value')
             if normalized==nil then return nil,'Invalid physics value' end
@@ -191,6 +192,29 @@ function Component.install(Runtime)
             if P.booleans[field] and value~=0 and value~=1
                 or field=='gear' and (value%1~=0 or value<1 or value>4) then return nil,'Invalid physics field' end
             result.values[i]=normalized
+            if payload.mode=='bike' and field=='collisionContact' then activeBikeContact=value==1 end
+        end
+        if payload.contact~=nil then
+            if result.mode~='bike' or result.part~=1 or not activeBikeContact then
+                return nil,'Contact identity requires an active bike checkpoint'
+            end
+            local valid,reason=Runtime.shape(payload.contact,'prediction_snapshot.contact',{'kind'},{'id'})
+            if not valid then return nil,reason end
+            local kind
+            kind,reason=Runtime.printableString(payload.contact.kind,1,40,'prediction_snapshot.contact.kind')
+            if not kind then return nil,reason end
+            local id=payload.contact.id
+            if id~=nil then
+                if type(id)=='string' then
+                    id,reason=Runtime.printableString(id,0,80,'prediction_snapshot.contact.id')
+                else
+                    id,reason=Runtime.numberInRange(id,-1e12,1e12,'prediction_snapshot.contact.id')
+                end
+                if id==nil then return nil,reason end
+            end
+            -- Keep exact identity and type: motorcycle contact damage compares
+            -- these values, so a hash or tostring conversion changes physics.
+            result.contact={kind=kind,id=id}
         end
         return result
     end

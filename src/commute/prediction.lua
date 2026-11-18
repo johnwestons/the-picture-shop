@@ -75,7 +75,13 @@ function P.capture(part,token)
         -- on the next step and forced otherwise unnecessary history replay.
         values[i]=value
     end
-    return {key=P.key(part,token),mode=mode,values=values}
+    local contact
+    if mode=='bike' and body.collisionContact==true and body.collisionKind~=nil then
+        -- Contact identity is part of the integrator state: dropping it makes
+        -- an existing impact look new on the first replayed physics step.
+        contact={kind=body.collisionKind,id=body.collisionId}
+    end
+    return {key=P.key(part,token),mode=mode,values=values,contact=contact}
 end
 function P.captureLocal(player)
     local prediction=player and player._predictedCommute
@@ -97,6 +103,12 @@ local function matches(left,right,except)
         -- Permit only tiny cross-platform numerical drift. Full-precision
         -- seeds prevent derivative noise without widening any field tolerance.
         elseif math.abs(a-b)>1.0001e-6 then return false end
+        if left.mode=='bike' and key=='collisionContact' and a==1 then
+            local aContact,bContact=left.contact,right.contact
+            if aContact~=nil and type(aContact)~='table' or bContact~=nil and type(bContact)~='table'
+                or (aContact and aContact.kind)~=(bContact and bContact.kind)
+                or (aContact and aContact.id)~=(bContact and bContact.id) then return false end
+        end
     end
     return true
 end
@@ -203,6 +215,11 @@ function P.restore(player,part,token,snapshot)
     for i,key in ipairs(P.fields[prediction.mode]) do
         local target,field=fieldTarget(body,key)
         if booleans[key] then target[field]=snapshot.values[i]==1 else target[field]=snapshot.values[i] end
+    end
+    if prediction.mode=='bike' then
+        local contact=snapshot.contact
+        body.collisionKind=contact and contact.kind or nil
+        body.collisionId=contact and contact.id or nil
     end
     -- Preserve _velocitySpeed as captured: Bike.update uses a real difference
     -- from speed to detect an intentional host reset, including after impact.

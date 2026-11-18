@@ -23,7 +23,8 @@ function Component.install(Runtime)
             local values=Runtime.Codec.array({})
             for i=(part-1)*P.PART_VALUES+1,math.min(part*P.PART_VALUES,#snapshot.values) do values[#values+1]=snapshot.values[i] end
             local okay,err=self:_send(peer,'prediction_snapshot',{sessionId=self.sessionId,serverTick=self.serverTick,
-                playerId=player.id,sequence=player.inputSequence or 0,key=snapshot.key,mode=snapshot.mode,part=part,values=values})
+                playerId=player.id,sequence=player.inputSequence or 0,key=snapshot.key,mode=snapshot.mode,part=part,values=values,
+                contact=part==1 and snapshot.contact or nil})
             if not okay then self:_queue('error',{message=err}) end
         end
     end
@@ -39,13 +40,14 @@ function Component.install(Runtime)
         if assembly.serverTick~=payload.serverTick or assembly.sequence~=payload.sequence
             or assembly.key~=payload.key or assembly.mode~=payload.mode then return end
         assembly.parts[payload.part]=payload.values
+        if payload.part==1 then assembly.contact=payload.contact end
         local P=require('src.commute.prediction');local values={}
         for part=1,math.ceil(#P.fields[assembly.mode]/P.PART_VALUES) do
             if not assembly.parts[part] then return end
             for _,value in ipairs(assembly.parts[part]) do values[#values+1]=value end
         end
         self.physicsPredictionSnapshot={serverTick=assembly.serverTick,sequence=assembly.sequence,
-            key=assembly.key,mode=assembly.mode,values=values}
+            key=assembly.key,mode=assembly.mode,values=values,contact=assembly.contact}
     end
     function Runtime.Session:_queueMovementCommands(player,payload,context)
         if not payload.commands then

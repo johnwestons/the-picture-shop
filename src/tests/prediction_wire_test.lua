@@ -105,5 +105,71 @@ function Test.run(check)
         small:sub(1,#Protocol.SHOP_COMPRESSION_MAGIC)==Protocol.SHOP_COMPRESSION_MAGIC
         and #small+64<=#raw(small)and require('src.net.shop_replication').equal(assert(Protocol.decode(small)).payload,idle),
         'raw='..#raw(small)..' compressed='..#small)
+
+    local contactIndex
+    for i,field in ipairs(P.fields.bike)do if field=='collisionContact'then contactIndex=i end end
+    local contact=payload('bike');contact.values[contactIndex]=1
+    local function roundTripContact(kind,id)
+        contact.contact={kind=kind,id=id}
+        local before=Copy(contact)
+        local encoded=assert(Protocol.encode('prediction_snapshot',contact))
+        local decoded=assert(Protocol.decode(encoded)).payload
+        local api=assert(Protocol.make('prediction_snapshot',contact)).payload
+        return decoded.contact.kind==kind and decoded.contact.id==id
+            and type(decoded.contact.id)==type(id)
+            and require('src.net.shop_replication').equal(contact,before)
+            and require('src.net.shop_replication').equal(api.contact,decoded.contact),encoded
+    end
+    for label,id in pairs({text='1',number=1,fraction=1/3,zero=0,empty='',maximum=1e12,minimum=-1e12})do
+        check('prediction_wire_active_contact_preserves_exact_'..label,(roundTripContact('deliveryTruck',id)))
+    end
+    check('prediction_wire_active_contact_preserves_absent_barrier_id',(roundTripContact('travelLimit',nil)))
+    local okay,largest=roundTripContact(string.rep('k',40),string.rep('i',80))
+    check('prediction_wire_maximum_contact_identity_stays_below_mtu',okay
+        and #raw(largest)<=Protocol.MAX_PACKET_BYTES and #largest<=Protocol.MAX_PACKET_BYTES,
+        'raw='..#raw(largest)..' compressed='..#largest)
+    contact.contact={kind='deliveryTruck',id='player-truck-box'}
+    local canonical=assert(Codec.decode(raw(assert(Protocol.encode('prediction_snapshot',contact)))))
+    local function invalidContact(change)
+        local value=Copy(contact);change(value)
+        if Protocol.make('prediction_snapshot',value)~=nil or Protocol.encode('prediction_snapshot',value)~=nil then return false end
+        -- Mutate a real canonical binary packet as well as the named API.
+        local wire=Copy(canonical);wire.payload.contact=value.contact
+        if value.mode~=contact.mode then
+            local other=payload(value.mode)
+            wire=assert(Codec.decode(raw(assert(Protocol.encode('prediction_snapshot',other)))))
+            wire.payload.contact=value.contact
+        elseif value.values[contactIndex]~=contact.values[contactIndex] then
+            wire.payload.values=assert(Wire.pack(value.values))
+        end
+        wire.payload.part=value.part
+        local encoded=Codec.encode(wire)
+        return not encoded or Protocol.decode(encoded)==nil
+    end
+    for label,change in pairs({
+        unknown=function(v)v.contact.extra=true end,
+        indexed=function(v)v.contact[1]='unexpected'end,
+        empty=function(v)v.contact={}end,
+        false_sidecar=function(v)v.contact=false end,
+        empty_kind=function(v)v.contact.kind=''end,
+        numeric_kind=function(v)v.contact.kind=1 end,
+        long_kind=function(v)v.contact.kind=string.rep('k',41)end,
+        control_kind=function(v)v.contact.kind='tree\0'end,
+        long_id=function(v)v.contact.id=string.rep('i',81)end,
+        control_id=function(v)v.contact.id='truck\n'end,
+        table_id=function(v)v.contact.id={}end,
+        boolean_id=function(v)v.contact.id=false end,
+        large_id=function(v)v.contact.id=1e12+1 end,
+        inactive=function(v)v.values[contactIndex]=0 end,
+        wrong_mode=function(v)v.mode='box'end,
+        extra_part=function(v)v.part=2 end,
+    })do
+        check('prediction_wire_rejects_contact_'..label,invalidContact(change))
+    end
+    for label,value in pairs({infinity=math.huge,negative_infinity=-math.huge,nan=0/0})do
+        local bad=Copy(contact);bad.contact.id=value
+        check('prediction_wire_rejects_contact_'..label,not Protocol.make('prediction_snapshot',bad)
+            and not Protocol.encode('prediction_snapshot',bad))
+    end
 end
 return Test
