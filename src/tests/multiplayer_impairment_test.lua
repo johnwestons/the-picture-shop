@@ -165,6 +165,10 @@ function Test.run(_, check)
     network:advanceSteps(2)
     host:update(0, context)
     for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
+    local readyInputsSent = true
+    for index = 1, 3 do
+        readyInputsSent = clients[index]:sendNeutralInput() and readyInputsSent
+    end
     host:update(0.1, context)
     for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
 
@@ -175,13 +179,16 @@ function Test.run(_, check)
             and clients[index]:hudInfo().playerCount == 4
     end
     check("multiplayer_impairment_duplicate_and_reordered_admission_converges_to_four_players",
-        duplicateQueued and delayedQueued and reorderedBeforeAdvance and allReady
+        duplicateQueued and delayedQueued and reorderedBeforeAdvance and readyInputsSent and allReady
         and host:hudInfo().playerCount == 4
         and errorCodeCount(network, 1, "already_joined") == 1)
 
     local firstId = host.peerToId[network:peer(1)]
     local secondId = host.peerToId[network:peer(2)]
     local thirdId = host.peerToId[network:peer(3)]
+    local firstInputBaseline = host.players[firstId].lastInputSequence
+    local secondInputBaseline = host.players[secondId].lastInputSequence
+    local thirdInputBaseline = host.players[thirdId].lastInputSequence
 
     local dropQueued = network:dropNext("client_to_host", 1)
     clients[1]:update(0.05, clientContexts[1])
@@ -193,7 +200,7 @@ function Test.run(_, check)
             channel = Protocol.CHANNEL_STATE,
         })
     host:update(0, context)
-    local droppedDidNotAdvance = host.players[firstId].lastInputSequence == -1
+    local droppedDidNotAdvance = host.players[firstId].lastInputSequence == firstInputBaseline
     clients[1]:update(0.05, clientContexts[1])
     host:update(0, context)
 
@@ -213,7 +220,7 @@ function Test.run(_, check)
     local reorderServiceStart = #network.serviceCalls
     host:update(0, context)
     local reorderedDelivery = network.serviceCalls[reorderServiceStart + 1]
-    local newerBeatDelayed = host.players[secondId].lastInputSequence == 2
+    local newerBeatDelayed = host.players[secondId].lastInputSequence == secondInputBaseline + 2
     network:advanceSteps(2)
     local delayedServiceStart = #network.serviceCalls
     host:update(0, context)
@@ -231,14 +238,14 @@ function Test.run(_, check)
     local duplicateDelivery = network.serviceCalls[duplicateServiceStart + 1]
     check("multiplayer_impairment_inputs_recover_from_loss_reordering_and_duplication",
         dropQueued and dropRecorded and droppedDidNotAdvance
-        and host.players[firstId].lastInputSequence == 2
+        and host.players[firstId].lastInputSequence == firstInputBaseline + 2
         and reorderQueued and reorderRecorded and newerBeatDelayed
         and reorderedDelivery and reorderedDelivery.delivered == 1
         and delayedDelivery and delayedDelivery.delivered == 1
-        and host.players[secondId].lastInputSequence == 2
+        and host.players[secondId].lastInputSequence == secondInputBaseline + 2
         and duplicateInputQueued and duplicateRecorded
         and duplicateDelivery and duplicateDelivery.delivered == 3
-        and host.players[thirdId].lastInputSequence == 1)
+        and host.players[thirdId].lastInputSequence == thirdInputBaseline + 1)
 
     now = now + 1.01
     local rejectionWindowStart = now
@@ -388,12 +395,18 @@ function Test.run(_, check)
         and errorCodeCount(network, 1, "bad_packet") == freshGenerationErrorStart + 1
         and packetCount(network, "host_to_client", 1, "error")
             == freshGenerationReplyStart + 1
+    -- Only the replacement's input confirms that its initial save arrived.
+    -- Check the retired generation before releasing the replacement's gate.
+    local replacementInputSent = replacement:sendNeutralInput()
+    host:update(0.1, context)
+    replacement:update(0, replacementContext)
     check("multiplayer_impairment_client_send_failure_disconnect_and_rejoin_are_isolated",
         removalIsolated and replacementStarted and replacement.ready
         and replacement.localId == firstId and network:peer(1) ~= oldFirstPeer
         and host.peerToId[network:peer(1)] == firstId
         and freshGenerationMalformedQueued and freshGenerationGotDiagnostic
-        and staleGenerationRejected
+        and staleGenerationRejected and replacementInputSent
+        and host.players[firstId].lastInputSequence == replacement.inputSequence
         and host:hudInfo().playerCount == 4
         and replacement:hudInfo().playerCount == 4
         and clients[2].ready and clients[3].ready and not host.terminal)

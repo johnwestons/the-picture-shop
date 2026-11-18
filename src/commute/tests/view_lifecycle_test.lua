@@ -7,6 +7,18 @@ local Test={}
 function Test.run(context,check)
     local R=context.appRuntime
     local oldPlayer=R.World.snapshot()
+    local oldActor={}
+    for key,value in pairs(R.World.player)do oldActor[key]=value end
+    -- startGame/shared snapshots replace the shop fields on this shared root.
+    -- Keep the caller's fields as well as its player: restoring only the player
+    -- leaves Story riding gear behind, which consumes later warehouse inputs.
+    local oldState={}
+    for key,value in pairs(R.state)do oldState[key]=value end
+    local oldOpening,oldGrandOpening=R._storyOpening,R._grandOpening
+    local oldWeekScene,oldWeekPrompt=R._weekendScene,R._weekendPromptToken
+    local appFields={'gameClockSpeed','gameClockSyncClock','backgroundShopDirty','gameClockSaveClock'}
+    local oldApp={}
+    for _,key in ipairs(appFields)do oldApp[key]=R.App[key] end
     local oldDrain,oldResident=R.multiplayer.drainEvents,R.multiplayer.residentId
     local oldIsClient=R.multiplayer.isClient
     local oldError=R.showConnectionError
@@ -89,7 +101,22 @@ function Test.run(context,check)
     R.multiplayer.drainEvents,R.multiplayer.residentId=oldDrain,oldResident
     R.multiplayer.isClient=oldIsClient
     R.showConnectionError=oldError
+    C.release(R)
+    for key in pairs(R.state)do R.state[key]=nil end
+    for key,value in pairs(oldState)do R.state[key]=value end
+    R._storyOpening,R._grandOpening=oldOpening,oldGrandOpening
+    R._weekendScene,R._weekendPromptToken=oldWeekScene,oldWeekPrompt
+    for _,key in ipairs(appFields)do R.App[key]=oldApp[key] end
     R.World.load(oldPlayer)
-    if not okay then C.release(R);error(reason,0) end
+    for key in pairs(R.World.player)do R.World.player[key]=nil end
+    for key,value in pairs(oldActor)do R.World.player[key]=value end
+    if not okay then error(reason,0) end
+    local restored=true
+    for key,value in pairs(oldState)do restored=restored and R.state[key]==value end
+    for key in pairs(R.state)do restored=restored and oldState[key]~=nil end
+    for key,value in pairs(oldActor)do restored=restored and R.World.player[key]==value end
+    for key in pairs(R.World.player)do restored=restored and oldActor[key]~=nil end
+    check('join_view_fixture_restores_caller_shop_and_player',restored
+        and R.state.home==oldState.home and R.state.notifications==oldState.notifications)
 end
 return Test

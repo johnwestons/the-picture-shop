@@ -105,7 +105,11 @@ function Test.run(context,check)
         app.keypressed("o");app.draw();click(190,114);click(515,327)
         check("camera_follow_real_options_toggle_persists_locally_"..suffix,
             state.screen=="options" and not app.settings.followPlayerCamera
-            and not Settings.load().followPlayerCamera and state.activeSlot==nil)
+            and not Settings.load().followPlayerCamera and state.activeSlot==nil,
+            "screen="..tostring(state.screen).." tab="..tostring(Options.tab)
+                .." live="..tostring(app.settings.followPlayerCamera)
+                .." saved="..tostring(Settings.load().followPlayerCamera)
+                .." slot="..tostring(state.activeSlot).." message="..tostring(Options.message))
         app.keypressed("o");app.draw()
         check("camera_follow_real_options_off_releases_target_"..suffix,not camera.followTarget)
         app.keypressed("o");app.draw();click(515,327)

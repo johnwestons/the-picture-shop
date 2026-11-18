@@ -157,6 +157,7 @@ function Test.run(_, check)
         for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
         host:update(0, context)
         for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
+        for index = 1, 3 do assert(clients[index]:sendNeutralInput()) end
         host:update(0.1, context)
         for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
     end

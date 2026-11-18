@@ -206,6 +206,7 @@ function Test.run(_, check)
         for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
         host:update(0, context)
         for index = 1, 3 do clients[index]:update(0, clientContexts[index]) end
+        for index = 1, 3 do assert(clients[index]:sendNeutralInput()) end
         host:update(0.1, context)
         for index = 1, 3 do
             clients[index]:update(0, clientContexts[index])
@@ -322,6 +323,7 @@ function Test.run(_, check)
     host:update(0, context)
     replacement:update(0, replacementContext)
     replacement:drainEvents()
+    assert(replacement:sendNeutralInput())
     host:update(0.1, context)
     replacement:update(0, replacementContext)
     replacement:drainEvents()

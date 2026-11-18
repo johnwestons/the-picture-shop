@@ -117,6 +117,7 @@ local DOMAIN_SUITES = {
     require("src.tests.network_protocol_test"),
     require("src.tests.multiplayer_session_test"),
     require("src.tests.multiplayer_impairment_test"),
+    -- Includes join renderer lifecycle and prediction draw immutability once.
     require("src.tests.multiplayer_audit_test"),
     require("src.tests.multiplayer_soak_test"),
     require("src.tests.multiplayer_workshop_boundary_test"),

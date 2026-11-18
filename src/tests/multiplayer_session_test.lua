@@ -937,6 +937,39 @@ local function runFourDeviceShardingRegression(check, clock, addressOptions)
     host.pendingPeers[pendingSnapshotPeer] = clock()
     network.log = {}
     host:update(0.1, context)
+    local waitingPeers, prematureState = 0, false
+    for _, peer in ipairs({ network.peers[1], network.peers[2], network.peers[3] }) do
+        if host.shopPeers[peer] and host.shopPeers[peer].awaitingReady then
+            waitingPeers = waitingPeers + 1
+        end
+    end
+    for _, message in ipairs(network.log) do
+        prematureState = prematureState
+            or (message.channel == Protocol.CHANNEL_STATE and not message.reliable)
+    end
+    check("multiplayer_session_four_player_join_defers_realtime_until_client_input",
+        waitingPeers == 3 and not prematureState)
+
+    -- A welcome alone does not confirm that the initial shop transfer arrived.
+    -- Exercise the same validated input route that releases live clients.
+    for index = 1, 3 do
+        network:queue({ type = "receive", peer = network.peers[index],
+            channel = Protocol.CHANNEL_STATE,
+            data = assert(Protocol.encode("input", {
+                sessionId = host.sessionId, sequence = 1, moveX = 0, moveY = 0,
+            })),
+        })
+    end
+    network.log = {}
+    host:update(0.1, context)
+    local readyPeers = 0
+    for index = 1, 3 do
+        local peer = network.peers[index]
+        if host.shopPeers[peer] and not host.shopPeers[peer].awaitingReady
+            and host.players[index + 1].lastInputSequence == 1
+        then readyPeers = readyPeers + 1 end
+    end
+    check("multiplayer_session_four_player_input_releases_each_joined_peer", readyPeers == 3)
     local allSnapshots = network:messages("host_to_client", "snapshot")
     local selectedSnapshots, snapshotsByPeer = {}, {}
     local pendingPeerReceivedSnapshot = false

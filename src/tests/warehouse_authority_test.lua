@@ -159,7 +159,9 @@ function Test.run(context, check)
     host.sessionId="warehouse-test"
     local gs=guest:startClient("192.168.1.93:22122",{name="Warehouse Guest",character="rabbit-worker"})
     guest.clientNonce="warehouse-guest"
-    guest:update(0,gc);host:update(0,hc);guest:update(0,gc);host:update(0.1,hc);guest:update(0,gc)
+    guest:update(0,gc);host:update(0,hc);guest:update(0,gc)
+    assert(guest:sendNeutralInput())
+    host:update(0.1,hc);guest:update(0,gc)
     check("warehouse_session_connects",hs and gs and guest.ready)
     local pose=event(guest:drainEvents(),"forklift_state")
     check("warehouse_session_initial_forklift_pose",pose and pose.forklift.owned and pose.forklift.forkHeight==0)

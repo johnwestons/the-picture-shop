@@ -32,9 +32,13 @@ function Test.run(_,check)
     Options.keypressed('escape')
     local submitted
     local Lan=require('src.screens.lan_screen')
-    Lan.enter({settings=loaded,host=function(_,name)submitted=name;return true end})
-    Lan.mousepressed(300,320,1);Lan.mousereleased(300,320,1)
+    local newHostName
+    Lan.enter({settings=loaded,host=function(_,name)submitted=name;return true end,
+        newHost=function(_,name)newHostName=name;return true end})
+    Lan.mousepressed(480,320,1);Lan.mousereleased(480,320,1)
     check('local_play_uses_saved_profile_name',submitted=='Rowan Worker')
+    Lan.mousepressed(280,320,1);Lan.mousereleased(280,320,1)
+    check('new_local_shop_uses_saved_profile_name',newHostName=='Rowan Worker')
     local Direct=require('src.screens.direct_screen')
     Direct.enter({settings=loaded,allowIpv4Host=true,hostIpv4=function(_,name)submitted=name;return true end})
     submitted=nil;Direct.mousepressed(480,300,1);Direct.mousereleased(480,300,1)

@@ -183,7 +183,7 @@ local function deliveryChecks(check)
     end
 end
 
-function Test.run(_,check)
+function Test.run(context,check)
     packetChecks(check)
     deliveryChecks(check)
     require('src.tests.multiplayer_replication_test').run(check)
@@ -193,5 +193,11 @@ function Test.run(_,check)
     require('src.tests.lan_host_creation_test').run(check)
     require('src.tests.history_retention_test').run(check)
     require('src.tests.movement_prediction_test').run(check)
+    -- Normal smoke supplies the live runtime, so exercise GPU drawing as well
+    -- as simulation: joining must own a fresh renderer, and drawing must not
+    -- alter the client's predicted physics. Keep headless audit helpers usable.
+    if context and context.appRuntime then
+        require('src.commute.tests.view_lifecycle_test').run(context,check)
+    end
 end
 return Test
