@@ -241,6 +241,7 @@ local function indoor(check,weak)
         and host.players[2].x==x)
 end
 function Test.run(check)
+    require('src.tests.host_command_clock_test').run(check)
     indoor(check)
     indoor(check,true)
     for _,mode in ipairs({'ped','bike','box','kei'})do outdoor(check,mode)end

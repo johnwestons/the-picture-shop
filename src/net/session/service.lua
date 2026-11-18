@@ -6,6 +6,7 @@ function Component.install(Runtime)
     function Runtime.Session:_service(context)
         if not self.transport or self.terminal then return false end
         local events, serviceError = self.transport:service(Runtime.Protocol.MAX_EVENTS_PER_UPDATE)
+        self.lastServiceEventCount=type(events)=='table' and #events or 0
         if serviceError then
             self.protocolRejectionAt = {}
             self:_markDisconnected("Network transport failed: " .. tostring(serviceError))
@@ -191,6 +192,7 @@ function Component.install(Runtime)
         end
         for id, player in pairs(self.players) do
             if id ~= self.localId then
+                if self.hostCommandRebase then player._commandHostStall=true end
                 if player._commandStream then
                     self:_stepRemoteCommands(player,dt,context)
                 else

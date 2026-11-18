@@ -153,6 +153,7 @@ function Component.install(Runtime)
         self.roomBalls,self.roomBallTicks={},{}
         self.inputSequence = 0
         self.commandPrediction=nil;self.commandPredictionActive=false
+        self.hostCommandClock=nil;self.hostCommandElapsed=nil;self.hostCommandRebase=nil;self.lastServiceEventCount=nil
         if self.predictedPlayer then
             self.predictedPlayer._movementPredicted=false;self.predictedPlayer._predictedCommute=nil
         end

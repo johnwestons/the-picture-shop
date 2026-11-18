@@ -200,11 +200,18 @@ function Component.install(Runtime)
 
     function Runtime.Session:update(dt, context)
         if not self:isActive() or self.terminal then return end
-        dt = math.max(0, math.min(tonumber(dt) or 0, 0.25))
+        dt=tonumber(dt)
+        dt=Runtime.finite(dt) and math.max(0,dt) or 0
+        if self.mode=='host' then self:_beginHostCommandFrame(dt) end
+        dt = math.min(dt, 0.25)
         if self.mode == "host" then self:_syncLocalPlayer(context and context.localPlayer) end
         if not self:_service(context) then return end
         if self.mode == "host" then
             self:_updateHost(dt, context)
+            -- Per-player recovery persists through delayed packet waves until
+            -- their input history proves receipt of a post-stall ACK.
+            self.hostCommandRebase=nil
+            self.hostCommandElapsed=nil
         else
             if self.pendingInteraction
                 and self.clock() - self.pendingInteraction.sentAt > Runtime.INTERACTION_TIMEOUT

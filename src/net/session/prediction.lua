@@ -13,6 +13,26 @@ local function axis(value)
 end
 function Component.install(Runtime)
     Runtime.COMMAND_STEP=STEP
+    function Runtime.Session:_beginHostCommandFrame(dt)
+        -- World simulation clamps long frames, but command accounting must not
+        -- silently lose the host's elapsed time. Otherwise a loading hitch
+        -- leaves a permanent input queue: both ends then advance at 60 Hz.
+        local now=self.clock()
+        local elapsed=dt
+        if Runtime.finite(now) and Runtime.finite(self.hostCommandClock) and now>=self.hostCommandClock then
+            elapsed=math.max(elapsed,now-self.hostCommandClock)
+        end
+        self.hostCommandClock=Runtime.finite(now) and now or nil
+        self.hostCommandElapsed=math.min(RECOVERY_SECONDS,elapsed)
+        self.hostCommandRebase=elapsed>RECOVERY_SECONDS or nil
+        if self.hostCommandRebase then
+            for id,player in pairs(self.players)do
+                if id~=self.localId then
+                    player._commandHostStall=true;player._commandRecoverySequence=nil;player._commandBudget=0
+                end
+            end
+        end
+    end
     function Runtime.Session:_sendPredictionSnapshot(player,context)
         local peer=self.idToPeer[player.id]
         if not peer or not player._commandStream or not context or not context.getPredictionSnapshot then return end
@@ -53,6 +73,7 @@ function Component.install(Runtime)
         if not payload.commands then
             player._commandStream=false;player._commandQueue=nil;player._commandBudget=0
             player._commandOutage=nil
+            player._commandHostStall=nil;player._commandRecoverySequence=nil
             player.inputSequence=payload.sequence
             return
         end
@@ -60,6 +81,7 @@ function Component.install(Runtime)
         if not key or key~=payload.commandKey then
             player._commandStream=key~=nil;player._commandQueue={}
             player.inputSequence=payload.sequence;player._lastQueuedCommand=payload.sequence
+            player._commandRecoverySequence=nil
             return
         end
         local frames=type(payload.commands)=='string' and Commands.unpack(payload.commands) or payload.commands
@@ -68,10 +90,19 @@ function Component.install(Runtime)
             player._commandQueue={};player._lastQueuedCommand=player.inputSequence or 0
             player._commandBudget=math.min(RECOVERY_SECONDS,math.max(0,self.clock()-(player.lastInputAt or self.clock())))
             player._commandOutage=nil
+            player._commandRecoverySequence=nil
         end
         player._commandStream=true;player._commandKey=key
         local queue=player._commandQueue
         local first=payload.sequence-#frames+1
+        local frameLimit=type(payload.commands)=='string' and Commands.MAX_FRAMES or 12
+        if player._commandHostStall and not self.hostCommandRebase and player._commandRecoverySequence
+            and first>player._commandRecoverySequence and #frames<frameLimit then
+            -- A full batch can advance its first sequence just by truncation.
+            -- A shorter batch starting beyond our fixed recovery barrier proves
+            -- this client has received an ACK and discarded the stale history.
+            player._commandHostStall=nil;player._commandRecoverySequence=nil
+        end
         if player._commandOutage then
             -- After a long outage the host has continued neutral physics. Do
             -- not play seconds of stale throttle/steering after reconnection.
@@ -92,13 +123,35 @@ function Component.install(Runtime)
     end
 
     function Runtime.Session:_stepRemoteCommands(player,dt,context)
+        if self.hostCommandRebase then player._commandHostStall=true end
         local key=context and context.predictionKey and context.predictionKey(player)
         if key~=player._commandKey then
             player._commandQueue={};player._commandBudget=0
             return
         end
-        player._commandBudget=math.min(RECOVERY_SECONDS,(player._commandBudget or 0)+dt)
         local queue=player._commandQueue or {}
+        local elapsed=self.hostCommandElapsed or dt
+        if player._commandHostStall then
+            -- Select after the complete bounded transport batch, not on its
+            -- first packet: later packets may contain newer commands. Skip
+            -- stale controls without simulating seconds of old throttle.
+            if #queue>0 and not player._commandRecoverySequence then
+                player._commandRecoverySequence=queue[#queue].sequence
+            end
+            local skipped=math.max(0,#queue-3)
+            if skipped>0 then
+                player.inputSequence=math.max(player.inputSequence or 0,queue[skipped].sequence)
+                local newest={};for i=skipped+1,#queue do newest[#newest+1]=queue[i]end
+                queue=newest;player._commandQueue=queue
+            end
+            if #queue>0 then
+                -- Preserve fractional credit between120/240Hz updates. The
+                -- client may not see the recovery ACK for several packets.
+                player._commandBudget=math.min(player._commandBudget or 0,3*STEP)
+                elapsed=math.min(elapsed,3*STEP)
+            else elapsed=math.min(elapsed,dt) end
+        end
+        player._commandBudget=math.min(RECOVERY_SECONDS,(player._commandBudget or 0)+elapsed)
         local steps=0
         -- A fixed four-step cap permanently falls behind below 15 host FPS.
         -- Cover elapsed simulation time plus a little recovery work, while
@@ -118,6 +171,9 @@ function Component.install(Runtime)
         if #queue==0 and self.clock()-(player.lastInputAt or 0)>=RECOVERY_SECONDS then
             if not player._commandOutage then
                 player._commandOutage=true
+                -- Delayed datagrams can return in several waves after a link
+                -- outage too. Use the same ACK barrier as host-stall recovery.
+                player._commandHostStall=true;player._commandRecoverySequence=nil
                 player._commandBudget=math.min(player._commandBudget,math.max(0,dt))
             end
             if context and context.requiresPhysicsPrediction and context.requiresPhysicsPrediction(player) then
