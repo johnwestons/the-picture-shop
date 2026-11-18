@@ -210,13 +210,13 @@ warning; public releases should be code-signed.
 
 ## Run on Android
 
-The latest Android test installer is [Android 120](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.120/ThePictureShop-0.1.0-android.120-Install.apk)
+The latest Android test installer is [Android 121](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.121/ThePictureShop-0.1.0-android.121-Install.apk)
 and [Windows 105](https://github.com/johnwestons/the-picture-shop/releases/download/0.1.0-android.105/ThePictureShop-Windows-Setup-0.1.0-test.105.exe).
-Android 120 uses multiplayer protocol **80**. It includes multiplayer performance
-and synchronization improvements, bounded transaction histories, traffic and
-truck pickup/delivery fixes, and employee production/training fixes. Install
-Android 120 on every multiplayer participant; older protocol builds cannot join.
-See the [Android 120 release notes](docs/android_120_release.md) for installation
+Android 121 uses multiplayer protocol **82**. It includes time-aligned bike traffic
+prediction, outdoor mini map rendering improvements, and the multiplayer fixes
+made after Android 120. Install Android 121 on every multiplayer participant;
+older protocol builds cannot join.
+See the [Android 121 release notes](docs/android_121_release.md) for installation
 guidance and the release's verification artifacts.
 Android 68's handoff and device verification are in
 [the Android 68 release notes](docs/android_68_release.md). Android 67 remains documented in
