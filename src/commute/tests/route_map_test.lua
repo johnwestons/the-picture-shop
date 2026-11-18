@@ -147,6 +147,8 @@ function Test.run(check)
     local headingOkay,headingReason=pcall(map.drawMini,map,small,actor,{})
     love.graphics.print=oldPrint;assert(headingOkay,headingReason)
     check('compact_gps_destination_hint_appears_once_above_map',destinationHeadings==1)
+    check('mini_map_caches_static_street_art',map.miniDetail and map.miniDetail.cacheReady
+        and map.miniDetail.cache~=nil)
     map:pressMiniZoom(small,plus.x+5,plus.y+5)
     local closer=map:miniSnapshot(small,actor,options)
     check('mini_zoom_enlarges_cached_map_about_rider',closer.viewport.scale>initial.viewport.scale

@@ -230,9 +230,10 @@ function P.controls(rider,x,y,boost)
         and {steer=x,drive=y,boost=rider.vehicle~='truck' and boost==true}
         or {walkX=x,walkZ=y,sprint=boost==true}
 end
-function P.step(player,part,token,dt,x,y,boost,world,state,visitors)
+function P.step(player,part,token,dt,x,y,boost,world,state,visitors,trafficFrame)
     local prediction=P.ensure(player,part,token);if not prediction then return false end
     local mode=prediction.mode
+    local captured
     if mode=='grocery' or mode=='barn' then
         prediction.part.interiorPose.id=player.id
         prediction.part.interiorPose.homeResidentId=player.homeResidentId
@@ -257,10 +258,12 @@ function P.step(player,part,token,dt,x,y,boost,world,state,visitors)
         end
         local trip=state.home and state.home.commute
         local source=trip and trip.participants and trip.participants[require('src.home_residents').key(player)]
-        require('src.commute.delivery_traffic').withPredictionObstacles(state,world,
-            source and source.rider or part.rider,visitors,step)
+        local _,frame=require('src.commute.delivery_traffic').withPredictionObstacles(state,world,
+            source and source.rider or part.rider,visitors,step,trafficFrame,
+            rider.vehicle~='truck' and rider.gear and rider.gear.mounted and rider.bike)
+        captured=frame
     end
-    return true
+    return true,captured
 end
 function P.presentation(prediction)
     local rider=prediction.rider;local body=Rider.actor(rider)

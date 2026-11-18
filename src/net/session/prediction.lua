@@ -247,7 +247,7 @@ function Component.install(Runtime)
             for _,command in ipairs(prediction.history) do
                 if command.sequence>acknowledged then
                     if not matched then
-                        context.predictLocal(STEP,command.x,command.y,command.boost,true)
+                        context.predictLocal(STEP,command.x,command.y,command.boost,true,command.trafficFrame)
                         if physics then command.checkpoint=require('src.commute.prediction').captureLocal(player)end
                     end
                     pending[#pending+1]=command
@@ -264,7 +264,7 @@ function Component.install(Runtime)
             self.inputSequence=self.inputSequence+1
             local command={sequence=self.inputSequence,x=x/1000,y=y/1000,boost=boost}
             prediction.history[#prediction.history+1]=command
-            context.predictLocal(STEP,command.x,command.y,boost,false)
+            command.trafficFrame=context.predictLocal(STEP,command.x,command.y,boost,false)
             if physics then command.checkpoint=require('src.commute.prediction').captureLocal(player)end
         end
         while #prediction.history>MAX_HISTORY do table.remove(prediction.history,1) end

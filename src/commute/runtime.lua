@@ -1461,18 +1461,19 @@ function C.predictionSnapshot(R,player)
     local trip=R.state.home.commute
     return require('src.commute.prediction').capture(trip.participants[Residents.key(player)],trip.token)
 end
-function C.predictMovement(R,dt,x,y,boost)
+function C.predictMovement(R,dt,x,y,boost,trafficFrame)
     local player=R.World.player
     local trip=R.state.home and R.state.home.commute
     local part=trip and trip.participants[Residents.key(player)]
     if not part then return false end
     local world=not part.interior and C.world(R) or nil
     local P=require('src.commute.prediction')
-    if P.step(player,part,trip.token,dt,x,y,boost,world,R.state,
-        {customer=R.World.customer,vendor=R.World.vendor}) then
+    local moved,captured=P.step(player,part,trip.token,dt,x,y,boost,world,R.state,
+        {customer=R.World.customer,vendor=R.World.vendor},trafficFrame)
+    if moved then
         C.syncPlayer(player,player._predictedCommute.part)
     end
-    return true
+    return true,captured
 end
 function C.restorePrediction(R,snapshot)
     local trip=R.state.home and R.state.home.commute

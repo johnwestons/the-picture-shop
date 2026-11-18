@@ -132,10 +132,13 @@ function Component.install(Runtime)
         Runtime.multiplayer:update(dt, {
             predictionKey=Runtime.predictionKey,
             predictionEnabled=Runtime.state.screen=='world',
-            predictLocal=function(moveDt,x,y,boost)
-                if not require('src.commute.runtime').predictMovement(Runtime,moveDt,x,y,boost) then
+            predictLocal=function(moveDt,x,y,boost,replay,trafficFrame)
+                local handled,captured=require('src.commute.runtime').predictMovement(
+                    Runtime,moveDt,x,y,boost,trafficFrame)
+                if not handled then
                     Runtime.World.updateRemotePlayer(Runtime.World.player,moveDt,x,y,Runtime.Assets,Runtime.state)
                 end
+                return captured
             end,
             requiresPhysicsPrediction=function(player)
                 local trip=Runtime.state.home and Runtime.state.home.commute

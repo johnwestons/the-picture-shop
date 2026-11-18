@@ -89,6 +89,24 @@ function Test.run(check)
     end)
     ai.z=100
     check('prediction_obstacles_use_latest_replicated_pose_each_step',first~=nil and second==nil)
+    local movingState,movingPart,movingWorld=fixture('bike',true)
+    local subject=movingPart.rider.bike
+    local parked=movingState.home.commute.truck
+    local originalHit,frame=Traffic.withPredictionObstacles(movingState,movingWorld,
+        movingPart.rider,nil,function()
+            return movingWorld.sweepTrafficObstacles(100,100,106,100,Bike.RADIUS,0,1.2)
+        end,nil,subject)
+    parked.x=parked.x+12
+    local replayedHit=Traffic.withPredictionObstacles(movingState,movingWorld,
+        movingPart.rider,nil,function()
+            return movingWorld.sweepTrafficObstacles(100,100,106,100,Bike.RADIUS,0,1.2)
+        end,frame,subject)
+    local currentHit=Traffic.withPredictionObstacles(movingState,movingWorld,
+        movingPart.rider,nil,function()
+            return movingWorld.sweepTrafficObstacles(100,100,106,100,Bike.RADIUS,0,1.2)
+        end,nil,subject)
+    check('prediction_replay_uses_original_moving_truck_pose',frame and originalHit
+        and replayedHit and math.abs(originalHit-replayedHit)<1e-8 and currentHit==nil)
     check('prediction_obstacle_gather_is_read_only_for_ai_deliveries_and_calendar',R.equal(state,before)
         and state.calendar.customEvents==events and ai.trafficId==nil and delivery.trafficId==nil)
     state.procurement.shipments[1].delivery.route.transportId='missing'

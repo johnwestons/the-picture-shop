@@ -925,6 +925,7 @@ function Map:release()
     if self.background then self.background:release();self.background=nil end
     if self.miniTerrain then self.miniTerrain:release();self.miniTerrain=nil end
     for _,font in pairs(self.fonts) do font:release() end
+    if self.miniDetail then self.miniDetail:release() end
     self.fonts={};self.miniDetail=nil;self.gpsPath=nil;self.gpsRoute=nil;self.released=true
 end
 return Map

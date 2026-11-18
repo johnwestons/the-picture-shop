@@ -2233,9 +2233,40 @@ function Network.installVehicleObstacles(state,world,visitors)
     installVehicleCollision(world,trafficActors)
 end
 
-function Network.withPredictionObstacles(state,world,source,visitors,step)
-    local _,_,_,actors=gatherDynamicActors(state,state and state.home and state.home.town,
-        world,visitors,true)
+local PREDICTION_FRAME_RADIUS=20
+local PREDICTION_FRAME_LIMIT=32
+
+local function predictionFrame(obstacles,subject)
+    if not subject or not finite(subject.x) or not finite(subject.z) then return nil end
+    local frame={x=subject.x,z=subject.z,actors={}}
+    local radius2=PREDICTION_FRAME_RADIUS*PREDICTION_FRAME_RADIUS
+    for _,entry in ipairs(obstacles) do
+        local actor=entry.actor
+        if actor and finite(actor.x) and finite(actor.z)
+            and (actor.x-subject.x)^2+(actor.z-subject.z)^2<=radius2 then
+            if #frame.actors>=PREDICTION_FRAME_LIMIT then return nil end
+            frame.actors[#frame.actors+1]={
+                kind=entry.kind,id=entry.id,radius=entry.radius,height=entry.height,
+                halfLength=entry.halfLength,halfWidth=entry.halfWidth,
+                actor={x=actor.x,z=actor.z,h=actor.h,heading=actor.heading,
+                    model=actor.model,id=actor.id,trafficId=actor.trafficId}}
+        end
+    end
+    return frame
+end
+
+function Network.withPredictionObstacles(state,world,source,visitors,step,trafficFrame,subject)
+    local useFrame=trafficFrame and subject and finite(subject.x) and finite(subject.z)
+        and (subject.x-trafficFrame.x)^2+(subject.z-trafficFrame.z)^2
+            <=(PREDICTION_FRAME_RADIUS*.5)^2
+    local actors
+    if useFrame then
+        actors=trafficFrame.actors
+    else
+        local _,_,_,current=gatherDynamicActors(state,state and state.home and state.home.town,
+            world,visitors,true)
+        actors=current
+    end
     -- Prediction owns a cloned rider. Exclude its authoritative active body,
     -- while keeping its parked truck/bike and every other actor collidable.
     local active=source and (source.vehicle=='truck' and source.truck
@@ -2247,12 +2278,16 @@ function Network.withPredictionObstacles(state,world,source,visitors,step)
     for _,entry in ipairs(actors)do
         if entry.actor~=active and entry.actor~=vehicleAlias then obstacles[#obstacles+1]=entry end
     end
+    local captured=not trafficFrame and predictionFrame(obstacles,subject) or nil
+    -- A bike can cover only a fraction of this radius in one command. Reuse
+    -- the bounded frame for the live sweep as well as any later replay.
+    if captured then obstacles=captured.actors end
     local oldVehicles,oldSweep=world.vehicleObstacles,world.sweepTrafficObstacles
     installVehicleCollision(world,obstacles)
     local okay,result=pcall(step)
     world.vehicleObstacles,world.sweepTrafficObstacles=oldVehicles,oldSweep
     if not okay then error(result,0)end
-    return result
+    return result,captured
 end
 
 function Network.arrived(shipment,epoch)
