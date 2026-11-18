@@ -27,8 +27,12 @@ end
 function Medical.blocked(state,player)
     local m=Medical.get(state,player);return m and m.phase~=nil or false
 end
-function Medical.speed(state,player)
-    local m=Medical.get(state,player)
+function Medical.speed(state,player,readOnly)
+    local m
+    if readOnly then
+        local resident=require('src.home_residents').get(state,player)
+        m=resident and resident.medical
+    else m=Medical.get(state,player) end
     return m and ((m.phase or m.notice) and 0 or m.injury>=30 and .5 or 1) or 1
 end
 function Medical.crash(resident,now)

@@ -100,13 +100,13 @@ function Component.install(Runtime)
             and (value.mode=="delivery" or value.mode=="vendor_delivery" or value.mode=="machine_delivery")
     end
 
-    function Runtime.persistentState(value)
+    function Runtime.persistentState(value,validation)
         return type(value) == "table"
             and Runtime.Schema.validPhysicalSource(value)
             and Runtime.nonnegative(value.money)
             and require('src.notifications').normalize(value.notifications)~=nil
             and require('src.tutorial').normalize(value.tutorial)~=nil
-            and Runtime.Home.valid(value.home)
+            and Runtime.Home.valid(value.home,nil,validation)
             and Runtime.inventory(value.inventory)
             and type(value.shopProgress) == "table"
             and Runtime.nonnegative(value.shopProgress.completedCuts)

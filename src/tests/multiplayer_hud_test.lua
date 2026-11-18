@@ -198,6 +198,7 @@ function Test.run(_, check)
         and MultiplayerHud.buttonCenter("remove", 1, hostOnly) == nil)
 
     MultiplayerHud.reset()
+    require('src.tests.multiplayer_link_health_test').run(check)
 end
 
 return Test

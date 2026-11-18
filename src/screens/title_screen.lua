@@ -81,6 +81,7 @@ function TitleScreen.enter(onStart, onLocal, onDirect)
     TitleScreen.setup, TitleScreen.townSetup = nil, nil
     TitleScreen.bakeJob, TitleScreen.pendingNewPayload = nil, nil
     TitleScreen.clientPayload,TitleScreen.clientSlot=nil,nil
+    TitleScreen.onSetupCancel=nil
     Motion.reset()
 end
 -- Pass nil to return to live menu feedback. The sprite's LCD stays unlettered,
@@ -106,6 +107,15 @@ function TitleScreen.slots()
     end
     return slotCache.slots
 end
+local function cancelSetup(message)
+    local callback=TitleScreen.onSetupCancel
+    TitleScreen.onSetupCancel=nil
+    TitleScreen.mode="normal"
+    TitleScreen.message=message or "Shop creation cancelled."
+    TitleScreen.setup,TitleScreen.townSetup=nil,nil
+    if callback then callback() end
+    return true
+end
 function TitleScreen.update(dt)
     dt = math.max(0, tonumber(dt) or 0)
     Motion.update(dt)
@@ -120,6 +130,7 @@ function TitleScreen.update(dt)
             TitleScreen.bakeJob,TitleScreen.pendingNewPayload=nil,nil
             TitleScreen.mode="normal"
             TitleScreen.message="New shop created in slot "..TitleScreen.selected
+            TitleScreen.onSetupCancel=nil
             if TitleScreen.onStart then TitleScreen.onStart(payload,"new") end
         end
         return
@@ -171,6 +182,7 @@ local function startNew()
     end
     TitleScreen.mode="normal"
     TitleScreen.message = "New shop created in slot " .. TitleScreen.selected
+    TitleScreen.onSetupCancel=nil
     if TitleScreen.onStart then TitleScreen.onStart(payload, "new") end
 end
 local function beginSetup()
@@ -199,8 +211,7 @@ local function handleTownAction(result)
     if result=="start" then startNew()
     elseif result=="back" then TitleScreen.mode="shop-setup"
     elseif result=="cancel" then
-        TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled."
-        TitleScreen.townSetup=nil;TitleScreen.setup=nil
+        cancelSetup()
     end
     return result~=nil
 end
@@ -228,6 +239,13 @@ local function requestNew()
     end
     showStartModes()
     return true
+end
+
+function TitleScreen.beginNew(slot,onCancel)
+    assert(type(slot)=="number" and slot%1==0 and slot>=1 and slot<=Save.SLOT_COUNT)
+    TitleScreen.selected=slot
+    TitleScreen.onSetupCancel=onCancel
+    return requestNew()
 end
 
 local function requestDelete()
@@ -289,9 +307,7 @@ end
 
 local function cancelPending()
     if TitleScreen.mode == "overwrite-confirm" then
-        TitleScreen.mode = "normal"
-        TitleScreen.message = "Overwrite cancelled. Existing shop preserved."
-        return true
+        return cancelSetup("Overwrite cancelled. Existing shop preserved.")
     end
     if TitleScreen.mode == "delete-confirm" then
         TitleScreen.mode = "normal"
@@ -377,7 +393,7 @@ function TitleScreen.keypressed(key)
         return true
     end
     if TitleScreen.mode=="start-mode" then
-        if key=="escape" or key=="back" then TitleScreen.mode="normal";return true end
+        if key=="escape" or key=="back" then return cancelSetup() end
         if key=="1" or key=="q" then return chooseStart("quick") end
         if key=="2" or key=="s" then return chooseStart("story") end
         if key=="up" or key=="down" or key=="left" or key=="right" or key=="tab" then
@@ -392,7 +408,7 @@ function TitleScreen.keypressed(key)
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.keypressed(TitleScreen.setup,key)
         if result=="start" then beginTownSetup()
-        elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
+        elseif result=="cancel" then cancelSetup() end
         return result~=nil
     end
     if TitleScreen.mode ~= "normal" then
@@ -439,7 +455,7 @@ function TitleScreen.mousepressed(x, y, button)
     if TitleScreen.mode=="start-mode" then
         if inside({x=260,y=351,width=440,height=55},x,y) then return chooseStart("quick") end
         if inside({x=260,y=415,width=440,height=55},x,y) then return chooseStart("story") end
-        if inside({x=390,y=485,width=180,height=40},x,y) then TitleScreen.mode="normal";return true end
+        if inside({x=390,y=485,width=180,height=40},x,y) then return cancelSetup() end
         return true
     end
     TitleScreen.keyboardFocus = nil
@@ -449,7 +465,7 @@ function TitleScreen.mousepressed(x, y, button)
     if TitleScreen.mode=="shop-setup" then
         local result=ShopSetup.mousepressed(TitleScreen.setup,x,y)
         if result=="start" then beginTownSetup()
-        elseif result=="cancel" then TitleScreen.mode="normal";TitleScreen.message="Shop creation cancelled." end
+        elseif result=="cancel" then cancelSetup() end
         return result~=nil
     end
     if TitleScreen.mode ~= "normal" then

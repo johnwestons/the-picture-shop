@@ -115,6 +115,12 @@ function Component.install(Runtime)
         local storyOpeningActive=storyOpening.active(Runtime)
         storyOpening.update(Runtime,dt)
         if storyOpeningActive then
+            if Runtime.multiplayer:isActive() then
+                -- Hosting a new Story shop must keep discovery, admission and
+                -- remote-player updates alive throughout the local opening.
+                Runtime.updateLanConvenience(dt)
+                Runtime.updateMultiplayer(dt,0,0,false,false)
+            end
             return
         end
         local grandOpening=require('src.story_grand_opening')

@@ -88,9 +88,11 @@ function Component.install(Runtime)
                     if not ok then self:_queue("error", { message = helloError }) end
                     self.connectedAt = self.clock()
                     self.status = "Connected; waiting for host approval"
-                    if self.networkKind == "direct" and ok then
+                    if ok then
                         self:_queue("approval_waiting", {
-                            message = "Encrypted request sent. Waiting for the host to approve this player.",
+                            message = self.networkKind=="direct"
+                                and "Encrypted request sent. Waiting for the host to approve this player."
+                                or "Waiting for the host to choose your client profile in Players.",
                         })
                     end
                 elseif event.type == "disconnect" then
@@ -210,30 +212,23 @@ function Component.install(Runtime)
         end
         self.snapshotAccumulator = self.snapshotAccumulator + dt
         if self.snapshotAccumulator >= Runtime.SNAPSHOT_INTERVAL and next(self.idToPeer) then
+            local elapsedTicks=math.floor(self.snapshotAccumulator/Runtime.SNAPSHOT_INTERVAL)
             self.snapshotAccumulator = self.snapshotAccumulator % Runtime.SNAPSHOT_INTERVAL
-            self.serverTick = self.serverTick + 1
-            -- Motion is intentionally sent as one player per packet. Every shard
-            -- shares the tick, and clients merge them by player id. This keeps four
-            -- real, full-precision poses under the 1,200-byte unreliable limit.
+            self.serverTick = self.serverTick + elapsedTicks
+            -- Batch metadata-free motion under the canonical packet limit.
+            -- Bike/truck views stay attached to their individual player shard.
             local games=context and context.getGameSnapshot and context.getGameSnapshot() or {}
             local balls=context and context.getBasketballSnapshot and context.getBasketballSnapshot() or {}
-            for _, record in ipairs(self:_records()) do
-                local ok, errorMessage = self:_broadcastJoined("snapshot", {
-                    sessionId = self.sessionId,
-                    serverTick = self.serverTick,
-                    players = Runtime.Codec.array({ record }),
-                    bike = record.sceneId=='commute' and context and context.getBikeMotion
-                        and context.getBikeMotion(record.id) or nil,
-                    truck = record.sceneId=='commute' and context and context.getTruckMotion
-                        and context.getTruckMotion(record.id) or nil,
-                })
-                if not ok then
-                    self:_queue("error", { message = errorMessage })
+            local motionRecords=self:_records()
+            local motionRecipients=require('src.net.motion_cadence').recipients(self,elapsedTicks,now)
+            require('src.net.motion_batches').send(self,motionRecords,context,motionRecipients)
+            for _, record in ipairs(motionRecords) do
+                if motionRecipients[self.idToPeer[record.id]]then
+                    self:_sendPredictionSnapshot(self.players[record.id],context)
                 end
-                self:_sendPredictionSnapshot(self.players[record.id],context)
             end
             -- Each table has its own bounded packet and tick. Empty bays also
-            -- send a tombstone so a lost close packet heals on the next tick.
+            -- send a repeated tombstone so a lost close packet heals on refresh.
             for _,bayId in ipairs({"front_left","front_right"}) do
                 local game=false
                 for _,match in ipairs(games) do if match.bayId==bayId then game=match;break end end

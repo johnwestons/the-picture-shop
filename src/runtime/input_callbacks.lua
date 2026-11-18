@@ -3,6 +3,7 @@
 local Component = {}
 
 function Component.install(Runtime)
+    local sessionTouches={}
     function Runtime.App.keypressed(key)
         if require('src.medical_ui').key(Runtime,key) then return true end
         if require('src.story_opening').active(Runtime) then
@@ -67,6 +68,8 @@ function Component.install(Runtime)
     function Runtime.App.mousepressed(x, y, button, isTouch)
         local mx,my=Runtime.toViewportCoordinates(x,y)
         if require('src.medical_ui').pointer(Runtime,mx,my,button) then return true end
+        if not isTouch and Runtime.sceneMultiplayerHudPointer
+            and Runtime.sceneMultiplayerHudPointer(mx,my,button) then return true end
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
             if isTouch then return true end
@@ -152,6 +155,10 @@ function Component.install(Runtime)
     function Runtime.App.touchpressed(id, x, y)
         local mx,my=Runtime.toViewportCoordinates(x,y)
         if require('src.medical_ui').pointer(Runtime,mx,my) then return true end
+        if Runtime.sceneMultiplayerHudPointer and Runtime.sceneMultiplayerHudPointer(mx,my,1) then
+            sessionTouches[id]=true
+            return true
+        end
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
             return require('src.story_opening').touchpressed(Runtime,id,px,py)
@@ -182,6 +189,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchmoved(id, x, y, dx, dy)
+        if sessionTouches[id] then return true end
         if require('src.story_opening').active(Runtime) then
             local px,py=Runtime.toPointerCoordinates(x,y)
             return require('src.story_opening').touchmoved(Runtime,id,px,py)
@@ -214,6 +222,12 @@ function Component.install(Runtime)
     end
 
     function Runtime.App.touchreleased(id, x, y)
+        if sessionTouches[id] then
+            sessionTouches[id]=nil
+            local mx,my=Runtime.toViewportCoordinates(x,y)
+            Runtime.multiplayerHudMousereleased(mx,my,1)
+            return true
+        end
         if require('src.story_opening').active(Runtime) then
             return require('src.story_opening').touchreleased(Runtime,id)
         end

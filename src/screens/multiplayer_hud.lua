@@ -123,6 +123,8 @@ function MultiplayerHud.statusSummary(info)
     local connection
     if isHost then
         connection = "HOST ONLINE"
+    elseif info.connectionStale then
+        connection = "WAITING FOR HOST"
     elseif rtt then
         local quality = rtt <= 80 and "GOOD" or rtt <= 180 and "FAIR" or "SLOW"
         connection = string.format("CONNECTED • %d MS • %s", math.floor(rtt + 0.5), quality)
@@ -490,6 +492,8 @@ function MultiplayerHud.draw(info)
     local line = role .. "  •  " .. tostring(players) .. "/4 WORKERS"
     if not direct and info.mode == "host" and info.address then
         line = line .. "  •  " .. tostring(info.address) .. ":" .. tostring(info.port or 22122)
+    elseif info.connectionStale then
+        line = line .. "  •  WAITING FOR HOST"
     elseif info.rtt then
         line = line .. "  •  " .. tostring(math.floor(info.rtt + 0.5)) .. " ms"
     end
@@ -498,7 +502,8 @@ function MultiplayerHud.draw(info)
         Config.baseWidth - width - MARGIN, BAR_Y)
     love.graphics.setColor(0.025, 0.04, 0.05, 0.91)
     love.graphics.rectangle("fill", bar.x, bar.y, width, BAR_HEIGHT, 4, 4)
-    love.graphics.setColor(info.mode == "host" and { 0.95, 0.78, 0.23, 1 }
+    love.graphics.setColor(info.connectionStale and { 0.98, 0.65, 0.23, 1 }
+        or info.mode == "host" and { 0.95, 0.78, 0.23, 1 }
         or { 0.38, 0.80, 0.76, 1 })
     love.graphics.rectangle("line", bar.x, bar.y, width, BAR_HEIGHT, 4, 4)
     love.graphics.printf(line, bar.x + 8, bar.y + 6, width - 16, "center")

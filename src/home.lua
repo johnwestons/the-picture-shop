@@ -58,9 +58,20 @@ function Home.new(options,day)
     require("src.home_furniture").ensure({home=result})
     return result
 end
-function Home.valid(home,skipClients)
+function Home.valid(home,skipClients,validation)
+    -- Private apartments share the host's immutable town. Validate it once
+    -- within this call tree, not once again for each resident. The memo never
+    -- survives this validation pass for ordinary calls. Network replication can
+    -- supply a private immutable-baseline memo; patched ancestors are new tables.
+    validation=validation or {towns={}}
+    local function validTown(town)
+        if validation.towns[town] then return true end
+        if not Town.valid(town) then return false end
+        validation.towns[town]=true
+        return true
+    end
     if type(home)~="table" or home.version~=1 or not Catalog.APARTMENTS[home.apartmentId]
-        or (home.town~=nil and not Town.valid(home.town))
+        or (home.town~=nil and not validTown(home.town))
         or (home.townCharacters~=nil and not TownCharacters.valid(home.townCharacters,home.town))
         or not require('src.commute.visitor_commute').valid(home.visitorJourneys)
         or not Catalog.PRESETS[home.furnishingPreset] or home.allowanceGranted~=true
@@ -73,7 +84,7 @@ function Home.valid(home,skipClients)
         or not require("src.home_residents").valid(home.residents)
         or not require('src.item_trade').valid(home.trading)
         or not skipClients and not require('src.client_apartments').valid(home)
-        or not skipClients and not require('src.client_households').valid(home)
+        or not skipClients and not require('src.client_households').valid(home,validation)
         or not require('src.commute.trip').valid(home.commute,home)
         or not TruckService.validFleet(home.truckFleet)
         or not require("src.home_shopping").valid(home.shopping)
@@ -113,9 +124,9 @@ function Home.valid(home,skipClients)
     return first.day==1 and upcoming.day==1 and lease.firstDueDay==expectedFirst
         and (upcoming.year-first.year)*12+upcoming.month-first.month==lease.invoiceCount
 end
-function Home.normalize(home,day,hours)
+function Home.normalize(home,day,hours,validation)
     if home==nil then return Home.new(nil,day) end
-    if not Home.valid(home) then return nil,"Invalid household or apartment lease." end
+    if not Home.valid(home,nil,validation) then return nil,"Invalid household or apartment lease." end
     local result=copy(home);require("src.home_furniture").ensure({home=result})
     result.truckFleet=TruckService.normalizeFleet(result.truckFleet)
     result.shopId=result.shopId or PortablePay.newShopId()

@@ -157,6 +157,7 @@ function Component.install(Runtime)
     end
 
     function Runtime.Session:hudInfo()
+        local freshness=require('src.net.link_health').info(self)
         local pendingJoins = {}
         if self:isHost() and not self.terminal then
             local now = self.clock()
@@ -181,7 +182,7 @@ function Component.install(Runtime)
             end)
         end
         local connectedGuests = {}
-        if self:isHost() and self.networkKind == "direct" then
+        if self:isHost() then
             for id, player in pairs(self.players) do
                 if id ~= self.localId then
                     connectedGuests[#connectedGuests + 1] = {
@@ -243,6 +244,10 @@ function Component.install(Runtime)
             address = self.localAddress,
             port = self.port,
             rtt = self.rtt,
+            connectionStale=freshness.stale,
+            snapshotAgeSeconds=freshness.snapshotAgeSeconds,
+            inputAckAgeSeconds=freshness.inputAckAgeSeconds,
+            connectionGraceSeconds=freshness.graceSeconds,
             canManage = self:isHost() and not self.terminal
                 and (self.networkKind == "direct" or #pendingJoins>0),
             pendingJoinCount = #pendingJoins,
@@ -259,6 +264,7 @@ function Component.install(Runtime)
     -- Diagnostic projection intentionally excludes addresses, names, session
     -- tokens, invitation material, and peer objects.
     function Runtime.Session:debugInfo()
+        local freshness=require('src.net.link_health').info(self)
         local now=self.clock()
         local active=self:isActive() and not self.terminal
         local connected=active and self.ready==true
@@ -304,6 +310,8 @@ function Component.install(Runtime)
             channelCount=self.transport and tonumber(self.transport.channels) or Runtime.Protocol.CHANNEL_COUNT,
             protocolVersion=Runtime.Protocol.VERSION,
             rttMs=tonumber(self.rtt),rttAgeSeconds=pingAge,
+            connectionStale=freshness.stale,snapshotAgeSeconds=freshness.snapshotAgeSeconds,
+            inputAckAgeSeconds=freshness.inputAckAgeSeconds,connectionGraceSeconds=freshness.graceSeconds,
             rttMinMs=tonumber(self.pingMinMs),rttAverageMs=tonumber(self.pingAverageMs),
             rttMaxMs=tonumber(self.pingMaxMs),
             pingSent=tonumber(self.pingSentCount) or 0,pingReceived=tonumber(self.pingReceivedCount) or 0,

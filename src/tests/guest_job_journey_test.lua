@@ -130,6 +130,9 @@ local function runJourney(context, check, printing)
             client.clientNonce="journey-guest-"..(readyCount+1)
             client:update(0,gc); pump(); pump(0.1)
             assert(client.ready,"Guest did not connect")
+            -- Confirm the loaded shop with the normal first input before the
+            -- host starts streaming subsequent email/job/history changes.
+            client:update(.05,gc);pump()
         end
         connect()
         local function release()
@@ -388,9 +391,21 @@ local function runJourney(context, check, printing)
         check("guest_journey_completed_job_paid_once",#state.jobs.active==0 and #state.jobs.completed==1
             and state.money==moneyBefore+invoicePrice and state.money==startingCash-claim+invoicePrice
             and state.accountsReceivable==0)
+        check('guest_journey_live_payout_does_not_wait_for_archive_transfer',#guest.jobs.active==0
+            and guest.money==state.money and guest.bills.balance==0 and guest.accountsReceivable==0
+            and guest.reputation.score==state.reputation.score)
+        -- Completed documents use the bounded background archive budget. Live
+        -- money and ownership above must arrive first; archives must converge.
+        for _=1,200 do
+            if #guest.jobs.completed==#state.jobs.completed then break end
+            pump(.05)
+        end
         check("guest_journey_final_host_guest_agree",#guest.jobs.completed==1 and #guest.jobs.active==0
             and guest.money==state.money and guest.bills.balance==0 and guest.accountsReceivable==0
-            and guest.reputation.score==state.reputation.score and guest.activeSlot==nil)
+            and guest.reputation.score==state.reputation.score and guest.activeSlot==nil,
+            ('completed=%d/%d active=%d money=%s/%s balance=%s receivable=%s errors=%s'):format(
+                #guest.jobs.completed,#state.jobs.completed,#guest.jobs.active,tostring(guest.money),tostring(state.money),
+                tostring(guest.bills.balance),tostring(guest.accountsReceivable),table.concat(errors,'; ')))
         local limits={maxBytes=512*1024,maxDepth=32,maxEntries=32768,maxStringBytes=128*1024}
         local bytes=assert(Codec.encode(Schema.snapshot(state),limits))
         local reopened=context.State.new()

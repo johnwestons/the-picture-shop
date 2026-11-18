@@ -47,7 +47,7 @@ local function packetChecks(check)
         if packet.type=='snapshot' then movement=movement+1 end
         if packet.type=='hockey_snapshot' then hockey=hockey+1 end
     end
-    check('audit_two_hockey_tables_and_truck_fit_all_four_motion_shards',movement==12 and hockey==6)
+    check('audit_two_hockey_tables_and_truck_fit_bounded_motion_batches',movement==6 and hockey==6)
     for id,client in pairs(clients) do
         check('audit_hockey_and_motion_received_by_guest_'..id,#client:gameSnapshot()==2
             and client.lastPlayerTicks[1]==host.serverTick and client.lastPlayerTicks[4]==host.serverTick)
@@ -64,13 +64,36 @@ local function packetChecks(check)
         end
     end
     check('audit_hockey_reordered_packets_cannot_resurrect_closed_matches',#client:gameSnapshot()==0)
+    local legacyClient=Session.new();legacyClient.mode='client';legacyClient.ready=true;legacyClient.sessionId=host.sessionId
+    -- Select one match per bay, independent of the three recipient copies.
+    local oldGames={}
+    for _,bayId in ipairs({'front_left','front_right'})do
+        for _,packet in ipairs(wire)do
+            if packet.type=='hockey_snapshot'and packet.payload.bayId==bayId and packet.payload.game~=false then
+                oldGames[#oldGames+1]=packet.payload.game;break
+            end
+        end
+    end
+    legacyClient:_applySnapshot({sessionId=host.sessionId,serverTick=10,players={},games=oldGames})
+    legacyClient:_handleClientEnvelope({type='hockey_snapshot',payload={sessionId=host.sessionId,
+        serverTick=11,bayId='front_left',game=false}})
+    legacyClient:_applySnapshot({sessionId=host.sessionId,serverTick=10,players={},games=oldGames})
+    check('audit_legacy_combined_hockey_cannot_resurrect_newer_closed_bay',#legacyClient:gameSnapshot()==1
+        and legacyClient:gameSnapshot()[1].bayId=='front_right')
+    legacyClient:_applySnapshot({sessionId=host.sessionId,serverTick=12,players={},games={}})
+    legacyClient:_applySnapshot({sessionId=host.sessionId,serverTick=10,players={},games=oldGames})
+    check('audit_legacy_combined_hockey_tombstones_keep_per_bay_tick_order',#legacyClient:gameSnapshot()==0)
     local valid={sessionId=host.sessionId,serverTick=100,bayId='front_left',game=false}
     check('audit_hockey_tombstone_codec_round_trip',Protocol.decode(assert(Protocol.encode('hockey_snapshot',valid))).payload.game==false)
     valid.game={};check('audit_hockey_rejects_malformed_game',not Protocol.encode('hockey_snapshot',valid))
 
     local encode=host._encode
     host._encode=function(self,kind,payload)
-        if kind=='snapshot' and payload.players[1].id==2 then return nil,'injected player packet failure' end
+        if kind=='snapshot'then
+            for _,record in ipairs(payload.players)do
+                if record.id==2 then return nil,'injected player packet failure'end
+            end
+        end
         return encode(self,kind,payload)
     end
     host:_updateHost(.1,context)
@@ -78,6 +101,11 @@ local function packetChecks(check)
         and client.lastPlayerTicks[3]==host.serverTick and client.lastPlayerTicks[4]==host.serverTick
         and client.lastPlayerTicks[2]<host.serverTick)
     host._encode=encode
+    require('src.tests.multiplayer_motion_batches_test').run(check)
+    require('src.tests.multiplayer_snapshot_compression_test').run(check)
+    require('src.tests.multiplayer_motion_wire_test').run(check)
+    require('src.tests.multiplayer_motion_cadence_test').run(check)
+    require('src.tests.multiplayer_join_readiness_test').run(check)
 end
 
 local function deliveryChecks(check)
@@ -159,6 +187,10 @@ function Test.run(_,check)
     packetChecks(check)
     deliveryChecks(check)
     require('src.tests.multiplayer_replication_test').run(check)
+    require('src.tests.multiplayer_runtime_cost_test').run(check)
+    require('src.tests.shared_validation_test').run(check)
+    require('src.tests.host_snapshot_validation_test').run(check)
+    require('src.tests.lan_host_creation_test').run(check)
     require('src.tests.history_retention_test').run(check)
     require('src.tests.movement_prediction_test').run(check)
 end

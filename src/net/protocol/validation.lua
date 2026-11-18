@@ -96,6 +96,10 @@ function Component.install(Runtime)
     end
 
     function Runtime.normalizePlayer(value, label)
+        if Runtime.Codec.isArray(value) then
+            value=require('src.net.player_wire').unpack(value)
+            if not value then return nil,label.." has an invalid player tuple" end
+        end
         local valid, shapeError = Runtime.shape(value, label, Runtime.PLAYER_FIELDS,
             { "furColorway", "overallsColorway", "sceneId", "resting", "taskAction" })
         if not valid then return nil, shapeError end

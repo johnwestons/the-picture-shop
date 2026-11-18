@@ -8,7 +8,7 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     $shellCommand = Get-Command pwsh.exe -ErrorAction SilentlyContinue
     $modernShell = if (Test-Path -LiteralPath $bundledShell) { $bundledShell } elseif ($shellCommand) { $shellCommand.Source } else { $null }
     if (-not $modernShell) { throw 'PowerShell 7 is required to build the Android installer.' }
-    & $modernShell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath
+    & $modernShell -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -UseConfiguredVersion:$UseConfiguredVersion
     exit $LASTEXITCODE
 }
 $buildShell = Join-Path $PSHOME 'pwsh.exe'
@@ -110,17 +110,18 @@ SEND FROM YOUR PHONE
    If the attachment is rejected, share a OneDrive download link by text instead.
    He must download the APK from the link before opening it.
 
-INSTALL WITH FRESH TEST SAVES (REQUESTED FOR THIS HANDOFF)
+INSTALL OR UPDATE
 1. Download the new APK first.
-2. Uninstall ONLY the old The Picture Shop app. Do not keep its app data if asked.
-   This deletes that game's old test saves.
-3. Open $filename in Downloads / My Files / Files.
-4. If Android asks, allow this source to install unknown apps, then tap Install.
-5. Open The Picture Shop and start a new save.
+2. Open $filename in Downloads / My Files / Files.
+3. If Android asks, allow this source to install unknown apps, then tap Update
+   (or Install if the game is not installed yet).
+4. Open The Picture Shop. For a fresh test, start a new disposable save in the game.
+   Preserve existing backups and do not delete a slot that contains a backup.
+Do not uninstall the game or clear all app storage to apply this update.
 
 FUTURE UPDATES
-This APK also supports installing over a previous build signed by this computer:
-open the new APK and choose Update. An update by itself KEEPS existing saves.
+The application ID and signing certificate were checked for an in-place update
+from the previous available build. An update by itself KEEPS existing saves.
 No separate installer app or LOVE download is required.
 
 This is a private development build. Automated checks passed; this packaging

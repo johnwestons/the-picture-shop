@@ -63,8 +63,11 @@ local function townWorld(town,activeWorld)
     if type(town)~='table' or type(town.id)~='string' then return nil end
     local activeWorldMatches=type(activeWorld)=='table' and activeWorld.townId==town.id
         and activeWorld.roads and activeWorld.mainlandExit
-    local cached=routeCache[town]
+    -- Replication replaces the save's town table without replacing the loaded
+    -- world. Keep its derived routes with that world, not each snapshot copy.
+    local cached=activeWorldMatches and activeWorld._deliveryTrafficRoutes or routeCache[town]
     if cached and (not activeWorldMatches or cached.world==activeWorld) then
+        routeCache[town]=cached
         return cached
     end
     local world=activeWorld
@@ -132,6 +135,7 @@ local function townWorld(town,activeWorld)
         length=length,outboundLength=outwardLength,planner=planner,accessIntegrated=integrated,
         truckDestinations=world.truckDestinations}
     routeCache[town]=cached
+    world._deliveryTrafficRoutes=cached
     return cached
 end
 
@@ -546,7 +550,21 @@ local function palletCountFor(state,id,delivery)
     return 0
 end
 
-local function transportGroups(entries)
+local function transportGroups(entries,readOnly)
+    if readOnly then
+        -- Link repair is host simulation work. Use shallow private records so
+        -- collision queries see identical grouping without repairing a save.
+        local copies={}
+        for _,entry in ipairs(entries)do
+            local delivery={};for key,value in pairs(entry.delivery)do delivery[key]=value end
+            if delivery.route then
+                local route={};for key,value in pairs(delivery.route)do route[key]=value end
+                delivery.route=route
+            end
+            copies[#copies+1]={id=entry.id,delivery=delivery,company=entry.company}
+        end
+        return transportGroups(copies)
+    end
     local byId,groups,repaired={},{},false
     for _,entry in ipairs(entries) do byId[entry.id]=entry end
     for _,entry in ipairs(entries) do
@@ -648,7 +666,7 @@ local function dockBlocked(state,world,subject)
     return occupied
 end
 
-local function gatherDynamicActors(state,town,activeWorld,visitors)
+local function gatherDynamicActors(state,town,activeWorld,visitors,readOnly)
     local vehicles,pedestrians,motorcycles,trafficActors={},{},{},{}
     local commute=state and state.home and state.home.commute
     if commute then
@@ -666,10 +684,10 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
     local motion=company and company.exterior
     if require('src.commute.company_truck_motion').visible(motion) then
         local truck=motion.vehicle
-        truck.trafficId='company-delivery-truck'
+        if not readOnly then truck.trafficId='company-delivery-truck' end
         local dims=Footprint.dimensions(truck)
         vehicles[#vehicles+1]=truck
-        trafficActors[#trafficActors+1]={actor=truck,id=truck.trafficId,isPlayer=false,
+        trafficActors[#trafficActors+1]={actor=truck,id='company-delivery-truck',isPlayer=false,
             kind='vehicle',halfLength=dims.halfLength,halfWidth=dims.halfWidth}
     end
     if commute then
@@ -693,9 +711,9 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
             end
         end
     end
-    for _,entry in ipairs(AIMotorcycleTraffic.actors(commute)) do
+    for _,entry in ipairs(AIMotorcycleTraffic.actors(commute,readOnly)) do
         local bike=entry.actor
-        bike.aiKind='motorcycle';bike.trafficKind='motorcycle';bike.trafficId=entry.id
+        if not readOnly then bike.aiKind='motorcycle';bike.trafficKind='motorcycle';bike.trafficId=entry.id end
         pedestrians[#pedestrians+1]={actor=bike,radius=.50}
         motorcycles[#motorcycles+1]=bike
         trafficActors[#trafficActors+1]={actor=bike,id=entry.id,isPlayer=false,kind='bike',
@@ -703,7 +721,13 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
             halfWidth=AIMotorcycleTraffic.HALF_WIDTH}
     end
     town=town or state and state.home and state.home.town
-    local now=state and Calendar.absoluteHours(state) or 0
+    local now=0
+    if state then
+        if readOnly then
+            local date=state.calendar or {}
+            now=(date.totalDays or 0)*24+(date.elapsed or 0)/Calendar.secondsPerDay(state)*24
+        else now=Calendar.absoluteHours(state) end
+    end
     local scheduled={}
     for _,entry in ipairs(TownCharacters.actors(state and state.home,town,now,activeWorld)) do
         scheduled[#scheduled+1]=entry
@@ -721,7 +745,7 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
             trafficActors[#trafficActors+1]={actor=actor,id=entry.id,isPlayer=false,kind='pedestrian',
                 radius=.34,height=1.7}
         else
-            actor.aiKind='motorcycle';actor.trafficKind='motorcycle';actor.trafficId=entry.id
+            if not readOnly then actor.aiKind='motorcycle';actor.trafficKind='motorcycle';actor.trafficId=entry.id end
             pedestrians[#pedestrians+1]={actor=actor,radius=.50}
             motorcycles[#motorcycles+1]=actor
             trafficActors[#trafficActors+1]={actor=actor,id=entry.id,isPlayer=false,kind='bike',
@@ -730,10 +754,10 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
         end
     end
     local entries=deliveryEntries(state)
-    local _,groups=transportGroups(entries)
+    local byId,groups=transportGroups(entries,readOnly)
     for _,entry in ipairs(entries) do
         local delivery=entry.delivery
-        local inboundRoute=delivery.route
+        local inboundRoute=readOnly and byId[entry.id].delivery.route or delivery.route
         if inboundRoute and inboundRoute.transportId then inboundRoute=nil end
         local inboundNeeded=delivery.status~='received'
             or not groupReceived(groups[entry.id])
@@ -742,14 +766,14 @@ local function gatherDynamicActors(state,town,activeWorld,visitors)
         local inbound=inboundRoute and inboundNeeded and inboundRoute.vehicle
         local outbound=delivery.returnRoute and delivery.returnRoute.vehicle
         if inbound and inbound.phase~='offmap' then
-            inbound.trafficId=entry.id
+            if not readOnly then inbound.trafficId=entry.id end
             local dimensions=Footprint.dimensions(inbound)
             vehicles[#vehicles+1]=inbound
             trafficActors[#trafficActors+1]={actor=inbound,id=entry.id,isPlayer=false,kind='vehicle',
                 halfLength=dimensions.halfLength,halfWidth=dimensions.halfWidth}
         end
         if outbound and outbound.phase~='offmap' then
-            outbound.trafficId=entry.id..':return'
+            if not readOnly then outbound.trafficId=entry.id..':return' end
             local dimensions=Footprint.dimensions(outbound)
             vehicles[#vehicles+1]=outbound
             trafficActors[#trafficActors+1]={actor=outbound,id=entry.id..':return',isPlayer=false,kind='vehicle',
@@ -800,21 +824,22 @@ local function installVehicleCollision(world,trafficActors,actorIndex)
     end
     world.vehicleObstacles=function(x,z,heading,subject)
         local c,s=math.cos(heading),math.sin(heading)
-        local blocked=false
+        local blocked,normalX,normalZ=false
         forEachNearby(x-Footprint.radius*2,z-Footprint.radius*2,
             x+Footprint.radius*2,z+Footprint.radius*2,function(entry,_,other)
             if entry.kind=='vehicle' then
-                if other~=subject and finite(other.heading)
-                    and Footprint.overlapsTruck(x,z,heading,other.x,other.z,other.heading,
-                        subject and subject.model,other.model) then
-                    blocked=true;return false
+                if other~=subject and finite(other.heading) then
+                    local hit,nx,nz=Footprint.overlapsTruck(x,z,heading,other.x,other.z,other.heading,
+                        subject and subject.model,other.model)
+                    if hit then blocked,normalX,normalZ=true,nx,nz;return false end
                 end
-            elseif Footprint.overlaps(x,z,c,s,other.x,other.z,other.x,other.z,
-                entry.radius or entry.halfWidth or .55) then
-                blocked=true;return false
+            else
+                local hit,nx,nz=Footprint.overlaps(x,z,c,s,other.x,other.z,other.x,other.z,
+                    entry.radius or entry.halfWidth or .55)
+                if hit then blocked,normalX,normalZ=true,nx,nz;return false end
             end
         end)
-        return blocked
+        return blocked,normalX,normalZ
     end
     world.sweepTrafficObstacles=function(x,z,nx,nz,radius,bottom,top,subjectBike)
         local best,nxHit,nzHit,bestKind,bestId,bestPriority,bestOrder
@@ -846,7 +871,7 @@ local function installVehicleCollision(world,trafficActors,actorIndex)
                             and (2<bestPriority or 2==bestPriority and order<bestOrder)
                         if hit and (not best or hit<best-1e-8 or tieWins) then
                             best,nxHit,nzHit,bestKind,bestId,bestPriority,bestOrder=hit,hx,hz,
-                                'motorcycleTraffic',other.trafficId or 'ai-motorcycle',2,order
+                                'motorcycleTraffic',other.trafficId or entry.id or 'ai-motorcycle',2,order
                         end
                     end
             elseif entry.kind=='pedestrian' and not (activeBike and entry.id==tostring(activeBike.trafficId)..'-walker') then
@@ -2206,6 +2231,28 @@ function Network.installVehicleObstacles(state,world,visitors)
     local vehicles,pedestrians,motorcycles,trafficActors=gatherDynamicActors(state,
         state and state.home and state.home.town,world,visitors)
     installVehicleCollision(world,trafficActors)
+end
+
+function Network.withPredictionObstacles(state,world,source,visitors,step)
+    local _,_,_,actors=gatherDynamicActors(state,state and state.home and state.home.town,
+        world,visitors,true)
+    -- Prediction owns a cloned rider. Exclude its authoritative active body,
+    -- while keeping its parked truck/bike and every other actor collidable.
+    local active=source and (source.vehicle=='truck' and source.truck
+        or source.gear and source.gear.mounted and source.bike or source.ped)
+    local trip=state and state.home and state.home.commute
+    local vehicleAlias=source and source.vehicle=='truck' and active and trip
+        and ((active.model or 'box')=='kei' and trip.keiTruck or trip.truck)
+    local obstacles={}
+    for _,entry in ipairs(actors)do
+        if entry.actor~=active and entry.actor~=vehicleAlias then obstacles[#obstacles+1]=entry end
+    end
+    local oldVehicles,oldSweep=world.vehicleObstacles,world.sweepTrafficObstacles
+    installVehicleCollision(world,obstacles)
+    local okay,result=pcall(step)
+    world.vehicleObstacles,world.sweepTrafficObstacles=oldVehicles,oldSweep
+    if not okay then error(result,0)end
+    return result
 end
 
 function Network.arrived(shipment,epoch)

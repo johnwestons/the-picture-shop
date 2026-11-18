@@ -1468,7 +1468,8 @@ function C.predictMovement(R,dt,x,y,boost)
     if not part then return false end
     local world=not part.interior and C.world(R) or nil
     local P=require('src.commute.prediction')
-    if P.step(player,part,trip.token,dt,x,y,boost,world,R.state) then
+    if P.step(player,part,trip.token,dt,x,y,boost,world,R.state,
+        {customer=R.World.customer,vendor=R.World.vendor}) then
         C.syncPlayer(player,player._predictedCommute.part)
     end
     return true
@@ -1747,8 +1748,13 @@ function C.update(R,dt,x,y,boost,cinematic)
     return dirty
 end
 function C.draw(R,cinematic)
-    local part=C.localPart(R);local view=R._commute
-    if not part or not view then return end
+    local part=C.localPart(R)
+    if not part then return end
+    -- A network state replacement can precede the next scene update. Resolve
+    -- the town before retaining its view: HUD helpers also call world(), which
+    -- otherwise releases the captured renderer halfway through this draw.
+    C.world(R)
+    local view=R._commute
     local showHud=not cinematic and require('src.screens.hud_visibility').isVisible(R)
     if not showHud then view.mapOpen=false;view.mainMapDrag=nil;view.cameraMenu=false end
     if part.interior=='barn' then return require('src.commute.barn_interior').draw(R,part) end
@@ -1785,6 +1791,8 @@ function C.draw(R,cinematic)
         local player=p.slot==localId and R.World.player or playersById[p.slot]
         if player and Residents.key(player)~=id then player=nil end
         local r=C.visualRider(p,player,R.state.home.commute.token)
+        local predicted=player and player._movementPredicted and player._predictedCommute
+        local privatePrediction=predicted and r==predicted.rider
         local health=R.state.home.residents[id] and R.state.home.residents[id].medical
         r.ped.medicalCollapsed=health and health.phase~=nil or false
         if view.renderer and view.renderer.footTracks then
@@ -1799,19 +1807,19 @@ function C.draw(R,cinematic)
         if player and p~=part and not p.interior then
             nameplates[#nameplates+1]={player=player,actor=Rider.actor(r),height=r.vehicle=='truck' and 3.9 or 2.1}
         end
-        if p==part and view.controlFeedback and r.vehicle=='truck' and r.truck~=p.rider.truck then
+        if not privatePrediction and p==part and view.controlFeedback and r.vehicle=='truck' and r.truck~=p.rider.truck then
             local feedback=view.controlFeedback
             local delta=feedback.steer-(r.truck.steering or p.presentation.steer or 0)
             r.truck.heading=r.truck.heading+delta*math.min(feedback.speed*.025,.14)
                 *(r.truck.reverse and -1 or 1)
             r.truck.steering=feedback.steer;r.truck.brake=feedback.brake
-        elseif p==part and view.controlFeedback and r.bike~=p.rider.bike then
+        elseif not privatePrediction and p==part and view.controlFeedback and r.bike~=p.rider.bike then
             -- Lead the drawn heading slightly while the host turn catches up.
             local feedback=view.controlFeedback
             local delta=feedback.steer-(r.motion and r.motion.steer or p.presentation.steer or 0)
             r.bike.heading=r.bike.heading+delta*math.min(feedback.speed*.025,.14)
                 *(r.bike.reverse and -1 or 1)
-        elseif p==part and view.controlFeedback and not r.gear.mounted and r.vehicle~='truck'
+        elseif not privatePrediction and p==part and view.controlFeedback and not r.gear.mounted and r.vehicle~='truck'
             and view.controlFeedback.heading then
             r.ped.heading=view.controlFeedback.heading
         end
@@ -1855,7 +1863,11 @@ function C.draw(R,cinematic)
         view.trafficPresentation=view.trafficPresentation or {}
         local now=love.timer.getTime();local live={}
         for _,entry in ipairs(traffic) do
-            local actor=entry.actor;local cache=view.trafficPresentation[entry.id]
+            -- Some actor providers return the saved AI body. Interpolation
+            -- belongs to a visual copy, never the replicated collision pose.
+            local actor={};for key,value in pairs(entry.actor)do actor[key]=value end
+            entry.actor=actor
+            local cache=view.trafficPresentation[entry.id]
             live[entry.id]=true
             if not cache then
                 cache={x=actor.x,z=actor.z,h=actor.h or 0,heading=actor.heading,

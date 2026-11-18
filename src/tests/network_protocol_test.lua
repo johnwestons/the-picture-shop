@@ -400,6 +400,7 @@ local function runShardedPlayerProtocolRegression(check)
         serverTick = 4000000000,
         players = Codec.array({ precisionRoster[1], precisionRoster[2] }),
     })
+    local combinedEnvelope=combinedSnapshot and Protocol.decode(combinedSnapshot)
     local rider=player(2,"Ride Guest",128,248)
     rider.sceneId="commute"
     local bike={heading=math.pi,speed=17.125,brake=1,steer=-.55,token=999999999999}
@@ -412,7 +413,10 @@ local function runShardedPlayerProtocolRegression(check)
         decoded and decoded.payload.bike and decoded.payload.bike.steer==-.55
         and decoded.payload.bike.speed==17.125 and #packet<=Protocol.MAX_PACKET_BYTES
         and Protocol.encode("snapshot",sample)==nil)
-    check("network_protocol_v7_player_updates_are_mtu_safe_shards",
+    bike.steer=-.55
+    local ambiguousBike=Protocol.encode('snapshot',{sessionId=sample.sessionId,serverTick=sample.serverTick,
+        players=Codec.array({rider,precisionRoster[1]}),bike=bike})
+    check("network_protocol_player_batches_and_vehicle_shards_preserve_mtu_limit",
         combinedRosterBytes and #combinedRosterBytes > 1200
         and Protocol.MAX_PACKET_BYTES == 1200
         and welcomeEnvelope and welcomeEnvelope.payload.playerId == 4
@@ -421,7 +425,10 @@ local function runShardedPlayerProtocolRegression(check)
         and welcomeEnvelope.payload.players[2].id == 4
         and #welcomePacket <= Protocol.MAX_PACKET_BYTES
         and shardsBounded
-        and combinedSnapshot == nil,
+        and combinedEnvelope and #combinedEnvelope.payload.players==2
+        and combinedEnvelope.payload.players[1].x==precisionRoster[1].x
+        and combinedEnvelope.payload.players[2].x==precisionRoster[2].x
+        and #combinedSnapshot<=Protocol.MAX_PACKET_BYTES and ambiguousBike==nil,
         string.format("combined=%s welcome=%s shards=%s/%s/%s/%s limit=%s",
             tostring(combinedRosterBytes and #combinedRosterBytes),
             tostring(welcomePacket and #welcomePacket),

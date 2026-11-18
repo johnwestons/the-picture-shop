@@ -1,6 +1,18 @@
 -- Client rosters, shop state, and incoming messages.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local MotionBuffer=require('src.net.motion_buffer')
+local function acceptHockeyBay(session,bayId,game,tick)
+    session.hockeyTicks=session.hockeyTicks or {}
+    if tick<=(session.hockeyTicks[bayId]or -1)then return end
+    session.hockeyTicks[bayId]=tick
+    local games={}
+    for _,previous in ipairs(session.roomGames or {})do
+        if previous.bayId~=bayId then games[#games+1]=previous end
+    end
+    if game~=false then games[#games+1]=game end
+    session.roomGames=games
+end
 
 function Component.install(Runtime)
     function Runtime.Session:_installRoster(records, serverTick)
@@ -47,10 +59,12 @@ function Component.install(Runtime)
         end
         self.lastShopRevision = payload.revision
         self.receivedShop=state
+        self.sharedValidation=self.sharedValidation or require('src.net.shared_validation').new()
         self:_queue("shop_state", {
             revision = payload.revision,
             state = state,
             changed=changed,
+            validation=self.sharedValidation,
         })
         return true
     end
@@ -65,7 +79,9 @@ function Component.install(Runtime)
         self.lastShopRevision = payload.revision
         self.receivedShop=payload.state
         self.receivedTown=type(payload.state.home)=='table' and payload.state.home.town or nil
+        self.sharedValidation=require('src.net.shared_validation').new()
         self.ready = true
+        self.linkReadyAt=self.clock()
         self.status = "Connected to the host"
         self:_queue("ready", {
             state = payload.state,
@@ -73,6 +89,7 @@ function Component.install(Runtime)
             spawn = spawn,
             playerId = self.localId,
             revision = payload.revision,
+            validation=self.sharedValidation,
         })
         local pending = self.pendingShopStates or {}
         self.pendingShopStates=nil
@@ -97,7 +114,15 @@ function Component.install(Runtime)
 
     function Runtime.Session:_applySnapshot(payload)
         if payload.sessionId ~= self.sessionId then return end
-        if payload.games then self.roomGames=payload.games end
+        if payload.games then
+            -- Legacy combined snapshots share the same per-bay ordering guard
+            -- as the current individual hockey packets, including empty bays.
+            for _,bayId in ipairs({'front_left','front_right'})do
+                local game=false
+                for _,candidate in ipairs(payload.games)do if candidate.bayId==bayId then game=candidate;break end end
+                acceptHockeyBay(self,bayId,game,payload.serverTick)
+            end
+        end
         if payload.balls then
             self.roomBallTicks=self.roomBallTicks or {}
             self.roomBalls=self.roomBalls or {}
@@ -117,15 +142,25 @@ function Component.install(Runtime)
             local previousTick = self.lastPlayerTicks[record.id] or -1
             if payload.serverTick > previousTick then
                 self.lastPlayerTicks[record.id] = payload.serverTick
+                self.lastAuthoritativeSnapshotAt=self.clock()
+                if record.id==self.localId and (record.inputSequence or 0)>(self.lastAcknowledgedInputSequence or 0) then
+                    self.lastAcknowledgedInputSequence=record.inputSequence
+                    self.lastAdvancingInputAckAt=self.lastAuthoritativeSnapshotAt
+                end
                 local player = self.players[record.id]
                 if not player then
                     player = Runtime.newPlayer(record)
                     self.players[record.id] = player
                 end
                 player.name, player.character = record.name, record.character
-                if (player.sceneId or "warehouse")~=(record.sceneId or "warehouse")
-                    or (player.resting==true)~=(record.resting==true) then
+                local resetMotion=(player.sceneId or "warehouse")~=(record.sceneId or "warehouse")
+                    or (player.resting==true)~=(record.resting==true)
+                    or (player.x-record.x)^2+(player.y-record.y)^2>Runtime.TELEPORT_DISTANCE^2
+                if resetMotion then
                     Runtime.copyMotion(player,record,true)
+                end
+                if record.id~=self.localId then
+                    MotionBuffer.push(player,record,payload.serverTick,self.clock(),Runtime.SNAPSHOT_INTERVAL,resetMotion)
                 end
                 player._rideVX,player._rideVY=0,0
                 player._snapshotAge=0
@@ -220,16 +255,7 @@ function Component.install(Runtime)
             self:_acceptPredictionSnapshot(payload)
         elseif envelope.type == "hockey_snapshot" then
             if self.ready and payload.sessionId==self.sessionId then
-                self.hockeyTicks=self.hockeyTicks or {}
-                if payload.serverTick>(self.hockeyTicks[payload.bayId] or -1) then
-                    self.hockeyTicks[payload.bayId]=payload.serverTick
-                    local games={}
-                    for _,game in ipairs(self.roomGames or {}) do
-                        if game.bayId~=payload.bayId then games[#games+1]=game end
-                    end
-                    if payload.game~=false then games[#games+1]=payload.game end
-                    self.roomGames=games
-                end
+                acceptHockeyBay(self,payload.bayId,payload.game,payload.serverTick)
             end
         elseif envelope.type == "fight_snapshot" then
             if self.ready and payload.sessionId == self.sessionId

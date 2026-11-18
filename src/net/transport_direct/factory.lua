@@ -196,6 +196,10 @@ function Component.install(Runtime)
             local forwarded = {}
             for name, value in pairs(createOptions) do forwarded[name] = value end
             forwarded.peerCapacity = config.peerCapacity
+            -- The native Direct provider currently exposes a 64-packet replay
+            -- window and treats older packets as authentication failures. Keep
+            -- ENet sequencing until stale-window drops can be distinguished.
+            forwarded.unsequencedState = false
             local ok, base, errorMessage = Runtime.callFactory(baseFactory, "createHost", forwarded)
             if not ok then
                 disposeFactory()
@@ -219,6 +223,7 @@ function Component.install(Runtime)
             local forwarded = {}
             for name, value in pairs(createOptions) do forwarded[name] = value end
             forwarded.connectData = config.admissionToken
+            forwarded.unsequencedState = false
             local ok, base, errorMessage = Runtime.callFactory(baseFactory,
                 "createClient", address, forwarded)
             if not ok then

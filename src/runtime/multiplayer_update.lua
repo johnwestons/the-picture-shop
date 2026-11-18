@@ -298,7 +298,9 @@ function Component.install(Runtime)
             end,
             getShopSnapshot = function()
                 local live=require('src.net.shop_replication').project(Runtime.state)
-                local snapshot=Runtime.SaveSchema.snapshot(live)
+                Runtime.multiplayer.hostSnapshotValidation=Runtime.multiplayer.hostSnapshotValidation
+                    or require('src.net.host_snapshot_validation').new()
+                local snapshot=Runtime.SaveSchema.networkSnapshot(live,Runtime.multiplayer.hostSnapshotValidation)
                 if snapshot then snapshot.notifications=nil;snapshot.tutorial=nil end
                 return {
                     state = snapshot,

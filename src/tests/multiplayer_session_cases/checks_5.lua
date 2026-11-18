@@ -97,6 +97,10 @@ function Component.run(Context)
 
     -- Let the host establish its comparison baseline, then prove that an
     -- unchanged normalized shop never consumes durable bandwidth or revisions.
+    -- The first normal input confirms that the initial shop has finished
+    -- loading before the host queues live durable updates for this worker.
+    Context.syncClient:update(.05, Context.syncClientContext)
+    Context.syncHost:update(0, Context.syncHostContext)
     Context.syncHost:update(1, Context.syncHostContext)
     Context.syncClient:update(0, Context.syncClientContext)
     Context.syncClient:drainEvents()

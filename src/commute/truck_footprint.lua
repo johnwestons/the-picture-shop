@@ -21,12 +21,35 @@ function F.overlaps(x,z,c,s,ax,az,bx,bz,radius,dims)
     if du==0 and dv==0 then
         local u=math.max(0,math.abs(along)-dims.halfLength)
         local v=math.max(0,math.abs(side)-dims.halfWidth)
-        return u*u+v*v<=radius*radius
+        if u*u+v*v>radius*radius then return false end
+        local nx,nz
+        if u*u+v*v>1e-16 then
+            local length=math.sqrt(u*u+v*v)
+            nx=-(along<0 and -u or u)/length
+            nz=-(side<0 and -v or v)/length
+        elseif dims.halfLength-math.abs(along)<dims.halfWidth-math.abs(side) then
+            nx,nz=along<0 and 1 or -1,0
+        else nx,nz=0,side<0 and 1 or -1 end
+        return true,nx*c-nz*s,nx*s+nz*c
     end
-    return math.abs(along)<=dims.halfLength+math.abs(du)+radius
-        and math.abs(side)<=dims.halfWidth+math.abs(dv)+radius
-        and math.abs(along*dv-side*du)<=dims.halfLength*math.abs(dv)+dims.halfWidth*math.abs(du)
-            +radius*math.sqrt(du*du+dv*dv)
+    local length=math.sqrt(du*du+dv*dv)
+    local cross=along*dv-side*du
+    local alongDepth=dims.halfLength+math.abs(du)+radius-math.abs(along)
+    local sideDepth=dims.halfWidth+math.abs(dv)+radius-math.abs(side)
+    local edgeDepth=(dims.halfLength*math.abs(dv)+dims.halfWidth*math.abs(du)
+        +radius*length-math.abs(cross))/length
+    if alongDepth<0 or sideDepth<0 or edgeDepth<0 then return false end
+    -- The same separating axes that establish overlap also give the least
+    -- translation out of it. Keep the Boolean footprint unchanged and return
+    -- an optional normal pointing away from the obstacle for truck physics.
+    local nx,nz=along<0 and 1 or -1,0
+    local depth=alongDepth
+    if sideDepth<depth then nx,nz=0,side<0 and 1 or -1;depth=sideDepth end
+    if edgeDepth<depth then
+        local sign=cross<0 and 1 or -1
+        nx,nz=sign*dv/length,-sign*du/length
+    end
+    return true,nx*c-nz*s,nx*s+nz*c
 end
 F.radius=math.sqrt(F.halfLength^2+F.halfWidth^2)
 function F.overlapsTruck(x,z,heading,otherX,otherZ,otherHeading,model,otherModel)
@@ -34,14 +57,22 @@ function F.overlapsTruck(x,z,heading,otherX,otherZ,otherHeading,model,otherModel
     local ac,as=math.cos(heading),math.sin(heading)
     local bc,bs=math.cos(otherHeading),math.sin(otherHeading)
     local dx,dz=otherX-x,otherZ-z
+    local bestDepth,bestX,bestZ
     local function separated(ax,az)
-        local separation=math.abs(dx*ax+dz*az)
+        local projected=dx*ax+dz*az
+        local separation=math.abs(projected)
         local aRadius=aDims.halfLength*math.abs(ac*ax+as*az)+aDims.halfWidth*math.abs(-as*ax+ac*az)
         local bRadius=bDims.halfLength*math.abs(bc*ax+bs*az)+bDims.halfWidth*math.abs(-bs*ax+bc*az)
-        return separation>aRadius+bRadius
+        local depth=aRadius+bRadius-separation
+        if depth<0 then return true end
+        if not bestDepth or depth<bestDepth then
+            local sign=projected<0 and 1 or -1
+            bestDepth,bestX,bestZ=depth,ax*sign,az*sign
+        end
+        return false
     end
-    return not separated(ac,as) and not separated(-as,ac)
-        and not separated(bc,bs) and not separated(-bs,bc)
+    if separated(ac,as) or separated(-as,ac) or separated(bc,bs) or separated(-bs,bc) then return false end
+    return true,bestX,bestZ
 end
 
 -- Sweep a circular actor against the truck's oriented footprint. The bike
@@ -103,7 +134,8 @@ function F.hitsEdges(rects,x,z,c,s,dims)
         if x+radius>=rect.minX and x-radius<=rect.maxX and z+radius>=rect.minZ and z-radius<=rect.maxZ then
             local a=rect.corners[4]
             for _,b in ipairs(rect.corners) do
-                if F.overlaps(x,z,c,s,a.x,a.z,b.x,b.z,0,dims) then return true end
+                local hit,nx,nz=F.overlaps(x,z,c,s,a.x,a.z,b.x,b.z,0,dims)
+                if hit then return true,nx,nz end
                 a=b
             end
         end

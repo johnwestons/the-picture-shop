@@ -1,7 +1,10 @@
 -- Keep live shop state independent of the size of the document archive.
 -- The host owns these records; paging changes only their network presentation.
 local Codec=require('src.net.codec')
-local R={PAGE_ROWS=32,PAGE_BYTES=24000,PART_BYTES=24000}
+-- Archive pages are assembled atomically, but paced in small wire fragments so
+-- old documents cannot flood the reliable queue ahead of current gameplay.
+local R={PAGE_ROWS=32,PAGE_BYTES=24000,PART_BYTES=24000,HISTORY_INTERVAL=.05,
+    HISTORY_WIRE_BYTES=1200,HISTORY_BYTES_PER_SECOND=4096,HISTORY_PACKET_OVERHEAD=64}
 R.collections={
     receipts={'receipts','entries'}, completed={'jobs','completed'}, declined={'jobs','declined'},
     emailArchive={'clientEmails','archive'}, promotions={'clientEmails','sentPromotions'},
@@ -126,9 +129,9 @@ function R.nextHistory(sender,history)
         end
     end
 end
-function R.advanceHistory(sender)
+function R.advanceHistory(sender,bytes)
     local page=sender.pending
-    page.offset=page.offset+R.PART_BYTES
+    page.offset=page.offset+(bytes or R.PART_BYTES)
     if page.offset<=#page.data then return end
     local rows=sender.sent[page.collection]
     for i,row in ipairs(page.entries) do rows[page.start+i-1]=row end

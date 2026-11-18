@@ -16,8 +16,16 @@ function Component.install(Runtime)
         return payload, mode
     end
 
-    function Runtime.startLanHost(slot, playerName)
-        local payload, mode, loadError = Runtime.prepareHostSave(slot)
+    function Runtime.startLanHost(slot, playerName, newPayload)
+        local payload, mode, loadError
+        if newPayload then
+            if newPayload.slot~=slot or not Runtime.SaveSchema.validPayload(newPayload) then
+                return false,"The new host shop is invalid. Please create it again."
+            end
+            local writable,reason=Runtime.Save.preflightWritable(slot)
+            if not writable then return false,reason end
+            payload,mode=newPayload,"new"
+        else payload,mode,loadError=Runtime.prepareHostSave(slot) end
         if not payload then return false, loadError end
         local addressOptions
         local connectionMode = Runtime.App.settings and Runtime.App.settings.lanConnectionMode
@@ -107,6 +115,20 @@ function Component.install(Runtime)
         return ok, message
     end
 
+    function Runtime.createLanHost(slot,playerName)
+        Runtime.lanDiscovery:stop()
+        Runtime.state.screen="title"
+        Runtime.TitleScreen.enter(function(payload)
+            local okay,reason=Runtime.startLanHost(slot,playerName,payload)
+            if not okay then
+                Runtime.openLocalPlay(slot)
+                Runtime.LanScreen.showError(reason)
+            end
+        end)
+        Runtime.TitleScreen.beginNew(slot,function()Runtime.openLocalPlay(slot)end)
+        return true
+    end
+
     Runtime.openLocalPlay = function(slot)
         local sessionClean, sessionError = Runtime.multiplayer:stop("Opening Local Play")
         Runtime.clearWorkshopAuthority("session_closed")
@@ -125,7 +147,12 @@ function Component.install(Runtime)
             settings = Runtime.App.settings,
             saveSettings = function() return Runtime.Settings.save(Runtime.App.settings) end,
             refresh = Runtime.startLanSearch,
-            host = Runtime.startLanHost,
+            host = function(selected,name)
+                local payload,status=Runtime.Save.load(selected)
+                if not payload and status=="empty" then return Runtime.createLanHost(selected,name) end
+                return Runtime.startLanHost(selected,name)
+            end,
+            newHost = Runtime.createLanHost,
             join = Runtime.startLanClient,
             cancel = function()
                 Runtime.lanReconnect:cancel(true)

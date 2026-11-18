@@ -3,12 +3,14 @@
 local Detail={};Detail.__index=Detail
 local CELL=128
 function Detail.new(world)
-    local self=setmetatable({cells={}},Detail)
+    local self=setmetatable({cells={},roadHalfWidth=0},Detail)
     local function insert(item,points)
         local x0,z0,x1,z1=math.huge,math.huge,-math.huge,-math.huge
         for _,p in ipairs(points) do
             x0,z0=math.min(x0,p.x),math.min(z0,p.z);x1,z1=math.max(x1,p.x),math.max(z1,p.z)
         end
+        item.x0,item.z0,item.x1,item.z1=x0,z0,x1,z1
+        if item.road then self.roadHalfWidth=math.max(self.roadHalfWidth,item.width/2) end
         for x=math.floor(x0/CELL),math.floor(x1/CELL) do
             for z=math.floor(z0/CELL),math.floor(z1/CELL) do
                 local key=x..':'..z;local cell=self.cells[key] or {};self.cells[key]=cell
@@ -31,18 +33,34 @@ function Detail.new(world)
     end
     return self
 end
-function Detail:draw(transform,area)
-    local g=love.graphics;local radius=(area.width+area.height)/transform.scale
+function Detail:visible(transform,area)
+    -- Invert the clipped, rotated viewport. The follow marker sits below its
+    -- center, so include both sides and the thick road outline at the edge.
+    local c,s=math.abs(math.cos(transform.rotation)),math.abs(math.sin(transform.rotation))
+    local dx=math.max(math.abs(area.x-transform.x),math.abs(area.x+area.width-transform.x))
+    local dy=math.max(math.abs(area.y-transform.y),math.abs(area.y+area.height-transform.y))
+    local pad=self.roadHalfWidth+3/transform.scale
+    local rx,rz=(c*dx+s*dy)/transform.scale+pad,(s*dx+c*dy)/transform.scale+pad
+    local x0,x1=transform.centerX-rx,transform.centerX+rx
+    local z0,z1=transform.centerZ-rz,transform.centerZ+rz
     local seen,roads,buildings={},{},{}
-    for x=math.floor((transform.centerX-radius)/CELL),math.floor((transform.centerX+radius)/CELL) do
-        for z=math.floor((transform.centerZ-radius)/CELL),math.floor((transform.centerZ+radius)/CELL) do
+    for x=math.floor(x0/CELL),math.floor(x1/CELL) do
+        for z=math.floor(z0/CELL),math.floor(z1/CELL) do
             for _,item in ipairs(self.cells[x..':'..z] or {}) do
                 if not seen[item] then
-                    seen[item]=true;local list=item.road and roads or buildings;list[#list+1]=item
+                    seen[item]=true
+                    if item.x1>=x0 and item.x0<=x1 and item.z1>=z0 and item.z0<=z1 then
+                        local list=item.road and roads or buildings;list[#list+1]=item
+                    end
                 end
             end
         end
     end
+    return roads,buildings
+end
+function Detail:draw(transform,area)
+    local g=love.graphics
+    local roads,buildings=self:visible(transform,area)
     local scale=transform.scale
     local function stroke(item,width)
         g.setLineWidth(width);g.line(item.points)

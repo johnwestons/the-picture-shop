@@ -453,7 +453,9 @@ function Windmill.update(dt, state)
     local platesChanged = Plates.update(state)
     if platesChanged then Windmill.bumpNetworkRevision() end
     local p, job, pallet = Windmill.current(state)
-    p.animationClock = p.animationClock + math.max(0, dt)
+    -- Press presentation uses its realtime snapshot/phase. This legacy saved
+    -- clock has no renderer consumer; advancing it dirtied the durable press
+    -- domain even in shops without a press, forcing every guest to rebuild it.
     if p.status ~= "production" or not job or not pallet then
         return platesChanged, platesChanged
     end

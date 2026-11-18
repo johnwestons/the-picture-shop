@@ -116,6 +116,32 @@ function Component.install(Runtime)
     end
 
     local function wireEnvelope(normalized)
+        if normalized.type=='prediction_snapshot' then
+            local payload={}
+            for key,value in pairs(normalized.payload)do payload[key]=value end
+            local bytes,err=require('src.net.prediction_wire').pack(payload.values)
+            if not bytes then return nil,err end
+            payload.values=bytes
+            return {version=normalized.version,type=normalized.type,payload=payload}
+        end
+        if normalized.type == "snapshot" then
+            local payload,players={},{}
+            for key,value in pairs(normalized.payload)do payload[key]=value end
+            for index,record in ipairs(payload.players)do
+                local packed,err=require('src.net.player_wire').pack(record)
+                if not packed then return nil,err end
+                players[index]=packed
+            end
+            payload.players=Runtime.Codec.array(players)
+            for _,kind in ipairs({'bike','truck'})do
+                if payload[kind]then
+                    local packed,err=require('src.net.vehicle_wire').pack(kind,payload[kind])
+                    if not packed then return nil,err end
+                    payload[kind]=packed
+                end
+            end
+            return {version=normalized.version,type=normalized.type,payload=payload}
+        end
         if (normalized.type == "workshop_grant" or normalized.type == "workshop_result")
             and normalized.payload.resourceId == "reception_customer" and normalized.payload.view then
             -- Five print pallets plus delivery terms must fit the existing
@@ -145,12 +171,17 @@ function Component.install(Runtime)
     end
 
     local function encodeCanonical(normalized)
-        return Runtime.Codec.encode(wireEnvelope(normalized),Runtime.limitsFor(normalized.type))
+        local wire,err=wireEnvelope(normalized)
+        if not wire then return nil,err end
+        return Runtime.Codec.encode(wire,Runtime.limitsFor(normalized.type))
     end
 
     local function compressShopPacket(kind, packet)
-        if (kind ~= "shop_snapshot" and kind ~= "shop_state" and kind ~= "shop_history")
-            or #packet < Runtime.Protocol.SHOP_COMPRESSION_MIN_BYTES
+        if (kind ~= "shop_snapshot" and kind ~= "shop_state" and kind ~= "shop_history" and kind ~= "input"
+                and kind ~= 'prediction_snapshot' and kind ~= 'snapshot')
+            or #packet < ((kind == "shop_history" or kind == "shop_state" or kind == "input"
+                    or kind == 'prediction_snapshot' or kind == 'snapshot')
+                and 256 or Runtime.Protocol.SHOP_COMPRESSION_MIN_BYTES)
         then
             return packet
         end

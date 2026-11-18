@@ -16,13 +16,15 @@ end
 
 local function cacheFor(town,activeWorld)
     if type(town)~='table' then return nil end
-    local cache=townCache[town]
-    if not cache then
+    local activeWorldMatches=type(activeWorld)=='table' and activeWorld.townId==town.id and activeWorld.roads
+    local cache=activeWorldMatches and activeWorld._commuterRoutes or townCache[town]
+    if not cache or activeWorldMatches and cache.world~=activeWorld then
         local world=roadWorld(town,activeWorld)
         if not world then return nil end
         cache={world=world,planner=Routes.new(world.roads,{pavedOnly=true}),paths={}}
-        townCache[town]=cache
+        world._commuterRoutes=cache
     end
+    townCache[town]=cache
     return cache
 end
 

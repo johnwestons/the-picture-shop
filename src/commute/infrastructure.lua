@@ -59,8 +59,10 @@ function Infrastructure:blocksTruck(x,z,c,s,dims,drivableRoadId)
                 -- while the vehicle waits or turns through the junction.
                 local sameRoadRoadside=(shape.kind=='guardrail' or shape.kind=='lamp') and drivableRoadId
                     and shape.roadId==drivableRoadId
-                if shape.kind~='stop' and shape.kind~='lamp' and not sameRoadRoadside
-                    and f.overlaps(x,z,c,s,shape.ax,shape.az,shape.bx,shape.bz,shape.radius,dims) then return true end
+                if shape.kind~='stop' and shape.kind~='lamp' and not sameRoadRoadside then
+                    local hit,nx,nz=f.overlaps(x,z,c,s,shape.ax,shape.az,shape.bx,shape.bz,shape.radius,dims)
+                    if hit then return true,nx,nz end
+                end
             end end
         end
     end

@@ -54,7 +54,7 @@ function Component.install(Runtime)
         Runtime.PalletState.reconcile(state)
     end
 
-    function Runtime.normalizeState(source, repairPhysical)
+    function Runtime.normalizeState(source, repairPhysical, validation)
         source = type(source) == "table" and source or {}
         if not Runtime.Schema.validPhysicalSource(source) then return nil, "Invalid physical stock or vehicle ownership." end
         if type(source.calendar)=="table" and source.calendar.secondsPerDay~=nil
@@ -79,7 +79,7 @@ function Component.install(Runtime)
             return nil, "Invalid saved credit account."
         end
         local home = Runtime.Home.normalize(source.home,
-            type(source.calendar)=="table" and source.calendar.totalDays or 0)
+            type(source.calendar)=="table" and source.calendar.totalDays or 0,nil,validation)
         if not home then return nil,"Invalid household or apartment lease." end
         -- A valid source household replaces the default. Do not build and
         -- immediately discard another town and its character roster.

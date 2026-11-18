@@ -362,12 +362,14 @@ function Traffic.update(commute,world,dt,driveRoute,watchdogState)
     return changed,moving
 end
 
-function Traffic.actors(commute)
+function Traffic.actors(commute,readOnly)
     local result={}
     for _,agent in ipairs(commute and commute.aiMotorcycles or {}) do
         local bike=agent.bike
         if type(bike)=='table' then
-            bike.aiKind='motorcycle';bike.trafficKind='motorcycle';bike.trafficId='ai-'..agent.id
+            if not readOnly then
+                bike.aiKind='motorcycle';bike.trafficKind='motorcycle';bike.trafficId='ai-'..agent.id
+            end
             result[#result+1]={id='ai-'..agent.id,actor=bike,bike=true,
                 deliveryBike=true,phase='riding',label='Motorcycle traffic'}
         end

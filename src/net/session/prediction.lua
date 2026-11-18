@@ -2,8 +2,11 @@
 -- input", rather than merely "the host has received this direction".
 local Component={}
 local STEP=1/60
-local REDUNDANCY=12
+local Commands=require('src.net.movement_commands')
 local MAX_HISTORY=240
+-- Sub-second gaps can recover their exact commands. Longer outages abandon old
+-- controls and keep neutral physics alive instead of building a stale backlog.
+local RECOVERY_SECONDS=1
 local function axis(value)
     value=math.max(-1,math.min(1,tonumber(value) or 0))
     return math.floor(value*1000+.5)
@@ -47,6 +50,7 @@ function Component.install(Runtime)
     function Runtime.Session:_queueMovementCommands(player,payload,context)
         if not payload.commands then
             player._commandStream=false;player._commandQueue=nil;player._commandBudget=0
+            player._commandOutage=nil
             player.inputSequence=payload.sequence
             return
         end
@@ -56,14 +60,25 @@ function Component.install(Runtime)
             player.inputSequence=payload.sequence;player._lastQueuedCommand=payload.sequence
             return
         end
+        local frames=type(payload.commands)=='string' and Commands.unpack(payload.commands) or payload.commands
+        if not frames then return end
         if not player._commandStream or player._commandKey~=key then
             player._commandQueue={};player._lastQueuedCommand=player.inputSequence or 0
-            player._commandBudget=0
+            player._commandBudget=math.min(RECOVERY_SECONDS,math.max(0,self.clock()-(player.lastInputAt or self.clock())))
+            player._commandOutage=nil
         end
         player._commandStream=true;player._commandKey=key
         local queue=player._commandQueue
-        local first=payload.sequence-#payload.commands+1
-        for index,frame in ipairs(payload.commands) do
+        local first=payload.sequence-#frames+1
+        if player._commandOutage then
+            -- After a long outage the host has continued neutral physics. Do
+            -- not play seconds of stale throttle/steering after reconnection.
+            player._commandOutage=nil;player._commandQueue={};queue=player._commandQueue
+            player._lastQueuedCommand=math.max(player._lastQueuedCommand or 0,payload.sequence-3)
+            player.inputSequence=math.max(player.inputSequence or 0,player._lastQueuedCommand)
+            player._commandBudget=math.min(player._commandBudget or 0,3*STEP)
+        end
+        for index,frame in ipairs(frames) do
             local sequence=first+index-1
             if sequence>(player._lastQueuedCommand or 0) then
                 queue[#queue+1]={sequence=sequence,x=frame[1]/1000,y=frame[2]/1000,boost=frame[3]==1}
@@ -80,10 +95,14 @@ function Component.install(Runtime)
             player._commandQueue={};player._commandBudget=0
             return
         end
-        player._commandBudget=math.min(.2,(player._commandBudget or 0)+dt)
+        player._commandBudget=math.min(RECOVERY_SECONDS,(player._commandBudget or 0)+dt)
         local queue=player._commandQueue or {}
         local steps=0
-        while #queue>0 and player._commandBudget+1e-8>=STEP and steps<4 do
+        -- A fixed four-step cap permanently falls behind below 15 host FPS.
+        -- Cover elapsed simulation time plus a little recovery work, while
+        -- retaining the normal four-step limit and a hard 250ms work ceiling.
+        local maxSteps=math.max(4,math.min(15,math.ceil(math.max(0,dt)/STEP-1e-8)+3))
+        while #queue>0 and player._commandBudget+1e-8>=STEP and steps<maxSteps do
             local command=table.remove(queue,1)
             if context and context.moveRemote then
                 context.moveRemote(player,STEP,command.x,command.y,command.boost)
@@ -94,12 +113,17 @@ function Component.install(Runtime)
         end
         -- A connection outage must not suspend gravity, rolling or braking.
         -- These neutral steps do not acknowledge any unseen input commands.
-        if #queue==0 and self.clock()-(player.lastInputAt or 0)>Runtime.INPUT_HOLD_TIMEOUT
-            and context and context.requiresPhysicsPrediction and context.requiresPhysicsPrediction(player) then
-            while player._commandBudget+1e-8>=STEP and steps<4 do
-                context.moveRemote(player,STEP,0,0,false)
-                player._commandBudget=math.max(0,player._commandBudget-STEP);steps=steps+1
+        if #queue==0 and self.clock()-(player.lastInputAt or 0)>=RECOVERY_SECONDS then
+            if not player._commandOutage then
+                player._commandOutage=true
+                player._commandBudget=math.min(player._commandBudget,math.max(0,dt))
             end
+            if context and context.requiresPhysicsPrediction and context.requiresPhysicsPrediction(player) then
+                while player._commandBudget+1e-8>=STEP and steps<maxSteps do
+                    context.moveRemote(player,STEP,0,0,false)
+                    player._commandBudget=math.max(0,player._commandBudget-STEP);steps=steps+1
+                end
+            else player._commandBudget=math.min(player._commandBudget,STEP) end
         end
     end
 
@@ -125,13 +149,28 @@ function Component.install(Runtime)
         local tick=self.lastPlayerTicks[self.localId] or -1
         local physics=context.requiresPhysicsPrediction and context.requiresPhysicsPrediction(player)
         local checkpoint=physics and self.physicsPredictionSnapshot
-        local acknowledged
+        local acknowledged,matched
         local beforeX,beforeY=player.x,player.y
         if checkpoint and checkpoint.serverTick>(self.lastPhysicsPredictionTick or -1)
-            and checkpoint.key==key and context.restorePhysicsPrediction and context.restorePhysicsPrediction(checkpoint) then
-            acknowledged=checkpoint.sequence
-            self.lastPhysicsPredictionTick=checkpoint.serverTick
-            self.lastPredictionTick=checkpoint.serverTick
+            and checkpoint.key==key and context.restorePhysicsPrediction then
+            local P=require('src.commute.prediction')
+            local predicted=prediction.ackSequence==checkpoint.sequence and prediction.ackCheckpoint or nil
+            if not predicted then
+                for _,command in ipairs(prediction.history)do
+                    if command.sequence==checkpoint.sequence then predicted=command.checkpoint;break end
+                end
+            end
+            matched=P.matches(predicted,checkpoint)
+            if not matched then
+                matched=P.reconcileSharedTruckFuel(player,prediction.history,predicted,checkpoint)
+            end
+            if matched or context.restorePhysicsPrediction(checkpoint) then
+                acknowledged=checkpoint.sequence
+                prediction.ackSequence=acknowledged
+                prediction.ackCheckpoint=matched and predicted or checkpoint
+                self.lastPhysicsPredictionTick=checkpoint.serverTick
+                self.lastPredictionTick=checkpoint.serverTick
+            end
         elseif not physics and target and tick>(self.lastPredictionTick or -1) then
             local targetKey=context.predictionKey(target)
             if targetKey~=key then
@@ -149,7 +188,10 @@ function Component.install(Runtime)
             local pending={}
             for _,command in ipairs(prediction.history) do
                 if command.sequence>acknowledged then
-                    context.predictLocal(STEP,command.x,command.y,command.boost,true)
+                    if not matched then
+                        context.predictLocal(STEP,command.x,command.y,command.boost,true)
+                        if physics then command.checkpoint=require('src.commute.prediction').captureLocal(player)end
+                    end
                     pending[#pending+1]=command
                 end
             end
@@ -165,6 +207,7 @@ function Component.install(Runtime)
             local command={sequence=self.inputSequence,x=x/1000,y=y/1000,boost=boost}
             prediction.history[#prediction.history+1]=command
             context.predictLocal(STEP,command.x,command.y,boost,false)
+            if physics then command.checkpoint=require('src.commute.prediction').captureLocal(player)end
         end
         while #prediction.history>MAX_HISTORY do table.remove(prediction.history,1) end
     end
@@ -172,12 +215,7 @@ function Component.install(Runtime)
     function Runtime.Session:_movementCommandBatch()
         local prediction=self.commandPrediction
         if not self.commandPredictionActive or not prediction or #prediction.history==0 then return nil end
-        local frames={}
-        for index=math.max(1,#prediction.history-REDUNDANCY+1),#prediction.history do
-            local command=prediction.history[index]
-            frames[#frames+1]=Runtime.Codec.array({axis(command.x),axis(command.y),command.boost and 1 or 0})
-        end
-        return Runtime.Codec.array(frames),prediction.key
+        return Commands.pack(prediction.history),prediction.key
     end
 end
 return Component

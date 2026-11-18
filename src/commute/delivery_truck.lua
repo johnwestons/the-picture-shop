@@ -125,11 +125,15 @@ function Truck.blocked(world,x,z,heading,subject)
     local c,s=math.cos(heading),math.sin(heading)
     local roadDistance,road=world.roads:sample(x,z)
     local drivableRoadId=road and not road.junction and roadDistance<=road.width*.5+.5 and road.id or nil
-    if world.infrastructure and world.infrastructure:blocksTruck(x,z,c,s,dims,drivableRoadId) then return true end
+    if world.infrastructure then
+        local hit,nx,nz=world.infrastructure:blocksTruck(x,z,c,s,dims,drivableRoadId)
+        if hit then return true,nx,nz end
+    end
     if world.sites and world.sites.nearby then
         for _,site in ipairs(world.sites:nearby(x,z)) do
-            if footprint.hitsEdges(site.footprints,x,z,c,s,dims)
-                or footprint.hitsEdges(site.obstacles,x,z,c,s,dims) then return true end
+            local hit,nx,nz=footprint.hitsEdges(site.footprints,x,z,c,s,dims)
+            if not hit then hit,nx,nz=footprint.hitsEdges(site.obstacles,x,z,c,s,dims) end
+            if hit then return true,nx,nz end
         end
     end
     for row=-2,2 do
@@ -139,9 +143,16 @@ function Truck.blocked(world,x,z,heading,subject)
             if world.roads:blocked(world,x+c*along-s*side,z+s*along+c*side,true) then return true end
         end
     end
-    if world.vehicleObstacles and world.vehicleObstacles(x,z,heading,subject) then return true end
+    if world.vehicleObstacles then
+        local hit,nx,nz=world.vehicleObstacles(x,z,heading,subject)
+        if hit then return true,nx,nz end
+    end
     local h=world:supportHeight(x,z)
-    return world.sweepObstacles and world:sweepObstacles(x,z,x,z,dims.radius,h,h+dims.height,c,s)~=nil
+    if world.sweepObstacles then
+        local hit,nx,nz=world:sweepObstacles(x,z,x,z,dims.radius,h,h+dims.height,c,s)
+        if hit~=nil then return true,nx,nz end
+    end
+    return false
 end
 
 -- Resolve the nearest clear translation from a newly overlapped truck pose.
@@ -292,10 +303,17 @@ function Truck.update(p,input,dt,world)
         local pathHeading=heading+p.slipAngle
         local nx=p.x+math.cos(pathHeading)*travel/steps
         local nz=p.z+math.sin(pathHeading)*travel/steps
-        if Truck.blocked(world,nx,nz,heading,p) then
+        local blocked,normalX,normalZ=Truck.blocked(world,nx,nz,heading,p)
+        if blocked then
             local stepX,stepZ=nx-p.x,nz-p.z
             local stepLength=M.length(stepX,stepZ)
-            local normalX,normalZ=contactNormal(world,nx,nz,heading,p,stepX,stepZ)
+            if not M.finite(normalX) or not M.finite(normalZ)
+                or normalX*normalX+normalZ*normalZ<1e-16 then
+                normalX,normalZ=contactNormal(world,nx,nz,heading,p,stepX,stepZ)
+            else
+                local length=M.length(normalX,normalZ)
+                normalX,normalZ=normalX/length,normalZ/length
+            end
             local inward=stepX*normalX+stepZ*normalZ
             local approach=stepLength>1e-8 and M.clamp(-inward/stepLength,0,1) or 1
             local impactSpeed=p.speed*approach

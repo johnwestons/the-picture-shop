@@ -4,7 +4,7 @@ local Rider=require('src.commute.rider')
 local Truck=require('src.commute.delivery_truck')
 local Gear=require('src.commute.gear')
 local Copy=require('src.net.shop_replication').copy
-local P={PART_VALUES=24}
+local P={PART_VALUES=64}
 local common={'x','z','heading','speed','distance','h','pitch','vx','vz','vy','reverse'}
 local function fields(extra)
     local result={};for _,v in ipairs(common) do result[#result+1]=v end
@@ -32,6 +32,14 @@ end
 local booleans={reverse=true,boosting=true,collisionContact=true,frontGrounded=true,rearGrounded=true,
     grounded=true,engine=true,moving=true,cartPushing=true,['service.mechanicalFailure']=true}
 P.booleans=booleans
+local access={}
+for mode,names in pairs(P.fields)do
+    access[mode]={}
+    for i,key in ipairs(names)do
+        local parent,field=key:match('^([^.]+)%.(.+)$')
+        access[mode][i]={parent=parent,field=field or key,boolean=booleans[key]}
+    end
+end
 local function fieldTarget(body,key)
     local parent,field=key:match('^([^.]+)%.(.+)$')
     if parent then body[parent]=body[parent] or {};return body[parent],field end
@@ -57,13 +65,89 @@ end
 function P.capture(part,token)
     local mode=P.mode(part);if not mode then return nil end
     local values={};local body=actor(part,mode)
-    for i,key in ipairs(P.fields[mode]) do
-        local parent,field=key:match('^([^.]+)%.(.+)$')
-        local value=parent and body[parent] and body[parent][field] or body[key]
-        if booleans[key] then value=value==true and 1 or 0 else value=tonumber(value) or 0 end
-        values[i]=math.floor(value*1000000+.5)/1000000
+    for i,field in ipairs(access[mode]) do
+        local source=body
+        if field.parent then source=body[field.parent]end
+        local value=source and source[field.field]
+        if field.boolean then value=value==true and 1 or 0 else value=tonumber(value) or 0 end
+        -- Binary checkpoint doubles preserve the host's actual integration
+        -- seed. Decimal rounding amplified into RPM/velocity derivative drift
+        -- on the next step and forced otherwise unnecessary history replay.
+        values[i]=value
     end
     return {key=P.key(part,token),mode=mode,values=values}
+end
+function P.captureLocal(player)
+    local prediction=player and player._predictedCommute
+    return prediction and P.capture(prediction.part,prediction.token) or nil
+end
+local function matches(left,right,except)
+    if type(left)~='table' or type(right)~='table' or left.key~=right.key or left.mode~=right.mode then return false end
+    local names=P.fields[left.mode]
+    if not names or type(left.values)~='table' or type(right.values)~='table'
+        or #left.values~=#names or #right.values~=#names then return false end
+    for i,key in ipairs(names)do
+        local a,b=left.values[i],right.values[i]
+        if type(a)~='number' or type(b)~='number' or a~=a or b~=b
+            or a==math.huge or a==-math.huge or b==math.huge or b==-math.huge then return false end
+        if key==except then
+            -- Only the guarded shared-fuel rebase below may omit this field.
+        elseif booleans[key] or key=='gear' or key=='facing' or key=='shiftDirection' then
+            if a~=b then return false end
+        -- Permit only tiny cross-platform numerical drift. Full-precision
+        -- seeds prevent derivative noise without widening any field tolerance.
+        elseif math.abs(a-b)>1.0001e-6 then return false end
+    end
+    return true
+end
+function P.matches(left,right)return matches(left,right)end
+function P.reconcileSharedTruckFuel(player,history,expected,authoritative)
+    if type(authoritative)~='table'then return false end
+    local mode=authoritative.mode
+    if mode~='box' and mode~='kei' or not matches(expected,authoritative,'fuel') then return false end
+    if type(authoritative.sequence)~='number' or authoritative.sequence<0 or authoritative.sequence>4294967295
+        or authoritative.sequence~=math.floor(authoritative.sequence) then return false end
+    local prediction=player and player._predictedCommute
+    if not prediction or prediction.key~=authoritative.key or prediction.mode~=mode then return false end
+    local body=prediction.rider and prediction.rider.truck
+    if not body or body.model~=mode or body.engine~=true or type(history)~='table' or #history>240 then return false end
+    local fuelIndex,engineIndex
+    for i,key in ipairs(P.fields[mode])do
+        if key=='fuel'then fuelIndex=i elseif key=='engine'then engineIndex=i end
+    end
+    local before,after=expected.values[fuelIndex],authoritative.values[fuelIndex]
+    local delta=after-before
+    -- Company trucks share fuel: another driver's consumption changes our
+    -- fuel independently of our input sequence. Positive changes/refills and
+    -- engine transitions retain ordinary authoritative restore/replay.
+    if delta>=0 or delta< -Truck.TANK_LITERS or expected.values[engineIndex]~=1
+        or authoritative.values[engineIndex]~=1 then return false end
+    -- Keep two units of the existing comparison tolerance above empty. This
+    -- conservative 0.013m fuel margin always uses full replay at depletion.
+    local margin=2e-6
+    local function safe(value)
+        return type(value)=='number' and value==value and value>margin and value<=Truck.TANK_LITERS
+    end
+    if not safe(before) or not safe(after) or not safe(body.fuel) or not safe(body.fuel+delta) then return false end
+    local updates={}
+    for _,command in ipairs(history)do
+        if type(command.sequence)~='number' or command.sequence<0 or command.sequence>4294967295
+            or command.sequence~=math.floor(command.sequence) then return false end
+        if command.sequence>authoritative.sequence then
+            local checkpoint=command.checkpoint
+            if not checkpoint or checkpoint.key~=authoritative.key or checkpoint.mode~=mode
+                or not P.matches(checkpoint,checkpoint) or checkpoint.values[engineIndex]~=1 then return false end
+            local old=checkpoint.values[fuelIndex]
+            local value=old+delta
+            if not safe(old) or not safe(value) then return false end
+            updates[#updates+1]={checkpoint=checkpoint,fuel=value}
+        end
+    end
+    -- Preflight every retained checkpoint before changing any private state.
+    expected.values[fuelIndex]=after
+    for _,update in ipairs(updates)do update.checkpoint.values[fuelIndex]=update.fuel end
+    body.fuel=body.fuel+delta
+    return true
 end
 function P.ensure(player,part,token)
     local key=P.key(part,token)
@@ -120,9 +204,8 @@ function P.restore(player,part,token,snapshot)
         local target,field=fieldTarget(body,key)
         if booleans[key] then target[field]=snapshot.values[i]==1 else target[field]=snapshot.values[i] end
     end
-    -- Quantization must not make Bike.update mistake replicated lateral
-    -- velocity for an intentional scalar-speed reset.
-    if prediction.mode=='bike' then body._velocitySpeed=body.speed end
+    -- Preserve _velocitySpeed as captured: Bike.update uses a real difference
+    -- from speed to detect an intentional host reset, including after impact.
     return true
 end
 function P.controls(rider,x,y,boost)
@@ -130,7 +213,7 @@ function P.controls(rider,x,y,boost)
         and {steer=x,drive=y,boost=rider.vehicle~='truck' and boost==true}
         or {walkX=x,walkZ=y,sprint=boost==true}
 end
-function P.step(player,part,token,dt,x,y,boost,world,state)
+function P.step(player,part,token,dt,x,y,boost,world,state,visitors)
     local prediction=P.ensure(player,part,token);if not prediction then return false end
     local mode=prediction.mode
     if mode=='grocery' or mode=='barn' then
@@ -140,19 +223,25 @@ function P.step(player,part,token,dt,x,y,boost,world,state)
     else
         local rider=prediction.rider
         local controls=P.controls(rider,x,y,boost)
-        controls.walkScale=require('src.player_medical').speed(state,player)
-        if rider.vehicle=='truck' then
-            local trip=state.home and state.home.commute
-            local run=trip and (not trip.independent or trip.deliveryDriver==require('src.home_residents').key(player)) and trip.deliveryRun
-            if run and run.status=='loading' then
-                local loaded=require('src.commute.delivery_run').loadingProgress(state,run)
-                if (loaded or 0)>0 and require('src.commute.trip').truckAtLoadingBay(world,rider.truck) then
-                    controls={drive=0,steer=0,brake=1}
+        controls.walkScale=require('src.player_medical').speed(state,player,true)
+        local function step()
+            if rider.vehicle=='truck' then
+                local trip=state.home and state.home.commute
+                local run=trip and (not trip.independent or trip.deliveryDriver==require('src.home_residents').key(player)) and trip.deliveryRun
+                if run and run.status=='loading' then
+                    local loaded=require('src.commute.delivery_run').loadingProgress(state,run)
+                    if (loaded or 0)>0 and require('src.commute.trip').truckAtLoadingBay(world,rider.truck) then
+                        controls={drive=0,steer=0,brake=1}
+                    end
                 end
-            end
-            Truck.update(rider.truck,controls,dt,world)
-            rider.ped.x,rider.ped.z,rider.ped.heading=rider.truck.x,rider.truck.z,rider.truck.heading
-        else Rider.update(rider,controls,dt,world) end
+                Truck.update(rider.truck,controls,dt,world)
+                rider.ped.x,rider.ped.z,rider.ped.heading=rider.truck.x,rider.truck.z,rider.truck.heading
+            else Rider.update(rider,controls,dt,world) end
+        end
+        local trip=state.home and state.home.commute
+        local source=trip and trip.participants and trip.participants[require('src.home_residents').key(player)]
+        require('src.commute.delivery_traffic').withPredictionObstacles(state,world,
+            source and source.rider or part.rider,visitors,step)
     end
     return true
 end

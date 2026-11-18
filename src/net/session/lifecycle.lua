@@ -147,6 +147,9 @@ function Component.install(Runtime)
         self.crisisAssembly = {}
         self.fightReceivedAt = nil
         self.lastPlayerTicks = {}
+        self.linkReadyAt=nil;self.lastAuthoritativeSnapshotAt=nil
+        self.lastAdvancingInputAckAt=nil;self.lastAcknowledgedInputSequence=nil
+        self.linkInputPendingSince=nil
         self.roomBalls,self.roomBallTicks={},{}
         self.inputSequence = 0
         self.commandPrediction=nil;self.commandPredictionActive=false
@@ -162,6 +165,9 @@ function Component.install(Runtime)
         self.shopFallbackAccumulator = 0
         self.broadcastTownId=nil
         self.receivedTown=nil
+        self.sharedValidation=nil
+        self.hostSnapshotValidation=nil
+        self.motionCadence=nil
         self.shopRevision = 0
         self.shopPeers={}
         self.shopHistory=nil

@@ -2,6 +2,7 @@
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
 local TruckMotion = require('src.commute.truck_motion')
+local MotionBuffer=require('src.net.motion_buffer')
 
 local function smoothCommuteMotion(player,dt)
     local target=player and player._targetRecord
@@ -159,8 +160,9 @@ function Component.install(Runtime)
             if id ~= self.localId and player._targetRecord then
                 local startX, startY = player.x, player.y
                 local lx,ly=lead(player)
-                player.x = player.x + (player._targetX + lx - player.x) * alpha
-                player.y = player.y + (player._targetY + ly - player.y) * alpha
+                local bufferedX,bufferedY=MotionBuffer.sample(player,dt)
+                player.x = bufferedX or player.x + (player._targetX + lx - player.x) * alpha
+                player.y = bufferedY or player.y + (player._targetY + ly - player.y) * alpha
                 local dx, dy = player.x - startX, player.y - startY
                 local distance = math.sqrt(dx * dx + dy * dy)
                 Runtime.copyMotion(player, player._targetRecord, false)

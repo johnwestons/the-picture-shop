@@ -120,6 +120,31 @@ function Component.install(Runtime)
         return Runtime.handleMultiplayerHudAction(action)
     end
 
+    -- These scenes return before the ordinary warehouse HUD/input dispatch.
+    -- Admission must remain reachable while the host visits town or plays Story.
+    function Runtime.sceneMultiplayerHudVisible()
+        return Runtime.MultiplayerHud.isOpen()
+            or (Runtime.multiplayer:hudInfo().pendingJoinCount or 0)>0
+    end
+
+    function Runtime.drawSceneMultiplayerHud()
+        -- Keep the closed session controls clear of the outdoor navigation HUD.
+        -- A join request opens this panel automatically, including during Story.
+        if Runtime.sceneMultiplayerHudVisible() then
+            Runtime.MultiplayerHud.draw(Runtime.multiplayerHudInfo())
+        end
+    end
+
+    function Runtime.sceneMultiplayerHudPointer(x,y,button)
+        local scene=Runtime.World.player.sceneId
+        if Runtime.state.screen~="world" then return false end
+        if scene~="commute" and scene~="grocery" and scene~="barn"
+            and not require('src.story_opening').active(Runtime)
+            and not require('src.story_grand_opening').active(Runtime) then return false end
+        if not Runtime.sceneMultiplayerHudVisible() then return false end
+        return Runtime.multiplayerHudMousepressed(x,y,button)
+    end
+
     function Runtime.multiplayerHudMousereleased(gameX, gameY, button)
         if Runtime.state.screen ~= "world" then return false end
         return Runtime.MultiplayerHud.mousereleased(

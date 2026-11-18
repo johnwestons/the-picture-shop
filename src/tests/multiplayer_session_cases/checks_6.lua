@@ -29,9 +29,14 @@ function Component.run(Context)
     Context.terminalRelocationEvents = Context.syncClient:drainEvents()
     Context.terminalRelocation = Context.eventNamed(Context.terminalRelocationEvents, "pallet_jack_state")
 
-    -- Terminal poses keep streaming after placement. This makes the final
+    -- Terminal poses repeat on the bounded idle refresh after placement. This makes the final
     -- machine location self-healing even if the first unreliable terminal
     -- packet was dropped or crossed a reliable durable update.
+    Context.syncHost:update(0.1, Context.syncHostContext)
+    Context.syncClient:update(0, Context.syncClientContext)
+    Context.check('multiplayer_session_unchanged_terminal_pose_waits_for_bounded_refresh',
+        Context.eventNamed(Context.syncClient:drainEvents(),'pallet_jack_state')==nil)
+    Context.now=Context.now+require('src.net.snapshot_refresh').INTERVAL
     Context.syncHost:update(0.1, Context.syncHostContext)
     Context.syncClient:update(0, Context.syncClientContext)
     Context.repeatedTerminalEvents = Context.syncClient:drainEvents()

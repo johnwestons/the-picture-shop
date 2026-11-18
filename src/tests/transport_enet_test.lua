@@ -15,6 +15,9 @@ local function fakePeer(log)
     function peer:connect_id() return 77 end
     function peer:index() return 2 end
     function peer:state() return "connected" end
+    function peer:throttle_configure(interval, acceleration, deceleration)
+        log[#log + 1] = { "throttle", interval, acceleration, deceleration }
+    end
     return peer
 end
 
@@ -153,6 +156,15 @@ function Test.run(_, check)
         and hostEnet.creations[1].peers == 3 and hostEnet.creations[1].channels == 3
         and transport.maxGuests == 3 and transport.peerCapacity == 3)
 
+    check('enet_missing_rtt_telemetry_is_optional',transport:peerRoundTripTime(peer)==nil)
+    peer.round_trip_time=function(_,...)assert(select('#',...)==0,'RTT getter must never set native estimates');return 156 end
+    check('enet_rtt_telemetry_reads_native_milliseconds_without_mutation',transport:peerRoundTripTime(peer)==156)
+    peer.round_trip_time=function()error('native peer unavailable')end
+    check('enet_rtt_telemetry_contains_native_read_failures',transport:peerRoundTripTime(peer)==nil)
+    peer.round_trip_time=function()return 0/0 end
+    check('enet_rtt_telemetry_rejects_nonfinite_results',transport:peerRoundTripTime(peer)==nil)
+    peer.round_trip_time=nil
+
     local directCapacityEnet = fakeEnet()
     local directCapacity = Transport.createHost({
         enet = directCapacityEnet,
@@ -180,6 +192,9 @@ function Test.run(_, check)
         and events[1].code == 4
         and events[2].type == "receive" and events[2].payload == "hello"
         and events[2].channel == 2 and events[3].code == 9)
+    local throttle = callNamed(native.log, "throttle")
+    check("enet_lan_relearns_rtt_without_disabling_congestion_backoff",
+        throttle and throttle[2] == 500 and throttle[3] == 2 and throttle[4] == 2)
 
     transport:send(peer, "motion", 2, false)
     transport:send(peer, "hello", { channel = 0, reliable = true })
@@ -194,6 +209,23 @@ function Test.run(_, check)
         firstSend and firstSend[4] == "unreliable"
         and secondSend and secondSend[4] == "reliable"
         and broadcast and broadcast[4] == "unreliable")
+    local flagStart=#native.log
+    transport:send(peer,'motion',Transport.STATE_CHANNEL,false)
+    transport:broadcast('physics',{channel=Transport.STATE_CHANNEL,reliable=false})
+    transport:send(peer,'explicit-reliable',Transport.STATE_CHANNEL,true)
+    check('enet_state_packets_allow_cross_family_reordering_without_changing_reliability',
+        native.log[flagStart+1][4]=='unsequenced'and native.log[flagStart+2][4]=='unsequenced'
+        and native.log[flagStart+3][4]=='reliable')
+    local sequencedEnet=fakeEnet()
+    local sequenced=assert(Transport.createHost({enet=sequencedEnet,unsequencedState=false}))
+    sequencedEnet.hosts[1].events={{type='connect',peer=sequencedEnet.hosts[1].peer}}
+    sequenced:service()
+    sequenced:send(sequencedEnet.hosts[1].peer,'ordered-state',Transport.STATE_CHANNEL,false)
+    check('enet_state_sequencing_can_be_preserved_by_secure_wrappers',
+        callNamed(sequencedEnet.hosts[1].log,'send')[4]=='unreliable')
+    check('enet_secure_wrappers_keep_default_native_throttle',
+        not callNamed(sequencedEnet.hosts[1].log,'throttle'))
+    sequenced:close()
 
     -- Re-add the connected peer because the synthetic disconnect event above
     -- correctly removed it from the transport's live peer set.
@@ -203,6 +235,7 @@ function Test.run(_, check)
         closed and callNamed(native.log, "disconnect")
         and callNamed(native.log, "flush") and callNamed(native.log, "destroy")
         and transport.closed and transport.nativeHost == nil)
+    check('enet_closed_transport_does_not_read_peer_rtt',transport:peerRoundTripTime(peer)==nil)
 
     local failingEnet = fakeEnet()
     failingEnet.failDestroy = true
@@ -225,7 +258,24 @@ function Test.run(_, check)
     check("enet_client_uses_default_port_without_binding_a_real_socket_in_tests",
         client and clientEnet.creations[1].endpoint == nil
         and connect and connect[2] == "game-pc.local:22122" and connect[3] == 3)
+    clientHost.events={{type='connect',peer=clientHost.peer}}
+    client:service()
+    local clientThrottle=callNamed(clientHost.log,'throttle')
+    check('enet_lan_client_relearns_rtt_with_normal_congestion_backoff',
+        clientThrottle and clientThrottle[2]==500 and clientThrottle[3]==2 and clientThrottle[4]==2)
     if client then client:close() end
+
+    for _,behavior in ipairs({'missing','throwing'})do
+        local optionalEnet=fakeEnet()
+        local optional=assert(Transport.createHost({enet=optionalEnet}))
+        local optionalHost=optionalEnet.hosts[1]
+        optionalHost.peer.throttle_configure=behavior=='throwing'and function()error('unsupported native tuning')end or nil
+        optionalHost.events={{type='connect',peer=optionalHost.peer},{type='receive',peer=optionalHost.peer,data='still connected',channel=0}}
+        local optionalEvents,optionalError=optional:service()
+        check('enet_optional_throttle_'..behavior..'_does_not_interrupt_events',
+            not optionalError and #optionalEvents==2 and optionalEvents[2].data=='still connected')
+        optional:close()
+    end
 
     local directKey = string.rep("d", DirectTransport.KEY_BYTES)
     local admissionTokenKey
@@ -249,6 +299,7 @@ function Test.run(_, check)
         enet = directHostEnet,
         maxGuests = 3,
         channels = 3,
+        unsequencedState = true,
     })
     local directClientFactory = DirectTransport.newFactory({
         baseFactory = Transport,
@@ -259,6 +310,7 @@ function Test.run(_, check)
     local directClient = directClientFactory.createClient("direct.example:22122", {
         enet = directClientEnet,
         channels = 3,
+        unsequencedState = true,
     })
     local directConnect = directClientEnet.hosts[1]
         and callNamed(directClientEnet.hosts[1].log, "connect")
@@ -267,6 +319,16 @@ function Test.run(_, check)
             == DirectTransport.DEFAULT_PEER_CAPACITY
         and admissionTokenKey == directKey
         and directConnect and directConnect[4] == expectedAdmissionToken)
+    check('enet_direct_host_and_client_keep_native_crypto_replay_semantics',
+        directHost and directClient and directHost.base.unsequencedState==false
+        and directClient.base.unsequencedState==false)
+    for _,direct in ipairs({directHostEnet,directClientEnet})do
+        direct.hosts[1].events={{type='connect',peer=direct.hosts[1].peer}}
+    end
+    directHost.base:service();directClient.base:service()
+    check('enet_direct_host_and_client_never_reconfigure_native_throttle',
+        not callNamed(directHostEnet.hosts[1].log,'throttle')
+        and not callNamed(directClientEnet.hosts[1].log,'throttle'))
     if directClient then directClient:close() end
     if directHost then directHost:close() end
 end

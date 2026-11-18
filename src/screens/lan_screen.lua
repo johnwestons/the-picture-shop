@@ -23,8 +23,9 @@ local LanScreen = {
 }
 
 local BUTTONS = {
-    host = { x = 190, y = 294, width = 250, height = 54, label = "HOST THIS SHOP" },
-    join = { x = 520, y = 294, width = 250, height = 54, label = "JOIN A SHOP" },
+    newHost = { x = 190, y = 294, width = 180, height = 54, label = "NEW SHOP & HOST" },
+    host = { x = 390, y = 294, width = 180, height = 54, label = "HOST SAVED SHOP" },
+    join = { x = 590, y = 294, width = 180, height = 54, label = "JOIN A SHOP" },
     connect = { x = 300, y = 374, width = 170, height = 58, label = "CONNECT" },
     cancel = { x = 490, y = 374, width = 170, height = 58, label = "CANCEL" },
     back = { x = 390, y = 510, width = 180, height = 50, label = "BACK" },
@@ -57,6 +58,7 @@ local function buttonAt(x, y)
         end
         if contains(BUTTONS.refresh, x, y) then return "refresh" end
         if contains(BUTTONS.autoJoin, x, y) then return "autoJoin" end
+        if contains(BUTTONS.newHost,x,y) then return "newHost" end
         if contains(BUTTONS.host, x, y) then return "host" end
         if contains(BUTTONS.join, x, y) then return "join" end
         for index, rect in ipairs(DISCOVERY_ROWS) do
@@ -82,6 +84,11 @@ local function requestHost()
     local ok, message = LanScreen.callbacks.host(LanScreen.selectedSlot, playerLabel())
     if ok == false then LanScreen.message = tostring(message or "Could not start the LAN host.") end
     return ok ~= false
+end
+
+local function requestNewHost()
+    if not LanScreen.callbacks or not LanScreen.callbacks.newHost then return false end
+    return LanScreen.callbacks.newHost(LanScreen.selectedSlot,playerLabel())~=false
 end
 
 local function requestJoin()
@@ -395,6 +402,7 @@ end
 
 function LanScreen.keypressed(key)
     if LanScreen.mode == "menu" then
+        if key=="n" then return requestNewHost() end
         if key == "h" or key == "return" or key == "kpenter" then return requestHost() end
         if key == "j" then openManualEntry(); return true end
         if key == "escape" or key == "backspace" then return goBack() end
@@ -433,6 +441,7 @@ function LanScreen.mousepressed(x, y, button)
     end
     local action = buttonAt(x, y)
     LanScreen.pressed = action
+    if action=="newHost" then return requestNewHost() end
     if action == "host" then return requestHost() end
     if action == "join" then openManualEntry(); return true end
     if action == "refresh" then
@@ -491,8 +500,8 @@ local function drawAutoJoinToggle()
     love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height, 4, 4)
     local status = LanScreen.autoJoin and "ON" or "OFF"
     love.graphics.setColor(0.89, 0.93, 0.90, 1)
-    love.graphics.printf("AUTO-JOIN ONE FOUND SHOP: " .. status
-        .. "     (only connects when exactly one matching shop is found)",
+    love.graphics.printf("AUTO-JOIN: " .. status
+        .. "     Connect when one matching shop is found",
         rect.x + 10, rect.y + 11, rect.width - 20, "center")
 end
 
@@ -523,6 +532,7 @@ function LanScreen.draw()
         love.graphics.printf("ADDRESSES ON THIS DEVICE", 190, 258, 580, "left")
         love.graphics.setColor(0.90, 0.92, 0.87)
         love.graphics.printf(adapterSummary(), 190, 274, 580, "center")
+        drawButton("newHost")
         drawButton("host")
         drawButton("join")
         drawAutoJoinToggle()

@@ -949,28 +949,29 @@ local function runFourDeviceShardingRegression(check, clock, addressOptions)
         end
     end
     local shardTick, seenShardIds = nil, {}
-    local shardsValid = #allSnapshots == 12
-        and #selectedSnapshots == 4
-        and snapshotsByPeer[network.peers[1]] == 4
-        and snapshotsByPeer[network.peers[2]] == 4
-        and snapshotsByPeer[network.peers[3]] == 4
+    local shardsValid = #allSnapshots == #selectedSnapshots*3
+        and #selectedSnapshots >= 1 and #selectedSnapshots < 4
+        and snapshotsByPeer[network.peers[1]] == #selectedSnapshots
+        and snapshotsByPeer[network.peers[2]] == #selectedSnapshots
+        and snapshotsByPeer[network.peers[3]] == #selectedSnapshots
         and not pendingPeerReceivedSnapshot
     for _, message in ipairs(selectedSnapshots) do
         local payload = decodedPayload(message)
         shardsValid = shardsValid and payload ~= nil
-            and #payload.players == 1
+            and #payload.players >= 1 and #payload.players <= Protocol.MAX_PLAYERS
             and #message.payload <= Protocol.MAX_PACKET_BYTES
             and message.channel == Protocol.CHANNEL_STATE
             and not message.reliable
         if payload then
             shardTick = shardTick or payload.serverTick
-            local id = payload.players[1].id
-            shardsValid = shardsValid
-                and payload.serverTick == shardTick and not seenShardIds[id]
-            seenShardIds[id] = true
+            shardsValid = shardsValid and payload.serverTick == shardTick
+            for _,record in ipairs(payload.players)do
+                shardsValid=shardsValid and not seenShardIds[record.id]
+                seenShardIds[record.id]=true
+            end
         end
     end
-    check("multiplayer_session_four_player_tick_emits_four_same_tick_snapshot_shards",
+    check("multiplayer_session_four_player_tick_emits_bounded_same_tick_batches",
         shardsValid and shardTick == host.serverTick
         and seenShardIds[1] and seenShardIds[2] and seenShardIds[3] and seenShardIds[4])
 

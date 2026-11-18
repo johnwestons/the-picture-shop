@@ -133,7 +133,7 @@ function Households.advance(state)
     return changed
 end
 
-function Households.valid(host)
+function Households.valid(host,validation)
     local homes=host.clientHomes
     if homes==nil then
         for _,resident in pairs(host.residents or {}) do
@@ -150,7 +150,7 @@ function Households.valid(host)
             or type(private)~='table' or private.apartmentId~=resident.apartmentId then return false end
         for key in pairs(private) do if not keys[key] then return false end end
         for _,key in ipairs(personal) do if private[key]==nil then return false end end
-        if not require('src.home').valid(Households.view(host,private),true) then return false end
+        if not require('src.home').valid(Households.view(host,private),true,validation) then return false end
     end
     for id,resident in pairs(host.residents or {}) do
         if resident.clientSlot and homes[id]==nil then return false end

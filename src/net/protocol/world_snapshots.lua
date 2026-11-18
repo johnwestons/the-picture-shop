@@ -135,15 +135,21 @@ function Component.install(Runtime)
         if payload.commands~=nil or payload.commandKey~=nil then
             commandKey,fieldError=Runtime.token(payload.commandKey,64,'input.commandKey')
             if not commandKey then return nil,fieldError end
-            if not Runtime.Codec.isArray(payload.commands) or #payload.commands<1 or #payload.commands>12
-                or sequence<#payload.commands then return nil,'Invalid movement command batch' end
-            commands=Runtime.Codec.array({})
-            for _,frame in ipairs(payload.commands) do
-                if not Runtime.Codec.isArray(frame) or #frame~=3
-                    or not Runtime.integerInRange(frame[1],-1000,1000,'command.x')
-                    or not Runtime.integerInRange(frame[2],-1000,1000,'command.y')
-                    or not Runtime.integerInRange(frame[3],0,1,'command.boost') then return nil,'Invalid movement command' end
-                commands[#commands+1]=Runtime.Codec.array({frame[1],frame[2],frame[3]})
+            if type(payload.commands)=='string' then
+                local count=require('src.net.movement_commands').count(payload.commands)
+                if not count or sequence<count then return nil,'Invalid packed movement command batch' end
+                commands=payload.commands
+            else
+                if not Runtime.Codec.isArray(payload.commands) or #payload.commands<1 or #payload.commands>12
+                    or sequence<#payload.commands then return nil,'Invalid movement command batch' end
+                commands=Runtime.Codec.array({})
+                for _,frame in ipairs(payload.commands) do
+                    if not Runtime.Codec.isArray(frame) or #frame~=3
+                        or not Runtime.integerInRange(frame[1],-1000,1000,'command.x')
+                        or not Runtime.integerInRange(frame[2],-1000,1000,'command.y')
+                        or not Runtime.integerInRange(frame[3],0,1,'command.boost') then return nil,'Invalid movement command' end
+                    commands[#commands+1]=Runtime.Codec.array({frame[1],frame[2],frame[3]})
+                end
             end
         end
         return { sessionId = sessionId, sequence = sequence, moveX = moveX, moveY = moveY,name=payload.name,
@@ -171,9 +177,14 @@ function Component.install(Runtime)
             if not result[key] then return nil,err end
         end
         local count=math.min(P.PART_VALUES,#P.fields[payload.mode]-(result.part-1)*P.PART_VALUES)
-        if not Runtime.Codec.isArray(payload.values) or #payload.values~=count then return nil,'Invalid physics shard size' end
+        local values=payload.values
+        if type(values)=='string' then
+            values,err=require('src.net.prediction_wire').unpack(values,count)
+            if not values then return nil,err end
+        end
+        if not Runtime.Codec.isArray(values) or #values~=count then return nil,'Invalid physics shard size' end
         result.values=Runtime.Codec.array({})
-        for i,value in ipairs(payload.values) do
+        for i,value in ipairs(values) do
             local normalized=Runtime.numberInRange(value,-1e12,1e12,'prediction_snapshot.value')
             if normalized==nil then return nil,'Invalid physics value' end
             local field=P.fields[payload.mode][(result.part-1)*P.PART_VALUES+i]
@@ -195,14 +206,17 @@ function Component.install(Runtime)
         if not serverTick then return nil, fieldError end
         local ballShard=Runtime.Codec.isArray(payload.players) and #payload.players==0
             and Runtime.Codec.isArray(payload.balls) and #payload.balls==1 and payload.games==nil
-        if not Runtime.Codec.isArray(payload.players) or #payload.players~=1 and not ballShard then
-            return nil, "snapshot.players must contain one player or one ball shard"
+        if not Runtime.Codec.isArray(payload.players) or not ballShard and
+            (#payload.players<1 or #payload.players>Runtime.Protocol.MAX_PLAYERS
+                or (payload.bike~=nil or payload.truck~=nil) and #payload.players~=1) then
+            return nil, "snapshot.players must contain a bounded player batch or one vehicle/ball shard"
         end
         local players
         if ballShard then players=Runtime.Codec.array({}) else players,fieldError=Runtime.normalizePlayers(payload.players,"snapshot.players") end
         if not players then return nil, fieldError end
         local bike=payload.bike
         if bike~=nil then
+            if Runtime.Codec.isArray(bike)then bike=require('src.net.vehicle_wire').unpack('bike',bike)end
             if not players[1] or players[1].sceneId~='commute'
                 or not Runtime.shape(bike,"snapshot.bike",{"token","heading","speed","steer","brake"})
                 or not Runtime.integerInRange(bike.token,1,1e12,"bike.token")
@@ -215,6 +229,7 @@ function Component.install(Runtime)
         end
         local truck=payload.truck
         if truck~=nil then
+            if Runtime.Codec.isArray(truck)then truck=require('src.net.vehicle_wire').unpack('truck',truck)end
             if bike or not players[1] or players[1].sceneId~='commute'
                 or not Runtime.shape(truck,'snapshot.truck',
                     {'token','model','heading','speed','steer','brake','throttle','reverse','h','pitch'})

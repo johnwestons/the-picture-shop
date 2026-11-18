@@ -140,17 +140,19 @@ function Component.run(Context)
     Context.authoritativeX, Context.authoritativeY = Context.host.players[2].x, Context.host.players[2].y
     Context.snapshots = Context.network:messages("host_to_client", "snapshot")
     Context.guestSnapshot, Context.sharedSnapshotTick = nil
-    Context.snapshotShardsValid = #Context.snapshots == 2
+    Context.snapshotShardsValid = #Context.snapshots == 1
     for _, message in ipairs(Context.snapshots) do
         local payload = Context.decodedPayload(message)
         Context.snapshotShardsValid = Context.snapshotShardsValid and payload ~= nil
-            and #payload.players == 1
+            and #payload.players == 2
             and #message.payload <= Context.Protocol.MAX_PACKET_BYTES
         if payload then
             Context.sharedSnapshotTick = Context.sharedSnapshotTick or payload.serverTick
             Context.snapshotShardsValid = Context.snapshotShardsValid
                 and payload.serverTick == Context.sharedSnapshotTick
-            if payload.players[1].id == 2 then Context.guestSnapshot = payload end
+            for _,record in ipairs(payload.players)do
+                if record.id == 2 then Context.guestSnapshot = payload end
+            end
         end
     end
     Context.check("multiplayer_session_host_snapshot_returns_guest_motion_to_client",

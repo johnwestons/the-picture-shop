@@ -74,7 +74,7 @@ function Component.install(Runtime)
         return true
     end
 
-    function Runtime.Schema.snapshot(state)
+    local function snapshot(state,validation)
         local committedPlacements = {}
         for _, kind in ipairs({ "cutter", "wrapper", "windmill" }) do
             local item = type(state) == "table" and state[kind] or nil
@@ -92,7 +92,7 @@ function Component.install(Runtime)
                 }
             end
         end
-        local result, reason = Runtime.normalizeState(state)
+        local result, reason = Runtime.normalizeState(state,nil,validation)
         if not result then return nil, reason end
         for kind, origin in pairs(committedPlacements) do
             result[kind].x, result[kind].y = origin.x, origin.y
@@ -140,8 +140,24 @@ function Component.install(Runtime)
         return result
     end
 
+    function Runtime.Schema.snapshot(state)
+        return snapshot(state)
+    end
+
+    function Runtime.Schema.networkSnapshot(state,handle)
+        local home=type(state)=='table' and state.home
+        local town=type(home)=='table' and home.town or nil
+        local validation,valid=require('src.net.host_snapshot_validation').prepare(handle,town)
+        if not valid then return nil,'Invalid household or apartment lease.' end
+        return snapshot(state,validation)
+    end
+
     function Runtime.Schema.validState(state)
         return Runtime.persistentState(state)
+    end
+
+    function Runtime.Schema.validSharedState(state,handle)
+        return Runtime.persistentState(state,require('src.net.shared_validation').context(handle))
     end
 
     function Runtime.Schema.newPayload(slot, timestamp)

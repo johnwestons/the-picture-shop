@@ -244,8 +244,8 @@ end
 -- A LAN guest receives only the host's normalized persistent shop state. The
 -- guest intentionally has no local save slot, so autosave and quit can never
 -- overwrite one of its offline shops.
-function State.applySharedSnapshot(state, snapshot)
-    if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+function State.applySharedSnapshot(state, snapshot,validation)
+    if type(snapshot) ~= "table" or not SaveSchema.validSharedState(snapshot,validation) then return false end
     local staged = {}
     if not State.applySave(staged, { state = snapshot, slot = nil }) then return false end
     for _, field in ipairs(SHARED_FIELDS) do state[field] = staged[field] end
@@ -270,8 +270,8 @@ end
 
 -- Continuous authoritative updates replace only durable domain fields. The
 -- guest keeps its local screen/message/input state and never gains a save slot.
-function State.applySharedUpdate(state, snapshot, changed)
-    if type(snapshot) ~= "table" or not SaveSchema.validState(snapshot) then return false end
+function State.applySharedUpdate(state, snapshot, changed,validation)
+    if type(snapshot) ~= "table" or not SaveSchema.validSharedState(snapshot,validation) then return false end
     if changed then
         -- These domains arrive already normalized by the host and have no
         -- warehouse ownership migrations. A moving outdoor actor should not

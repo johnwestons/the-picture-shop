@@ -10,6 +10,8 @@ Transport.MAX_PEERS = 16
 Transport.MIN_CHANNELS = 3
 Transport.DEFAULT_CHANNELS = 3
 Transport.MAX_EVENTS_PER_SERVICE = 64
+Transport.STATE_CHANNEL = 1
+Transport.LAN_THROTTLE_INTERVAL = 500
 
 local cachedEnet
 
@@ -88,6 +90,7 @@ local function newInstance(mode, nativeHost, options)
         _closeOk = nil,
         _closeError = nil,
         _peers = {},
+        unsequencedState = options.unsequencedState ~= false,
     }, Instance)
 end
 
@@ -129,6 +132,7 @@ function Transport.createHost(options)
         channels = channels,
         maxGuests = maxGuests,
         peerCapacity = peerCapacity,
+        unsequencedState = options.unsequencedState,
     })
 end
 
@@ -169,6 +173,7 @@ function Transport.createClient(address, options)
         endpoint = parsed.endpoint,
         channels = channels,
         peer = peer,
+        unsequencedState = options.unsequencedState,
     })
     instance._peers[peer] = true
     instance.compatibilityFallback=compatibilityFallback
@@ -184,6 +189,13 @@ function Instance:poll()
     if event.type == "connect" and event.peer then
         self._peers[event.peer] = true
         if self.mode == "client" then self.peer = event.peer end
+        if self.unsequencedState then
+            -- A five-second RTT baseline can suppress movement for seconds
+            -- after Wi-Fi latency rises even without congestion. Relearn it
+            -- sooner while keeping ENet's normal acceleration/deceleration and
+            -- bandwidth limits. Direct keeps its existing native policy.
+            protectedMethod(event.peer, "throttle_configure", Transport.LAN_THROTTLE_INTERVAL, 2, 2)
+        end
     elseif event.type == "disconnect" and event.peer then
         self._peers[event.peer] = nil
         if self.peer == event.peer then self.peer = nil end
@@ -220,18 +232,22 @@ local function sendSucceeded(result)
     return true
 end
 
+local function packetFlag(instance,channel,reliable)
+    if reliable then return 'reliable' end
+    -- Independent state families already reject stale ticks/sequences. ENet's
+    -- shared unreliable sequence would otherwise discard valid movement or
+    -- physics shards when a newer, unrelated packet arrives first on Wi-Fi.
+    if channel==Transport.STATE_CHANNEL and instance.unsequencedState then return 'unsequenced' end
+    return 'unreliable'
+end
+
 function Instance:send(peer, payload, channelOrOptions, reliable)
     if self.closed then return false, "Transport is closed." end
     if type(payload) ~= "string" then return false, "Network payload must be a string." end
     local channel, useReliable = sendOptions(channelOrOptions, reliable)
     channel = wholeNumber(channel, 0, self.channels - 1)
     if not channel then return false, "Network channel is outside this session's channel range." end
-    local ok, result
-    if useReliable then
-        ok, result = protectedMethod(peer, "send", payload, channel, "reliable")
-    else
-        ok, result = protectedMethod(peer, "send", payload, channel, "unreliable")
-    end
+    local ok, result = protectedMethod(peer, "send", payload, channel,packetFlag(self,channel,useReliable))
     if not ok then return false, "ENet send failed: " .. tostring(result) end
     local succeeded = sendSucceeded(result)
     return succeeded, not succeeded and "ENet rejected the packet." or nil
@@ -248,12 +264,7 @@ function Instance:broadcast(payload, channelOrOptions, reliable)
     local channel, useReliable = sendOptions(channelOrOptions, reliable)
     channel = wholeNumber(channel, 0, self.channels - 1)
     if not channel then return false, "Network channel is outside this session's channel range." end
-    local ok, result
-    if useReliable then
-        ok, result = protectedMethod(self.nativeHost, "broadcast", payload, channel, "reliable")
-    else
-        ok, result = protectedMethod(self.nativeHost, "broadcast", payload, channel, "unreliable")
-    end
+    local ok, result = protectedMethod(self.nativeHost, "broadcast", payload, channel,packetFlag(self,channel,useReliable))
     if not ok then return false, "ENet broadcast failed: " .. tostring(result) end
     local succeeded = sendSucceeded(result)
     return succeeded, not succeeded and "ENet rejected the broadcast." or nil
@@ -264,6 +275,16 @@ function Instance:flush()
     local ok, result = protectedMethod(self.nativeHost, "flush")
     if ok then return true end
     return false, "ENet flush failed: " .. tostring(result)
+end
+
+-- The native binding returns its smoothed reliable-ACK RTT in milliseconds.
+-- Read only: do not override ENet's estimates or congestion/throttle settings.
+function Instance:peerRoundTripTime(peer)
+    if self.closed or not self.nativeHost then return nil end
+    if type(peer)~='table'and type(peer)~='userdata'then return nil end
+    local okay,value=protectedMethod(peer,'round_trip_time')
+    if not okay or type(value)~='number'or value~=value or value<0 or value>60000 then return nil end
+    return value
 end
 
 function Instance:disconnect(peer, code, immediate)

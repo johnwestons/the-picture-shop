@@ -162,6 +162,7 @@ function Smoke.start(context)
         elseif focus=='story-intro' then
             require('src.tests.story_intro_test').run(context,check)
             require('src.tests.story_departure_test').run(context,check)
+            require('src.commute.tests.view_lifecycle_test').run(context,check)
             require('src.commute.tests.rider_scale_test').run(check)
             require('src.tests.home_mop_art_test').run(check)
         elseif focus=='commute-day-night' then
@@ -422,11 +423,14 @@ function Smoke.start(context)
         elseif focus=='late-game-traffic' then
             require('src.commute.tests.delivery_traffic_test').run(check)
             require('src.tests.late_game_load_test').run(context,check)
+        elseif focus=='commute-view-lifecycle' then
+            require('src.commute.tests.view_lifecycle_test').run(context,check)
         elseif focus=='commute' then
             require('src.commute.tests.foot_tracks_test').run(check)
             require('src.commute.tests.truck_multiplayer_test').run(context,check)
             require('src.commute.tests.runtime_test').run(context,check)
             require('src.commute.tests.session_test').run(context,check)
+            require('src.commute.tests.view_lifecycle_test').run(context,check)
             for _,name in ipairs({'lua_limits','weekend_flow','private_home_session','network_protocol','save_contract'}) do
                 require('src.tests.'..name..'_test').run(context,check)
             end

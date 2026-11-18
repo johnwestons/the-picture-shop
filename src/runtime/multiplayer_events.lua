@@ -13,11 +13,16 @@ function Component.install(Runtime)
                 Runtime.warehousePendingIntent=nil
                 Runtime.warehouseControls:reset("The warehouse connection was restarted.")
                 Runtime.Machine.resetNetworkReplica()
-                if not Runtime.State.applySharedSnapshot(Runtime.state, event.state) then
+                if not Runtime.State.applySharedSnapshot(Runtime.state, event.state,event.validation) then
                     Runtime.showConnectionError(
                         "The host sent a shop snapshot this build could not apply.",
                         "Invalid shared shop snapshot")
                 else
+                    -- A ready event can replace an outdoor session before its
+                    -- next simulation update, including a same-town reconnect.
+                    -- GPU assets and local cutscenes belong to the old session.
+                    require('src.commute.runtime').release(Runtime)
+                    Runtime._storyOpening,Runtime._grandOpening=nil,nil
                     Runtime.State.enableSharedHistory(Runtime.state)
                     require('src.client_households').activateClient(Runtime.state,
                         Runtime.multiplayer.residentId)
@@ -38,7 +43,7 @@ function Component.install(Runtime)
                 end
                 Runtime.syncMobileKeyboard()
             elseif event.type == "shop_state" then
-                if not Runtime.State.applySharedUpdate(Runtime.state, event.state,event.changed) then
+                if not Runtime.State.applySharedUpdate(Runtime.state, event.state,event.changed,event.validation) then
                     Runtime.showConnectionError(
                         "The host sent a shop update this build could not apply.",
                         "Invalid durable shop update")
@@ -248,14 +253,17 @@ function Component.install(Runtime)
                         .. tostring(address) .. ":" .. tostring(event.port or 22122) .. "."
                 end
             elseif event.type == "approval_waiting" then
-                Runtime.DirectScreen.setMessage(event.message
-                    or "Encrypted request sent. Waiting for the host to approve this player.",
-                    "connecting")
+                if Runtime.multiplayer.networkKind=='lan' then
+                    Runtime.LanScreen.setMessage("Waiting for the host to choose NEW CLIENT or your saved profile in Players.","connecting")
+                else
+                    Runtime.DirectScreen.setMessage(event.message
+                        or "Encrypted request sent. Waiting for the host to approve this player.","connecting")
+                end
             elseif event.type == "join_requested" then
                 Runtime.MultiplayerHud.open(Runtime.multiplayerHudInfo())
                 Runtime.state.message = tostring(event.name or "A player")
                     .. (event.unmatched
-                        and " is using an unrecognized identity. Choose a client profile in the Players panel."
+                        and " is joining from a new device. Choose NEW CLIENT or their saved profile in Players."
                         or " requested access. Choose APPROVE or DENY in the Players panel.")
             elseif event.type == "join_cancelled" then
                 Runtime.state.message = "The pending player disconnected."

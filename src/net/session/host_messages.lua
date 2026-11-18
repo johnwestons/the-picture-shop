@@ -105,7 +105,7 @@ function Component.install(Runtime)
                 state = live,
                 player = shop.player,
             })
-            if shopOk then self:_rememberShopPeer(peer,live,history) end
+            if shopOk then self:_rememberShopPeer(peer,live,history,true) end
         else
             shopError = shopError or "The host could not prepare a safe shop snapshot."
         end
@@ -248,6 +248,14 @@ function Component.install(Runtime)
             local player = self.players[id]
             if not player or payload.sequence <= (player.lastInputSequence or -1) then return end
             player.lastInputSequence = payload.sequence
+            local shopPeer=self.shopPeers and self.shopPeers[peer]
+            if shopPeer and shopPeer.awaitingReady then
+                -- Clients only emit input after applying the initial snapshot.
+                -- Coalesce intervening changes instead of queueing durable work
+                -- behind a large join transfer on a slow connection.
+                shopPeer.awaitingReady=false
+                self:markShopDirty(true)
+            end
             self:_queueMovementCommands(player,payload,context)
             player.inputX, player.inputY = payload.moveX, payload.moveY
             player.inputBoost = payload.boost == true

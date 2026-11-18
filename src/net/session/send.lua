@@ -1,6 +1,7 @@
 -- Transport encoding, sending, and protocol rejection.
 -- Runtime is private to this module; shared state remains live across components.
 local Component = {}
+local Refresh = require('src.net.snapshot_refresh')
 
 function Component.install(Runtime)
     function Runtime.Session:_encode(kind, payload)
@@ -40,14 +41,30 @@ function Component.install(Runtime)
     -- broadcast also includes sockets still waiting in pendingPeers.
     function Runtime.Session:_broadcastJoined(kind, payload)
         if not self.transport then return false, "Transport is unavailable.", 0 end
+        Refresh.prune(self)
         if not next(self.idToPeer) then return true, nil, 0 end
+        local channel, reliable = self:_route(kind)
+        local realtime = channel == Runtime.Protocol.CHANNEL_STATE and not reliable
+        local key, now = Refresh.key(kind, payload), self.clock()
+        local recipients = {}
+        for _, peer in pairs(self.idToPeer) do
+            local shopPeer = self.shopPeers and self.shopPeers[peer]
+            -- Until the initial shop is applied the client cannot consume
+            -- realtime state. Leave its refresh baseline untouched so the first
+            -- confirmed-ready frame delivers every current auxiliary family.
+            local deferred = realtime and shopPeer and shopPeer.awaitingReady
+            if not deferred and Refresh.due(self, peer, key, kind, payload, now) then
+                recipients[#recipients + 1] = peer
+            end
+        end
+        if #recipients == 0 then return true, nil, 0 end
         local encoded, encodeError = self:_encode(kind, payload)
         if not encoded then return false, encodeError, 0 end
-        local channel, reliable = self:_route(kind)
         local sent = 0
-        for _, peer in pairs(self.idToPeer) do
+        for _, peer in ipairs(recipients) do
             local ok, sendError = self.transport:send(peer, encoded, channel, reliable)
             if not ok then return false, sendError, sent end
+            Refresh.remember(self, peer, key, payload, now)
             sent = sent + 1
         end
         return true, nil, sent
